@@ -37,7 +37,7 @@ def example_data_file():
 
     # Array of times
     time = [start_date + i * time_delta for i in range(N)]
-    time_str = [t.strftime("%Y-%m-%d %H:%M:%S.%f") for t in time]
+    time_str = [t.strftime('%Y-%m-%d %H:%M:%S.%f') for t in time]
 
     ax, ay, Rx, Ry = example_data(sample_freq, Ts)
 

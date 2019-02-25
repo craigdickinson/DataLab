@@ -1,7 +1,7 @@
 __author__ = 'Craig Dickinson'
 __program__ = 'DataLab'
-__version__ = '0.3'
-__date__ = '14 February 2019'
+__version__ = '0.4'
+__date__ = '25 February 2019'
 
 import logging
 import os
@@ -10,7 +10,7 @@ from datetime import timedelta
 from glob import glob
 from time import time
 
-from PyQt5 import QtCore, QtWidgets
+from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtCore import pyqtSignal
 
 from core.control_file import InputError
@@ -19,6 +19,7 @@ from core.read_files import (read_spectrograms_csv, read_spectrograms_excel, rea
                              read_stats_excel, read_stats_hdf5)
 from plot_stats import PlotStyle2H, SpectrogramWidget, StatsDataset, StatsWidget, VarianceWidget
 from plot_time_series import PlotOptions, TimeSeriesPlotWidget
+import datalab_gui_layout
 
 
 class DataLabGui(QtWidgets.QMainWindow):
@@ -28,8 +29,6 @@ class DataLabGui(QtWidgets.QMainWindow):
 
     def __init__(self):
         super().__init__()
-
-        self.setGeometry(50, 50, 1400, 800)
 
         # Set root path because path is changed when using file tree
         self.root = os.getcwd()
@@ -46,39 +45,44 @@ class DataLabGui(QtWidgets.QMainWindow):
     def init_ui(self):
         """Initialise gui."""
 
+        self.setGeometry(50, 50, 1400, 800)
+
         # Create stacked central widget
-        self.dashboardsWidget = QtWidgets.QStackedWidget()
-        self.setCentralWidget(self.dashboardsWidget)
+        self.modulesWidget = QtWidgets.QStackedWidget()
+        self.w = QtWidgets.QTabWidget()
+        # self.setCentralWidget(self.w)
+        self.setCentralWidget(self.modulesWidget)
+        # vbox = QtWidgets.QVBoxLayout(self.w)
+        # vbox.addWidget(self.dashboardsWidget)
         self.statusBar()
 
         # Create menu bar and tool bar
         self.menu_bar()
         self.tool_bar()
 
-        # Control file edit widget
-        self.controlTab = self.create_control_widget()
-
-        # Screening tab widget containers
-        self.screeningTabs = QtWidgets.QTabWidget()
-
-        # Plot tab widgets
+        # Module views
+        # Raw data inspection module
+        self.rawDataModule = QtWidgets.QTabWidget()
         self.timeSeriesTab = TimeSeriesPlotWidget(self)
+        self.rawDataModule.addTab(self.timeSeriesTab, 'Time Series')
+
+        # Screening module container and tab widgets
+        self.screeningModule = QtWidgets.QTabWidget()
+        self.controlTab = self.control_widget()
         self.statsTab = StatsWidget()
         self.varianceTab = VarianceWidget()
         self.spectrogramTab = SpectrogramWidget()
+        self.screeningModule.addTab(self.controlTab, 'Input')
+        self.screeningModule.addTab(self.statsTab, 'Statistics')
+        self.screeningModule.addTab(self.varianceTab, 'Variance Plot')
+        self.screeningModule.addTab(self.spectrogramTab, 'Spectrograms')
+
+        # Add stacked central widgets
+        self.modulesWidget.addWidget(self.rawDataModule)
+        self.modulesWidget.addWidget(self.screeningModule)
 
         # 2H plotting class
         self.plot_2h = PlotStyle2H(self.statsTab.canvas, self.statsTab.fig)
-
-        # Add screening tab widgets
-        self.screeningTabs.addTab(self.timeSeriesTab, 'Time Series')
-        self.screeningTabs.addTab(self.statsTab, 'Statistics')
-        self.screeningTabs.addTab(self.varianceTab, 'Variance Plot')
-        self.screeningTabs.addTab(self.spectrogramTab, 'Spectrograms')
-
-        # Add stacked central widgets
-        self.dashboardsWidget.addWidget(self.controlScreen)
-        self.dashboardsWidget.addWidget(self.screeningTabs)
 
     def menu_bar(self):
         """Create menu bar."""
@@ -98,106 +102,113 @@ class DataLabGui(QtWidgets.QMainWindow):
         # File menu
         # Open submenu
         openMenu = menuFile.addMenu('&Open')
-
-        self.openControlFile = QtWidgets.QAction('Control File', self)
+        self.openControlFile = QtWidgets.QAction('Control File')
         self.openControlFile.setShortcut('Ctrl+C')
         self.openControlFile.setStatusTip('Open control file (*.dat)')
-        openMenu.addAction(self.openControlFile)
-
-        self.openTimeSeriesFile = QtWidgets.QAction('Logger File', self)
-        self.openTimeSeriesFile.setShortcut('Ctrl+O')
-        openMenu.addAction(self.openTimeSeriesFile)
-
-        self.openLoggerStats = QtWidgets.QAction('Logger Stats', self)
+        self.openLoggerFile = QtWidgets.QAction('Logger File')
+        self.openLoggerFile.setShortcut('Ctrl+O')
+        self.openLoggerStats = QtWidgets.QAction('Logger Stats')
         self.openLoggerStats.setShortcut('Ctrl+Shift+O')
-        openMenu.addAction(self.openLoggerStats)
-
-        self.openSpectrograms = QtWidgets.QAction('Spectrograms', self)
+        self.openSpectrograms = QtWidgets.QAction('Spectrograms')
         self.openSpectrograms.setShortcut('Ctrl+Shift+S')
+        openMenu.addAction(self.openControlFile)
+        openMenu.addAction(self.openLoggerFile)
+        openMenu.addAction(self.openLoggerStats)
         openMenu.addAction(self.openSpectrograms)
 
         # Save control file
-        self.saveControlFile = QtWidgets.QAction('Save Control File', self)
-        self.saveControlFile.setShortcut('Ctrl+Shift+S')
+        self.saveControlFile = QtWidgets.QAction('Save Control File')
+        # self.saveControlFile.setShortcut('Ctrl+Shift+S')
         self.saveControlFile.setStatusTip('Save control file (*.dat)')
         menuFile.addAction(self.saveControlFile)
 
         # Logger paths submenu
         loggerPathMenu = menuFile.addMenu('Set Logger File Paths')
-        self.BOPPrimary = QtWidgets.QAction('BOP Primary', self)
+        self.BOPPrimary = QtWidgets.QAction('BOP Primary')
+        self.BOPBackup = QtWidgets.QAction('BOP Backup')
+        self.LMRPPrimary = QtWidgets.QAction('LMRP Primary')
+        self.LMRPBackup = QtWidgets.QAction('LMRP Backup')
         loggerPathMenu.addAction(self.BOPPrimary)
-
-        self.BOPBackup = QtWidgets.QAction('BOP Backup', self)
         loggerPathMenu.addAction(self.BOPBackup)
-
-        self.LMRPPrimary = QtWidgets.QAction('LMRP Primary', self)
         loggerPathMenu.addAction(self.LMRPPrimary)
-
-        self.LMRPBackup = QtWidgets.QAction('LMRP Backup', self)
         loggerPathMenu.addAction(self.LMRPBackup)
 
         # View menu
-        self.showControlScreen = QtWidgets.QAction('Control/Processing', self)
+        self.showControlScreen = QtWidgets.QAction('Control/Processing')
+        self.showPlotScreen = QtWidgets.QAction('Plots')
         menuView.addAction(self.showControlScreen)
-
-        self.showPlotScreen = QtWidgets.QAction('Plots', self)
         menuView.addAction(self.showPlotScreen)
 
         # Process menu
-        self.calcStats = QtWidgets.QAction('Calculate Statistics', self)
+        self.calcStats = QtWidgets.QAction('Calculate Statistics')
         self.calcStats.setShortcut('Ctrl+R')
         self.calcStats.setStatusTip('Run Control File (*.dat)')
         menuProcess.addAction(self.calcStats)
 
         # Applied logic menu
-        self.filter = QtWidgets.QAction('Apply Low/High Pass Filter', self)
-        menuLogic.addAction(self.filter)
-
+        self.filter = QtWidgets.QAction('Apply Low/High Pass Filter')
         self.spikeRemoval = QtWidgets.QAction('Spike Removal')
+        menuLogic.addAction(self.filter)
         menuLogic.addAction(self.spikeRemoval)
 
         # Plot menu
-        self.add2HIcon = QtWidgets.QAction('Add 2H Icon', self)
+        self.add2HIcon = QtWidgets.QAction('Add 2H Icon')
         self.add2HIcon.setCheckable(True)
-        menuPlot.addAction(self.add2HIcon)
-
-        self.plotSettings = QtWidgets.QAction('Plot Settings', self)
+        self.plotSettings = QtWidgets.QAction('Plot Settings')
         self.plotSettings.setShortcut('Ctrl+S')
+        menuPlot.addAction(self.add2HIcon)
         menuPlot.addAction(self.plotSettings)
 
         # Help menu
-        self.showHelp = QtWidgets.QAction('Help', self)
-        self.showAbout = QtWidgets.QAction('About', self)
+        self.showHelp = QtWidgets.QAction('Help')
+        self.showAbout = QtWidgets.QAction('About')
         menuAbout.addAction(self.showHelp)
         menuAbout.addAction(self.showAbout)
-
-        # menubar.clear()
 
     def tool_bar(self):
         """Create toolbar with button to show dashboards."""
 
-        self.dashboards = self.addToolBar('Dashboards')
-        self.dashboardControlButton = QtWidgets.QPushButton('Control File')
-        self.dashboardTSScreeningButton = QtWidgets.QPushButton('Time Series Screening')
-        self.dashboardStatisticsButton = QtWidgets.QPushButton('Logger Statistics')
-        self.dashboardTFButton = QtWidgets.QPushButton('Transfer Functions')
-        self.dashboardFatigueButton = QtWidgets.QPushButton('Fatigue Analysis')
+        self.toolBar = self.addToolBar('Modules')
+        self.rawDataButton = QtWidgets.QPushButton('Raw Data Inspection')
+        self.screeningButton = QtWidgets.QPushButton('Logger Screening')
+        self.TFButton = QtWidgets.QPushButton('Transfer Functions')
+        self.fatigueButton = QtWidgets.QPushButton('Fatigue Analysis')
+        self.toolBar.addWidget(QtWidgets.QLabel('Dashboards:'))
+        self.toolBar.addWidget(self.rawDataButton)
+        self.toolBar.addWidget(self.screeningButton)
+        self.toolBar.addWidget(self.TFButton)
+        self.toolBar.addWidget(self.fatigueButton)
 
-        self.dashboards.addWidget(QtWidgets.QLabel('Dashboards:'))
-        self.dashboards.addWidget(self.dashboardControlButton)
-        self.dashboards.addWidget(self.dashboardTSScreeningButton)
-        self.dashboards.addWidget(self.dashboardStatisticsButton)
-        self.dashboards.addWidget(self.dashboardTFButton)
-        self.dashboards.addWidget(self.dashboardFatigueButton)
+        self.update_tool_buttons('raw')
+        # self.toolBar.setStyleSheet('QToolBar{spacing:3px;}')
 
-        # self.dashboards.setContentsMargins(10, 0, 10, 0)
-        # self.dashboards.setStyleSheet('QToolBar{spacing:3px;}')
+    def control_widget(self):
+        """Control/input widget."""
 
-        # self.errorBar = self.addToolBar('Error messages')
-        # self.errorLabel = QtWidgets.QLabel('')
-        # self.errorLabel.setFixedHeight(20)
-        # self.errorBar.addWidget(self.errorLabel)
-        # self.errorBar.setWindowOpacity(0.5)
+        controlScreen = QtWidgets.QWidget()
+        grid = QtWidgets.QGridLayout()
+        controlScreen.setLayout(grid)
+
+        self.controls = QtWidgets.QWidget()
+        vbox = QtWidgets.QVBoxLayout()
+        self.controls.setLayout(vbox)
+        self.controls.setFixedHeight(150)
+
+        # Widgets
+        self.controlFileEdit = QtWidgets.QTextEdit()
+        self.openDatFileButton = QtWidgets.QPushButton('Open Control File')
+        self.analyseDatFileButton = QtWidgets.QPushButton('Analyse Control File')
+        self.processStatsButton = QtWidgets.QPushButton('Process Stats')
+        self.loadStatsButton = QtWidgets.QPushButton('Load Stats')
+
+        vbox.addWidget(self.openDatFileButton, QtCore.Qt.AlignTop)
+        vbox.addWidget(self.analyseDatFileButton, QtCore.Qt.AlignTop)
+        vbox.addWidget(self.processStatsButton, QtCore.Qt.AlignTop)
+        vbox.addWidget(self.loadStatsButton, QtCore.Qt.AlignTop)
+        grid.addWidget(self.controls, 0, 0, QtCore.Qt.AlignTop)
+        grid.addWidget(self.controlFileEdit, 0, 1)
+
+        return controlScreen
 
     def message(self, title, message, buttons=QtWidgets.QMessageBox.Ok):
         return QtWidgets.QMessageBox.information(self, title, message, buttons)
@@ -210,7 +221,7 @@ class DataLabGui(QtWidgets.QMainWindow):
         """Connect widget signals to methods/actions."""
 
         # File menu signals
-        self.openTimeSeriesFile.triggered.connect(self.load_logger_file)
+        self.openLoggerFile.triggered.connect(self.load_logger_file)
         self.openControlFile.triggered.connect(self.open_control_file)
         self.saveControlFile.triggered.connect(self.save_control_file)
         self.openLoggerStats.triggered.connect(self.open_stats_file)
@@ -218,8 +229,8 @@ class DataLabGui(QtWidgets.QMainWindow):
         self.BOPPrimary.triggered.connect(self.set_directory)
 
         # View menu signals
-        self.showControlScreen.triggered.connect(self.show_control_screen)
-        self.showPlotScreen.triggered.connect(self.show_plots_screen)
+        self.showControlScreen.triggered.connect(self.show_control_view)
+        self.showPlotScreen.triggered.connect(self.show_screening_view)
 
         # Run menu signals
         self.calcStats.triggered.connect(self.process_control_file)
@@ -233,11 +244,8 @@ class DataLabGui(QtWidgets.QMainWindow):
         self.showAbout.triggered.connect(self.show_version)
 
         # Toolbar dashboard button signals
-        self.dashboardControlButton.clicked.connect(self.show_control_screen)
-        self.dashboardTSScreeningButton.clicked.connect(self.show_plots_screen)
-        self.dashboardStatisticsButton.clicked.connect(self.show_stats_screen)
-        self.dashboardTFButton.clicked.connect(self.show_plots_screen)
-        self.dashboardFatigueButton.clicked.connect(self.show_control_screen)
+        self.rawDataButton.clicked.connect(self.show_raw_data_view)
+        self.screeningButton.clicked.connect(self.show_screening_view)
 
         # Processing signals
         self.openDatFileButton.clicked.connect(self.open_control_file)
@@ -251,7 +259,7 @@ class DataLabGui(QtWidgets.QMainWindow):
         self.datfile, _ = QtWidgets.QFileDialog.getOpenFileName(self, 'Open Control File',
                                                                 filter='Control Files (*.dat)')
         if self.datfile:
-            self.show_control_screen()
+            self.show_control_view()
 
             with open(self.datfile, 'r') as f:
                 text = f.read()
@@ -284,7 +292,7 @@ class DataLabGui(QtWidgets.QMainWindow):
                 self.error(f'{msg}:\n{e}\n{sys.exc_info()[0]}')
                 logging.exception(msg)
 
-            self.dashboardsWidget.setCurrentWidget(self.screeningTabs)
+            self.modulesWidget.setCurrentWidget(self.screeningModule)
 
     def open_plot_options(self):
         """Show logger file plot options window."""
@@ -340,7 +348,7 @@ class DataLabGui(QtWidgets.QMainWindow):
             self.varianceTab.update_variance_datasets_list(dataset_names)
 
             # Show dashboard
-            self.show_stats_screen()
+            self.show_stats_view()
 
     def open_spectrograms_file(self):
         """Open spectrograms spreadsheet."""
@@ -367,7 +375,7 @@ class DataLabGui(QtWidgets.QMainWindow):
             self.spectrogramTab.update_spect_datasets_list(logger)
 
             # Show dashboard
-            self.show_spectro_screen()
+            self.show_spectrogram_view()
 
     # def update_logger_plot_settings(self):
     #     """Update time series and PSD plots with parameters from plot option window."""
@@ -432,45 +440,49 @@ class DataLabGui(QtWidgets.QMainWindow):
         self.errorLabel.setText('')
         self.errorBar.hide()
 
-    def show_control_screen(self):
-        self.dashboardsWidget.setCurrentWidget(self.controlScreen)
+    def show_raw_data_view(self):
+        self.update_tool_buttons('raw')
+        self.modulesWidget.setCurrentWidget(self.rawDataModule)
 
-    def show_plots_screen(self):
-        self.dashboardsWidget.setCurrentWidget(self.screeningTabs)
+    def show_control_view(self):
+        self.update_tool_buttons('screening')
+        self.modulesWidget.setCurrentWidget(self.screeningModule)
+        self.screeningModule.setCurrentWidget(self.controlTab)
 
-    def show_stats_screen(self):
-        self.dashboardsWidget.setCurrentWidget(self.screeningTabs)
-        self.screeningTabs.setCurrentWidget(self.statsTab)
+    def show_screening_view(self):
+        self.update_tool_buttons('screening')
+        self.modulesWidget.setCurrentWidget(self.screeningModule)
 
-    def show_spectro_screen(self):
-        self.dashboardsWidget.setCurrentWidget(self.screeningTabs)
-        self.screeningTabs.setCurrentWidget(self.spectrogramTab)
+    def show_stats_view(self):
+        self.update_tool_buttons('screening')
+        self.modulesWidget.setCurrentWidget(self.screeningModule)
+        self.screeningModule.setCurrentWidget(self.statsTab)
 
-    def create_control_widget(self):
-        """Control/input widget."""
+    def show_spectrogram_view(self):
+        self.update_tool_buttons('screening')
+        self.modulesWidget.setCurrentWidget(self.screeningModule)
+        self.screeningModule.setCurrentWidget(self.spectrogramTab)
 
-        self.controlScreen = QtWidgets.QWidget()
-        grid = QtWidgets.QGridLayout()
-        self.controlScreen.setLayout(grid)
+    def update_tool_buttons(self, active_button):
+        # button_style = 'font-weight: bold'
+        active_style = 'background-color: blue; color: white'
+        inactive_style = 'background-color: none; color: none'
 
-        self.controls = QtWidgets.QWidget()
-        vbox = QtWidgets.QVBoxLayout()
-        self.controls.setLayout(vbox)
-        self.controls.setFixedHeight(150)
+        # Reset all button colours
+        self.rawDataButton.setStyleSheet(inactive_style)
+        self.screeningButton.setStyleSheet(inactive_style)
+        self.TFButton.setStyleSheet(inactive_style)
+        self.fatigueButton.setStyleSheet(inactive_style)
 
-        # Widgets
-        self.controlFileEdit = QtWidgets.QTextEdit()
-        self.openDatFileButton = QtWidgets.QPushButton('Open Control File')
-        self.analyseDatFileButton = QtWidgets.QPushButton('Analyse Control File')
-        self.processStatsButton = QtWidgets.QPushButton('Process Stats')
-        self.loadStatsButton = QtWidgets.QPushButton('Load Stats')
-
-        vbox.addWidget(self.openDatFileButton, QtCore.Qt.AlignTop)
-        vbox.addWidget(self.analyseDatFileButton, QtCore.Qt.AlignTop)
-        vbox.addWidget(self.processStatsButton, QtCore.Qt.AlignTop)
-        vbox.addWidget(self.loadStatsButton, QtCore.Qt.AlignTop)
-        grid.addWidget(self.controls, 0, 0, QtCore.Qt.AlignTop)
-        grid.addWidget(self.controlFileEdit, 0, 1)
+        # Colour active dashboard button
+        if active_button == 'raw':
+            self.rawDataButton.setStyleSheet(active_style)
+        if active_button == 'screening':
+            self.screeningButton.setStyleSheet(active_style)
+        if active_button == 'tf':
+            self.TFButton.setStyleSheet(active_style)
+        if active_button == 'fatigue':
+            self.fatigueButton.setStyleSheet(active_style)
 
     def centre(self):
         """Centres window on screen (not sure if works correctly)."""
@@ -579,7 +591,7 @@ class ControlFileWorker(QtCore.QThread):
             self.parent.varianceTab.update_variance_datasets_list(dataset_names)
             self.parent.varianceTab.datasetList.setCurrentRow(0)
             self.parent.varianceTab.update_variance_plot(init_plot=True)
-            self.parent.show_stats_screen()
+            self.parent.show_stats_view()
             t = str(timedelta(seconds=round(time() - t0)))
             self.runtime.emit(t)
         except Exception as e:
@@ -587,8 +599,8 @@ class ControlFileWorker(QtCore.QThread):
             self.signal_error.emit(f'{msg}:\n{e}\n{sys.exc_info()[0]}')
         finally:
             self.parent.setEnabled(True)
-            self.quit()
-            self.wait()
+            # self.quit()
+            # self.wait()
 
     def quit_worker(self):
         """Quit thread on progress bar cancel button clicked."""
@@ -650,8 +662,16 @@ class ControlFileProgressBar(QtWidgets.QDialog):
         self.msgProcessingComplete.setText('Processing complete: elapsed time = ' + t)
 
 
+class QtDesignerGui(QtWidgets.QMainWindow, datalab_gui_layout.Ui_MainWindow):
+    def __init__(self):
+        super().__init__()
+
+        self.setupUi(self)
+
+
 if __name__ == '__main__':
     app = QtWidgets.QApplication(sys.argv)
+    # gui = QtDesignerGui()
     gui = DataLabGui()
     debug = 0
 
@@ -663,7 +683,7 @@ if __name__ == '__main__':
         filename = 'dd10_2017_0310_0000.csv'
         gui.timeSeriesTab.update_files_list([filename], filename)
         gui.timeSeriesTab.load_file(filename)
-        gui.dashboardsWidget.setCurrentWidget(gui.screeningTabs)
+        gui.modulesWidget.setCurrentWidget(gui.screeningModule)
 
     gui.show()
     sys.exit(app.exec_())

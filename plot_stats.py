@@ -5,20 +5,23 @@ import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from PyQt5.QtWidgets import (QCheckBox, QComboBox, QGridLayout, QGroupBox, QHBoxLayout, QLabel,
-                             QListWidget,
-                             QRadioButton, QVBoxLayout, QWidget)
+from PyQt5 import QtCore, QtWidgets
 from matplotlib import cm
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
-from matplotlib.colors import BoundaryNorm, LinearSegmentedColormap
-from matplotlib.patches import Rectangle
-from matplotlib.ticker import MaxNLocator
+from matplotlib import gridspec
+from datetime import timedelta
+
+# To resolve a weird bug - to investigate
+from pandas.plotting import register_matplotlib_converters
+
+register_matplotlib_converters()
 
 
+# from matplotlib.colors import BoundaryNorm, LinearSegmentedColormap
+# from matplotlib.patches import Rectangle
+# from matplotlib.ticker import MaxNLocator
 # from matplotlib.font_manager import findfont, FontProperties
-
-
 # import colormap as cmaps
 
 class StatsDataset:
@@ -37,7 +40,7 @@ class StatsDataset:
         self.plot_on_sec_axis = [False] * len(self.channels)
 
 
-class StatsWidget(QWidget):
+class StatsWidget(QtWidgets.QWidget):
     """Summary stats plot widget class."""
 
     ylabels = ['Acceleration ($\mathregular{m/s^2}$)',
@@ -70,10 +73,10 @@ class StatsWidget(QWidget):
         # sns.set()
 
         # Main layout
-        layout = QHBoxLayout(self)
+        layout = QtWidgets.QHBoxLayout(self)
 
-        gridWidget = QWidget()
-        grid = QGridLayout()
+        gridWidget = QtWidgets.QWidget()
+        grid = QtWidgets.QGridLayout()
         gridWidget.setLayout(grid)
 
         # Create plot figure, canvas widget to display figure and navbar
@@ -85,39 +88,39 @@ class StatsWidget(QWidget):
         navbar = NavigationToolbar(self.canvas, self)
 
         # Channel and stats selection container
-        # selectionWidget = QWidget()
+        # selectionWidget = QtWidgets.QWidget()
         # selectionWidget.setSizePolicy(QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed))
-        # hbox = QHBoxLayout()
+        # hbox = QtWidgets.QHBoxLayout()
         # selectionWidget.setLayout(hbox)
         # grid.addWidget(selectionWidget, 0, 0, Qt.AlignLeft)
         grid.addWidget(navbar, 0, 0)
         grid.addWidget(self.canvas, 1, 0)
 
-        selection = QWidget()
+        selection = QtWidgets.QWidget()
         selection.setFixedWidth(150)
-        vbox = QVBoxLayout(selection)
+        vbox = QtWidgets.QVBoxLayout(selection)
 
         # Statistic label and drop-down
-        lbl_stat = QLabel('Plot statistic:')
-        self.statsCombo = QComboBox()
+        lbl_stat = QtWidgets.QLabel('Plot statistic:')
+        self.statsCombo = QtWidgets.QComboBox()
         self.statsCombo.addItems(self.stats)
 
-        lbl1 = QLabel('Loaded Datasets')
-        lbl2 = QLabel('Channels')
-        self.datasetList = QListWidget()
-        self.channelsList = QListWidget()
+        lbl1 = QtWidgets.QLabel('Loaded Datasets')
+        lbl2 = QtWidgets.QLabel('Channels')
+        self.datasetList = QtWidgets.QListWidget()
+        self.channelsList = QtWidgets.QListWidget()
 
         # Hs & Tp mean override checkbox
-        self.meanWaveChkBox = QCheckBox('Mean Hs/Tp override')
+        self.meanWaveChkBox = QtWidgets.QCheckBox('Mean Hs/Tp override')
         self.meanWaveChkBox.setChecked(True)
 
         # Plot axis radio buttons
-        radioFrame = QGroupBox('Plot axis')
-        vbox2 = QVBoxLayout()
+        radioFrame = QtWidgets.QGroupBox('Plot axis')
+        vbox2 = QtWidgets.QVBoxLayout()
         radioFrame.setLayout(vbox2)
-        self.radioNone = QRadioButton('None')
-        self.radioPri = QRadioButton('Primary')
-        self.radioSec = QRadioButton('Secondary')
+        self.radioNone = QtWidgets.QRadioButton('None')
+        self.radioPri = QtWidgets.QRadioButton('Primary')
+        self.radioSec = QtWidgets.QRadioButton('Secondary')
         vbox2.addWidget(self.radioNone)
         vbox2.addWidget(self.radioPri)
         vbox2.addWidget(self.radioSec)
@@ -132,7 +135,7 @@ class StatsWidget(QWidget):
         vbox.addWidget(self.meanWaveChkBox)
         vbox.addWidget(radioFrame)
 
-        # frame = QGroupBox('Plot settings')
+        # frame = QtWidgets.QGroupBox('Plot settings')
         # frame.setFixedWidth(150)
         # frame.setLayout(vbox)
 
@@ -141,9 +144,9 @@ class StatsWidget(QWidget):
         layout.addWidget(selection)
         layout.addWidget(gridWidget)
 
-        self._connect_signals()
+        self.connect_signals()
 
-    def _connect_signals(self):
+    def connect_signals(self):
         self.statsCombo.currentIndexChanged.connect(self.update_plot)
         self.datasetList.currentItemChanged.connect(self.update_channels_list)
         self.channelsList.currentItemChanged.connect(self.set_radios)
@@ -305,13 +308,13 @@ class StatsWidget(QWidget):
         if plot:
             # TODO: Finish this properly!
             # Unlatched period
-            d1 = mdates.date2num(datetime(2018, 7, 13, 19, 40))
-            d2 = mdates.date2num(datetime(2018, 7, 14, 15, 40))
-            ymin, ymax = self.ax.get_ylim()
-            w = d2 - d1
-            h = 1.1 * (ymax - ymin)
-            rect = Rectangle(xy=(d1, ymin), width=w, height=h, edgecolor=None, facecolor='yellow', alpha=0.2)
-            self.ax.add_patch(rect)
+            # d1 = mdates.date2num(datetime(2018, 7, 13, 19, 40))
+            # d2 = mdates.date2num(datetime(2018, 7, 14, 15, 40))
+            # ymin, ymax = self.ax.get_ylim()
+            # w = d2 - d1
+            # h = 1.1 * (ymax - ymin)
+            # rect = Rectangle(xy=(d1, ymin), width=w, height=h, edgecolor=None, facecolor='yellow', alpha=0.2)
+            # self.ax.add_patch(rect)
 
             self.ax2.legend(loc='best')
             self.ax.set_xlabel('Timestamp')
@@ -332,7 +335,7 @@ class StatsWidget(QWidget):
         # self.p.apply_2H_formatting()
 
 
-class VarianceWidget(QWidget):
+class VarianceWidget(QtWidgets.QWidget):
     ylabels = ['Acceleration ($\mathregular{m/s^2}$)',
                'Angular Rate ($\mathregular{deg/s}$)']
     channels = ['Acceleration X',
@@ -353,25 +356,25 @@ class VarianceWidget(QWidget):
         navbar = NavigationToolbar(self.canvas, self)
 
         # Main layout
-        layout = QHBoxLayout(self)
+        layout = QtWidgets.QHBoxLayout(self)
 
         # Plot layout
-        plot = QWidget()
-        plot_layout = QVBoxLayout()
+        plot = QtWidgets.QWidget()
+        plot_layout = QtWidgets.QVBoxLayout()
         plot.setLayout(plot_layout)
         plot_layout.addWidget(navbar)
         plot_layout.addWidget(self.canvas)
 
         # Selection layout
-        selection = QWidget()
+        selection = QtWidgets.QWidget()
         selection.setFixedWidth(150)
-        vbox = QVBoxLayout(selection)
+        vbox = QtWidgets.QVBoxLayout(selection)
 
-        lbl1 = QLabel('Channel:')
-        self.channelsCombo = QComboBox()
+        lbl1 = QtWidgets.QLabel('Channel:')
+        self.channelsCombo = QtWidgets.QComboBox()
         self.channelsCombo.addItems(self.channels)
-        lbl2 = QLabel('Loaded Datasets')
-        self.datasetList = QListWidget()
+        lbl2 = QtWidgets.QLabel('Loaded Datasets')
+        self.datasetList = QtWidgets.QListWidget()
 
         vbox.addWidget(lbl1)
         vbox.addWidget(self.channelsCombo)
@@ -381,9 +384,9 @@ class VarianceWidget(QWidget):
         layout.addWidget(selection)
         layout.addWidget(plot)
 
-        self._connect_signals()
+        self.connect_signals()
 
-    def _connect_signals(self):
+    def connect_signals(self):
         self.channelsCombo.currentIndexChanged.connect(self.update_variance_plot)
         self.datasetList.currentItemChanged.connect(self.update_variance_plot)
 
@@ -496,7 +499,7 @@ class VarianceWidget(QWidget):
         self.canvas.draw()
 
 
-class SpectrogramWidget(QWidget):
+class SpectrogramWidget(QtWidgets.QWidget):
     ylabels = ['Acceleration ($\mathregular{m/s^2}$)',
                'Angular Rate ($\mathregular{deg/s}$)']
     channels = ['Acceleration X',
@@ -507,217 +510,239 @@ class SpectrogramWidget(QWidget):
     def __init__(self):
         super().__init__()
 
+        plt.style.use('seaborn')
+        # plt.style.use('seaborn-pastel')
+        # plt.style.use('bmh')
+
         self.logger_names = []
         self.datasets = {}
 
+        # Placeholder for colorbar, plot line and label handles
+        self.cbar = None
+        self.event_line = None
+        self.psd_line = None
+        self.label = None
+
+        self.init_ui()
+        self.connect_signals()
+
+    def init_ui(self):
+        # Main layout
+        layout = QtWidgets.QHBoxLayout(self)
+
+        # Selection layout
+        selection = QtWidgets.QWidget()
+        selection.setFixedWidth(170)
+        grid = QtWidgets.QGridLayout(selection)
+        lbl = QtWidgets.QLabel('Loaded Datasets')
+        self.datasetList = QtWidgets.QListWidget()
+        self.datasetList.setFixedHeight(100)
+        self.datetimeEdit = QtWidgets.QDateTimeEdit()
+        lbl2 = QtWidgets.QLabel('Timestamps')
+        self.timestampList = QtWidgets.QListWidget()
+        self.slider = QtWidgets.QSlider()
+        self.slider.setOrientation(QtCore.Qt.Vertical)
+        grid.addWidget(lbl)
+        grid.addWidget(self.datasetList)
+        grid.addWidget(self.datetimeEdit)
+        grid.addWidget(lbl2)
+        grid.addWidget(self.timestampList)
+        grid.addWidget(self.slider, 4, 1)
+
+        # Plot layout
         # Create plot figure, canvas widget to display figure and navbar
-        self.fig, self.ax = plt.subplots()
-        # self.fig, (self.ax0, self.ax1) = plt.subplots(nrows=2)
+        plot = QtWidgets.QWidget()
+        plot_layout = QtWidgets.QVBoxLayout(plot)
+        self.fig, _ = plt.subplots()
         self.canvas = FigureCanvas(self.fig)
         self.canvas.draw()
         navbar = NavigationToolbar(self.canvas, self)
-
-        # Placeholder for colorbar
-        self.cbar = None
-
-        # Main layout
-        layout = QHBoxLayout(self)
-
-        # Plot layout
-        plot = QWidget()
-        plot_layout = QVBoxLayout()
-        plot.setLayout(plot_layout)
         plot_layout.addWidget(navbar)
         plot_layout.addWidget(self.canvas)
 
-        # Selection layout
-        selection = QWidget()
-        selection.setFixedWidth(150)
-        vbox = QVBoxLayout(selection)
-
-        lbl1 = QLabel('Channel:')
-        self.channelsCombo = QComboBox()
-        self.channelsCombo.addItems(self.channels)
-        lbl2 = QLabel('Loaded Datasets')
-        self.datasetList = QListWidget()
-
-        # vbox.addWidget(lbl1)
-        # vbox.addWidget(self.channelsCombo)
-        vbox.addWidget(lbl2)
-        vbox.addWidget(self.datasetList)
-
+        # Combine layouts
         layout.addWidget(selection)
         layout.addWidget(plot)
 
-        self._connect_signals()
+    def connect_signals(self):
+        self.datasetList.currentItemChanged.connect(self.on_dataset_item_change)
+        self.slider.valueChanged.connect(self.on_slider_change)
+        self.timestampList.itemDoubleClicked.connect(self.on_timestamp_list_double_clicked)
 
-    def _connect_signals(self):
-        # self.channelsCombo.currentIndexChanged.connect(self.update_spect_plot)
-        self.datasetList.currentItemChanged.connect(self.update_spect_plot)
-
-    def update_spect_datasets_list(self, dataset_names):
+    def update_spect_datasets_list(self, logger):
         """Populate loaded datasets list."""
 
         # Create active channels flag lists
-        self.logger_names = dataset_names
+        self.logger_names = logger
 
         # Repopulate datasets list
         # self.datasetList.clear()
-        if isinstance(dataset_names, str):
-            self.datasetList.addItem(dataset_names)
-        else:
-            [self.datasetList.addItem(x) for x in dataset_names]
+        self.datasetList.addItem(logger)
+        n = self.datasetList.count()
 
-        self.datasetList.setCurrentRow(0)
+        self.datasetList.setCurrentRow(n - 1)
 
-    def update_spect_plot(self):
+    def on_dataset_item_change(self):
         """Plot spectrogram."""
-
-        ax = self.ax
-        ax.cla()
 
         # Exit function if no dataset in list selected (i.e. list is empty)
         i = self.datasetList.currentRow()
         if i == -1:
             return
 
+        self.draw_axes()
+        i = self.slider.value()
+        self.plot_spectrogram(i)
+        self.plot_event_psd(i)
+
+    def on_slider_change(self):
+        i = self.slider.value()
+        n = self.slider.maximum()
+        row = n - i
+        self.timestampList.setCurrentRow(row)
+
+        if self.timestamps.empty is False:
+            t = self.timestamps[i]
+            t_psd = mdates.date2num(t)
+            yr = t.year
+            mth = t.month
+            day = t.day
+            hr = t.hour
+            m = t.minute
+            dt = QtCore.QDateTime(yr, mth, day, hr, m)
+            self.datetimeEdit.setDateTime(dt)
+
+            self.update_event_marker(t_psd)
+            self.update_psd_plot(i)
+            self.canvas.draw()
+            self.canvas.flush_events()
+
+    def on_timestamp_list_double_clicked(self):
+        i = self.timestampList.currentRow()
+        self.slider.setValue(i)
+
+    def draw_axes(self):
+        self.fig.clf()
+        gs = gridspec.GridSpec(nrows=2, ncols=1, height_ratios=[4, 1])
+        self.ax1 = self.fig.add_subplot(gs[0])
+        self.ax2 = self.fig.add_subplot(gs[1], sharex=self.ax1)
+        self.ax1.get_xaxis().set_visible(False)
+        self.fig.subplots_adjust(hspace=0.05)
+        # self.ax1 = plt.subplot2grid(shape=(4, 1), loc=(0, 0), rowspan=3)
+        # self.ax2 = plt.subplot2grid(shape=(4, 1), loc=(3, 0))
+
+    def plot_spectrogram(self, i):
+        ax1 = self.ax1
+        ax2 = self.ax2
+
         # Plot title
         channel = self.datasetList.currentItem().text()
-        # title = '21148 Total Glenlivet G1 Well Monitoring Campaign\nSpectrogram: ' + channel
         title = '21239 Total WoS - Glendronach Well Monitoring Campaign\nSpectrogram: ' + channel
 
         # Get plot data
         dataset = self.datasetList.currentItem().text()
-        df = self.datasets[dataset]
+        self.df = self.datasets[dataset]
+        df = self.df
 
-        # Use for old data
-        # df = df.T
+        # Extract data
+        self.timestamps = df.index
+        freqs = df.columns
+        z = np.log10(df.values)
+        # z = df.values
+        t0 = mdates.date2num(self.timestamps[0])
+        t1 = mdates.date2num(self.timestamps[-1])
 
-        t = df.index
-        f = df.columns[1:]
-        amps = df.values[:, 1:]
-        z = np.log10(amps)
-        # z = amps
+        # Min/max amplitudes
+        self.zmin = round(z.min())
+        self.zmax = round(z.max())
 
-        # x, y = np.meshgrid(t, f)
-        #
-        # plt.sca(ax)
-        # print(t.min())
-        # print(t.max())
-        # print(f.min())
-        # print(f.max())
-        # print(z.min())
-        # print(z.max())
+        # Populate timestamps list
+        self.timestampList.clear()
+        [self.timestampList.addItem(t.strftime('%Y-%m-%d %H:%M')) for t in reversed(self.timestamps)]
 
-        cmap = cm.get_cmap('viridis')
-        levels = MaxNLocator(nbins=15).tick_values(z.min(), z.max())
-        norm = BoundaryNorm(levels, ncolors=cmap.N, clip=True)
+        n = len(self.timestamps)
+        self.slider.setMaximum(n - 1)
 
-        # im = ax.contourf(f, t, z, levels=levels, cmap=cmap, norm=norm)
-        im = ax.pcolormesh(f, t, z, cmap=cmap)
+        ax1.grid(False)
+        cmap = cm.get_cmap('coolwarm')
+        im = ax1.imshow(z,
+                        aspect='auto',
+                        interpolation='bilinear',
+                        origin='lower',
+                        extent=[freqs[0], freqs[-1], t0, t1],
+                        cmap=cmap,
+                        )
 
-        cmap_name = 'Spectrum Plot'
-        colors = [(0, 0, 1), (0, 1, 0), (1, 0, 0)]  # RGB
-        cmap = LinearSegmentedColormap.from_list(name=cmap_name, colors=colors, N=200)
-        # im = ax.pcolormesh(f, t, z, cmap=cmap)
+        # Plot timestamp slice line
+        t_psd = mdates.date2num(self.timestamps[i])
+        self.event_line, = ax1.plot([freqs[0], freqs[-1]], [t_psd, t_psd], 'k--')
 
-        if self.cbar:
-            self.cbar.remove()
+        self.cbar = self.fig.colorbar(im, ax=[ax1, ax2])
+        # self.cbar = self.fig.colorbar(im, ax1=self.axes.ravel().tolist(), pad=0.04, aspect=30)
+        log10 = r'$\mathregular{log_{10}}$'
+        units = r'$\mathregular{(mm/s^2)^2/Hz}$'
+        label = f'{log10}PSD ({units})'.lstrip()
+        self.cbar.set_label(label)
+        self.cbar.ax.tick_params(label)
 
-        self.cbar = self.fig.colorbar(im, ax=ax)
-        self.cbar.set_label('PSD ($\mathregular{(m^2)^2/Hz}$)')
+        ax1.set_title(title)
+        ax1.margins(x=0, y=0)
+        ax1.set_xlim(0, 3)
+        ax1.yaxis.set_major_formatter(mdates.DateFormatter('%d %b'))
+        ax1.yaxis.set_major_locator(mdates.DayLocator(interval=7))
+        plt.sca(ax1)
+        # plt.xticks(fontsize=11)
+        # plt.yticks(fontsize=11)
+        # plt.tight_layout()
 
-        ax.set_xlabel('Frequency (Hz)')
-        ax.set_ylabel('Date')
-        ax.set_title(title)
+    def plot_event_psd(self, i):
+        """Plot PSD of spectrogram timestamp slice."""
 
-        ax.margins(x=0, y=0)
-        ax.yaxis.set_major_formatter(mdates.DateFormatter('%d %b'))
-        ax.yaxis.set_major_locator(mdates.DayLocator(interval=7))
-        # ax.set_ylim(0, 1)
+        # Slice spectrogram dataframe for timestamp index i
+        z = self.df.iloc[i, :]
+        z = np.log10(z)
 
-        plt.tight_layout()
+        # Create legend label
+        timestamp1 = self.df.index[i]
+        timestamp2 = timestamp1 + timedelta(minutes=20)
+        msg_d1 = timestamp1.strftime('%d %b %Y %H:%M').lstrip('0')
+        msg_d2 = timestamp2.strftime('%d %b %Y %H:%M')[-5:]
+        label = ' '.join((msg_d1, 'to', msg_d2))
 
-        # Rich's GRDView code
-
-        # cmap_name = 'Spectrum Plot'
-        # colors = [(0, 0, 1), (0, 1, 0), (1, 0, 0)]  # RGB
-        # cmap = LinearSegmentedColormap.from_list(name=cmap_name, colors=colors, N=200)
-        # # cmap = LinearSegmentedColormap(name=cmap_name, segmentdata=colors, N=200)
-        # self.ax.pcolormesh(t, f, np.log10(amps), cmap=cmap)
-
-        # im = self.ax.imshow(amps,
-        #                     aspect='auto',
-        #                     interpolation='bilinear',
-        #                     origin='lower',
-        #                     # extent=[r_freq[Nmin], r_freq[Nmax], 0, Nloop],
-        #                     cmap=cmap)
-        #
-        # self.fig.colorbar(im, ax=self.ax)
-
-        # Plot Spectrogram
-        # if self.ShowSpectrogram.isChecked() == True:
-        #     # determine the maximum value on the data..
-        #     try:
-        #         Nmin = 1
-        #         for j in range(0, len(r_freq)):
-        #             if (r_freq[j] < (self.MaxFreqSpec - self.MinFreqSpec) * 4 / 5 + self.MinFreqSpec) \
-        #                     and (r_freq[j] > 0):
-        #                 Nmax = j
-        #             if (r_freq[j] < self.MinFreqSpec) and (r_freq[j] > 0):
-        #                 Nmin = j
-        #         Nloop = self.num_samples
-        #         cmap_name = 'Spectrum Plot'
-        #         colors = [(0, 0, 1), (0, 1, 0), (1, 0, 0)]  # RGB
-        #         cm = LinearSegmentedColormap.from_list(cmap_name, colors, 200)
-        #         im = self.ax4a.imshow(self.enfft, aspect='auto', interpolation='bilinear', origin='lower',
-        #                               extent=[r_freq[Nmin], r_freq[Nmax], 0, Nloop], cmap=cm)
-        #         self.figure.colorbar(im)
-        #         self.ax4a.plot(r_freq[Nmin:Nmax], Nloop * 1 * r_freq[Nmin:Nmax] / r_freq[Nmax], zorder=-1)
-        #     except Exception as e:
-        #         self.show_error_msg(str(e))
+        self.ax2.cla()
+        # self.ax2.patch.set_facecolor('none')
+        self.psd_line, = self.ax2.plot(z, 'k')
+        self.ax2.set_ylim(self.zmin, self.zmax)
+        self.ax2.margins(0, 0)
+        self.ax2.set_xlabel('Frequency (Hz)')
+        self.ax2.set_ylabel('PSD')
+        self.label = self.ax2.annotate(label,
+                                       xy=(1, 1),
+                                       xycoords='axes fraction',
+                                       xytext=(-2, -10),
+                                       textcoords='offset points',
+                                       ha='right')
 
         self.canvas.draw()
 
-    def example_plot(self):
-        # PCOLORMESH EXAMPLE
+    def update_event_marker(self, t):
+        self.event_line.set_ydata([t, t])
 
-        # make these smaller to increase the resolution
-        dx, dy = 0.05, 0.05
+    def update_psd_plot(self, i):
+        # Slice spectrogram dataframe for timestamp index i
+        z = self.df.iloc[i, :]
+        z = np.log10(z)
 
-        # generate 2 2d grids for the x & y bounds
-        y, x = np.mgrid[slice(1, 5 + dy, dy),
-                        slice(1, 5 + dx, dx)]
+        # Create new legend label
+        timestamp1 = self.df.index[i]
+        timestamp2 = timestamp1 + timedelta(minutes=20)
+        msg_d1 = timestamp1.strftime('%d %b %Y %H:%M').lstrip('0')
+        msg_d2 = timestamp2.strftime('%d %b %Y %H:%M')[-5:]
+        label = ' '.join((msg_d1, 'to', msg_d2))
 
-        z = np.sin(x) ** 10 + np.cos(10 + y * x) * np.cos(x)
-
-        # x and y are bounds, so z should be the value *inside* those bounds.
-        # Therefore, remove the last value from the z array.
-        z = z[:-1, :-1]
-        levels = MaxNLocator(nbins=15).tick_values(z.min(), z.max())
-
-        # pick the desired colormap, sensible levels, and define a normalization
-        # instance which takes data values and translates those into levels.
-        cmap = plt.get_cmap('PiYG')
-        norm = BoundaryNorm(levels, ncolors=cmap.N, clip=True)
-
-        im = self.ax0.pcolormesh(x, y, z, cmap=cmap, norm=norm)
-        self.fig.colorbar(im, ax=self.ax0)
-        self.ax0.set_title('pcolormesh with levels')
-
-        # contours are *point* based plots, so convert our bound into point
-        # centers
-        cf = self.ax1.contourf(x[:-1, :-1] + dx / 2.,
-                               y[:-1, :-1] + dy / 2., z, levels=levels,
-                               cmap=cmap)
-        self.fig.colorbar(cf, ax=self.ax1)
-        self.ax1.set_title('contourf with levels')
-
-        # adjust spacing between subplots so `ax1` title and `ax0` tick labels
-        # don't overlap
-        self.fig.tight_layout()
-
-        self.canvas.draw()
+        # Update plot data and label text
+        self.psd_line.set_ydata(z)
+        self.label.set_text(label)
 
 
 class PlotStyle2H:
@@ -841,66 +866,56 @@ class PlotStyle2H:
 
 
 # For testing layout
-if __name__ == '__main__':
-    import sys
-    from PyQt5.QtWidgets import QApplication
-
-    np.random.seed(0)
-    app = QApplication(sys.argv)
-
-    # Create dummy dataset
-    start_dates = ['2017-03-10 00:00:00',
-                   '2017-03-10 00:10:00',
-                   '2017-03-10 00:20:00']
-
-    start_dates = [datetime.strptime(t, '%Y-%m-%d %H:%M:%S') for t in start_dates]
-
-    data = [[j + i * 10 for j in range(16)] for i in range(3)]
-    stats = np.asarray(data)
-    data = np.random.randn(3, 4)
-    df = pd.DataFrame(data=data, index=start_dates)
-    dataset = StatsDataset(logger_id='test', df=df)
-    dataset_names = ['test']
-
-    w = StatsWidget()
-    w.show()
-    w.datasets.append(dataset)
-    w.update_stats_datasets_list(dataset_names)
-    w.update_plot()
-
-    p = PlotStyle2H(w.canvas, w.fig)
-    p.add_2H_icon()
-
-    title = {'title1': '21239 Total WoS', 'title2': 'Glendronach Well Monitoring Campaign', 'title3': 'Mean'}
-    p.format_2h_style(**title)
-
-    sys.exit(app.exec_())
-#
 # if __name__ == '__main__':
 #     import sys
 #     from PyQt5.QtWidgets import QApplication
-#     from spectrograms import read_spectrograms_excel
 #
-#     # fpath = r'C:\Users\dickinsc\PycharmProjects\DSPLab\example_control_files\Output dd10 Sample'
-#     # fname = 'Spectrograms2.xlsx'
-#     # fpath = r'C:\Users\dickinsc\PycharmProjects\DSPLab\example_control_files\Output G1 dd10 Spect'
-#     # fname = 'Spectrograms.xlsx'
-#     #
-#     # fpath = os.path.join(fpath, fname)
-#     # spect_dict = read_spectrograms_excel(fpath)
-#     # # spect_dict = {'dd10': np.ones(3)}
-#     # names = list(spect_dict.keys())
-#
+#     np.random.seed(0)
 #     app = QApplication(sys.argv)
-#     # w = VarianceWidget()
-#     w = SpectrogramWidget()
-#     # w.datasets = spect_dict
-#     # w.update_spect_datasets_list(names)
 #
-#     w.example_plot()
+#     # Create dummy dataset
+#     start_dates = ['2017-03-10 00:00:00',
+#                    '2017-03-10 00:10:00',
+#                    '2017-03-10 00:20:00']
 #
+#     start_dates = [datetime.strptime(t, '%Y-%m-%d %H:%M:%S') for t in start_dates]
+#
+#     data = [[j + i * 10 for j in range(16)] for i in range(3)]
+#     stats = np.asarray(data)
+#     data = np.random.randn(3, 4)
+#     df = pd.DataFrame(data=data, index=start_dates)
+#     dataset = StatsDataset(logger_id='test', df=df)
+#     dataset_names = ['test']
+#
+#     w = StatsWidget()
 #     w.show()
+#     w.datasets.append(dataset)
+#     w.update_stats_datasets_list(dataset_names)
+#     w.update_plot()
+#
+#     p = PlotStyle2H(w.canvas, w.fig)
+#     p.add_2H_icon()
+#
+#     title = {'title1': '21239 Total WoS', 'title2': 'Glendronach Well Monitoring Campaign', 'title3': 'Mean'}
+#     p.format_2h_style(**title)
+#
 #     sys.exit(app.exec_())
 
-# if __name__ == '__main__':
-#     d = StatsDataset()
+if __name__ == '__main__':
+    import sys
+    from PyQt5.QtWidgets import QApplication
+    import os
+
+    from core.read_files import read_spectrograms_hdf5
+
+    fpath = r'C:\Users\dickinsc\PycharmProjects\_2. DataLab Analysis Files\21239\3. Output\Spectrograms'
+    fname = 'Spectrograms_Data_BOP_AccelX.h5'
+    fpath = os.path.join(fpath, fname)
+    logger, df = read_spectrograms_hdf5(fpath)
+
+    app = QApplication(sys.argv)
+    w = SpectrogramWidget()
+    w.datasets[logger] = df
+    w.update_spect_datasets_list(logger)
+    w.show()
+    sys.exit(app.exec_())

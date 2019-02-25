@@ -85,11 +85,14 @@ class TimeSeriesPlotWidget(QtWidgets.QWidget):
         self.connect_signals()
 
     def init_ui(self):
-        # Create widget
         # Setup container
         setupWidget = QtWidgets.QWidget()
         setupWidget.setFixedWidth(200)
         vboxSetup = QtWidgets.QVBoxLayout(setupWidget)
+
+        # Open file
+        self.openFile = QtWidgets.QPushButton('Open File')
+        self.openFile.setToolTip('Open raw logger file')
 
         # Files list
         filesLabel = QtWidgets.QLabel('Logger Files')
@@ -98,7 +101,7 @@ class TimeSeriesPlotWidget(QtWidgets.QWidget):
         # Channels list
         channelsLabel = QtWidgets.QLabel('Channels (echo)')
         self.channelsList = QtWidgets.QListWidget()
-        self.channelsList.setFixedHeight(180)
+        self.channelsList.setFixedHeight(120)
 
         # Primary and secondary axis combos
         priLabel = QtWidgets.QLabel('Primary Axis Channel:')
@@ -108,11 +111,17 @@ class TimeSeriesPlotWidget(QtWidgets.QWidget):
         self.priAxis.addItem('None')
         self.secAxis.addItem('None')
 
+        # Line separator
+        line = QtWidgets.QFrame()
+        line.setFrameShape(QtWidgets.QFrame.HLine)
+        line.setFrameShadow(QtWidgets.QFrame.Sunken)
+
         # Plot settings and replot buttons
         self.settingsButton = QtWidgets.QPushButton('Plot Settings')
         self.replotButton = QtWidgets.QPushButton('Replot')
 
         # Add setup widgets
+        vboxSetup.addWidget(self.openFile)
         vboxSetup.addWidget(filesLabel)
         vboxSetup.addWidget(self.filesList)
         vboxSetup.addWidget(channelsLabel)
@@ -121,6 +130,7 @@ class TimeSeriesPlotWidget(QtWidgets.QWidget):
         vboxSetup.addWidget(self.priAxis)
         vboxSetup.addWidget(secLabel)
         vboxSetup.addWidget(self.secAxis)
+        vboxSetup.addWidget(line)
         vboxSetup.addWidget(self.settingsButton)
         vboxSetup.addWidget(self.replotButton)
 
@@ -143,9 +153,13 @@ class TimeSeriesPlotWidget(QtWidgets.QWidget):
         layout.addWidget(plotWidget)
 
     def connect_signals(self):
+        self.openFile.clicked.connect(self.parent.load_logger_file)
         self.settingsButton.clicked.connect(self.open_plot_options)
         self.replotButton.clicked.connect(self.replot)
-        self.filesList.itemDoubleClicked.connect(self.replot)
+        self.filesList.itemDoubleClicked.connect(self.on_file_double_clicked)
+
+    def on_file_double_clicked(self):
+        self.replot()
 
     def open_plot_options(self):
         """Show plot options window."""
@@ -157,7 +171,11 @@ class TimeSeriesPlotWidget(QtWidgets.QWidget):
     def replot(self):
         """Load and process a selected logger file in the files list."""
 
+        if self.filesList.count() == 0:
+            return
+
         filename = self.filesList.currentItem().text()
+
         try:
             self.load_file(filename)
         except ValueError as e:
@@ -217,13 +235,13 @@ class TimeSeriesPlotWidget(QtWidgets.QWidget):
         return df
 
     def update_channels(self):
-        """Populate channels to channel list widget."""
+        """Populate drop-down channels if required."""
 
         # Store selected primary and secondary axis channel combo boxes indexes
         self.pri_ix = self.priAxis.currentIndex()
         self.sec_ix = self.secAxis.currentIndex()
 
-        # Redefine channels list and combo boxes current channels don't match file
+        # Redefine channels list and combo boxes current if channels don't match file
         if self.channel_names != self.current_channels:
             self.channelsList.clear()
             self.priAxis.clear()
@@ -271,14 +289,14 @@ class TimeSeriesPlotWidget(QtWidgets.QWidget):
         i = self.pri_ix
         if i > 0:
             self.plot_pri = True
-            self.plot_units.append(self.units[i])
-            df_plot[self.channel_names[i]] = df.iloc[:, i]
+            self.plot_units.append(self.units[i - 1])
+            df_plot[self.channel_names[i - 1]] = df.iloc[:, i]
 
         i = self.sec_ix
         if i > 0:
             self.plot_sec = True
-            self.plot_units.append(self.units[i])
-            df_plot[self.channel_names[i]] = df.iloc[:, i]
+            self.plot_units.append(self.units[i - 1])
+            df_plot[self.channel_names[i - 1]] = df.iloc[:, i]
 
         return df_plot
 
@@ -438,7 +456,7 @@ class TimeSeriesPlotWidget(QtWidgets.QWidget):
         # Convert PSD to log10 if plot option selected
         if self.log_scale:
             pxx = np.log10(pxx)
-            log10 = '$\mathregular{log_{10}}$'
+            log10 = r'$\mathregular{log_{10}}$'
         else:
             log10 = ''
 
@@ -778,7 +796,10 @@ class PlotOptions(QtWidgets.QDialog):
                         'Blackman',
                         ]
 
-        # Initialise plot option parameters
+        self.init_ui()
+        self.connect_signals()
+
+    def init_ui(self):
         self.setWindowTitle('Logger Plot Options')
 
         # Widget sizing policy - prevent expansion
@@ -931,8 +952,6 @@ class PlotOptions(QtWidgets.QDialog):
         mainLayout.addWidget(psdOpts)
         mainLayout.addWidget(fftParams)
         mainLayout.addWidget(self.buttons, stretch=0, alignment=QtCore.Qt.AlignRight)
-
-        self.connect_signals()
 
     def connect_signals(self):
         self.buttons.accepted.connect(self.accept)
