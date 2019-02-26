@@ -36,7 +36,7 @@ class TimeSeriesPlotWidget(QtWidgets.QWidget):
         self.plot_sec = False
         self.plot_period = False
         self.log_scale = False
-        self.fft_default_params = True
+        self.psd_params_type = 'default'
         self.set_init_axis_limits = True
         self.ignore_on_xlim_change = True
 
@@ -44,23 +44,29 @@ class TimeSeriesPlotWidget(QtWidgets.QWidget):
         self.pri_ix = 1
         self.sec_ix = 0
 
-        # Default Welch FFT parameters
-        self.def_num_ensembles = 46.875
+        # Default PSD parameters
+        self.def_num_ensembles = 1
+        self.def_window = 'None'
+        self.def_overlap = 0
         self.def_nperseg = 256
-        self.def_window = 'Hann'
-        self.def_overlap = 50
 
-        # Custom Welch FFT parameters
+        # Default Welch PSD parameters
+        self.welch_num_ensembles = 46.875
+        self.welch_window = 'Hann'
+        self.welch_overlap = 50
+        self.welch_nperseg = 256
+
+        # Custom Welch PSD parameters
         self.cust_num_ensembles = 1
-        self.cust_nperseg = 256
         self.cust_window = 'None'
         self.cust_overlap = 0
+        self.cust_nperseg = 256
 
-        # Assigned Welch FFT parameters
+        # Initialise with default PSD parameters (i.e. basic PSD)
         self.num_ensembles = self.def_num_ensembles
-        self.nperseg = self.def_nperseg
         self.window = self.def_window
         self.overlap = self.def_overlap
+        self.fs = 10
 
         # Initial axis limits upon loading a file
         self.init_xlim = (0.0, 1.0)
@@ -341,6 +347,9 @@ class TimeSeriesPlotWidget(QtWidgets.QWidget):
         # self.fig.subplots_adjust(bottom=.15, top=.85, hspace=.5)
         self.canvas.draw()
 
+        # Update parameters in plot settings window (could be open)
+        self.plotSettings.get_params()
+
     def draw_axes(self):
         """Set up basic plot layout."""
 
@@ -442,15 +451,13 @@ class TimeSeriesPlotWidget(QtWidgets.QWidget):
             self.ax2b.grid(True)
 
         # Calculate PSD of selected channels
-        f, pxx = self.psd_welch(df)
-
-        # Drop 0 Hz
-        f = f[1:]
-        pxx = pxx[:, 1:]
+        f, pxx = self.calc_psd(df)
 
         # Set x-axis as frequency or period based on plot options
         if self.plot_period:
-            f = 1 / f
+            # Handle for divide by zero
+            f = 1 / f[1:]
+            pxx = pxx[:, 1:]
             self.ax2.set_xlabel('Period (s)', size=11)
         else:
             self.ax2.set_xlabel('Frequency (Hz)', size=11)
@@ -491,7 +498,7 @@ class TimeSeriesPlotWidget(QtWidgets.QWidget):
         self.ax2.margins(x=0, y=0)
         self.ax2b.margins(x=0, y=0)
 
-    def psd_welch(self, df):
+    def calc_psd(self, df):
         """Compute PSD of all channels using the Welch method."""
 
         # TODO: Unit test this!
@@ -500,18 +507,23 @@ class TimeSeriesPlotWidget(QtWidgets.QWidget):
         window = self.window.lower()
         if window == 'none':
             window = 'boxcar'
-        nperseg = len(df) // self.num_ensembles
+        nperseg = int(len(df) / self.num_ensembles)
         noverlap = nperseg * self.overlap // 100
 
         try:
-            # Note the default parameters are equivalent to running
+            # Note the default Welch parameters are equivalent to running
             # f, pxx = signal.welch(df.T, fs=fs)
             f, pxx = signal.welch(df.T, fs=fs, window=window, nperseg=nperseg, noverlap=noverlap)
         except Exception as e:
-            raise ValueError(f'Could not calculate PSD. {e}')
+            raise ValueError(f'Could not calculate PSD\n{e}')
 
         # TODO: Dataframe of PSD - give option to export to csv
-        df_psd = pd.DataFrame(pxx.T, index=f)
+        # df_psd = pd.DataFrame(pxx.T, index=f)
+
+        # Store nperseg and sampling frequency so that plot settings window is up to date
+        self.def_nperseg = int(len(df))
+        self.cust_nperseg = nperseg
+        self.fs = int(fs)
 
         return f, pxx
 
@@ -553,7 +565,7 @@ class TimeSeriesPlotWidget(QtWidgets.QWidget):
         # return '%1.3f' % y
         return f'{y:1.3f}'
 
-    def calc_psd(self, df, col, n):
+    def manual_calc_psd(self, df, col, n):
         """Calculate PSD."""
 
         # Number of samples
@@ -816,50 +828,47 @@ class LoggerPlotSettings(QtWidgets.QDialog):
         form = QtWidgets.QWidget()
         layout = QtWidgets.QFormLayout(form)
         self.optProject = QtWidgets.QLineEdit()
-        # self.optTitle2 = QtWidgets.QLineEdit()
-
         layout.addRow(QtWidgets.QLabel('Project title:'), self.optProject)
-        # layout.addRow(QtWidgets.QLabel('Title 2:'), self.optTitle2)
 
         # Time series axes limits
         frameTS = QtWidgets.QGroupBox('Time Series Limits')
         grid = QtWidgets.QGridLayout(frameTS)
         self.optTSXmin = QtWidgets.QLineEdit('0')
         self.optTSXmax = QtWidgets.QLineEdit('1')
-        self.optTSYmin = QtWidgets.QLineEdit('0')
-        self.optTSYmax = QtWidgets.QLineEdit('1')
+        # self.optTSYmin = QtWidgets.QLineEdit('0')
+        # self.optTSYmax = QtWidgets.QLineEdit('1')
         self.optTSXmin.setFixedWidth(50)
         self.optTSXmax.setFixedWidth(50)
-        self.optTSYmin.setFixedWidth(50)
-        self.optTSYmax.setFixedWidth(50)
+        # self.optTSYmin.setFixedWidth(50)
+        # self.optTSYmax.setFixedWidth(50)
         grid.addWidget(QtWidgets.QLabel('X min:'), 0, 0)
         grid.addWidget(self.optTSXmin, 0, 1)
         grid.addWidget(QtWidgets.QLabel('X max:'), 0, 2)
         grid.addWidget(self.optTSXmax, 0, 3)
-        grid.addWidget(QtWidgets.QLabel('Y min:'), 1, 0)
-        grid.addWidget(self.optTSYmin, 1, 1)
-        grid.addWidget(QtWidgets.QLabel('Y max:'), 1, 2)
-        grid.addWidget(self.optTSYmax, 1, 3)
+        # grid.addWidget(QtWidgets.QLabel('Y min:'), 1, 0)
+        # grid.addWidget(self.optTSYmin, 1, 1)
+        # grid.addWidget(QtWidgets.QLabel('Y max:'), 1, 2)
+        # grid.addWidget(self.optTSYmax, 1, 3)
 
         # PSD axes limits
         framePSD = QtWidgets.QGroupBox('PSD Limits')
         grid = QtWidgets.QGridLayout(framePSD)
         self.optPSDXmin = QtWidgets.QLineEdit('0')
         self.optPSDXmax = QtWidgets.QLineEdit('1')
-        self.optPSDYmin = QtWidgets.QLineEdit('0')
-        self.optPSDYmax = QtWidgets.QLineEdit('1')
+        # self.optPSDYmin = QtWidgets.QLineEdit('0')
+        # self.optPSDYmax = QtWidgets.QLineEdit('1')
         self.optPSDXmin.setFixedWidth(50)
         self.optPSDXmax.setFixedWidth(50)
-        self.optPSDYmin.setFixedWidth(50)
-        self.optPSDYmax.setFixedWidth(50)
+        # self.optPSDYmin.setFixedWidth(50)
+        # self.optPSDYmax.setFixedWidth(50)
         grid.addWidget(QtWidgets.QLabel('X min:'), 0, 0)
         grid.addWidget(self.optPSDXmin, 0, 1)
         grid.addWidget(QtWidgets.QLabel('X max:'), 0, 2)
         grid.addWidget(self.optPSDXmax, 0, 3)
-        grid.addWidget(QtWidgets.QLabel('Y min:'), 1, 0)
-        grid.addWidget(self.optPSDYmin, 1, 1)
-        grid.addWidget(QtWidgets.QLabel('Y max:'), 1, 2)
-        grid.addWidget(self.optPSDYmax, 1, 3)
+        # grid.addWidget(QtWidgets.QLabel('Y min:'), 1, 0)
+        # grid.addWidget(self.optPSDYmin, 1, 1)
+        # grid.addWidget(QtWidgets.QLabel('Y max:'), 1, 2)
+        # grid.addWidget(self.optPSDYmax, 1, 3)
 
         # Combine axis limits frames
         axesLimits = QtWidgets.QWidget()
@@ -888,44 +897,54 @@ class LoggerPlotSettings(QtWidgets.QDialog):
         hbox.addWidget(psdXAxis)
         hbox.addWidget(self.logScale)
 
-        # FFT parameters
+        # PSD parameters
         # Create a dummy container to maintain correct alignment with other widgets
-        fftParams = QtWidgets.QWidget()
-        layout = QtWidgets.QVBoxLayout(fftParams)
-        frame = QtWidgets.QGroupBox('FFT Parameters')
+        psdParams = QtWidgets.QWidget()
+        layout = QtWidgets.QVBoxLayout(psdParams)
+        frame = QtWidgets.QGroupBox('Power Spectral Density Parameters')
         frame.setSizePolicy(policy)
         layout.addWidget(frame)
 
         # Parameters choice
-        self.radioDefault = QtWidgets.QRadioButton('Default Welch parameters (recommended)')
+        self.radioDefault = QtWidgets.QRadioButton('Default parameters')
+        self.radioWelch = QtWidgets.QRadioButton('Default Welch parameters')
         self.radioCustom = QtWidgets.QRadioButton('Custom parameters')
         self.radioDefault.setChecked(True)
 
-        # FFT parameters form
+        # PSD parameters form
         params = QtWidgets.QWidget()
         params.setSizePolicy(policy)
         layout = QtWidgets.QFormLayout(params)
+
         self.optNumEnsembles = QtWidgets.QLineEdit()
-        self.optNperseg = QtWidgets.QLineEdit()
         self.optWindow = QtWidgets.QComboBox()
         self.optWindow.addItems(self.windows)
         self.optOverlap = QtWidgets.QLineEdit('50')
+        self.optNperseg = QtWidgets.QLineEdit()
+        self.optFs = QtWidgets.QLineEdit()
+
         self.optNumEnsembles.setFixedWidth(50)
-        self.optNperseg.setFixedWidth(50)
         self.optOverlap.setFixedWidth(50)
+        self.optNperseg.setFixedWidth(50)
+        self.optFs.setFixedWidth(50)
+
         self.optNumEnsembles.setEnabled(False)
-        self.optNperseg.setEnabled(False)
         self.optWindow.setEnabled(False)
         self.optOverlap.setEnabled(False)
+        self.optNperseg.setEnabled(False)
+        self.optFs.setEnabled(False)
+
         layout.addRow(QtWidgets.QLabel('Number of ensembles:'), self.optNumEnsembles)
-        layout.addRow(QtWidgets.QLabel('Number of points per ensemble:'), self.optNperseg)
-        layout.addRow(QtWidgets.QLabel('Window method:'), self.optWindow)
+        layout.addRow(QtWidgets.QLabel('Window:'), self.optWindow)
         layout.addRow(QtWidgets.QLabel('Window overlap (%):'), self.optOverlap)
+        layout.addRow(QtWidgets.QLabel('Number of points per ensemble (echo):'), self.optNperseg)
+        layout.addRow(QtWidgets.QLabel('Sampling frequency (Hz) (echo):'), self.optFs)
 
         hbox = QtWidgets.QHBoxLayout(frame)
         paramsChoice = QtWidgets.QWidget()
         vbox = QtWidgets.QVBoxLayout(paramsChoice)
         vbox.addWidget(self.radioDefault)
+        vbox.addWidget(self.radioWelch)
         vbox.addWidget(self.radioCustom)
         vbox.setAlignment(QtCore.Qt.AlignTop)
         hbox.addWidget(paramsChoice)
@@ -943,15 +962,15 @@ class LoggerPlotSettings(QtWidgets.QDialog):
                                                   QtWidgets.QDialogButtonBox.Reset)
 
         # Final layout
-        sectionLabel = QtWidgets.QLabel('Plot Title and Axes Labels')
-        bold = QtGui.QFont()
-        bold.setBold(True)
-        sectionLabel.setFont(bold)
-        mainLayout.addWidget(sectionLabel)
+        # sectionLabel = QtWidgets.QLabel('Plot Title and Axes Labels')
+        # bold = QtGui.QFont()
+        # bold.setBold(True)
+        # sectionLabel.setFont(bold)
+        # mainLayout.addWidget(sectionLabel)
         mainLayout.addWidget(form)
         mainLayout.addWidget(axesLimits)
         mainLayout.addWidget(psdOpts)
-        mainLayout.addWidget(fftParams)
+        mainLayout.addWidget(psdParams)
         mainLayout.addWidget(self.buttons, stretch=0, alignment=QtCore.Qt.AlignRight)
 
     def connect_signals(self):
@@ -962,12 +981,12 @@ class LoggerPlotSettings(QtWidgets.QDialog):
         self.buttons.button(QtWidgets.QDialogButtonBox.Reset).clicked.connect(self.reset_values)
         self.radioFreq.toggled.connect(self.switch_psd_xaxis)
         self.radioDefault.toggled.connect(self.switch_welch_params)
+        self.radioWelch.toggled.connect(self.switch_welch_params)
 
     def get_params(self):
         """Get plot parameters from the time series widget and assign to settings widget."""
 
         self.optProject.setText(self.parent.project)
-        # self.optTitle2.setText(self.parent.title2)
         self.optTSXmin.setText(str(round(self.parent.ax1.get_xlim()[0], 1)))
         self.optTSXmax.setText(str(round(self.parent.ax1.get_xlim()[1], 1)))
         self.optPSDXmin.setText(str(round(self.parent.ax2.get_xlim()[0], 1)))
@@ -983,24 +1002,33 @@ class LoggerPlotSettings(QtWidgets.QDialog):
         else:
             self.logScale.setChecked(False)
 
-        if self.parent.fft_default_params is True:
+        # Get PSD parameters
+        if self.parent.psd_params_type == 'default':
             self.radioDefault.setChecked(True)
             self.optNumEnsembles.setText(str(self.parent.def_num_ensembles))
-            self.optNperseg.setText(str(int(self.parent.def_nperseg)))
             self.optWindow.setCurrentText(self.parent.def_window)
             self.optOverlap.setText(str(self.parent.def_overlap))
+            self.optNperseg.setText(str(int(self.parent.def_nperseg)))
+        elif self.parent.psd_params_type == 'welch':
+            self.radioWelch.setChecked(True)
+            self.optNumEnsembles.setText(str(self.parent.welch_num_ensembles))
+            self.optWindow.setCurrentText(self.parent.welch_window)
+            self.optOverlap.setText(str(self.parent.welch_overlap))
+            self.optNperseg.setText(str(int(self.parent.welch_nperseg)))
         else:
             self.radioCustom.setChecked(True)
             self.optNumEnsembles.setText(str(self.parent.cust_num_ensembles))
-            self.optNperseg.setText(str(int(self.parent.cust_nperseg)))
             self.optWindow.setCurrentText(self.parent.cust_window)
             self.optOverlap.setText(str(self.parent.cust_overlap))
+            self.optNperseg.setText(str(int(self.parent.cust_nperseg)))
+
+        # Get sampling frequency
+        self.optFs.setText(str(self.parent.fs))
 
     def set_params(self):
         """Update time series widget class parameters with the plot settings and replot."""
 
         self.parent.project = self.optProject.text()
-        # self.parent.title2 = self.optTitle2.text()
 
         # Check numeric parameters are of valid type
         try:
@@ -1010,7 +1038,6 @@ class LoggerPlotSettings(QtWidgets.QDialog):
 
             # Assign PSD parameters
             self.parent.num_ensembles = float(self.optNumEnsembles.text())
-            self.parent.nperseg = int(self.optNperseg.text())
             self.parent.window = self.optWindow.currentText()
             self.parent.overlap = float(self.optOverlap.text())
 
@@ -1027,14 +1054,19 @@ class LoggerPlotSettings(QtWidgets.QDialog):
             # Store custom PSD parameters
             if self.radioCustom.isChecked():
                 self.parent.cust_num_ensembles = self.parent.num_ensembles
-                self.parent.cust_nperseg = self.parent.nperseg
                 self.parent.cust_window = self.parent.window
                 self.parent.cust_overlap = self.parent.overlap
 
             # Assign remaining settings to time series class
             self.parent.plot_period = self.radioPeriod.isChecked()
             self.parent.log_scale = self.logScale.isChecked()
-            self.parent.fft_default_params = self.radioDefault.isChecked()
+
+            if self.radioDefault.isChecked():
+                self.parent.psd_params_type = 'default'
+            elif self.radioWelch.isChecked():
+                self.parent.psd_params_type = 'welch'
+            else:
+                self.parent.psd_params_type = 'custom'
 
             # Check a logger files has already been loaded
             if self.parent.filesList.count() > 0:
@@ -1081,22 +1113,26 @@ class LoggerPlotSettings(QtWidgets.QDialog):
     def switch_welch_params(self):
         """Switch between default and and custom FFT parameters."""
 
+        self.optNumEnsembles.setEnabled(False)
+        self.optWindow.setEnabled(False)
+        self.optOverlap.setEnabled(False)
+
         if self.radioDefault.isChecked():
             self.optNumEnsembles.setText(str(self.parent.def_num_ensembles))
             self.optNperseg.setText(str(self.parent.def_nperseg))
             self.optWindow.setCurrentText(self.parent.def_window)
             self.optOverlap.setText(str(self.parent.def_overlap))
-            self.optNumEnsembles.setEnabled(False)
-            self.optNperseg.setEnabled(False)
-            self.optWindow.setEnabled(False)
-            self.optOverlap.setEnabled(False)
+        elif self.radioWelch.isChecked():
+            self.optNumEnsembles.setText(str(self.parent.welch_num_ensembles))
+            self.optNperseg.setText(str(self.parent.welch_nperseg))
+            self.optWindow.setCurrentText(self.parent.welch_window)
+            self.optOverlap.setText(str(self.parent.welch_overlap))
         else:
             self.optNumEnsembles.setText(str(self.parent.cust_num_ensembles))
             self.optNperseg.setText(str(self.parent.cust_nperseg))
             self.optWindow.setCurrentText(self.parent.cust_window)
             self.optOverlap.setText(str(self.parent.cust_overlap))
             self.optNumEnsembles.setEnabled(True)
-            self.optNperseg.setEnabled(True)
             self.optWindow.setEnabled(True)
             self.optOverlap.setEnabled(True)
 
