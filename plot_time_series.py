@@ -781,9 +781,9 @@ class TimeSeriesPlotWidget(QtWidgets.QWidget):
     #     return df_plot
 
 
-class PlotOptions(QtWidgets.QDialog):
+class LoggerPlotSettings(QtWidgets.QDialog):
     def __init__(self, parent=None):
-        super(PlotOptions, self).__init__(parent)
+        super(LoggerPlotSettings, self).__init__(parent)
 
         # Assign parent objects
         self.parent = parent
@@ -800,7 +800,7 @@ class PlotOptions(QtWidgets.QDialog):
         self.connect_signals()
 
     def init_ui(self):
-        self.setWindowTitle('Logger Plot Options')
+        self.setWindowTitle('Logger Plot Settings')
 
         # Widget sizing policy - prevent expansion
         policy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed)
@@ -880,7 +880,7 @@ class PlotOptions(QtWidgets.QDialog):
         self.logScale = QtWidgets.QCheckBox('PSD log scale')
         self.logScale.setChecked(False)
 
-        # Combined PSD x-axis and log scale
+        # Combine PSD x-axis and log scale
         psdOpts = QtWidgets.QWidget()
         hbox = QtWidgets.QHBoxLayout(psdOpts)
         hbox.addWidget(psdXAxis)
@@ -946,7 +946,6 @@ class PlotOptions(QtWidgets.QDialog):
         bold.setBold(True)
         sectionLabel.setFont(bold)
         mainLayout.addWidget(sectionLabel)
-
         mainLayout.addWidget(form)
         mainLayout.addWidget(axesLimits)
         mainLayout.addWidget(psdOpts)
@@ -963,7 +962,7 @@ class PlotOptions(QtWidgets.QDialog):
         self.radioDefault.toggled.connect(self.switch_welch_params)
 
     def get_params(self):
-        """Get plot parameters from the time series widget and assign to options widget."""
+        """Get plot parameters from the time series widget and assign to settings widget."""
 
         # Pointer to time series widget class
         ts = self.parent.timeSeriesTab
@@ -999,7 +998,7 @@ class PlotOptions(QtWidgets.QDialog):
             self.optOverlap.setText(str(ts.cust_overlap))
 
     def set_params(self):
-        """Update time series plot widget class parameters with the options settings and replot."""
+        """Update time series widget class parameters with the plot settings and replot."""
 
         # Pointer to time series widget class
         ts = self.parent.timeSeriesTab
@@ -1029,7 +1028,7 @@ class PlotOptions(QtWidgets.QDialog):
                 ts.cust_window = ts.window
                 ts.cust_overlap = ts.overlap
 
-            # Assign remaining settings time series class
+            # Assign remaining settings to time series class
             ts.plot_period = self.radioPeriod.isChecked()
             ts.log_scale = self.logScale.isChecked()
             ts.fft_default_params = self.radioDefault.isChecked()
@@ -1108,7 +1107,8 @@ class PlotOptions(QtWidgets.QDialog):
 # For testing layout
 if __name__ == '__main__':
     app = QtWidgets.QApplication(sys.argv)
-    win = PlotOptions()
+    # win = TimeSeriesPlotWidget()
+    win = LoggerPlotSettings()
     win.show()
     sys.exit(app.exec_())
 

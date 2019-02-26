@@ -1,7 +1,7 @@
 __author__ = 'Craig Dickinson'
 __program__ = 'DataLab'
 __version__ = '0.4'
-__date__ = '25 February 2019'
+__date__ = '26 February 2019'
 
 import logging
 import os
@@ -18,7 +18,7 @@ from core.datalab_main import DataLab
 from core.read_files import (read_spectrograms_csv, read_spectrograms_excel, read_spectrograms_hdf5, read_stats_csv,
                              read_stats_excel, read_stats_hdf5)
 from plot_stats import PlotStyle2H, SpectrogramWidget, StatsDataset, StatsWidget, VarianceWidget
-from plot_time_series import PlotOptions, TimeSeriesPlotWidget
+from plot_time_series import LoggerPlotSettings, TimeSeriesPlotWidget
 import datalab_gui_layout
 
 
@@ -36,7 +36,6 @@ class DataLabGui(QtWidgets.QMainWindow):
         self.setWindowTitle('Monitoring Data Lab')
         self.init_ui()
         self.connect_signals()
-        self.plotOptions = PlotOptions(self)
         # self._centre()
 
         # self.output_folder = r'C:\Users\dickinsc\PycharmProjects\DSPLab\output\Glenlivet G1G2'
@@ -64,6 +63,7 @@ class DataLabGui(QtWidgets.QMainWindow):
         # Raw data inspection module
         self.rawDataModule = QtWidgets.QTabWidget()
         self.timeSeriesTab = TimeSeriesPlotWidget(self)
+        self.plotOptions = LoggerPlotSettings(self)
         self.rawDataModule.addTab(self.timeSeriesTab, 'Time Series')
 
         # Screening module container and tab widgets
@@ -71,7 +71,7 @@ class DataLabGui(QtWidgets.QMainWindow):
         self.controlTab = self.control_widget()
         self.statsTab = StatsWidget()
         self.varianceTab = VarianceWidget()
-        self.spectrogramTab = SpectrogramWidget()
+        self.spectrogramTab = SpectrogramWidget(self)
         self.screeningModule.addTab(self.controlTab, 'Input')
         self.screeningModule.addTab(self.statsTab, 'Statistics')
         self.screeningModule.addTab(self.varianceTab, 'Variance Plot')
@@ -95,7 +95,7 @@ class DataLabGui(QtWidgets.QMainWindow):
         menuView = menubar.addMenu('&View')
         menuProcess = menubar.addMenu('&Process')
         menuLogic = menubar.addMenu('&Applied Logic')
-        menuPlot = menubar.addMenu('&Plot')
+        menuPlotSettings = menubar.addMenu('&Plot Settings')
         menuExport = menubar.addMenu('&Export')
         menuAbout = menubar.addMenu('&Help')
 
@@ -151,13 +151,15 @@ class DataLabGui(QtWidgets.QMainWindow):
         menuLogic.addAction(self.filter)
         menuLogic.addAction(self.spikeRemoval)
 
-        # Plot menu
+        # Plot settings menu
         self.add2HIcon = QtWidgets.QAction('Add 2H Icon')
         self.add2HIcon.setCheckable(True)
-        self.plotSettings = QtWidgets.QAction('Plot Settings')
-        self.plotSettings.setShortcut('Ctrl+S')
-        menuPlot.addAction(self.add2HIcon)
-        menuPlot.addAction(self.plotSettings)
+        self.rawDataPlotSettings = QtWidgets.QAction('Raw Data Plot Settings')
+        self.rawDataPlotSettings.setShortcut('Ctrl+S')
+        self.spectPlotSettings = QtWidgets.QAction('Spectrogram Plot Settings')
+        menuPlotSettings.addAction(self.add2HIcon)
+        menuPlotSettings.addAction(self.rawDataPlotSettings)
+        menuPlotSettings.addAction(self.spectPlotSettings)
 
         # Help menu
         self.showHelp = QtWidgets.QAction('Help')
@@ -173,7 +175,7 @@ class DataLabGui(QtWidgets.QMainWindow):
         self.screeningButton = QtWidgets.QPushButton('Logger Screening')
         self.TFButton = QtWidgets.QPushButton('Transfer Functions')
         self.fatigueButton = QtWidgets.QPushButton('Fatigue Analysis')
-        self.toolBar.addWidget(QtWidgets.QLabel('Dashboards:'))
+        self.toolBar.addWidget(QtWidgets.QLabel('Modules:'))
         self.toolBar.addWidget(self.rawDataButton)
         self.toolBar.addWidget(self.screeningButton)
         self.toolBar.addWidget(self.TFButton)
@@ -237,7 +239,8 @@ class DataLabGui(QtWidgets.QMainWindow):
 
         # Plot menu signals
         self.add2HIcon.triggered.connect(self.add_2h_icon)
-        self.plotSettings.triggered.connect(self.open_plot_options)
+        self.rawDataPlotSettings.triggered.connect(self.open_raw_data_plot_settings)
+        self.spectPlotSettings.triggered.connect(self.open_spect_plot_settings)
 
         # Help menu signals
         self.showHelp.triggered.connect(self.show_help)
@@ -294,12 +297,19 @@ class DataLabGui(QtWidgets.QMainWindow):
 
             self.modulesWidget.setCurrentWidget(self.screeningModule)
 
-    def open_plot_options(self):
-        """Show logger file plot options window."""
+    def open_raw_data_plot_settings(self):
+        """Show raw data plot settings window."""
 
         # Set current parameters from time series plot widget class
         self.plotOptions.get_params()
         self.plotOptions.show()
+
+    def open_spect_plot_settings(self):
+        """Show spectrogram plot settings window."""
+
+        # Set current parameters from spectrogram plot widget class
+        self.spectrogramTab.plotSettings.get_params()
+        self.spectrogramTab.plotSettings.show()
 
     def open_stats_file(self):
         """Open summary stats spreadsheet."""
@@ -413,9 +423,7 @@ class DataLabGui(QtWidgets.QMainWindow):
         """Show program version info message box."""
 
         msgbox = QtWidgets.QMessageBox(self)
-        msg = 'Program: ' + __program__ + '\n'
-        msg += 'Version: ' + __version__ + '\n'
-        msg += 'Date: ' + __date__ + '\n'
+        msg = f'Program: {__program__}\nVersion: {__version__}\nDate: {__date__}'
         msgbox.setText(msg)
         msgbox.setWindowTitle('About')
         msgbox.show()

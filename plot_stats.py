@@ -5,7 +5,7 @@ import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from PyQt5 import QtCore, QtWidgets
+from PyQt5 import QtCore, QtGui, QtWidgets
 from matplotlib import cm
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
@@ -507,24 +507,43 @@ class SpectrogramWidget(QtWidgets.QWidget):
                 'Angular Rate X',
                 'Angular Rate Y']
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, parent=None):
+        super(SpectrogramWidget, self).__init__(parent)
 
+        # So can access parent class
+        self.parent = parent
         plt.style.use('seaborn')
         # plt.style.use('seaborn-pastel')
         # plt.style.use('bmh')
 
+        self.project = 'Project Title'  # 'Total WoS Glendronach Well Monitoring'
         self.logger_names = []
         self.datasets = {}
+        self.timestamps = []
+        self.t = None
+        self.freqs = []
+        self.z = []
+        self.zmin = 0
+        self.zmax = 0
+        self.ts_i = 0
+
+        # Initial axis limits upon loading a file
+        self.init_xlim = (0.0, 3.0)
+        self.xlim = (0.0, 3.0)
+        self.log_scale = True
 
         # Placeholder for colorbar, plot line and label handles
         self.cbar = None
         self.event_line = None
         self.psd_line = None
         self.label = None
+        self.skip = False
 
         self.init_ui()
         self.connect_signals()
+
+        # Instantiate plot settings widget
+        self.plotSettings = SpectroPlotSettings(self)
 
     def init_ui(self):
         # Main layout
@@ -534,26 +553,37 @@ class SpectrogramWidget(QtWidgets.QWidget):
         selection = QtWidgets.QWidget()
         selection.setFixedWidth(170)
         grid = QtWidgets.QGridLayout(selection)
+        self.loadDataset = QtWidgets.QPushButton('Load Dataset')
         lbl = QtWidgets.QLabel('Loaded Datasets')
         self.datasetList = QtWidgets.QListWidget()
         self.datasetList.setFixedHeight(100)
         self.datetimeEdit = QtWidgets.QDateTimeEdit()
-        lbl2 = QtWidgets.QLabel('Timestamps')
+        lbl2 = QtWidgets.QLabel('Timestamps (reverse)')
         self.timestampList = QtWidgets.QListWidget()
         self.slider = QtWidgets.QSlider()
         self.slider.setOrientation(QtCore.Qt.Vertical)
-        grid.addWidget(lbl)
-        grid.addWidget(self.datasetList)
-        grid.addWidget(self.datetimeEdit)
-        grid.addWidget(lbl2)
-        grid.addWidget(self.timestampList)
-        grid.addWidget(self.slider, 4, 1)
+        self.slider.setValue(50)
+        self.openPlotSettings = QtWidgets.QPushButton('Plot Settings')
+        self.clearDatasets = QtWidgets.QPushButton('Clear Datasets')
+        grid.addWidget(self.loadDataset, 0, 0)
+        grid.addWidget(lbl, 1, 0)
+        grid.addWidget(self.datasetList, 2, 0)
+        grid.addWidget(self.datetimeEdit, 3, 0)
+        grid.addWidget(lbl2, 4, 0)
+        grid.addWidget(self.timestampList, 5, 0)
+        grid.addWidget(self.slider, 5, 1)
+        grid.addWidget(self.openPlotSettings, 6, 0)
+        grid.addWidget(self.clearDatasets, 7, 0)
 
         # Plot layout
         # Create plot figure, canvas widget to display figure and navbar
         plot = QtWidgets.QWidget()
         plot_layout = QtWidgets.QVBoxLayout(plot)
         self.fig, _ = plt.subplots()
+
+        # Initialise axes
+        self.draw_axes()
+
         self.canvas = FigureCanvas(self.fig)
         self.canvas.draw()
         navbar = NavigationToolbar(self.canvas, self)
@@ -565,9 +595,25 @@ class SpectrogramWidget(QtWidgets.QWidget):
         layout.addWidget(plot)
 
     def connect_signals(self):
+        self.loadDataset.clicked.connect(self.parent.open_spectrograms_file)
+        self.clearDatasets.clicked.connect(self.clear_datasets)
+        self.openPlotSettings.clicked.connect(self.open_plot_settings)
         self.datasetList.currentItemChanged.connect(self.on_dataset_item_change)
         self.slider.valueChanged.connect(self.on_slider_change)
         self.timestampList.itemDoubleClicked.connect(self.on_timestamp_list_double_clicked)
+
+    def clear_datasets(self):
+        """Clear all stored spectrogram datasets and reset layout."""
+        self.datasets = {}
+        self.timestamps = []
+        self.datasetList.clear()
+        self.timestampList.clear()
+        self.draw_axes()
+        self.canvas.draw()
+
+    def open_plot_settings(self):
+        self.plotSettings.get_params()
+        self.plotSettings.show()
 
     def update_spect_datasets_list(self, logger):
         """Populate loaded datasets list."""
@@ -575,11 +621,9 @@ class SpectrogramWidget(QtWidgets.QWidget):
         # Create active channels flag lists
         self.logger_names = logger
 
-        # Repopulate datasets list
-        # self.datasetList.clear()
+        # Populate datasets list
         self.datasetList.addItem(logger)
         n = self.datasetList.count()
-
         self.datasetList.setCurrentRow(n - 1)
 
     def on_dataset_item_change(self):
@@ -590,36 +634,90 @@ class SpectrogramWidget(QtWidgets.QWidget):
         if i == -1:
             return
 
+        self.set_plot_data()
         self.draw_axes()
-        i = self.slider.value()
-        self.plot_spectrogram(i)
-        self.plot_event_psd(i)
+        self.plot_spectrogram()
+        self.plot_event_psd()
 
     def on_slider_change(self):
+        """Update event PSD plot."""
+
+        # Ignore if initial spectrogram is being plotted
+        if self.skip is True:
+            return
+
         i = self.slider.value()
         n = self.slider.maximum()
         row = n - i
         self.timestampList.setCurrentRow(row)
 
-        if self.timestamps.empty is False:
+        if self.timestampList.count() > 0:
             t = self.timestamps[i]
-            t_psd = mdates.date2num(t)
-            yr = t.year
-            mth = t.month
-            day = t.day
-            hr = t.hour
-            m = t.minute
-            dt = QtCore.QDateTime(yr, mth, day, hr, m)
-            self.datetimeEdit.setDateTime(dt)
+            self.set_datetime_edit(t)
 
+            # Update plot data (faster than replotting)
+            t_psd = mdates.date2num(t)
             self.update_event_marker(t_psd)
             self.update_psd_plot(i)
             self.canvas.draw()
             self.canvas.flush_events()
 
     def on_timestamp_list_double_clicked(self):
+        """Update the PSD event slice for the selected timestamp."""
+
+        # Timestamp list is in reverse order so index needs to be inverted
         i = self.timestampList.currentRow()
+        n = self.timestampList.count()
+        self.slider.setValue(n - i)
+
+    def set_datetime_edit(self, t):
+        yr = t.year
+        mth = t.month
+        day = t.day
+        hr = t.hour
+        m = t.minute
+        dt = QtCore.QDateTime(yr, mth, day, hr, m)
+        self.datetimeEdit.setDateTime(dt)
+
+    def set_plot_data(self):
+        """Retrieve spectrogram dataset from list and extract relevant data."""
+
+        # Get plot data
+        dataset = self.datasetList.currentItem().text()
+        df = self.datasets[dataset]
+
+        # Extract data
+        self.timestamps = df.index
+        self.freqs = df.columns
+
+        if self.log_scale is True:
+            self.z = np.log10(df.values)
+        else:
+            self.z = df.values
+
+        # Min/max amplitudes
+        self.zmin = round(self.z.min())
+        self.zmax = round(self.z.max())
+
+        # Populate timestamps list
+        self.timestampList.clear()
+        [self.timestampList.addItem(t.strftime('%Y-%m-%d %H:%M')) for t in reversed(self.timestamps)]
+
+        # Set slider to middle event
+        # if self.slider.value() == 50:
+        n = len(self.timestamps)
+        i = n // 2 - 1
+        j = n - i - 1
+        self.ts_i = i
+        self.slider.setMaximum(n - 1)
+        self.skip = True
         self.slider.setValue(i)
+        self.timestampList.setCurrentRow(j)
+        self.skip = False
+
+        # Set datetime edit widget
+        self.t = self.timestamps[i]
+        self.set_datetime_edit(self.t)
 
     def draw_axes(self):
         self.fig.clf()
@@ -631,51 +729,32 @@ class SpectrogramWidget(QtWidgets.QWidget):
         # self.ax1 = plt.subplot2grid(shape=(4, 1), loc=(0, 0), rowspan=3)
         # self.ax2 = plt.subplot2grid(shape=(4, 1), loc=(3, 0))
 
-    def plot_spectrogram(self, i):
+    def plot_spectrogram(self):
         ax1 = self.ax1
         ax2 = self.ax2
+        ax1.grid(False)
 
         # Plot title
         channel = self.datasetList.currentItem().text()
         title = '21239 Total WoS - Glendronach Well Monitoring Campaign\nSpectrogram: ' + channel
 
-        # Get plot data
-        dataset = self.datasetList.currentItem().text()
-        self.df = self.datasets[dataset]
-        df = self.df
-
-        # Extract data
-        self.timestamps = df.index
-        freqs = df.columns
-        z = np.log10(df.values)
-        # z = df.values
+        f0 = self.freqs[0]
+        f1 = self.freqs[-1]
         t0 = mdates.date2num(self.timestamps[0])
         t1 = mdates.date2num(self.timestamps[-1])
 
-        # Min/max amplitudes
-        self.zmin = round(z.min())
-        self.zmax = round(z.max())
-
-        # Populate timestamps list
-        self.timestampList.clear()
-        [self.timestampList.addItem(t.strftime('%Y-%m-%d %H:%M')) for t in reversed(self.timestamps)]
-
-        n = len(self.timestamps)
-        self.slider.setMaximum(n - 1)
-
-        ax1.grid(False)
         cmap = cm.get_cmap('coolwarm')
-        im = ax1.imshow(z,
+        im = ax1.imshow(self.z,
                         aspect='auto',
                         interpolation='bilinear',
                         origin='lower',
-                        extent=[freqs[0], freqs[-1], t0, t1],
+                        extent=[f0, f1, t0, t1],
                         cmap=cmap,
                         )
 
-        # Plot timestamp slice line
-        t_psd = mdates.date2num(self.timestamps[i])
-        self.event_line, = ax1.plot([freqs[0], freqs[-1]], [t_psd, t_psd], 'k--')
+        # Plot event slice line for middle timestamp
+        ti = mdates.date2num(self.t)
+        self.event_line, = ax1.plot([f0, f1], [ti, ti], 'k--')
 
         self.cbar = self.fig.colorbar(im, ax=[ax1, ax2])
         # self.cbar = self.fig.colorbar(im, ax1=self.axes.ravel().tolist(), pad=0.04, aspect=30)
@@ -687,7 +766,7 @@ class SpectrogramWidget(QtWidgets.QWidget):
 
         ax1.set_title(title)
         ax1.margins(x=0, y=0)
-        ax1.set_xlim(0, 3)
+        ax1.set_xlim(self.xlim)
         ax1.yaxis.set_major_formatter(mdates.DateFormatter('%d %b'))
         ax1.yaxis.set_major_locator(mdates.DayLocator(interval=7))
         plt.sca(ax1)
@@ -695,15 +774,15 @@ class SpectrogramWidget(QtWidgets.QWidget):
         # plt.yticks(fontsize=11)
         # plt.tight_layout()
 
-    def plot_event_psd(self, i):
+    def plot_event_psd(self):
         """Plot PSD of spectrogram timestamp slice."""
 
-        # Slice spectrogram dataframe for timestamp index i
-        z = self.df.iloc[i, :]
-        z = np.log10(z)
+        # Slice spectrogram dataset at middle timestamp
+        i = self.ts_i
+        zi = self.z[i, :]
 
         # Create legend label
-        timestamp1 = self.df.index[i]
+        timestamp1 = self.timestamps[i]
         timestamp2 = timestamp1 + timedelta(minutes=20)
         msg_d1 = timestamp1.strftime('%d %b %Y %H:%M').lstrip('0')
         msg_d2 = timestamp2.strftime('%d %b %Y %H:%M')[-5:]
@@ -711,7 +790,7 @@ class SpectrogramWidget(QtWidgets.QWidget):
 
         self.ax2.cla()
         # self.ax2.patch.set_facecolor('none')
-        self.psd_line, = self.ax2.plot(z, 'k')
+        self.psd_line, = self.ax2.plot(self.freqs, zi, 'k')
         self.ax2.set_ylim(self.zmin, self.zmax)
         self.ax2.margins(0, 0)
         self.ax2.set_xlabel('Frequency (Hz)')
@@ -722,27 +801,153 @@ class SpectrogramWidget(QtWidgets.QWidget):
                                        xytext=(-2, -10),
                                        textcoords='offset points',
                                        ha='right')
-
         self.canvas.draw()
 
     def update_event_marker(self, t):
         self.event_line.set_ydata([t, t])
 
     def update_psd_plot(self, i):
+        """Update PSD plot data for selected timestamp slice of spectrogram."""
+
         # Slice spectrogram dataframe for timestamp index i
-        z = self.df.iloc[i, :]
-        z = np.log10(z)
+        zi = self.z[i, :]
 
         # Create new legend label
-        timestamp1 = self.df.index[i]
+        timestamp1 = self.timestamps[i]
         timestamp2 = timestamp1 + timedelta(minutes=20)
         msg_d1 = timestamp1.strftime('%d %b %Y %H:%M').lstrip('0')
         msg_d2 = timestamp2.strftime('%d %b %Y %H:%M')[-5:]
         label = ' '.join((msg_d1, 'to', msg_d2))
 
         # Update plot data and label text
-        self.psd_line.set_ydata(z)
+        self.psd_line.set_ydata(zi)
         self.label.set_text(label)
+
+
+class SpectroPlotSettings(QtWidgets.QDialog):
+    def __init__(self, parent=None):
+        super(SpectroPlotSettings, self).__init__(parent)
+
+        # Assign parent objects
+        self.parent = parent
+
+        self.init_ui()
+        self.connect_signals()
+
+    def init_ui(self):
+        self.setWindowTitle('Spectrogram Plot Settings')
+
+        # Widget sizing policy - prevent expansion
+        policy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed)
+
+        # Layout
+        # self.setFixedSize(400, 300)
+        mainLayout = QtWidgets.QVBoxLayout(self)
+        mainLayout.addStretch()
+
+        # Title and axes labels form
+        form = QtWidgets.QWidget()
+        layout = QtWidgets.QFormLayout(form)
+        self.optProject = QtWidgets.QLineEdit()
+
+        layout.addRow(QtWidgets.QLabel('Project title:'), self.optProject)
+
+        # Frequency axis limits
+        frameFreq = QtWidgets.QGroupBox('Frequency Axis')
+        grid = QtWidgets.QGridLayout(frameFreq)
+        self.optFreqMin = QtWidgets.QLineEdit('0')
+        self.optFreqMax = QtWidgets.QLineEdit('3')
+        self.optFreqMin.setFixedWidth(50)
+        self.optFreqMax.setFixedWidth(50)
+        grid.addWidget(QtWidgets.QLabel('Min:'), 0, 0)
+        grid.addWidget(self.optFreqMin, 0, 1)
+        grid.addWidget(QtWidgets.QLabel('Max:'), 1, 0)
+        grid.addWidget(self.optFreqMax, 1, 1)
+
+        # Combine axis limits frames
+        axesLimits = QtWidgets.QWidget()
+        axesLimits.setSizePolicy(policy)
+        hbox = QtWidgets.QHBoxLayout(axesLimits)
+        hbox.addWidget(frameFreq)
+
+        # PSD log scale checkbox
+        self.logScale = QtWidgets.QCheckBox('PSD log scale')
+        self.logScale.setChecked(False)
+
+        # Combine PSD x-axis and log scale
+        psdOpts = QtWidgets.QWidget()
+        hbox = QtWidgets.QHBoxLayout(psdOpts)
+        hbox.addWidget(self.logScale)
+
+        # Button box
+        self.buttons = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Ok |
+                                                  QtWidgets.QDialogButtonBox.Cancel |
+                                                  QtWidgets.QDialogButtonBox.Apply |
+                                                  QtWidgets.QDialogButtonBox.Reset)
+
+        # Final layout
+        mainLayout.addWidget(form)
+        mainLayout.addWidget(axesLimits)
+        mainLayout.addWidget(psdOpts)
+        mainLayout.addWidget(self.buttons, stretch=0, alignment=QtCore.Qt.AlignRight)
+
+    def connect_signals(self):
+        self.buttons.accepted.connect(self.accept)
+        self.buttons.accepted.connect(self.set_params)
+        self.buttons.rejected.connect(self.reject)
+        self.buttons.button(QtWidgets.QDialogButtonBox.Apply).clicked.connect(self.set_params)
+        self.buttons.button(QtWidgets.QDialogButtonBox.Reset).clicked.connect(self.reset_values)
+
+    def get_params(self):
+        """Get plot parameters from the spectrogram widget and assign to settings widget."""
+
+        self.optProject.setText(self.parent.project)
+        self.optFreqMin.setText(str(round(self.parent.ax1.get_xlim()[0], 1)))
+        self.optFreqMax.setText(str(round(self.parent.ax1.get_xlim()[1], 1)))
+
+        if self.parent.log_scale is True:
+            self.logScale.setChecked(True)
+        else:
+            self.logScale.setChecked(False)
+
+    def set_params(self):
+        """Update spectrogram widget class parameters with the plot settings and replot."""
+
+        self.parent.project = self.optProject.text()
+
+        # Check numeric parameters are of valid type
+        try:
+            # Assign axes limits
+            self.parent.xlim = (float(self.optFreqMin.text()), float(self.optFreqMax.text()))
+
+            # Now apply decimal formatting to plot settings
+            self.optFreqMin.setText(str(round(self.parent.xlim[0], 1)))
+            self.optFreqMax.setText(str(round(self.parent.xlim[1], 1)))
+        except ValueError as e:
+            val = str(e).split("'")[-2]
+            # Notify error in main DataLab class
+            self.parent.parent.error(f'Non-numeric input entered: "{val}" - {e}')
+        else:
+            # Assign settings to spectrogram class
+            self.parent.log_scale = self.logScale.isChecked()
+
+            # Check a spectrogram dataset has already been loaded
+            if self.parent.datasetList.count() == 0:
+                # Notify error in main DataLab class
+                self.parent.parent.error('No data currently plotted. Load a spectrogram file first.')
+            else:
+                self.parent.set_plot_data()
+                self.parent.draw_axes()
+                self.parent.plot_spectrogram()
+                self.parent.plot_event_psd()
+
+    def reset_values(self):
+        """Reset option settings to initial values set during file load."""
+
+        # Pointer to spectrogram widget class
+        self.logScale.setChecked(True)
+        self.optFreqMin.setText(str(round(self.parent.init_xlim[0], 1)))
+        self.optFreqMax.setText(str(round(self.parent.init_xlim[1], 1)))
 
 
 class PlotStyle2H:
@@ -914,8 +1119,9 @@ if __name__ == '__main__':
     logger, df = read_spectrograms_hdf5(fpath)
 
     app = QApplication(sys.argv)
-    w = SpectrogramWidget()
-    w.datasets[logger] = df
-    w.update_spect_datasets_list(logger)
+    # w = SpectrogramWidget()
+    # w.datasets[logger] = df
+    # w.update_spect_datasets_list(logger)
+    w = SpectroPlotSettings()
     w.show()
     sys.exit(app.exec_())
