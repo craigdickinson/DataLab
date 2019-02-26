@@ -84,6 +84,9 @@ class TimeSeriesPlotWidget(QtWidgets.QWidget):
         self.init_ui()
         self.connect_signals()
 
+        # Instantiate plot settings widget
+        self.plotSettings = LoggerPlotSettings(self)
+
     def init_ui(self):
         # Setup container
         setupWidget = QtWidgets.QWidget()
@@ -165,8 +168,8 @@ class TimeSeriesPlotWidget(QtWidgets.QWidget):
         """Show plot options window."""
 
         # Set current parameters from time series plot widget class
-        self.parent.plotOptions.get_params()
-        self.parent.plotOptions.show()
+        self.plotSettings.get_params()
+        self.plotSettings.show()
 
     def replot(self):
         """Load and process a selected logger file in the files list."""
@@ -407,7 +410,6 @@ class TimeSeriesPlotWidget(QtWidgets.QWidget):
         # Apply axis limits of full dataset if a new file or a file with a different number of columns is loaded
         if self.set_init_axis_limits is True:
             self.ts_xlim = self.init_xlim
-            # self.parent.plotOptions.ts_xlim = self.init_xlim
             self.ax1.set_xlim(self.init_xlim)
             self.set_init_axis_limits = False
         # Apply currently stored axis limits
@@ -964,93 +966,90 @@ class LoggerPlotSettings(QtWidgets.QDialog):
     def get_params(self):
         """Get plot parameters from the time series widget and assign to settings widget."""
 
-        # Pointer to time series widget class
-        ts = self.parent.timeSeriesTab
+        self.optProject.setText(self.parent.project)
+        # self.optTitle2.setText(self.parent.title2)
+        self.optTSXmin.setText(str(round(self.parent.ax1.get_xlim()[0], 1)))
+        self.optTSXmax.setText(str(round(self.parent.ax1.get_xlim()[1], 1)))
+        self.optPSDXmin.setText(str(round(self.parent.ax2.get_xlim()[0], 1)))
+        self.optPSDXmax.setText(str(round(self.parent.ax2.get_xlim()[1], 1)))
 
-        self.optProject.setText(ts.project)
-        # self.optTitle2.setText(ts.title2)
-        self.optTSXmin.setText(str(round(ts.ax1.get_xlim()[0], 1)))
-        self.optTSXmax.setText(str(round(ts.ax1.get_xlim()[1], 1)))
-        self.optPSDXmin.setText(str(round(ts.ax2.get_xlim()[0], 1)))
-        self.optPSDXmax.setText(str(round(ts.ax2.get_xlim()[1], 1)))
-
-        if ts.plot_period is True:
+        if self.parent.plot_period is True:
             self.radioPeriod.setChecked(True)
         else:
             self.radioFreq.setChecked(True)
 
-        if ts.log_scale is True:
+        if self.parent.log_scale is True:
             self.logScale.setChecked(True)
         else:
             self.logScale.setChecked(False)
 
-        if ts.fft_default_params is True:
+        if self.parent.fft_default_params is True:
             self.radioDefault.setChecked(True)
-            self.optNumEnsembles.setText(str(ts.def_num_ensembles))
-            self.optNperseg.setText(str(int(ts.def_nperseg)))
-            self.optWindow.setCurrentText(ts.def_window)
-            self.optOverlap.setText(str(ts.def_overlap))
+            self.optNumEnsembles.setText(str(self.parent.def_num_ensembles))
+            self.optNperseg.setText(str(int(self.parent.def_nperseg)))
+            self.optWindow.setCurrentText(self.parent.def_window)
+            self.optOverlap.setText(str(self.parent.def_overlap))
         else:
             self.radioCustom.setChecked(True)
-            self.optNumEnsembles.setText(str(ts.cust_num_ensembles))
-            self.optNperseg.setText(str(int(ts.cust_nperseg)))
-            self.optWindow.setCurrentText(ts.cust_window)
-            self.optOverlap.setText(str(ts.cust_overlap))
+            self.optNumEnsembles.setText(str(self.parent.cust_num_ensembles))
+            self.optNperseg.setText(str(int(self.parent.cust_nperseg)))
+            self.optWindow.setCurrentText(self.parent.cust_window)
+            self.optOverlap.setText(str(self.parent.cust_overlap))
 
     def set_params(self):
         """Update time series widget class parameters with the plot settings and replot."""
 
-        # Pointer to time series widget class
-        ts = self.parent.timeSeriesTab
-
-        ts.project = self.optProject.text()
-        # ts.title2 = self.optTitle2.text()
+        self.parent.project = self.optProject.text()
+        # self.parent.title2 = self.optTitle2.text()
 
         # Check numeric parameters are of valid type
         try:
             # Assign axes limits
-            ts.ts_xlim = (float(self.optTSXmin.text()), float(self.optTSXmax.text()))
-            ts.psd_xlim = (float(self.optPSDXmin.text()), float(self.optPSDXmax.text()))
+            self.parent.ts_xlim = (float(self.optTSXmin.text()), float(self.optTSXmax.text()))
+            self.parent.psd_xlim = (float(self.optPSDXmin.text()), float(self.optPSDXmax.text()))
 
             # Assign PSD parameters
-            ts.num_ensembles = float(self.optNumEnsembles.text())
-            ts.nperseg = int(self.optNperseg.text())
-            ts.window = self.optWindow.currentText()
-            ts.overlap = float(self.optOverlap.text())
+            self.parent.num_ensembles = float(self.optNumEnsembles.text())
+            self.parent.nperseg = int(self.optNperseg.text())
+            self.parent.window = self.optWindow.currentText()
+            self.parent.overlap = float(self.optOverlap.text())
+
+            # Now apply decimal formatting to plot settings
+            self.optTSXmin.setText(str(round(self.parent.ts_xlim[0], 1)))
+            self.optTSXmax.setText(str(round(self.parent.ts_xlim[1], 1)))
+            self.optPSDXmin.setText(str(round(self.parent.psd_xlim[0], 1)))
+            self.optPSDXmax.setText(str(round(self.parent.psd_xlim[1], 1)))
         except ValueError as e:
+            # Notify error in main DataLab class
             val = str(e).split("'")[-2]
-            self.parent.error(f'Non-numeric input entered: "{val}" - {e}')
+            self.parent.parent.error(f'Non-numeric input entered: "{val}" - {e}')
         else:
             # Store custom PSD parameters
             if self.radioCustom.isChecked():
-                ts.cust_num_ensembles = ts.num_ensembles
-                ts.cust_nperseg = ts.nperseg
-                ts.cust_window = ts.window
-                ts.cust_overlap = ts.overlap
+                self.parent.cust_num_ensembles = self.parent.num_ensembles
+                self.parent.cust_nperseg = self.parent.nperseg
+                self.parent.cust_window = self.parent.window
+                self.parent.cust_overlap = self.parent.overlap
 
             # Assign remaining settings to time series class
-            ts.plot_period = self.radioPeriod.isChecked()
-            ts.log_scale = self.logScale.isChecked()
-            ts.fft_default_params = self.radioDefault.isChecked()
+            self.parent.plot_period = self.radioPeriod.isChecked()
+            self.parent.log_scale = self.logScale.isChecked()
+            self.parent.fft_default_params = self.radioDefault.isChecked()
 
             # Check a logger files has already been loaded
-            if ts.filesList.count() == 0:
-                self.parent.error('No data currently plotted. Load a logger file first.')
-            else:
+            if self.parent.filesList.count() > 0:
                 # This flag stops the on_xlims_change event from processing
-                ts.ignore_on_xlim_change = True
-                ts.update_plots()
-                ts.ignore_on_xlim_change = False
+                self.parent.ignore_on_xlim_change = True
+                self.parent.update_plots()
+                self.parent.ignore_on_xlim_change = False
 
     def reset_values(self):
         """Reset option settings to initial values set during file load."""
 
-        # Pointer to time series widget class
-        ts = self.parent.timeSeriesTab
         self.radioFreq.setChecked(True)
         self.logScale.setChecked(False)
-        self.optTSXmin.setText(str(round(ts.init_xlim[0], 1)))
-        self.optTSXmax.setText(str(round(ts.init_xlim[1], 1)))
+        self.optTSXmin.setText(str(round(self.parent.init_xlim[0], 1)))
+        self.optTSXmax.setText(str(round(self.parent.init_xlim[1], 1)))
         self.optPSDXmin.setText('0.0')
         self.optPSDXmax.setText('1.0')
         self.radioDefault.setChecked(True)
@@ -1082,22 +1081,20 @@ class LoggerPlotSettings(QtWidgets.QDialog):
     def switch_welch_params(self):
         """Switch between default and and custom FFT parameters."""
 
-        ts = self.parent.timeSeriesTab
-
         if self.radioDefault.isChecked():
-            self.optNumEnsembles.setText(str(ts.def_num_ensembles))
-            self.optNperseg.setText(str(ts.def_nperseg))
-            self.optWindow.setCurrentText(ts.def_window)
-            self.optOverlap.setText(str(ts.def_overlap))
+            self.optNumEnsembles.setText(str(self.parent.def_num_ensembles))
+            self.optNperseg.setText(str(self.parent.def_nperseg))
+            self.optWindow.setCurrentText(self.parent.def_window)
+            self.optOverlap.setText(str(self.parent.def_overlap))
             self.optNumEnsembles.setEnabled(False)
             self.optNperseg.setEnabled(False)
             self.optWindow.setEnabled(False)
             self.optOverlap.setEnabled(False)
         else:
-            self.optNumEnsembles.setText(str(ts.cust_num_ensembles))
-            self.optNperseg.setText(str(ts.cust_nperseg))
-            self.optWindow.setCurrentText(ts.cust_window)
-            self.optOverlap.setText(str(ts.cust_overlap))
+            self.optNumEnsembles.setText(str(self.parent.cust_num_ensembles))
+            self.optNperseg.setText(str(self.parent.cust_nperseg))
+            self.optWindow.setCurrentText(self.parent.cust_window)
+            self.optOverlap.setText(str(self.parent.cust_overlap))
             self.optNumEnsembles.setEnabled(True)
             self.optNperseg.setEnabled(True)
             self.optWindow.setEnabled(True)

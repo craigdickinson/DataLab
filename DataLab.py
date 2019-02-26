@@ -53,7 +53,7 @@ class DataLabGui(QtWidgets.QMainWindow):
         self.setCentralWidget(self.modulesWidget)
         # vbox = QtWidgets.QVBoxLayout(self.w)
         # vbox.addWidget(self.dashboardsWidget)
-        self.statusBar()
+        self.statusbar = self.statusBar()
 
         # Create menu bar and tool bar
         self.menu_bar()
@@ -63,7 +63,6 @@ class DataLabGui(QtWidgets.QMainWindow):
         # Raw data inspection module
         self.rawDataModule = QtWidgets.QTabWidget()
         self.timeSeriesTab = TimeSeriesPlotWidget(self)
-        self.plotOptions = LoggerPlotSettings(self)
         self.rawDataModule.addTab(self.timeSeriesTab, 'Time Series')
 
         # Screening module container and tab widgets
@@ -154,11 +153,11 @@ class DataLabGui(QtWidgets.QMainWindow):
         # Plot settings menu
         self.add2HIcon = QtWidgets.QAction('Add 2H Icon')
         self.add2HIcon.setCheckable(True)
-        self.rawDataPlotSettings = QtWidgets.QAction('Raw Data Plot Settings')
-        self.rawDataPlotSettings.setShortcut('Ctrl+S')
+        self.loggerPlotSettings = QtWidgets.QAction('Logger Plot Settings')
+        self.loggerPlotSettings.setShortcut('Ctrl+S')
         self.spectPlotSettings = QtWidgets.QAction('Spectrogram Plot Settings')
         menuPlotSettings.addAction(self.add2HIcon)
-        menuPlotSettings.addAction(self.rawDataPlotSettings)
+        menuPlotSettings.addAction(self.loggerPlotSettings)
         menuPlotSettings.addAction(self.spectPlotSettings)
 
         # Help menu
@@ -227,7 +226,7 @@ class DataLabGui(QtWidgets.QMainWindow):
         self.openControlFile.triggered.connect(self.open_control_file)
         self.saveControlFile.triggered.connect(self.save_control_file)
         self.openLoggerStats.triggered.connect(self.open_stats_file)
-        self.openSpectrograms.triggered.connect(self.open_spectrograms_file)
+        self.openSpectrograms.triggered.connect(self.load_spectrograms_file)
         self.BOPPrimary.triggered.connect(self.set_directory)
 
         # View menu signals
@@ -239,7 +238,7 @@ class DataLabGui(QtWidgets.QMainWindow):
 
         # Plot menu signals
         self.add2HIcon.triggered.connect(self.add_2h_icon)
-        self.rawDataPlotSettings.triggered.connect(self.open_raw_data_plot_settings)
+        self.loggerPlotSettings.triggered.connect(self.open_logger_plot_settings)
         self.spectPlotSettings.triggered.connect(self.open_spect_plot_settings)
 
         # Help menu signals
@@ -269,12 +268,13 @@ class DataLabGui(QtWidgets.QMainWindow):
                 self.controlFileEdit.setText(text)
 
     def load_logger_file(self):
-        """Browse to open time series/logger file."""
+        """Load raw logger time series file."""
 
         self.ts_file, _ = QtWidgets.QFileDialog.getOpenFileName(self,
                                                                 caption='Open Logger File',
                                                                 filter='Logger Files (*.h5;*.csv)',
                                                                 )
+
         if self.ts_file:
             fpath = '/'.join(self.ts_file.split('/')[:-1])
             filename = self.ts_file.split('/')[-1]
@@ -295,21 +295,7 @@ class DataLabGui(QtWidgets.QMainWindow):
                 self.error(f'{msg}:\n{e}\n{sys.exc_info()[0]}')
                 logging.exception(msg)
 
-            self.modulesWidget.setCurrentWidget(self.screeningModule)
-
-    def open_raw_data_plot_settings(self):
-        """Show raw data plot settings window."""
-
-        # Set current parameters from time series plot widget class
-        self.plotOptions.get_params()
-        self.plotOptions.show()
-
-    def open_spect_plot_settings(self):
-        """Show spectrogram plot settings window."""
-
-        # Set current parameters from spectrogram plot widget class
-        self.spectrogramTab.plotSettings.get_params()
-        self.spectrogramTab.plotSettings.show()
+            self.show_raw_data_view()
 
     def open_stats_file(self):
         """Open summary stats spreadsheet."""
@@ -317,7 +303,8 @@ class DataLabGui(QtWidgets.QMainWindow):
         # Prompt user to select file with open file dialog
         stats_file, _ = QtWidgets.QFileDialog.getOpenFileName(self,
                                                               caption='Open Logger Statistics File',
-                                                              filter='Logger Statistics Files (*.h5 *.csv *.xlsx)')
+                                                              filter='Logger Statistics Files (*.h5 *.csv *.xlsx)',
+                                                              )
 
         if stats_file:
             # Get file extension
@@ -360,12 +347,13 @@ class DataLabGui(QtWidgets.QMainWindow):
             # Show dashboard
             self.show_stats_view()
 
-    def open_spectrograms_file(self):
-        """Open spectrograms spreadsheet."""
+    def load_spectrograms_file(self):
+        """Load spectrograms spreadsheet."""
 
         spect_file, _ = QtWidgets.QFileDialog.getOpenFileName(self,
                                                               caption='Open Spectrogram File',
-                                                              filter='Spectrogram Files (*.h5 *.csv *.xlsx)')
+                                                              filter='Spectrogram Files (*.h5 *.csv *.xlsx)',
+                                                              )
 
         if spect_file:
             # Get file extension
@@ -387,13 +375,19 @@ class DataLabGui(QtWidgets.QMainWindow):
             # Show dashboard
             self.show_spectrogram_view()
 
-    # def update_logger_plot_settings(self):
-    #     """Update time series and PSD plots with parameters from plot option window."""
-    #
-    #     ts_xmin = self.plot_options.ts_xmin
-    #     ts_xmax = self.plot_options.ts_xmax
-    #
-    #     self.timeSeriesTab.adjust_axes_limits(ts_xmin, ts_xmax)
+    def open_logger_plot_settings(self):
+        """Show raw data plot settings window."""
+
+        # Set current parameters from time series plot widget class
+        self.timeSeriesTab.plotSettings.get_params()
+        self.timeSeriesTab.plotSettings.show()
+
+    def open_spect_plot_settings(self):
+        """Show spectrogram plot settings window."""
+
+        # Set current parameters from spectrogram plot widget class
+        self.spectrogramTab.plotSettings.get_params()
+        self.spectrogramTab.plotSettings.show()
 
     def add_2h_icon(self):
         if self.add2HIcon.isChecked():

@@ -519,6 +519,7 @@ class SpectrogramWidget(QtWidgets.QWidget):
         self.project = 'Project Title'  # 'Total WoS Glendronach Well Monitoring'
         self.logger_names = []
         self.datasets = {}
+        self.nat_freqs = {}
         self.timestamps = []
         self.t = None
         self.freqs = []
@@ -564,6 +565,7 @@ class SpectrogramWidget(QtWidgets.QWidget):
         self.slider.setOrientation(QtCore.Qt.Vertical)
         self.slider.setValue(50)
         self.openPlotSettings = QtWidgets.QPushButton('Plot Settings')
+        self.calcNatFreq = QtWidgets.QPushButton('Estimate Nat. Freq.')
         self.clearDatasets = QtWidgets.QPushButton('Clear Datasets')
         grid.addWidget(self.loadDataset, 0, 0)
         grid.addWidget(lbl, 1, 0)
@@ -573,12 +575,13 @@ class SpectrogramWidget(QtWidgets.QWidget):
         grid.addWidget(self.timestampList, 5, 0)
         grid.addWidget(self.slider, 5, 1)
         grid.addWidget(self.openPlotSettings, 6, 0)
-        grid.addWidget(self.clearDatasets, 7, 0)
+        grid.addWidget(self.calcNatFreq, 7, 0)
+        grid.addWidget(self.clearDatasets, 8, 0)
 
         # Plot layout
         # Create plot figure, canvas widget to display figure and navbar
         plot = QtWidgets.QWidget()
-        plot_layout = QtWidgets.QVBoxLayout(plot)
+        plotLayout = QtWidgets.QGridLayout(plot)
         self.fig, _ = plt.subplots()
 
         # Initialise axes
@@ -587,27 +590,43 @@ class SpectrogramWidget(QtWidgets.QWidget):
         self.canvas = FigureCanvas(self.fig)
         self.canvas.draw()
         navbar = NavigationToolbar(self.canvas, self)
-        plot_layout.addWidget(navbar)
-        plot_layout.addWidget(self.canvas)
+        self.natFreq = QtWidgets.QLabel()
+        self.natFreq.setToolTip('The natural response is estimated by evaluating the mean peak frequency '
+                                'of all events between 0.2 and 2.0 Hz.\n'
+                                'This assumes the wave energy is ignored.')
+
+        # Widget sizing policy - prevent vertical expansion
+        policy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Fixed)
+        self.natFreq.setSizePolicy(policy)
+
+        font = QtGui.QFont()
+        font.setPointSize(12)
+        self.natFreq.setFont(font)
+        plotLayout.addWidget(navbar, 0, 0)
+        plotLayout.addWidget(self.canvas, 1, 0)
+        plotLayout.addWidget(self.natFreq, 2, 0)
 
         # Combine layouts
         layout.addWidget(selection)
         layout.addWidget(plot)
 
     def connect_signals(self):
-        self.loadDataset.clicked.connect(self.parent.open_spectrograms_file)
+        self.loadDataset.clicked.connect(self.parent.load_spectrograms_file)
+        self.calcNatFreq.clicked.connect(self.estimate_mean_natural_freq)
         self.clearDatasets.clicked.connect(self.clear_datasets)
         self.openPlotSettings.clicked.connect(self.open_plot_settings)
-        self.datasetList.currentItemChanged.connect(self.on_dataset_item_change)
-        self.slider.valueChanged.connect(self.on_slider_change)
+        self.datasetList.itemDoubleClicked.connect(self.on_dataset_double_clicked)
         self.timestampList.itemDoubleClicked.connect(self.on_timestamp_list_double_clicked)
+        self.slider.valueChanged.connect(self.on_slider_change)
 
     def clear_datasets(self):
         """Clear all stored spectrogram datasets and reset layout."""
         self.datasets = {}
+        self.nat_freqs = {}
         self.timestamps = []
         self.datasetList.clear()
         self.timestampList.clear()
+        self.natFreq.setText('')
         self.draw_axes()
         self.canvas.draw()
 
@@ -626,18 +645,26 @@ class SpectrogramWidget(QtWidgets.QWidget):
         n = self.datasetList.count()
         self.datasetList.setCurrentRow(n - 1)
 
-    def on_dataset_item_change(self):
-        """Plot spectrogram."""
+        self.set_plot_data()
+        self.draw_axes()
+        self.plot_spectrogram()
+        self.plot_event_psd()
 
-        # Exit function if no dataset in list selected (i.e. list is empty)
-        i = self.datasetList.currentRow()
-        if i == -1:
-            return
+    def on_dataset_double_clicked(self):
+        """Plot spectrogram."""
 
         self.set_plot_data()
         self.draw_axes()
         self.plot_spectrogram()
         self.plot_event_psd()
+
+        # Check dataset key exists
+        dataset = self.datasetList.currentItem().text()
+        if dataset in self.nat_freqs:
+            mean_nat_freq = self.nat_freqs[dataset]
+            self.natFreq.setText(f'Estimated natural response: {mean_nat_freq:.2f} Hz, {1 / mean_nat_freq:.2f} s')
+        else:
+            self.natFreq.setText('')
 
     def on_slider_change(self):
         """Update event PSD plot."""
@@ -712,12 +739,35 @@ class SpectrogramWidget(QtWidgets.QWidget):
         self.slider.setMaximum(n - 1)
         self.skip = True
         self.slider.setValue(i)
-        self.timestampList.setCurrentRow(j)
         self.skip = False
+        self.timestampList.setCurrentRow(j)
 
         # Set datetime edit widget
         self.t = self.timestamps[i]
         self.set_datetime_edit(self.t)
+
+    def estimate_mean_natural_freq(self):
+        """Estimate mean natural frequency for selected dataset."""
+
+        if self.datasetList.count() == 0:
+            self.parent.error('No data currently plotted. Load a spectrogram file first.')
+            return
+
+        # self.parent.statusbar.showMessage('Calculating estimate natural frequency...')
+        dataset = self.datasetList.currentItem().text()
+        df = self.datasets[dataset]
+
+        # Get the frequency of the max PSD in the given frequency range for all events
+        nat_freqs = np.array([df.iloc[i][(df.iloc[i].index > 0.2) &
+                                         (df.iloc[i].index < 2.0)].idxmax()
+                              for i in range(len(df))])
+
+        mean_nat_freq = nat_freqs.mean()
+
+        # Store natural frequency in dictionary and write to plot widget
+        self.nat_freqs[dataset] = mean_nat_freq
+        self.natFreq.setText(f'Estimated natural response: {mean_nat_freq:.2f} Hz, {1 / mean_nat_freq:.2f} s')
+        # self.parent.statusbar.showMessage('')
 
     def draw_axes(self):
         self.fig.clf()
@@ -867,8 +917,8 @@ class SpectroPlotSettings(QtWidgets.QDialog):
         # Combine axis limits frames
         axesLimits = QtWidgets.QWidget()
         axesLimits.setSizePolicy(policy)
-        hbox = QtWidgets.QHBoxLayout(axesLimits)
-        hbox.addWidget(frameFreq)
+        vbox = QtWidgets.QHBoxLayout(axesLimits)
+        vbox.addWidget(frameFreq)
 
         # PSD log scale checkbox
         self.logScale = QtWidgets.QCheckBox('PSD log scale')
@@ -876,8 +926,8 @@ class SpectroPlotSettings(QtWidgets.QDialog):
 
         # Combine PSD x-axis and log scale
         psdOpts = QtWidgets.QWidget()
-        hbox = QtWidgets.QHBoxLayout(psdOpts)
-        hbox.addWidget(self.logScale)
+        vbox = QtWidgets.QVBoxLayout(psdOpts)
+        vbox.addWidget(self.logScale)
 
         # Button box
         self.buttons = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Ok |
@@ -924,18 +974,15 @@ class SpectroPlotSettings(QtWidgets.QDialog):
             self.optFreqMin.setText(str(round(self.parent.xlim[0], 1)))
             self.optFreqMax.setText(str(round(self.parent.xlim[1], 1)))
         except ValueError as e:
-            val = str(e).split("'")[-2]
             # Notify error in main DataLab class
+            val = str(e).split("'")[-2]
             self.parent.parent.error(f'Non-numeric input entered: "{val}" - {e}')
         else:
             # Assign settings to spectrogram class
             self.parent.log_scale = self.logScale.isChecked()
 
             # Check a spectrogram dataset has already been loaded
-            if self.parent.datasetList.count() == 0:
-                # Notify error in main DataLab class
-                self.parent.parent.error('No data currently plotted. Load a spectrogram file first.')
-            else:
+            if self.parent.datasetList.count() > 0:
                 self.parent.set_plot_data()
                 self.parent.draw_axes()
                 self.parent.plot_spectrogram()
