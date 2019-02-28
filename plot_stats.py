@@ -51,7 +51,7 @@ class StatsWidget(QtWidgets.QWidget):
     stats = {'Minimum': 'min',
              'Maximum': 'max',
              'Mean': 'mean',
-             'Standard Deviation': 'std'}
+             'Std. Dev.': 'std'}
 
     def __init__(self, parent=None):
         super(StatsWidget, self).__init__(parent)
@@ -67,6 +67,7 @@ class StatsWidget(QtWidgets.QWidget):
         self.skip_update_plot = False
 
         # Plot data and settings
+        self.project = '21239 Total WoS - Glendronach Well Monitoring Campaign'
         self.statistic = ''
         self.plot_data_1a = {}
         self.plot_data_1b = {}
@@ -77,18 +78,11 @@ class StatsWidget(QtWidgets.QWidget):
         self.datasets = []
         self.ylabel = self.ylabels[0]
 
-        # Plot series loggers and channels
-        self.plot1_axis1_logger = ''
-        self.plot1_axis2_logger = ''
-        self.plot1_axis1_channel = ''
-        self.plot1_axis2_channel = ''
-        self.plot2_axis1_logger = ''
-        self.plot2_axis2_logger = ''
-        self.plot2_axis1_channel = ''
-        self.plot2_axis2_channel = ''
-
+        # Set up layout
         self.init_ui()
         self.connect_signals()
+        self.draw_axes()
+        self.canvas.draw()
 
         # Add stats options and initialise to stdev - don't do this in layout creation to keep it separate
         self.statsCombo.addItems(self.stats.keys())
@@ -106,7 +100,9 @@ class StatsWidget(QtWidgets.QWidget):
                                self.ch2b,
                                ]
 
+        self.skip_plot = True
         self.init_logger_channel_combos()
+        self.skip_plot = False
 
     def init_ui(self):
         # Main layout
@@ -114,19 +110,20 @@ class StatsWidget(QtWidgets.QWidget):
 
         # Selection layout
         selection = QtWidgets.QWidget()
-        selection.setFixedWidth(300)
+        selection.setFixedWidth(250)
         vbox = QtWidgets.QGridLayout(selection)
         # policy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed)
         # selection.setSizePolicy(policy)
 
         self.loadStats = QtWidgets.QPushButton('Load Statistics')
-        self.clearDatasets = QtWidgets.QPushButton('Clear Datasets')
         lbl1 = QtWidgets.QLabel('Loaded Datasets')
         lbl2 = QtWidgets.QLabel('Channels (echo)')
         self.datasetList = QtWidgets.QListWidget()
         self.channelsList = QtWidgets.QListWidget()
         self.statsCombo = QtWidgets.QComboBox()
         self.plotSettings = QtWidgets.QPushButton('Plot Settings')
+        self.clearDatasets = QtWidgets.QPushButton('Clear Datasets')
+        self.replotButton = QtWidgets.QPushButton('Replot')
 
         # Plot drop-downs
         self.log1a = QtWidgets.QComboBox()
@@ -167,15 +164,16 @@ class StatsWidget(QtWidgets.QWidget):
 
         # Combine selection widgets
         vbox.addWidget(self.loadStats, 0, 0)
-        vbox.addWidget(self.clearDatasets, 0, 1)
-        vbox.addWidget(lbl1, 2, 0)
-        vbox.addWidget(self.datasetList, 3, 0)
-        vbox.addWidget(lbl2, 2, 1)
-        vbox.addWidget(self.channelsList, 3, 1)
-        vbox.addWidget(plotGroup1, 4, 0, 1, 2)
-        vbox.addWidget(plotGroup2, 5, 0, 1, 2)
-        vbox.addWidget(statsWidget, 6, 0)
-        vbox.addWidget(self.plotSettings, 6, 1)
+        vbox.addWidget(lbl1, 1, 0)
+        vbox.addWidget(lbl2, 1, 1)
+        vbox.addWidget(self.datasetList, 2, 0)
+        vbox.addWidget(self.channelsList, 2, 1)
+        vbox.addWidget(plotGroup1, 3, 0, 1, 2)
+        vbox.addWidget(plotGroup2, 4, 0, 1, 2)
+        vbox.addWidget(statsWidget, 5, 0)
+        vbox.addWidget(self.plotSettings, 5, 1)
+        vbox.addWidget(self.clearDatasets, 6, 0)
+        vbox.addWidget(self.replotButton, 6, 1)
 
         # # Toolbutton version testing
         # self.ch2Sec = QtWidgets.QToolButton()
@@ -220,14 +218,8 @@ class StatsWidget(QtWidgets.QWidget):
         plotLayout = QtWidgets.QVBoxLayout(plot)
 
         # Create plot figure, canvas widget to display figure and navbar
-        self.fig, (self.ax1, self.ax2) = plt.subplots(2, sharex=True)
-        self.ax1b = self.ax1.twinx()
-        self.ax2b = self.ax2.twinx()
-        self.ax1b.yaxis.set_visible(False)
-        self.ax2b.yaxis.set_visible(False)
-
+        self.fig = plt.figure()
         self.canvas = FigureCanvas(self.fig)
-        self.canvas.draw()
         navbar = NavigationToolbar(self.canvas, self)
 
         plotLayout.addWidget(navbar)
@@ -245,12 +237,30 @@ class StatsWidget(QtWidgets.QWidget):
         self.log1b.currentIndexChanged.connect(self.on_logger1b_combo_change)
         self.log2a.currentIndexChanged.connect(self.on_logger2a_combo_change)
         self.log2b.currentIndexChanged.connect(self.on_logger2b_combo_change)
+        # self.ch1a.currentIndexChanged.connect(self.on_chan1a_combo_change)
+        # self.ch1b.currentIndexChanged.connect(self.on_chan1b_combo_change)
+        # self.ch2a.currentIndexChanged.connect(self.on_chan2a_combo_change)
+        # self.ch2b.currentIndexChanged.connect(self.on_chan2b_combo_change)
         self.statsCombo.currentIndexChanged.connect(self.on_stats_combo_change)
+        self.replotButton.clicked.connect(self.replot)
         # self.channelsList.currentItemChanged.connect(self.set_radios)
         # self.meanWaveChkBox.stateChanged.connect(self.update_plot)
         # self.radioNone.toggled.connect(self.radio_changed)
         # self.radioPri.toggled.connect(self.radio_changed)
         # self.radioSec.toggled.connect(self.radio_changed)
+
+    def draw_axes(self):
+        """(Re)construct a blank figure workspace."""
+
+        self.fig.clf()
+        self.ax1 = self.fig.add_subplot(211)
+        self.ax2 = self.fig.add_subplot(212, sharex=self.ax1)
+        self.ax1b = self.ax1.twinx()
+        self.ax2b = self.ax2.twinx()
+        self.ax1b.yaxis.set_visible(False)
+        self.ax2b.yaxis.set_visible(False)
+        self.ax1b.grid(False)
+        self.ax2b.grid(False)
 
     def init_logger_channel_combos(self):
         """Reset logger and channel drop-downs."""
@@ -258,12 +268,10 @@ class StatsWidget(QtWidgets.QWidget):
         for logger_combo in self.logger_combos:
             logger_combo.clear()
             logger_combo.addItem('None')
-            logger_combo.setCurrentIndex(0)
 
         for channel_combo in self.channel_combos:
             channel_combo.clear()
             channel_combo.addItem('None')
-            channel_combo.setCurrentIndex(0)
 
     def clear_datasets(self):
         """Clear all stored spectrogram datasets and reset layout."""
@@ -284,36 +292,50 @@ class StatsWidget(QtWidgets.QWidget):
         self.update_channels_list()
 
     def on_logger1a_combo_change(self):
-        self.plot1_axis1_logger = self.log1a.currentText()
-        self.update_channel_combos(logger_combo=self.log1a, channel_combo=self.ch1a)
+        if self.skip_plot is False:
+            self.update_channel_combos(logger_combo=self.log1a, channel_combo=self.ch1a)
 
     def on_logger1b_combo_change(self):
-        self.plot1_axis2_logger = self.log1b.currentText()
-        self.update_channel_combos(logger_combo=self.log1b, channel_combo=self.ch1b)
+        if self.skip_plot is False:
+            self.update_channel_combos(logger_combo=self.log1b, channel_combo=self.ch1b)
 
     def on_logger2a_combo_change(self):
-        self.plot2_axis1_logger = self.log2a.currentText()
-        self.update_channel_combos(logger_combo=self.log2a, channel_combo=self.ch2a)
+        if self.skip_plot is False:
+            self.update_channel_combos(logger_combo=self.log2a, channel_combo=self.ch2a)
 
     def on_logger2b_combo_change(self):
-        self.plot2_axis2_logger = self.log2b.currentText()
-        self.update_channel_combos(logger_combo=self.log2b, channel_combo=self.ch2b)
+        if self.skip_plot is False:
+            self.update_channel_combos(logger_combo=self.log2b, channel_combo=self.ch2b)
 
-    def on_chan1a_combo_change(self):
-        self.plot1_axis1_channel = self.ch1a.currentText()
-
-    def on_chan1b_combo_change(self):
-        self.plot1_axis2_channel = self.ch1b.currentText()
-
-    def on_chan2a_combo_change(self):
-        self.plot2_axis1_channel = self.ch2a.currentText()
-
-    def on_chan2b_combo_change(self):
-        self.plot1_axis2_channel = self.ch2b.currentText()
-        self.update_plots()
+    # def on_chan1a_combo_change(self):
+    #     if self.skip_plot is False:
+    #         self.set_plot_data()
+    #         self.update_plots()
+    #
+    # def on_chan1b_combo_change(self):
+    #     if self.skip_plot is False:
+    #         self.set_plot_data()
+    #         self.update_plots()
+    #
+    # def on_chan2a_combo_change(self):
+    #     if self.skip_plot is False:
+    #         self.set_plot_data()
+    #         self.update_plots()
+    #
+    # def on_chan2b_combo_change(self):
+    #     if self.skip_plot is False:
+    #         self.set_plot_data()
+    #         self.update_plots()
 
     def on_stats_combo_change(self):
         """Update stats plots if datasets have been loaded."""
+
+        if self.datasets:
+            self.set_plot_data()
+            self.update_plots()
+
+    def replot(self):
+        """Replot stats."""
 
         if self.datasets:
             self.set_plot_data()
@@ -330,9 +352,8 @@ class StatsWidget(QtWidgets.QWidget):
         # Create dataset list and select first item (this will trigger an update of update_channels_list)
         self.datasetList.addItems(dataset_ids)
 
-        # Add dataset ids to plot combo boxes
+        # Add dataset ids to logger combo boxes
         self.add_datasets_to_logger_combos(dataset_ids)
-
         self.datasetList.setCurrentRow(0)
 
     def add_datasets_to_logger_combos(self, dataset_ids):
@@ -427,8 +448,20 @@ class StatsWidget(QtWidgets.QWidget):
     #     # twice, once for the switch to "on" and once for switch to "off"
     #     self.skip_update_plot = True
 
-    def set_plot_data(self):
+    def set_plot_data(self, init=False):
         """Assign plot data for each axis based on respective selected logger and channel drop-downs."""
+
+        # If flag is set it means no datasets were previously loaded; therefore set drop-downs to presets
+        # to create an initial plot
+        if init is True:
+            self.log1a.setCurrentIndex(1)
+            self.log1b.setCurrentIndex(1)
+            self.log2b.setCurrentIndex(1)
+            self.log2a.setCurrentIndex(1)
+            self.ch1a.setCurrentIndex(0)
+            self.ch1b.setCurrentIndex(1)
+            self.ch2a.setCurrentIndex(2)
+            self.ch2b.setCurrentIndex(3)
 
         # Selected statistic info
         self.statistic = self.statsCombo.currentText()
@@ -456,9 +489,8 @@ class StatsWidget(QtWidgets.QWidget):
         :return: Dataframe of plot data for a given axis
         """
 
+        # Dictionary to hold plot dataframe, label and units
         plot_data = {}
-        df = pd.DataFrame()
-        label = ''
 
         # Selected logger info
         logger_i = logger_combo.currentIndex() - 1
@@ -487,18 +519,32 @@ class StatsWidget(QtWidgets.QWidget):
     def update_plots(self):
         """Update stats plots."""
 
+        self.draw_axes()
+
+        # Check that not all loggers drop-down aren't set to "None"!
+        log1a = self.log1a.currentText()
+        log1b = self.log1b.currentText()
+        log2a = self.log2a.currentText()
+        log2b = self.log2b.currentText()
+
+        if log1a == 'None' and log1b == 'None' and log2a == 'None' and log2b == 'None':
+            self.fig.tight_layout()
+            self.canvas.draw()
+            return
+
+        # Flags to check which axes are plotted modify gridlines shown
         plot = False
-        self.ax1.cla()
-        self.ax1b.cla()
-        self.ax1b.yaxis.set_visible(False)
-        self.ax1b.grid(False)
+        plot1_ax1 = False
+        plot1_ax2 = False
+        plot2_ax1 = False
+        plot2_ax2 = False
 
-        self.ax2.cla()
-        self.ax2b.cla()
-        self.ax2b.yaxis.set_visible(False)
-        self.ax2b.grid(False)
+        if self.statistic == 'Std. Dev.':
+            title = f'{self.project}\nStandard Deviation'
+        else:
+            title = f'{self.project}\n{self.statistic}'
 
-        title = f'21239 Total WoS - Glendronach Well Monitoring Campaign\n{self.statistic}'
+        self.fig.suptitle(title)
 
         # Plot 1 - axis 1
         if self.plot_data_1a:
@@ -506,9 +552,12 @@ class StatsWidget(QtWidgets.QWidget):
             label = self.plot_data_1a['label']
             channel = self.plot_data_1a['channel']
             units = self.plot_data_1a['units']
-            self.ax1.plot(df, label=label)
-            self.ax1.set_ylabel(f'{channel} {units}')
+            self.ax1.plot(df, c='steelblue', label=label)
+            self.ax1.set_ylabel(f'{channel} ($\mathregular{{{units}}}$)')
             plot = True
+            plot1_ax1 = True
+        else:
+            self.ax1.yaxis.set_visible(False)
 
         # Plot 1 - axis 2
         if self.plot_data_1b:
@@ -516,9 +565,11 @@ class StatsWidget(QtWidgets.QWidget):
             label = self.plot_data_1b['label']
             channel = self.plot_data_1b['channel']
             units = self.plot_data_1b['units']
-            self.ax1b.plot(df, label=label)
-            self.ax1b.set_ylabel(f'{channel} {units}')
+            self.ax1b.plot(df, c='coral', label=label)
+            self.ax1b.set_ylabel(f'{channel} ($\mathregular{{{units}}}$)')
             plot = True
+            plot1_ax2 = True
+            self.ax1b.yaxis.set_visible(True)
 
         # Plot 2 - axis 1
         if self.plot_data_2a:
@@ -526,9 +577,12 @@ class StatsWidget(QtWidgets.QWidget):
             label = self.plot_data_2a['label']
             channel = self.plot_data_2a['channel']
             units = self.plot_data_2a['units']
-            self.ax2.plot(df, label=label)
-            self.ax2.set_ylabel(f'{channel} {units}')
+            self.ax2.plot(df, c='gold', label=label)
+            self.ax2.set_ylabel(f'{channel} ($\mathregular{{{units}}}$)')
             plot = True
+            plot2_ax1 = True
+        else:
+            self.ax2.yaxis.set_visible(False)
 
         # Plot 2 - axis 2
         if self.plot_data_2b:
@@ -536,9 +590,11 @@ class StatsWidget(QtWidgets.QWidget):
             label = self.plot_data_2b['label']
             channel = self.plot_data_2b['channel']
             units = self.plot_data_2b['units']
-            self.ax2b.plot(df, label=label)
-            self.ax2b.set_ylabel(f'{channel} {units}')
+            self.ax2b.plot(df, c='rebeccapurple', label=label)
+            self.ax2b.set_ylabel(f'{channel} ($\mathregular{{{units}}}$)')
             plot = True
+            plot2_ax2 = True
+            self.ax2b.yaxis.set_visible(True)
 
         # for i in range(self.datasetList.count()):
         #     logger_id = self.datasets[i].logger_id
@@ -600,10 +656,15 @@ class StatsWidget(QtWidgets.QWidget):
             # rect = Rectangle(xy=(d1, ymin), width=w, height=h, edgecolor=None, facecolor='yellow', alpha=0.2)
             # self.ax.add_patch(rect)
 
-            self.ax1.legend()
-            self.ax1b.legend()
-            self.ax2.legend()
-            self.ax2b.legend()
+            # Modify gridlines shown
+            if plot1_ax1 is False and plot1_ax2 is True:
+                self.ax1.grid(False)
+                self.ax1b.grid(True)
+
+            if plot2_ax1 is False and plot2_ax2 is True:
+                self.ax2.grid(False)
+                self.ax2b.grid(True)
+
             self.ax1.margins(x=0, y=0)
             self.ax1b.margins(x=0, y=0)
             self.ax2.margins(x=0, y=0)
@@ -620,8 +681,8 @@ class StatsWidget(QtWidgets.QWidget):
                             ncol=4,
                             fontsize=11,
                             )
-
-            self.fig.tight_layout()
+            # Ensure plots don't overlap suptitle and legend
+            self.fig.tight_layout(rect=[0, .05, 1, .9])  # (rect=[left, bottom, right, top])
 
         self.canvas.draw()
 
@@ -1131,6 +1192,10 @@ class SpectrogramWidget(QtWidgets.QWidget):
         self.init_ui()
         self.connect_signals()
 
+        # Initialise axes
+        self.draw_axes()
+        self.canvas.draw()
+
         # Instantiate plot settings widget
         self.plotSettings = SpectroPlotSettings(self)
 
@@ -1170,14 +1235,11 @@ class SpectrogramWidget(QtWidgets.QWidget):
         # Create plot figure, canvas widget to display figure and navbar
         plot = QtWidgets.QWidget()
         plotLayout = QtWidgets.QGridLayout(plot)
-        self.fig, _ = plt.subplots()
-
-        # Initialise axes
-        self.draw_axes()
-
+        self.fig = plt.figure()
         self.canvas = FigureCanvas(self.fig)
-        self.canvas.draw()
         navbar = NavigationToolbar(self.canvas, self)
+
+        # Natural frequency calculation label
         self.natFreq = QtWidgets.QLabel()
         self.natFreq.setToolTip('The natural response is estimated by evaluating the mean peak frequency '
                                 'of all events between 0.2 and 2.0 Hz.\n'
@@ -1207,6 +1269,16 @@ class SpectrogramWidget(QtWidgets.QWidget):
         self.timestampList.itemDoubleClicked.connect(self.on_timestamp_list_double_clicked)
         self.slider.valueChanged.connect(self.on_slider_change)
 
+    def draw_axes(self):
+        self.fig.clf()
+        gs = gridspec.GridSpec(nrows=2, ncols=1, height_ratios=[4, 1])
+        self.ax1 = self.fig.add_subplot(gs[0])
+        self.ax2 = self.fig.add_subplot(gs[1], sharex=self.ax1)
+        self.ax1.get_xaxis().set_visible(False)
+        self.fig.subplots_adjust(hspace=0.05)
+        # self.ax1 = plt.subplot2grid(shape=(4, 1), loc=(0, 0), rowspan=3)
+        # self.ax2 = plt.subplot2grid(shape=(4, 1), loc=(3, 0))
+
     def clear_datasets(self):
         """Clear all stored spectrogram datasets and reset layout."""
         self.datasets = {}
@@ -1225,14 +1297,12 @@ class SpectrogramWidget(QtWidgets.QWidget):
     def update_spect_datasets_list(self, logger):
         """Populate loaded datasets list."""
 
-        # Create active channels flag lists
         self.logger_names = logger
-
-        # Populate datasets list
         self.datasetList.addItem(logger)
         n = self.datasetList.count()
         self.datasetList.setCurrentRow(n - 1)
 
+        # Get and plot data
         self.set_plot_data()
         self.draw_axes()
         self.plot_spectrogram()
@@ -1357,16 +1427,6 @@ class SpectrogramWidget(QtWidgets.QWidget):
         self.natFreq.setText(f'Estimated natural response: {mean_nat_freq:.2f} Hz, {1 / mean_nat_freq:.2f} s')
         # self.parent.statusbar.showMessage('')
 
-    def draw_axes(self):
-        self.fig.clf()
-        gs = gridspec.GridSpec(nrows=2, ncols=1, height_ratios=[4, 1])
-        self.ax1 = self.fig.add_subplot(gs[0])
-        self.ax2 = self.fig.add_subplot(gs[1], sharex=self.ax1)
-        self.ax1.get_xaxis().set_visible(False)
-        self.fig.subplots_adjust(hspace=0.05)
-        # self.ax1 = plt.subplot2grid(shape=(4, 1), loc=(0, 0), rowspan=3)
-        # self.ax2 = plt.subplot2grid(shape=(4, 1), loc=(3, 0))
-
     def plot_spectrogram(self):
         ax1 = self.ax1
         ax2 = self.ax2
@@ -1396,9 +1456,15 @@ class SpectrogramWidget(QtWidgets.QWidget):
 
         self.cbar = self.fig.colorbar(im, ax=[ax1, ax2])
         # self.cbar = self.fig.colorbar(im, ax1=self.axes.ravel().tolist(), pad=0.04, aspect=30)
-        log10 = r'$\mathregular{log_{10}}$'
+
+        if self.log_scale is True:
+            log10 = r'$\mathregular{log_{10}}$'
+        else:
+            log10 = ''
+
         units = r'$\mathregular{(mm/s^2)^2/Hz}$'
         label = f'{log10}PSD ({units})'.lstrip()
+
         self.cbar.set_label(label)
         self.cbar.ax.tick_params(label)
 

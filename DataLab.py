@@ -338,7 +338,7 @@ class DataLabGui(QtWidgets.QMainWindow):
 
             # Plot stats
             if plot_flag:
-                self.statsTab.set_plot_data()
+                self.statsTab.set_plot_data(init=True)
                 self.statsTab.update_plots()
 
             # Update variance plot tab - plot update is triggered upon setting dataset list index
@@ -587,6 +587,7 @@ class ControlFileWorker(QtCore.QThread):
             self.parent.statsTab.update_stats_datasets_list(dataset_ids)
 
             # Plot stats
+            self.parent.statsTab.set_plot_data(init=True)
             self.parent.statsTab.update_plots()
 
             # Update variance plot tab - plot update is triggered upon setting dataset list index

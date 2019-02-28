@@ -463,7 +463,7 @@ class TimeSeriesPlotWidget(QtWidgets.QWidget):
             self.ax2.set_xlabel('Frequency (Hz)', size=11)
 
         # Convert PSD to log10 if plot option selected
-        if self.log_scale:
+        if self.log_scale is True:
             pxx = np.log10(pxx)
             log10 = r'$\mathregular{log_{10}}$'
         else:
