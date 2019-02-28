@@ -202,7 +202,7 @@ class TimeSeriesPlotWidget(QtWidgets.QWidget):
         # Store logger ID (assume the first portion of the file name)
         self.logger_id = filename.split('_')[0]
 
-        # Ignore the Timestamps column 1
+        # Store channel names and units - ignore column 1 (Timestamps)
         self.channel_names = self.df.columns.get_level_values(0).tolist()[1:]
         self.units = self.df.columns.get_level_values(1).tolist()[1:]
         self.update_channels()
@@ -250,7 +250,7 @@ class TimeSeriesPlotWidget(QtWidgets.QWidget):
         self.pri_ix = self.priAxis.currentIndex()
         self.sec_ix = self.secAxis.currentIndex()
 
-        # Redefine channels list and combo boxes current if channels don't match file
+        # Redefine channels list and plot series combo boxes if current channels don't match those in selected file
         if self.channel_names != self.current_channels:
             self.channelsList.clear()
             self.priAxis.clear()

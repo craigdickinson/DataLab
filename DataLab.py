@@ -1,7 +1,7 @@
 __author__ = 'Craig Dickinson'
 __program__ = 'DataLab'
-__version__ = '0.4'
-__date__ = '26 February 2019'
+__version__ = '0.5'
+__date__ = '28 February 2019'
 
 import logging
 import os
@@ -18,7 +18,7 @@ from core.datalab_main import DataLab
 from core.read_files import (read_spectrograms_csv, read_spectrograms_excel, read_spectrograms_hdf5, read_stats_csv,
                              read_stats_excel, read_stats_hdf5)
 from plot_stats import PlotStyle2H, SpectrogramWidget, StatsDataset, StatsWidget, VarianceWidget
-from plot_time_series import LoggerPlotSettings, TimeSeriesPlotWidget
+from plot_time_series import TimeSeriesPlotWidget
 import datalab_gui_layout
 
 
@@ -68,7 +68,7 @@ class DataLabGui(QtWidgets.QMainWindow):
         # Screening module container and tab widgets
         self.screeningModule = QtWidgets.QTabWidget()
         self.controlTab = self.control_widget()
-        self.statsTab = StatsWidget()
+        self.statsTab = StatsWidget(self)
         self.varianceTab = VarianceWidget()
         self.spectrogramTab = SpectrogramWidget(self)
         self.screeningModule.addTab(self.controlTab, 'Input')
@@ -225,7 +225,7 @@ class DataLabGui(QtWidgets.QMainWindow):
         self.openLoggerFile.triggered.connect(self.load_logger_file)
         self.openControlFile.triggered.connect(self.open_control_file)
         self.saveControlFile.triggered.connect(self.save_control_file)
-        self.openLoggerStats.triggered.connect(self.open_stats_file)
+        self.openLoggerStats.triggered.connect(self.load_stats_file)
         self.openSpectrograms.triggered.connect(self.load_spectrograms_file)
         self.BOPPrimary.triggered.connect(self.set_directory)
 
@@ -253,7 +253,7 @@ class DataLabGui(QtWidgets.QMainWindow):
         self.openDatFileButton.clicked.connect(self.open_control_file)
         self.analyseDatFileButton.clicked.connect(self.analyse_control_file)
         self.processStatsButton.clicked.connect(self.process_control_file)
-        self.loadStatsButton.clicked.connect(self.open_stats_file)
+        self.loadStatsButton.clicked.connect(self.load_stats_file)
 
     def open_control_file(self):
         """Open control file *.dat."""
@@ -297,8 +297,8 @@ class DataLabGui(QtWidgets.QMainWindow):
 
             self.show_raw_data_view()
 
-    def open_stats_file(self):
-        """Open summary stats spreadsheet."""
+    def load_stats_file(self):
+        """Load summary stats file."""
 
         # Prompt user to select file with open file dialog
         stats_file, _ = QtWidgets.QFileDialog.getOpenFileName(self,
@@ -326,23 +326,24 @@ class DataLabGui(QtWidgets.QMainWindow):
             else:
                 plot_flag = True
 
-            # For each logger create stats dataset object containing data, logger id, list of channels and
+            # For each logger create a stats dataset object containing data, logger id, list of channels and
             # pri/sec plot flags and add to stats plot class
             for logger, df in stats_dict.items():
                 dataset = StatsDataset(logger_id=logger, df=df)
                 self.statsTab.datasets.append(dataset)
 
             # Store dataset/logger names from dictionary keys
-            dataset_names = list(stats_dict.keys())
-            self.statsTab.update_stats_datasets_list(dataset_names)
+            dataset_ids = list(stats_dict.keys())
+            self.statsTab.update_stats_datasets_list(dataset_ids)
 
             # Plot stats
             if plot_flag:
-                self.statsTab.update_plot()
+                self.statsTab.set_plot_data()
+                self.statsTab.update_plots()
 
             # Update variance plot tab - plot update is triggered upon setting dataset list index
             self.varianceTab.datasets = stats_dict
-            self.varianceTab.update_variance_datasets_list(dataset_names)
+            self.varianceTab.update_variance_datasets_list(dataset_ids)
 
             # Show dashboard
             self.show_stats_view()
@@ -582,15 +583,15 @@ class ControlFileWorker(QtCore.QThread):
                 self.parent.statsTab.datasets.append(dataset)
 
             # Store dataset/logger names from dictionary keys
-            dataset_names = list(self.datalab.stats_dict.keys())
-            self.parent.statsTab.update_stats_datasets_list(dataset_names)
+            dataset_ids = list(self.datalab.stats_dict.keys())
+            self.parent.statsTab.update_stats_datasets_list(dataset_ids)
 
             # Plot stats
-            self.parent.statsTab.update_plot()
+            self.parent.statsTab.update_plots()
 
             # Update variance plot tab - plot update is triggered upon setting dataset list index
             self.parent.varianceTab.datasets = self.datalab.stats_dict
-            self.parent.varianceTab.update_variance_datasets_list(dataset_names)
+            self.parent.varianceTab.update_variance_datasets_list(dataset_ids)
             self.parent.varianceTab.datasetList.setCurrentRow(0)
             self.parent.varianceTab.update_variance_plot(init_plot=True)
             self.parent.show_stats_view()
