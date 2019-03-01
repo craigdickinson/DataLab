@@ -557,7 +557,7 @@ class StatsWidget(QtWidgets.QWidget):
             label = self.plot_data_1a['label']
             channel = self.plot_data_1a['channel']
             units = self.plot_data_1a['units']
-            self.ax1.plot(df, c='steelblue', label=label)
+            self.ax1.plot(df, c='dodgerblue', label=label)
             self.ax1.set_ylabel(f'{channel} ($\mathregular{{{units}}}$)')
             plot = True
             plot1_ax1 = True
@@ -570,7 +570,7 @@ class StatsWidget(QtWidgets.QWidget):
             label = self.plot_data_1b['label']
             channel = self.plot_data_1b['channel']
             units = self.plot_data_1b['units']
-            self.ax1b.plot(df, c='coral', label=label)
+            self.ax1b.plot(df, c='red', label=label)
             self.ax1b.set_ylabel(f'{channel} ($\mathregular{{{units}}}$)')
             plot = True
             plot1_ax2 = True
@@ -582,7 +582,7 @@ class StatsWidget(QtWidgets.QWidget):
             label = self.plot_data_2a['label']
             channel = self.plot_data_2a['channel']
             units = self.plot_data_2a['units']
-            self.ax2.plot(df, c='gold', label=label)
+            self.ax2.plot(df, c='deepskyblue', label=label)
             self.ax2.set_ylabel(f'{channel} ($\mathregular{{{units}}}$)')
             plot = True
             plot2_ax1 = True
@@ -595,7 +595,7 @@ class StatsWidget(QtWidgets.QWidget):
             label = self.plot_data_2b['label']
             channel = self.plot_data_2b['channel']
             units = self.plot_data_2b['units']
-            self.ax2b.plot(df, c='rebeccapurple', label=label)
+            self.ax2b.plot(df, c='orange', label=label)
             self.ax2b.set_ylabel(f'{channel} ($\mathregular{{{units}}}$)')
             plot = True
             plot2_ax2 = True
@@ -1247,7 +1247,7 @@ class SpectrogramWidget(QtWidgets.QWidget):
         # Natural frequency calculation label
         self.natFreq = QtWidgets.QLabel()
         self.natFreq.setToolTip('The natural response is estimated by evaluating the mean peak frequency '
-                                'of all events between 0.2 and 2.0 Hz.\n'
+                                'of all events between 0.2 Hz and 2.0 Hz.\n'
                                 'This assumes the wave energy is ignored.')
 
         # Widget sizing policy - prevent vertical expansion

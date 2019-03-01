@@ -214,7 +214,7 @@ class DataLabGui(QtWidgets.QMainWindow):
         self.openControlFileButton = QtWidgets.QPushButton('Open Control File')
         self.saveControlFileButton = QtWidgets.QPushButton('Save Control File')
         self.checkControlFileButton = QtWidgets.QPushButton('Check Control File')
-        self.processControlFileButton = QtWidgets.QPushButton('Process Control File')
+        self.processControlFileButton = QtWidgets.QPushButton('Process')
 
         vbox.addWidget(self.openControlFileButton, QtCore.Qt.AlignTop)
         vbox.addWidget(self.saveControlFileButton, QtCore.Qt.AlignTop)
@@ -532,7 +532,7 @@ class DataLabGui(QtWidgets.QMainWindow):
                 # Create DataLab processing instance
                 self.datalab = DataLab(self.datfile)
                 self.datalab.analyse_control_file()
-                self.statusBar().showMessage('Control file analysed successfully')
+                self.statusBar().showMessage('Control file check - good')
             except InputError as e:
                 self.statusBar().showMessage('Error: ' + str(e))
                 self.error('Error: ' + str(e))
@@ -613,8 +613,13 @@ class ControlFileWorker(QtCore.QThread):
             self.parent.statsTab.update_stats_datasets_list(dataset_ids)
 
             # Plot stats
-            self.parent.statsTab.set_plot_data(init=True)
+            # self.parent.statsTab.set_plot_data(init=True)
             self.parent.statsTab.update_plots()
+
+            # TODO: load and plot spcetrograms data
+            # Store spectrogram datasets and update plot tab
+            # self.parent.spectrogramTab.datasets[logger] = df
+            # self.parent.spectrogramTab.update_spect_datasets_list(logger)
 
             # Update variance plot tab - plot update is triggered upon setting dataset list index
             self.parent.varianceTab.datasets = self.datalab.stats_dict

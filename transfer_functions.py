@@ -35,13 +35,13 @@ class TransferFunctionsWidget(QtWidgets.QWidget):
         self.loadFile.setToolTip('Load transfer functions file')
         filesLabel = QtWidgets.QLabel('Transfer Functions')
         self.transferFuncsList = QtWidgets.QListWidget()
-        self.replotButton = QtWidgets.QPushButton('Replot')
+        self.plotButton = QtWidgets.QPushButton('Plot Transfer Functions')
 
         # Add setup widgets
         vboxSetup.addWidget(self.loadFile)
         vboxSetup.addWidget(filesLabel)
         vboxSetup.addWidget(self.transferFuncsList)
-        vboxSetup.addWidget(self.replotButton)
+        vboxSetup.addWidget(self.plotButton)
 
         # Plot container
         plotWidget = QtWidgets.QWidget()
@@ -65,8 +65,22 @@ class TransferFunctionsWidget(QtWidgets.QWidget):
         pass
         # self.loadFile.clicked.connect(self.parent.load_logger_file)
         # self.settingsButton.clicked.connect(self.open_plot_options)
-        # self.replotButton.clicked.connect(self.replot)
+        self.plotButton.clicked.connect(self.plot)
         # self.transferFuncsList.itemDoubleClicked.connect(self.on_file_double_clicked)
+
+    def plot(self):
+        self.ax.cla()
+        try:
+            df = pd.read_clipboard()
+            df = df.set_index(df.columns[0])
+            df.plot(ax=self.ax)
+            self.ax.set_xlabel('Frequency (Hz)')
+            self.ax.set_ylabel('PSD Bending Moment / PSD Acceleration')
+            self.ax.set_title('Frequency Dependent Transfer Functions')
+            self.ax.set_xlim(0, 0.5)
+        except:
+            pass
+        self.canvas.draw()
 
 
 # For testing layout

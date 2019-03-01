@@ -181,6 +181,7 @@ class DataLab(QThread):
 
             if self.stats_file_type == 'csv':
                 stats_out.stats_to_csv()
+                stats_out.stats_to_hdf5()
             elif self.stats_file_type == 'excel':
                 stats_out.stats_to_excel(logger)
             else:

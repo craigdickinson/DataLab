@@ -99,9 +99,9 @@ class TimeSeriesPlotWidget(QtWidgets.QWidget):
         setupWidget.setFixedWidth(200)
         vboxSetup = QtWidgets.QVBoxLayout(setupWidget)
 
-        # Open file
-        self.openFile = QtWidgets.QPushButton('Open File')
-        self.openFile.setToolTip('Open raw logger file')
+        # Load file
+        self.loadFile = QtWidgets.QPushButton('Load Raw Logger File')
+        self.loadFile.setToolTip('Load raw logger file')
 
         # Files list
         filesLabel = QtWidgets.QLabel('Logger Files')
@@ -130,7 +130,7 @@ class TimeSeriesPlotWidget(QtWidgets.QWidget):
         self.replotButton = QtWidgets.QPushButton('Replot')
 
         # Add setup widgets
-        vboxSetup.addWidget(self.openFile)
+        vboxSetup.addWidget(self.loadFile)
         vboxSetup.addWidget(filesLabel)
         vboxSetup.addWidget(self.filesList)
         vboxSetup.addWidget(channelsLabel)
@@ -162,7 +162,7 @@ class TimeSeriesPlotWidget(QtWidgets.QWidget):
         layout.addWidget(plotWidget)
 
     def connect_signals(self):
-        self.openFile.clicked.connect(self.parent.load_logger_file)
+        self.loadFile.clicked.connect(self.parent.load_logger_file)
         self.settingsButton.clicked.connect(self.open_plot_options)
         self.replotButton.clicked.connect(self.replot)
         self.filesList.itemDoubleClicked.connect(self.on_file_double_clicked)
@@ -399,7 +399,7 @@ class TimeSeriesPlotWidget(QtWidgets.QWidget):
 
         # Plot primary axis channel time series
         if self.plot_pri is True:
-            self.ax1.plot(df.iloc[:, 0], 'b', label=df.columns[0], lw=1)
+            self.ax1.plot(df.iloc[:, 0], 'dodgerblue', label=df.columns[0], lw=1)
             ylabel = f'{df.columns[0]} ({self.plot_units[0]})'
             self.ax1.set_ylabel(ylabel)
         else:
@@ -407,7 +407,7 @@ class TimeSeriesPlotWidget(QtWidgets.QWidget):
 
         # Plot secondary axis channel time series
         if self.plot_sec is True:
-            self.ax1b.plot(df.iloc[:, -1], 'r', label=df.columns[-1], lw=1)
+            self.ax1b.plot(df.iloc[:, -1], 'red', label=df.columns[-1], lw=1)
             ylabel = f'{df.columns[-1]} ({self.plot_units[-1]})'
             self.ax1b.set_ylabel(ylabel)
             self.ax1b.yaxis.set_visible(True)
@@ -471,7 +471,7 @@ class TimeSeriesPlotWidget(QtWidgets.QWidget):
 
         # Plot primary axis channel PSD
         if self.plot_pri is True:
-            self.ax2.plot(f, pxx[0], 'b')
+            self.ax2.plot(f, pxx[0], 'dodgerblue')
             channel = df.columns[0]
             units = self.plot_units[0]
             ylabel = f'{log10} {channel} PSD ($\mathregular{{({units})^2/Hz}})$'.lstrip()
@@ -482,7 +482,7 @@ class TimeSeriesPlotWidget(QtWidgets.QWidget):
 
         # Plot secondary axis channel PSD
         if self.plot_sec is True:
-            self.ax2b.plot(f, pxx[-1], 'r')
+            self.ax2b.plot(f, pxx[-1], 'red')
             channel = df.columns[-1]
             units = self.plot_units[-1]
             ylabel = f'{log10} {channel} PSD ($\mathregular{{({units})^2/Hz}})$'.lstrip()
@@ -531,8 +531,8 @@ class TimeSeriesPlotWidget(QtWidgets.QWidget):
         """Write main plot title."""
 
         # Store start and end timestamp of plot data for title
-        tstart = df.iloc[0, 0].strftime('%d %b %Y %H:%M:%S')
-        tend = df.iloc[-1, 0].strftime('%d %b %Y %H:%M:%S')
+        tstart = df.iloc[0, 0].strftime('%d %b %Y %H:%M:%S').lstrip('0')
+        tend = df.iloc[-1, 0].strftime('%d %b %Y %H:%M:%S')[-8:]
         self.subtitle = f'{self.logger_id} Logger - {tstart} to {tend}'
         title = self.project + '\n' + self.subtitle
         fig.suptitle(title,
