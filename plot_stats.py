@@ -496,6 +496,11 @@ class StatsWidget(QtWidgets.QWidget):
         logger_i = logger_combo.currentIndex() - 1
         channel = channel_combo.currentText()
 
+        # TODO: There when processing we get a channel = '' bug
+        print(f'channel={channel}')
+        if channel == '':
+            channel = 'None'
+
         # If selected logger is not "None"
         if logger_i > -1 and channel != 'None':
             # Retrieve dataframe from dataset objects list

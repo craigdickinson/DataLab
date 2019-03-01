@@ -1,7 +1,7 @@
 __author__ = 'Craig Dickinson'
 __program__ = 'DataLab'
 __version__ = '0.5'
-__date__ = '28 February 2019'
+__date__ = '1 March 2019'
 
 import logging
 import os
@@ -19,6 +19,8 @@ from core.read_files import (read_spectrograms_csv, read_spectrograms_excel, rea
                              read_stats_excel, read_stats_hdf5)
 from plot_stats import PlotStyle2H, SpectrogramWidget, StatsDataset, StatsWidget, VarianceWidget
 from plot_time_series import TimeSeriesPlotWidget
+from transfer_functions import TransferFunctionsWidget
+from fatigue_processing import FatigueProcessingWidget
 import datalab_gui_layout
 
 
@@ -33,7 +35,7 @@ class DataLabGui(QtWidgets.QMainWindow):
         # Set root path because path is changed when using file tree
         self.root = os.getcwd()
         self.datfile = None
-        self.setWindowTitle('Monitoring Data Lab')
+        self.setWindowTitle('DataLab')
         self.init_ui()
         self.connect_signals()
         # self._centre()
@@ -73,12 +75,24 @@ class DataLabGui(QtWidgets.QMainWindow):
         self.spectrogramTab = SpectrogramWidget(self)
         self.screeningModule.addTab(self.controlTab, 'Input')
         self.screeningModule.addTab(self.statsTab, 'Statistics')
-        self.screeningModule.addTab(self.varianceTab, 'Variance Plot')
         self.screeningModule.addTab(self.spectrogramTab, 'Spectrograms')
+        self.screeningModule.addTab(self.varianceTab, 'Variance')
 
-        # Add stacked central widgets
+        # Transfer functions module
+        self.transFuncsModule = QtWidgets.QTabWidget()
+        self.transferFuncsTab = TransferFunctionsWidget(self)
+        self.transFuncsModule.addTab(self.transferFuncsTab, '2HFATLASA Transfer Functions')
+
+        # Fatigue processing module
+        self.fatigueModule = QtWidgets.QTabWidget()
+        self.fatigueTab = FatigueProcessingWidget(self)
+        self.fatigueModule.addTab(self.fatigueTab, '2HFATLASA')
+
+        # Add stacked widgets
         self.modulesWidget.addWidget(self.rawDataModule)
         self.modulesWidget.addWidget(self.screeningModule)
+        self.modulesWidget.addWidget(self.transFuncsModule)
+        self.modulesWidget.addWidget(self.fatigueModule)
 
         # 2H plotting class
         self.plot_2h = PlotStyle2H(self.statsTab.canvas, self.statsTab.fig)
@@ -170,14 +184,14 @@ class DataLabGui(QtWidgets.QMainWindow):
         """Create toolbar with button to show dashboards."""
 
         self.toolBar = self.addToolBar('Modules')
-        self.rawDataButton = QtWidgets.QPushButton('Raw Data Inspection')
-        self.screeningButton = QtWidgets.QPushButton('Logger Screening')
-        self.TFButton = QtWidgets.QPushButton('Transfer Functions')
+        self.rawDataButton = QtWidgets.QPushButton('Raw Data')
+        self.screeningButton = QtWidgets.QPushButton('Screening')
+        self.transFuncsButton = QtWidgets.QPushButton('Transfer Functions')
         self.fatigueButton = QtWidgets.QPushButton('Fatigue Analysis')
         self.toolBar.addWidget(QtWidgets.QLabel('Modules:'))
         self.toolBar.addWidget(self.rawDataButton)
         self.toolBar.addWidget(self.screeningButton)
-        self.toolBar.addWidget(self.TFButton)
+        self.toolBar.addWidget(self.transFuncsButton)
         self.toolBar.addWidget(self.fatigueButton)
 
         self.update_tool_buttons('raw')
@@ -197,15 +211,15 @@ class DataLabGui(QtWidgets.QMainWindow):
 
         # Widgets
         self.controlFileEdit = QtWidgets.QTextEdit()
-        self.openDatFileButton = QtWidgets.QPushButton('Open Control File')
-        self.analyseDatFileButton = QtWidgets.QPushButton('Analyse Control File')
-        self.processStatsButton = QtWidgets.QPushButton('Process Stats')
-        self.loadStatsButton = QtWidgets.QPushButton('Load Stats')
+        self.openControlFileButton = QtWidgets.QPushButton('Open Control File')
+        self.saveControlFileButton = QtWidgets.QPushButton('Save Control File')
+        self.checkControlFileButton = QtWidgets.QPushButton('Check Control File')
+        self.processControlFileButton = QtWidgets.QPushButton('Process Control File')
 
-        vbox.addWidget(self.openDatFileButton, QtCore.Qt.AlignTop)
-        vbox.addWidget(self.analyseDatFileButton, QtCore.Qt.AlignTop)
-        vbox.addWidget(self.processStatsButton, QtCore.Qt.AlignTop)
-        vbox.addWidget(self.loadStatsButton, QtCore.Qt.AlignTop)
+        vbox.addWidget(self.openControlFileButton, QtCore.Qt.AlignTop)
+        vbox.addWidget(self.saveControlFileButton, QtCore.Qt.AlignTop)
+        vbox.addWidget(self.checkControlFileButton, QtCore.Qt.AlignTop)
+        vbox.addWidget(self.processControlFileButton, QtCore.Qt.AlignTop)
         grid.addWidget(self.controls, 0, 0, QtCore.Qt.AlignTop)
         grid.addWidget(self.controlFileEdit, 0, 1)
 
@@ -221,7 +235,7 @@ class DataLabGui(QtWidgets.QMainWindow):
     def connect_signals(self):
         """Connect widget signals to methods/actions."""
 
-        # File menu signals
+        # File menu
         self.openLoggerFile.triggered.connect(self.load_logger_file)
         self.openControlFile.triggered.connect(self.open_control_file)
         self.saveControlFile.triggered.connect(self.save_control_file)
@@ -229,31 +243,33 @@ class DataLabGui(QtWidgets.QMainWindow):
         self.openSpectrograms.triggered.connect(self.load_spectrograms_file)
         self.BOPPrimary.triggered.connect(self.set_directory)
 
-        # View menu signals
+        # View menu
         self.showControlScreen.triggered.connect(self.show_control_view)
         self.showPlotScreen.triggered.connect(self.show_screening_view)
 
-        # Run menu signals
+        # Run menu
         self.calcStats.triggered.connect(self.process_control_file)
 
-        # Plot menu signals
+        # Plot menu
         self.add2HIcon.triggered.connect(self.add_2h_icon)
         self.loggerPlotSettings.triggered.connect(self.open_logger_plot_settings)
         self.spectPlotSettings.triggered.connect(self.open_spect_plot_settings)
 
-        # Help menu signals
+        # Help menu
         self.showHelp.triggered.connect(self.show_help)
         self.showAbout.triggered.connect(self.show_version)
 
-        # Toolbar dashboard button signals
+        # Toolbar dashboard buttons
         self.rawDataButton.clicked.connect(self.show_raw_data_view)
         self.screeningButton.clicked.connect(self.show_screening_view)
+        self.transFuncsButton.clicked.connect(self.show_transfer_funcs_view)
+        self.fatigueButton.clicked.connect(self.show_fatigue_view)
 
-        # Processing signals
-        self.openDatFileButton.clicked.connect(self.open_control_file)
-        self.analyseDatFileButton.clicked.connect(self.analyse_control_file)
-        self.processStatsButton.clicked.connect(self.process_control_file)
-        self.loadStatsButton.clicked.connect(self.load_stats_file)
+        # Control buttons
+        self.openControlFileButton.clicked.connect(self.open_control_file)
+        self.saveControlFileButton.clicked.connect(self.save_control_file)
+        self.checkControlFileButton.clicked.connect(self.analyse_control_file)
+        self.processControlFileButton.clicked.connect(self.process_control_file)
 
     def open_control_file(self):
         """Open control file *.dat."""
@@ -466,6 +482,14 @@ class DataLabGui(QtWidgets.QMainWindow):
         self.modulesWidget.setCurrentWidget(self.screeningModule)
         self.screeningModule.setCurrentWidget(self.spectrogramTab)
 
+    def show_transfer_funcs_view(self):
+        self.update_tool_buttons('tf')
+        self.modulesWidget.setCurrentWidget(self.transFuncsModule)
+
+    def show_fatigue_view(self):
+        self.update_tool_buttons('fatigue')
+        self.modulesWidget.setCurrentWidget(self.fatigueModule)
+
     def update_tool_buttons(self, active_button):
         # button_style = 'font-weight: bold'
         active_style = 'background-color: blue; color: white'
@@ -474,7 +498,7 @@ class DataLabGui(QtWidgets.QMainWindow):
         # Reset all button colours
         self.rawDataButton.setStyleSheet(inactive_style)
         self.screeningButton.setStyleSheet(inactive_style)
-        self.TFButton.setStyleSheet(inactive_style)
+        self.transFuncsButton.setStyleSheet(inactive_style)
         self.fatigueButton.setStyleSheet(inactive_style)
 
         # Colour active dashboard button
@@ -483,7 +507,7 @@ class DataLabGui(QtWidgets.QMainWindow):
         if active_button == 'screening':
             self.screeningButton.setStyleSheet(active_style)
         if active_button == 'tf':
-            self.TFButton.setStyleSheet(active_style)
+            self.transFuncsButton.setStyleSheet(active_style)
         if active_button == 'fatigue':
             self.fatigueButton.setStyleSheet(active_style)
 
@@ -584,6 +608,8 @@ class ControlFileWorker(QtCore.QThread):
 
             # Store dataset/logger names from dictionary keys
             dataset_ids = list(self.datalab.stats_dict.keys())
+
+            # TODO: Weird QObject warning gets raised here - resolve
             self.parent.statsTab.update_stats_datasets_list(dataset_ids)
 
             # Plot stats
@@ -601,6 +627,7 @@ class ControlFileWorker(QtCore.QThread):
         except Exception as e:
             msg = 'Unexpected error on processing control file'
             self.signal_error.emit(f'{msg}:\n{e}\n{sys.exc_info()[0]}')
+            logging.exception(msg)
         finally:
             self.parent.setEnabled(True)
             # self.quit()

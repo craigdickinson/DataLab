@@ -28,8 +28,8 @@ class TimeSeriesPlotWidget(QtWidgets.QWidget):
 
         self.files_list = []
         self.logger_id = ''
-        self.project = 'Project Title'  # 'Total WoS Glendronach Well Monitoring'
-        # self.title2 = ''
+        # self.project = 'Project Title'
+        self.project = 'Total WoS Glendronach Well Monitoring'
 
         # Plot settings
         self.plot_pri = False
