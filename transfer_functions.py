@@ -74,6 +74,7 @@ class TransferFunctionsWidget(QtWidgets.QWidget):
             df = pd.read_clipboard()
             df = df.set_index(df.columns[0])
             df.plot(ax=self.ax)
+            # self.ax.set_yscale('log')
             self.ax.set_xlabel('Frequency (Hz)')
             self.ax.set_ylabel('PSD Bending Moment / PSD Acceleration')
             self.ax.set_title('Frequency Dependent Transfer Functions')
