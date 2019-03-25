@@ -1217,7 +1217,7 @@ class SpectrogramWidget(QtWidgets.QWidget):
         self.datasetList = QtWidgets.QListWidget()
         self.datasetList.setFixedHeight(100)
         self.datetimeEdit = QtWidgets.QDateTimeEdit()
-        lbl2 = QtWidgets.QLabel('Timestamps (reverse)')
+        lbl2 = QtWidgets.QLabel('Timestamps (reversed)')
         self.timestampList = QtWidgets.QListWidget()
         self.slider = QtWidgets.QSlider()
         self.slider.setOrientation(QtCore.Qt.Vertical)
