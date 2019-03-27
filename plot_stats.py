@@ -12,7 +12,7 @@ from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as Navigatio
 from matplotlib import gridspec
 from datetime import timedelta
 
-# To resolve a weird bug - to investigate
+# To resolve a pandas warning in using timestamps with matplotlib - to investigate
 from pandas.plotting import register_matplotlib_converters
 
 register_matplotlib_converters()
@@ -48,10 +48,10 @@ class StatsWidget(QtWidgets.QWidget):
                'Angular Rate ($\mathregular{deg/s}$)']
 
     # Dictionary of stats combo items and stats file column name pairs
-    stats = {'Minimum': 'min',
-             'Maximum': 'max',
-             'Mean': 'mean',
-             'Std. Dev.': 'std'}
+    stats_dict = {'Minimum': 'min',
+                  'Maximum': 'max',
+                  'Mean': 'mean',
+                  'Std. Dev.': 'std'}
 
     def __init__(self, parent=None):
         super(StatsWidget, self).__init__(parent)
@@ -68,7 +68,7 @@ class StatsWidget(QtWidgets.QWidget):
 
         # Plot data and settings
         self.project = '21239 Total WoS - Glendronach Well Monitoring Campaign'
-        self.statistic = ''
+        self.stat1 = ''
         self.plot_data_1a = {}
         self.plot_data_1b = {}
         self.plot_data_2a = {}
@@ -85,10 +85,12 @@ class StatsWidget(QtWidgets.QWidget):
         self.canvas.draw()
 
         # Add stats options and initialise to stdev - don't do this in layout creation to keep it separate
-        self.statsCombo.addItems(self.stats.keys())
-        self.statsCombo.setCurrentIndex(3)
+        self.axis1StatsCombo.addItems(self.stats_dict.keys())
+        self.axis1StatsCombo.setCurrentIndex(3)
+        self.axis2StatsCombo.addItems(self.stats_dict.keys())
+        self.axis2StatsCombo.setCurrentIndex(3)
 
-        # Store logger and channel drop-down widgets in lists for later use convenience
+        # Store logger and channel drop-down widgets in lists for convenience in later use
         self.logger_combos = [self.log1a,
                               self.log1b,
                               self.log2a,
@@ -116,13 +118,14 @@ class StatsWidget(QtWidgets.QWidget):
         # selection.setSizePolicy(policy)
 
         self.loadStats = QtWidgets.QPushButton('Load Statistics')
+        self.clearDatasets = QtWidgets.QPushButton('Clear Datasets')
         lbl1 = QtWidgets.QLabel('Loaded Datasets')
         lbl2 = QtWidgets.QLabel('Channels (echo)')
         self.datasetList = QtWidgets.QListWidget()
         self.channelsList = QtWidgets.QListWidget()
-        self.statsCombo = QtWidgets.QComboBox()
+        self.axis1StatsCombo = QtWidgets.QComboBox()
+        self.axis2StatsCombo = QtWidgets.QComboBox()
         self.plotSettings = QtWidgets.QPushButton('Plot Settings')
-        self.clearDatasets = QtWidgets.QPushButton('Clear Datasets')
         self.replotButton = QtWidgets.QPushButton('Replot')
 
         # Plot drop-downs
@@ -137,42 +140,45 @@ class StatsWidget(QtWidgets.QWidget):
 
         plotGroup1 = QtWidgets.QGroupBox('Plot 1')
         grid = QtWidgets.QGridLayout(plotGroup1)
-        grid.addWidget(QtWidgets.QLabel('Axis 1 Logger:'), 0, 0)
+        grid.addWidget(QtWidgets.QLabel('Logger (Axis 1):'), 0, 0)
         grid.addWidget(self.log1a, 1, 0)
-        grid.addWidget(QtWidgets.QLabel('Axis 1 Channel:'), 0, 1)
+        grid.addWidget(QtWidgets.QLabel('Channel (Axis1):'), 0, 1)
         grid.addWidget(self.ch1a, 1, 1)
-        grid.addWidget(QtWidgets.QLabel('Axis 2 Logger:'), 2, 0)
+        grid.addWidget(QtWidgets.QLabel('Logger (Axis 2):'), 2, 0)
         grid.addWidget(self.log1b, 3, 0)
-        grid.addWidget(QtWidgets.QLabel('Axis 2 Channel:'), 2, 1)
+        grid.addWidget(QtWidgets.QLabel('Channel (Axis 2):'), 2, 1)
         grid.addWidget(self.ch1b, 3, 1)
 
         plotGroup2 = QtWidgets.QGroupBox('Plot 2')
         grid = QtWidgets.QGridLayout(plotGroup2)
-        grid.addWidget(QtWidgets.QLabel('Axis 1 Logger:'), 0, 0)
+        grid.addWidget(QtWidgets.QLabel('Logger (Axis 1):'), 0, 0)
         grid.addWidget(self.log2a, 1, 0)
-        grid.addWidget(QtWidgets.QLabel('Axis 1 Channel:'), 0, 1)
+        grid.addWidget(QtWidgets.QLabel('Channel (Axis 1):'), 0, 1)
         grid.addWidget(self.ch2a, 1, 1)
-        grid.addWidget(QtWidgets.QLabel('Axis 2 Logger:'), 2, 0)
+        grid.addWidget(QtWidgets.QLabel('Logger (Axis 2):'), 2, 0)
         grid.addWidget(self.log2b, 3, 0)
-        grid.addWidget(QtWidgets.QLabel('Axis 2 Channel:'), 2, 1)
+        grid.addWidget(QtWidgets.QLabel('Channel (Axis 2):'), 2, 1)
         grid.addWidget(self.ch2b, 3, 1)
 
         # Stats combo layout - place in a dummy widget for better alignment
-        statsWidget = QtWidgets.QGroupBox('Plot Statistic')
-        vbox2 = QtWidgets.QVBoxLayout(statsWidget)
-        vbox2.addWidget(self.statsCombo)
+        statsWidget = QtWidgets.QGroupBox('Statistic')
+        grid = QtWidgets.QGridLayout(statsWidget)
+        grid.addWidget(QtWidgets.QLabel('Primary Axis:'), 0, 0)
+        grid.addWidget(self.axis1StatsCombo, 1, 0)
+        grid.addWidget(QtWidgets.QLabel('Secondary Axis:'), 0, 1)
+        grid.addWidget(self.axis2StatsCombo, 1, 1)
 
         # Combine selection widgets
         vbox.addWidget(self.loadStats, 0, 0)
+        vbox.addWidget(self.clearDatasets, 0, 1)
         vbox.addWidget(lbl1, 1, 0)
         vbox.addWidget(lbl2, 1, 1)
         vbox.addWidget(self.datasetList, 2, 0)
         vbox.addWidget(self.channelsList, 2, 1)
         vbox.addWidget(plotGroup1, 3, 0, 1, 2)
         vbox.addWidget(plotGroup2, 4, 0, 1, 2)
-        vbox.addWidget(statsWidget, 5, 0)
-        vbox.addWidget(self.plotSettings, 5, 1)
-        vbox.addWidget(self.clearDatasets, 6, 0)
+        vbox.addWidget(statsWidget, 5, 0, 1, 2)
+        vbox.addWidget(self.plotSettings, 6, 0)
         vbox.addWidget(self.replotButton, 6, 1)
 
         # # Toolbutton version testing
@@ -195,24 +201,6 @@ class StatsWidget(QtWidgets.QWidget):
         #     if action.isChecked():
         #         print('f')
 
-        # # Hs & Tp mean override checkbox
-        # self.meanWaveChkBox = QtWidgets.QCheckBox('Mean Hs/Tp override')
-        # self.meanWaveChkBox.setChecked(True)
-        #
-        # # Plot axis radio buttons
-        # radioFrame = QtWidgets.QGroupBox('Plot axis')
-        # vbox2 = QtWidgets.QVBoxLayout()
-        # radioFrame.setLayout(vbox2)
-        # self.radioNone = QtWidgets.QRadioButton('None')
-        # self.radioPri = QtWidgets.QRadioButton('Primary')
-        # self.radioSec = QtWidgets.QRadioButton('Secondary')
-        # vbox2.addWidget(self.radioNone)
-        # vbox2.addWidget(self.radioPri)
-        # vbox2.addWidget(self.radioSec)
-
-        # vbox.addWidget(self.meanWaveChkBox)
-        # vbox.addWidget(radioFrame)
-
         # Plot layout
         plot = QtWidgets.QWidget()
         plotLayout = QtWidgets.QVBoxLayout(plot)
@@ -232,22 +220,14 @@ class StatsWidget(QtWidgets.QWidget):
     def connect_signals(self):
         self.loadStats.clicked.connect(self.parent.load_stats_file)
         self.clearDatasets.clicked.connect(self.clear_datasets)
-        self.datasetList.currentItemChanged.connect(self.on_dataset_change)
+        self.datasetList.currentItemChanged.connect(self.on_datasetList_change)
         self.log1a.currentIndexChanged.connect(self.on_logger1a_combo_change)
         self.log1b.currentIndexChanged.connect(self.on_logger1b_combo_change)
         self.log2a.currentIndexChanged.connect(self.on_logger2a_combo_change)
         self.log2b.currentIndexChanged.connect(self.on_logger2b_combo_change)
-        # self.ch1a.currentIndexChanged.connect(self.on_chan1a_combo_change)
-        # self.ch1b.currentIndexChanged.connect(self.on_chan1b_combo_change)
-        # self.ch2a.currentIndexChanged.connect(self.on_chan2a_combo_change)
-        # self.ch2b.currentIndexChanged.connect(self.on_chan2b_combo_change)
-        self.statsCombo.currentIndexChanged.connect(self.on_stats_combo_change)
+        self.axis1StatsCombo.currentIndexChanged.connect(self.on_stats1_combo_change)
+        self.axis2StatsCombo.currentIndexChanged.connect(self.on_stats2_combo_change)
         self.replotButton.clicked.connect(self.replot)
-        # self.channelsList.currentItemChanged.connect(self.set_radios)
-        # self.meanWaveChkBox.stateChanged.connect(self.update_plot)
-        # self.radioNone.toggled.connect(self.radio_changed)
-        # self.radioPri.toggled.connect(self.radio_changed)
-        # self.radioSec.toggled.connect(self.radio_changed)
 
     def draw_axes(self):
         """(Re)construct a blank figure workspace."""
@@ -288,7 +268,7 @@ class StatsWidget(QtWidgets.QWidget):
 
         self.skip_logger_combo_change = False
 
-    def on_dataset_change(self):
+    def on_datasetList_change(self):
         self.update_channels_list()
 
     def on_logger1a_combo_change(self):
@@ -307,28 +287,15 @@ class StatsWidget(QtWidgets.QWidget):
         if self.skip_plot is False:
             self.update_channel_combos(logger_combo=self.log2b, channel_combo=self.ch2b)
 
-    # def on_chan1a_combo_change(self):
-    #     if self.skip_plot is False:
-    #         self.set_plot_data()
-    #         self.update_plots()
-    #
-    # def on_chan1b_combo_change(self):
-    #     if self.skip_plot is False:
-    #         self.set_plot_data()
-    #         self.update_plots()
-    #
-    # def on_chan2a_combo_change(self):
-    #     if self.skip_plot is False:
-    #         self.set_plot_data()
-    #         self.update_plots()
-    #
-    # def on_chan2b_combo_change(self):
-    #     if self.skip_plot is False:
-    #         self.set_plot_data()
-    #         self.update_plots()
+    def on_stats1_combo_change(self):
+        """Update primary axis plots for selected statistic if datasets have been loaded"""
 
-    def on_stats_combo_change(self):
-        """Update stats plots if datasets have been loaded."""
+        if self.datasets:
+            self.set_plot_data()
+            self.update_plots()
+
+    def on_stats2_combo_change(self):
+        """Update secondary axis plots for selected statistic if datasets have been loaded"""
 
         if self.datasets:
             self.set_plot_data()
@@ -343,11 +310,6 @@ class StatsWidget(QtWidgets.QWidget):
 
     def update_stats_datasets_list(self, dataset_ids):
         """Populate loaded datasets list."""
-
-        # Set first checkstate of primary series as checked if no datasets previously loaded
-        # to ensure an initial plot
-        # if self.datasetList.count() == 0:
-        #     self.datasets[0].plot_on_pri_axis[0] = True
 
         # Create dataset list and select first item (this will trigger an update of update_channels_list)
         self.datasetList.addItems(dataset_ids)
@@ -397,57 +359,6 @@ class StatsWidget(QtWidgets.QWidget):
             channel_combo.clear()
             channel_combo.addItems(channels)
 
-    # def set_radios(self):
-    #     """Update radio button for selected channel."""
-    #
-    #     if self.skip_set_radios:
-    #         return
-    #
-    #     i = self.datasetList.currentRow()
-    #     j = self.channelsList.currentRow()
-    #
-    #     # Set flag to prevent radio_changed being mistakenly triggered
-    #     self.skip_radio_changed = True
-    #
-    #     # Set radio button based on stored flag
-    #     if self.datasets[i].plot_on_pri_axis[j] == True:
-    #         self.radioPri.setChecked(True)
-    #     elif self.datasets[i].plot_on_sec_axis[j] == True:
-    #         self.radioSec.setChecked(True)
-    #     else:
-    #         self.radioNone.setChecked(True)
-    #
-    #     self.skip_radio_changed = False
-    #
-    # def radio_changed(self):
-    #     """Update channel plot flags for change in triggered radio button."""
-    #
-    #     if self.skip_radio_changed:
-    #         return
-    #
-    #     if self.skip_update_plot:
-    #         self.skip_update_plot = False
-    #         return
-    #
-    #     i = self.datasetList.currentRow()
-    #     j = self.channelsList.currentRow()
-    #
-    #     # Initialise channel plot axis flags
-    #     self.datasets[i].plot_on_pri_axis[j] = False
-    #     self.datasets[i].plot_on_sec_axis[j] = False
-    #
-    #     # Set axis to plot channel on, if any
-    #     if self.radioPri.isChecked():
-    #         self.datasets[i].plot_on_pri_axis[j] = True
-    #     elif self.radioSec.isChecked():
-    #         self.datasets[i].plot_on_sec_axis[j] = True
-    #
-    #     self.update_plots()
-    #
-    #     # This flag prevents the plot being updated twice, since when a radio button is changed the routine is triggered
-    #     # twice, once for the switch to "on" and once for switch to "off"
-    #     self.skip_update_plot = True
-
     def set_plot_data(self, init=False):
         """Assign plot data for each axis based on respective selected logger and channel drop-downs."""
 
@@ -464,21 +375,23 @@ class StatsWidget(QtWidgets.QWidget):
             self.ch2b.setCurrentIndex(3)
 
         # Selected statistic info
-        self.statistic = self.statsCombo.currentText()
-        stat_col = self.stats[self.statistic]
+        self.stat1 = self.axis1StatsCombo.currentText()
+        self.stat2 = self.axis2StatsCombo.currentText()
+        stat1_col = self.stats_dict[self.stat1]
+        stat2_col = self.stats_dict[self.stat2]
 
         self.plot_data_1a = self.get_axes_plot_data(logger_combo=self.log1a,
                                                     channel_combo=self.ch1a,
-                                                    stat_col=stat_col)
+                                                    stat_col=stat1_col)
         self.plot_data_1b = self.get_axes_plot_data(logger_combo=self.log1b,
                                                     channel_combo=self.ch1b,
-                                                    stat_col=stat_col)
+                                                    stat_col=stat2_col)
         self.plot_data_2a = self.get_axes_plot_data(logger_combo=self.log2a,
                                                     channel_combo=self.ch2a,
-                                                    stat_col=stat_col)
+                                                    stat_col=stat1_col)
         self.plot_data_2b = self.get_axes_plot_data(logger_combo=self.log2b,
                                                     channel_combo=self.ch2b,
-                                                    stat_col=stat_col)
+                                                    stat_col=stat2_col)
 
     def get_axes_plot_data(self, logger_combo, channel_combo, stat_col):
         """
@@ -537,17 +450,17 @@ class StatsWidget(QtWidgets.QWidget):
             self.canvas.draw()
             return
 
-        # Flags to check which axes are plotted modify gridlines shown
+        # Flags to check which axes are plotted to modify gridlines shown
         plot = False
         plot1_ax1 = False
         plot1_ax2 = False
         plot2_ax1 = False
         plot2_ax2 = False
 
-        if self.statistic == 'Std. Dev.':
+        if self.stat1 == 'Std. Dev.':
             title = f'{self.project}\nStandard Deviation'
         else:
-            title = f'{self.project}\n{self.statistic}'
+            title = f'{self.project}\n{self.stat1}'
 
         self.fig.suptitle(title)
 
@@ -601,56 +514,8 @@ class StatsWidget(QtWidgets.QWidget):
             plot2_ax2 = True
             self.ax2b.yaxis.set_visible(True)
 
-        # for i in range(self.datasetList.count()):
-        #     logger_id = self.datasets[i].logger_id
-        #     t = self.datasets[i].df.index
-        #
-        #     # Plot channels on primary axis
-        #     for j, plot_channel in enumerate(self.datasets[i].plot_on_pri_axis):
-        #         if plot_channel:
-        #             channel = self.datasets[i].channels[j]
-        #             plot = True
-        #             channel_i = 4 * j
-        #
-        #             # Check if channel is wave height or period (i.e. contains 'wave' in name) and only plot the mean
-        #             # if mean Hs/Tp override is set
-        #             if 'wave' in channel.lower() and self.meanWaveChkBox.isChecked():
-        #                 col = channel_i + 2
-        #                 label = ' '.join((logger_id, 'Mean', channel, '(axis 1)'))
-        #             else:
-        #                 col = channel_i + stat_i
-        #                 label = ' '.join((logger_id, channel, '(axis 1)'))
-        #
-        #             data = self.datasets[i].df.iloc[:, col]
-        #             self.df_ax1[label] = data
-        #             self.ax1.plot(t, data.values, lw=1)
-        #
-        #             # Legend fudge: plot dummy series on ax2
-        #             self.ax1b.plot(t[0], 0, lw=1, label=label)
-        #
-        #     # Plot channels secondary axis
-        #     for j, plot_channel in enumerate(self.datasets[i].plot_on_sec_axis):
-        #         if plot_channel:
-        #             self.ax1b.yaxis.set_visible(True)
-        #             channel = self.datasets[i].channels[j]
-        #             plot = True
-        #             channel_i = 4 * j
-        #
-        #             # Check if channel is wave height or period (i.e. contains 'wave' in name) and only plot the mean
-        #             # if mean Hs/Tp override is set
-        #             if 'wave' in channel.lower() and self.meanWaveChkBox.isChecked():
-        #                 col = channel_i + 2
-        #                 label = ' '.join((logger_id, 'Mean', channel, '(axis 2)'))
-        #             else:
-        #                 col = channel_i + stat_i
-        #                 label = ' '.join((logger_id, channel, 'axis 2'))
-        #
-        #             data = self.datasets[i].df.iloc[:, col]
-        #             self.df_ax2[label] = data
-        #             self.ax1b.plot(t, data.values, lw=1, label=label)
-
         # Complete plot if at least one channel was plotted
-        if plot:
+        if plot is True:
             # TODO: Finish this properly!
             # Unlatched period
             # d1 = mdates.date2num(datetime(2018, 7, 13, 19, 40))
@@ -676,12 +541,12 @@ class StatsWidget(QtWidgets.QWidget):
             self.ax2b.margins(x=0, y=0)
 
             days = mdates.DayLocator(interval=7)
-            self.ax2.xaxis.set_major_locator(days)
             fmt = mdates.DateFormatter('%d-%b-%y')
             # fmt = mdates.DateFormatter('%Y-%b-%d %H:%M')
+            self.ax2.xaxis.set_major_locator(days)
             self.ax2.xaxis.set_major_formatter(fmt)
-            self.fig.autofmt_xdate()
 
+            self.fig.autofmt_xdate()
             self.fig.legend(loc='lower center',
                             ncol=4,
                             fontsize=11,
@@ -691,8 +556,6 @@ class StatsWidget(QtWidgets.QWidget):
 
         self.canvas.draw()
 
-        # self.p.apply_2H_formatting()
-
 
 class StatsWidgetOld(QtWidgets.QWidget):
     """Summary stats plot widget class."""
@@ -700,10 +563,10 @@ class StatsWidgetOld(QtWidgets.QWidget):
     ylabels = ['Acceleration ($\mathregular{m/s^2}$)',
                'Angular Rate ($\mathregular{deg/s}$)']
 
-    stats = ['Minimum',
-             'Maximum',
-             'Mean',
-             'Standard Deviation']
+    stats_dict = ['Minimum',
+                  'Maximum',
+                  'Mean',
+                  'Standard Deviation']
 
     def __init__(self):
         super().__init__()
@@ -757,7 +620,7 @@ class StatsWidgetOld(QtWidgets.QWidget):
         # Statistic label and drop-down
         lbl_stat = QtWidgets.QLabel('Plot statistic:')
         self.statsCombo = QtWidgets.QComboBox()
-        self.statsCombo.addItems(self.stats)
+        self.statsCombo.addItems(self.stat_dict)
 
         lbl1 = QtWidgets.QLabel('Loaded Datasets')
         lbl2 = QtWidgets.QLabel('Channels')
@@ -987,6 +850,440 @@ class StatsWidgetOld(QtWidgets.QWidget):
         self.canvas.draw()
 
         # self.p.apply_2H_formatting()
+
+
+class VesselStatsWidget(QtWidgets.QWidget):
+    """Summary stats plot widget class."""
+
+    ylabels = ['Acceleration ($\mathregular{m/s^2}$)',
+               'Angular Rate ($\mathregular{deg/s}$)']
+
+    # Dictionary of stats combo items and stats file column name pairs
+    stats_dict = {'Minimum': 'min',
+                  'Maximum': 'max',
+                  'Mean': 'mean',
+                  'Std. Dev.': 'std',
+                  }
+
+    motion_types = ['Translations', 'Rotations']
+    motion_types = ['Surge/Sway/Heave', 'Roll/Pitch/Yaw']
+
+    vessel_trans = ['AccSurge',
+                    'AccSway',
+                    'AccHeave',
+                    ]
+
+    vessel_rots = ['AccRoll',
+                   'AccPitch',
+                   'AccYaw',
+                   ]
+
+    labels_dict = {'SigWaveHeight': 'Significant Wave Height',
+                   'SigWavePeriod': 'Significant Wave Period',
+                   }
+
+    ylabels_dict = {'SigWaveHeight': 'Hs',
+                    'SigWavePeriod': 'Tp',
+                    }
+
+    def __init__(self, parent=None):
+        super(VesselStatsWidget, self).__init__(parent)
+
+        # So can access parent class
+        self.parent = parent
+        plt.style.use('seaborn')
+
+        # Skip routine flags; used to prevent unnecessary multiple calls to update plot routines
+        self.skip_logger_combo_change = False
+        self.skip_set_radios = False
+        self.skip_radio_changed = False
+        self.skip_update_plot = False
+
+        # Plot data and settings
+        self.project = '21239 Total WoS - Glendronach Well Monitoring Campaign'
+        self.motions = ''
+        self.title = ''
+        self.plot_data = {}
+
+        # Container for StatsDataset objects
+        self.datasets = []
+        self.ylabel = self.ylabels[0]
+
+        # Set up layout
+        self.init_ui()
+        self.connect_signals()
+        self.draw_axes()
+        self.canvas.draw()
+
+        # Populate fixed combo boxes
+        self.vesselMotionsCombo.addItems(self.motion_types)
+        self.vesselMotionsCombo.setCurrentIndex(0)
+        self.stats1Combo.addItems(self.stats_dict.keys())
+        self.stats1Combo.setCurrentIndex(3)
+        self.stats2Combo.addItems(self.stats_dict.keys())
+        self.stats2Combo.setCurrentIndex(3)
+
+        self.skip_plot = True
+        self.init_logger_channel_combos()
+        self.skip_plot = False
+
+    def init_ui(self):
+        # Main layout
+        layout = QtWidgets.QHBoxLayout(self)
+
+        # Selection layout
+        selection = QtWidgets.QWidget()
+        selection.setFixedWidth(160)
+        vbox = QtWidgets.QVBoxLayout(selection)
+
+        self.loadStats = QtWidgets.QPushButton('Load Statistics')
+        self.clearDatasets = QtWidgets.QPushButton('Clear Datasets')
+        lbl1 = QtWidgets.QLabel('Loaded Datasets')
+        lbl2 = QtWidgets.QLabel('Channels (echo)')
+        self.datasetList = QtWidgets.QListWidget()
+        self.channelsList = QtWidgets.QListWidget()
+        self.vesselMotionsCombo = QtWidgets.QComboBox()
+        self.stats1Combo = QtWidgets.QComboBox()
+        self.stats2Combo = QtWidgets.QComboBox()
+        self.plotSettings = QtWidgets.QPushButton('Plot Settings')
+        self.replotButton = QtWidgets.QPushButton('Replot')
+
+        # Plot drop-downs
+        self.axis2Logger = QtWidgets.QComboBox()
+        self.axis2Channel = QtWidgets.QComboBox()
+
+        # Primary axis controls
+        statsWidget = QtWidgets.QGroupBox('Primary Axis')
+        vbox1 = QtWidgets.QVBoxLayout(statsWidget)
+        vbox1.addWidget(QtWidgets.QLabel('Motions:'))
+        vbox1.addWidget(self.vesselMotionsCombo)
+        vbox1.addWidget(QtWidgets.QLabel('Statistic:'))
+        vbox1.addWidget(self.stats1Combo)
+
+        # Secondary axis controls
+        axis2Group = QtWidgets.QGroupBox('Secondary Axis')
+        vbox2 = QtWidgets.QVBoxLayout(axis2Group)
+        vbox2.addWidget(QtWidgets.QLabel('Logger:'))
+        vbox2.addWidget(self.axis2Logger)
+        vbox2.addWidget(QtWidgets.QLabel('Channel:'))
+        vbox2.addWidget(self.axis2Channel)
+        vbox2.addWidget(QtWidgets.QLabel('Statistic:'))
+        vbox2.addWidget(self.stats2Combo)
+
+        # Combine selection widgets
+        vbox.addWidget(self.loadStats)
+        vbox.addWidget(self.clearDatasets)
+        vbox.addWidget(lbl1)
+        vbox.addWidget(self.datasetList)
+        vbox.addWidget(lbl2)
+        vbox.addWidget(self.channelsList)
+        vbox.addWidget(statsWidget)
+        vbox.addWidget(axis2Group)
+        vbox.addWidget(self.plotSettings)
+        vbox.addWidget(self.replotButton)
+
+        # Plot layout
+        plot = QtWidgets.QWidget()
+        plotLayout = QtWidgets.QVBoxLayout(plot)
+
+        # Create plot figure, canvas widget to display figure and navbar
+        self.fig = plt.figure()
+        self.canvas = FigureCanvas(self.fig)
+        navbar = NavigationToolbar(self.canvas, self)
+
+        plotLayout.addWidget(navbar)
+        plotLayout.addWidget(self.canvas)
+
+        # Add widgets to main layout
+        layout.addWidget(selection)
+        layout.addWidget(plot)
+
+    def connect_signals(self):
+        self.loadStats.clicked.connect(self.parent.load_stats_file)
+        self.clearDatasets.clicked.connect(self.clear_datasets)
+        self.datasetList.currentItemChanged.connect(self.on_datasetList_change)
+        self.vesselMotionsCombo.currentIndexChanged.connect(self.on_motions_combo_change)
+        self.stats1Combo.currentIndexChanged.connect(self.on_stats1_combo_change)
+        self.axis2Logger.currentIndexChanged.connect(self.on_axis2logger_combo_change)
+        self.stats2Combo.currentIndexChanged.connect(self.on_stats2_combo_change)
+        self.replotButton.clicked.connect(self.replot)
+
+    def draw_axes(self):
+        """(Re)construct a blank figure workspace."""
+
+        self.fig.clf()
+        self.ax1 = self.fig.add_subplot(311)
+        self.ax2 = self.fig.add_subplot(312, sharex=self.ax1)
+        self.ax3 = self.fig.add_subplot(313, sharex=self.ax1)
+        self.ax1b = self.ax1.twinx()
+        self.ax2b = self.ax2.twinx()
+        self.ax3b = self.ax3.twinx()
+        self.ax1b.yaxis.set_visible(False)
+        self.ax2b.yaxis.set_visible(False)
+        self.ax3b.yaxis.set_visible(False)
+        self.ax1b.grid(False)
+        self.ax2b.grid(False)
+        self.ax3b.grid(False)
+
+    def init_logger_channel_combos(self):
+        """Reset logger and channel drop-downs."""
+
+        self.axis2Logger.clear()
+        self.axis2Logger.addItem('None')
+        self.axis2Channel.clear()
+        self.axis2Channel.addItem('None')
+
+    def clear_datasets(self):
+        """Clear all stored spectrogram datasets and reset layout."""
+
+        # Set flag to prevent channel combos repopulating when clear the dataset combos
+        self.skip_logger_combo_change = True
+
+        self.datasets = []
+        self.datasetList.clear()
+        self.channelsList.clear()
+        self.init_logger_channel_combos()
+        self.skip_logger_combo_change = False
+
+    def on_datasetList_change(self):
+        self.update_channels_list()
+
+    def on_axis2logger_combo_change(self):
+        if self.skip_plot is False:
+            self.update_channels_combo()
+
+    def on_motions_combo_change(self):
+        """Update plots for selected vessel motions."""
+
+        if self.datasets:
+            self.set_plot_data()
+            self.update_plots()
+
+    def on_stats1_combo_change(self):
+        """Update vessel motion plots for selected statistic."""
+
+        if self.datasets:
+            self.set_plot_data()
+            self.update_plots()
+
+    def on_stats2_combo_change(self):
+        """Update secondary axis plots for selected statistic."""
+
+        if self.datasets:
+            self.set_plot_data()
+            self.update_plots()
+
+    def replot(self):
+        """Replot stats."""
+
+        if self.datasets:
+            self.set_plot_data()
+            self.update_plots()
+
+    def update_stats_datasets_list(self, dataset_ids):
+        """Populate loaded datasets list."""
+
+        # Create dataset list and select first item (this will trigger an update of update_channels_list)
+        self.datasetList.addItems(dataset_ids)
+
+        # Add dataset ids to logger combo box
+        self.axis2Logger.addItems(dataset_ids)
+        self.datasetList.setCurrentRow(0)
+
+    def update_channels_list(self):
+        """Update channels list to match selected dataset."""
+
+        i = self.datasetList.currentRow()
+        if i == -1:
+            return
+
+        # Add channels to list and make unselectable since they are just an echo for reference
+        self.channelsList.clear()
+        for channel in self.datasets[i].channels:
+            item = QtWidgets.QListWidgetItem(channel)
+            item.setFlags(item.flags() & ~QtCore.Qt.ItemIsSelectable)
+            self.channelsList.addItem(item)
+
+    def update_channels_combo(self):
+        """Update the channel drop-down to reflect the respective logger drop-down selection."""
+
+        if self.skip_logger_combo_change is True:
+            return
+
+        dataset_id = self.axis2Logger.currentText()
+
+        # If no dataset is selected, re-initialise the channel drop-down
+        if dataset_id == 'None':
+            self.axis2Channel.clear()
+            self.axis2Channel.addItem('None')
+        else:
+            # Retrieve channel names for selected dataset_id
+            i = self.axis2Logger.currentIndex() - 1
+            channels = self.datasets[i].channels
+
+            # Add channels to respective channel combo
+            self.axis2Channel.clear()
+            self.axis2Channel.addItems(channels)
+
+    def set_plot_data(self, init=False):
+        """Assign plot data for each axis based on respective selected logger and channel drop-downs."""
+
+        # If flag is set it means no datasets were previously loaded; therefore set drop-downs to presets
+        # to create an initial plot
+        if init is True:
+            self.axis2Logger.setCurrentIndex(1)
+            self.axis2Channel.setCurrentIndex(0)
+
+        # Selected motions and statistic to get data for
+        self.motions = self.vesselMotionsCombo.currentText()
+
+        if self.motions == 'Surge/Sway/Heave':
+            motion_cols = self.vessel_trans
+        else:
+            motion_cols = self.vessel_rots
+
+        self.stat1 = self.stats1Combo.currentText()
+        self.stat2 = self.stats2Combo.currentText()
+        stat1_col = self.stats_dict[self.stat1]
+        stat2_col = self.stats_dict[self.stat2]
+
+        # Plot title
+        if self.stat1 == 'Std. Dev.':
+            stat = 'Standard Deviation'
+        else:
+            stat = self.stat1
+
+        self.title = f'{self.project}\n{stat} Vessel Accelerations'
+
+        # Dictionary to hold plot vessel motions dataframe and axis 2 channel dataframe, label and units
+        plot_data = {}
+
+        # Get vessel motions data from vessel dataframe - it is expected the vessel dataset is called "VESSEL"
+        for i in range(len(self.datasets)):
+            if self.datasets[i].logger_id == 'VESSEL':
+                df_vessel = self.datasets[i].df
+                df_vessel = df_vessel.xs(key=stat1_col, axis=1, level=1)
+                df_vessel = df_vessel[motion_cols]
+                plot_data['vessel_data'] = df_vessel
+                break
+
+        # Selected logger info
+        logger_i = self.axis2Logger.currentIndex() - 1
+        channel = self.axis2Channel.currentText()
+
+        if channel == '':
+            channel = 'None'
+
+        # Get data for secondary axis if selected logger is not "None"
+        if logger_i > -1 and channel != 'None':
+            # Retrieve dataframe from dataset objects list
+            df_axis2 = self.datasets[logger_i].df
+            logger_id = self.datasets[logger_i].logger_id
+
+            # Slice dataframe for the selected statistic and then select channel
+            df_axis2 = df_axis2.xs(key=stat2_col, axis=1, level=1)
+            df_axis2 = df_axis2[channel]
+            units = df_axis2.columns[0]
+
+            # Check for a preferred channel to use in ylabel and label
+            if channel in self.labels_dict:
+                label = self.labels_dict[channel]
+                ylabel = self.ylabels_dict[channel]
+            else:
+                label = channel
+                ylabel = channel
+
+            # Prepend logger to label unless channel source is the vessel
+            if logger_id != 'VESSEL':
+                label = ' '.join((logger_id, channel))
+
+            # Append units to ylabel
+            ylabel = f'{ylabel} ($\mathregular{{{units}}}$)'
+
+            # Store vessel data from and channel data and info to dictionary
+            plot_data['axis2_data'] = df_axis2
+            plot_data['channel'] = channel
+            plot_data['label'] = label
+            plot_data['ylabel'] = ylabel
+            plot_data['units'] = units
+
+        self.plot_data = plot_data
+
+    def update_plots(self):
+        """Update stats plots."""
+
+        self.draw_axes()
+
+        # Flags to check which axes are plotted to modify gridlines shown
+        plot = False
+        linewidth = 1
+        self.fig.suptitle(self.title)
+
+        # Plot vessel motions
+        if 'vessel_data' in self.plot_data:
+            df_vessel = self.plot_data['vessel_data']
+            col = df_vessel.columns[0]
+            motion = col[0][3:]
+            units = col[1]
+            self.ax1.plot(df_vessel[col], 'r', lw=linewidth, label=motion + ' Acceleration')
+            label = f'{motion} ($\mathregular{{{units}}}$)'
+            self.ax1.set_ylabel(label)
+
+            col = df_vessel.columns[1]
+            motion = col[0][3:]
+            units = col[1]
+            self.ax2.plot(df_vessel[col], 'g', lw=linewidth, label=motion + ' Acceleration')
+            label = f'{motion} ($\mathregular{{{units}}}$)'
+            self.ax2.set_ylabel(label)
+
+            col = df_vessel.columns[2]
+            motion = col[0][3:]
+            units = col[1]
+            self.ax3.plot(df_vessel[col], 'purple', lw=linewidth, label=motion + ' Acceleration')
+            label = f'{motion} ($\mathregular{{{units}}}$)'
+            self.ax3.set_ylabel(label)
+            plot = True
+
+        # Plot secondary axis channel
+        if 'axis2_data' in self.plot_data:
+            df = self.plot_data['axis2_data']
+            label = self.plot_data['label']
+            ylabel = self.plot_data['ylabel']
+
+            self.ax1b.yaxis.set_visible(True)
+            self.ax2b.yaxis.set_visible(True)
+            self.ax3b.yaxis.set_visible(True)
+            self.ax1b.plot(df, c='dodgerblue', lw=linewidth, label=label)
+            self.ax2b.plot(df, c='dodgerblue', lw=linewidth)
+            self.ax3b.plot(df, c='dodgerblue', lw=linewidth)
+            self.ax2b.set_ylabel(ylabel)
+            self.ax1b.set_ylabel(ylabel)
+            self.ax3b.set_ylabel(ylabel)
+            plot = True
+
+        # Complete plot if at least one channel was plotted
+        if plot is True:
+            self.ax1.margins(x=0, y=0)
+            self.ax1b.margins(x=0, y=0)
+            self.ax2.margins(x=0, y=0)
+            self.ax2b.margins(x=0, y=0)
+            self.ax3.margins(x=0, y=0)
+            self.ax3b.margins(x=0, y=0)
+
+            days = mdates.DayLocator(interval=7)
+            fmt = mdates.DateFormatter('%d-%b-%y')
+            self.ax3.xaxis.set_major_locator(days)
+            self.ax3.xaxis.set_major_formatter(fmt)
+
+            self.fig.autofmt_xdate()
+            self.fig.legend(loc='lower center',
+                            ncol=4,
+                            fontsize=11,
+                            )
+            # Ensure plots don't overlap suptitle and legend
+            self.fig.tight_layout(rect=[0, .05, 1, .9])  # (rect=[left, bottom, right, top])
+
+        self.canvas.draw()
 
 
 class VarianceWidget(QtWidgets.QWidget):
@@ -1791,7 +2088,7 @@ if __name__ == '__main__':
     start_dates = [datetime.strptime(t, '%Y-%m-%d %H:%M:%S') for t in start_dates]
 
     data = [[j + i * 10 for j in range(16)] for i in range(3)]
-    stats = np.asarray(data)
+    stats_dict = np.asarray(data)
     data = np.random.randn(3, 4)
     df = pd.DataFrame(data=data, index=start_dates)
     dataset = StatsDataset(logger_id='test', df=df)

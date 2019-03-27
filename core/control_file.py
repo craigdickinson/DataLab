@@ -712,7 +712,7 @@ class ControlFile():
                 pass
 
     def get_header_rows(self, logger, data):
-        """Extract header numbers to read columns names and units from."""
+        """Extract header rows to read columns names and units from."""
 
         # Get channel header number
         key = '*CHANNEL_HEADER'

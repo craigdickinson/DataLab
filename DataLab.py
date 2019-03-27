@@ -1,7 +1,7 @@
 __author__ = 'Craig Dickinson'
 __program__ = 'DataLab'
-__version__ = '0.5'
-__date__ = '1 March 2019'
+__version__ = '0.6'
+__date__ = '27 March 2019'
 
 import logging
 import os
@@ -17,7 +17,7 @@ from core.control_file import InputError
 from core.datalab_main import DataLab
 from core.read_files import (read_spectrograms_csv, read_spectrograms_excel, read_spectrograms_hdf5, read_stats_csv,
                              read_stats_excel, read_stats_hdf5)
-from plot_stats import PlotStyle2H, SpectrogramWidget, StatsDataset, StatsWidget, VarianceWidget
+from plot_stats import PlotStyle2H, SpectrogramWidget, StatsDataset, StatsWidget, VarianceWidget, VesselStatsWidget
 from plot_time_series import TimeSeriesPlotWidget
 from transfer_functions import TransferFunctionsWidget
 from fatigue_processing import FatigueProcessingWidget
@@ -71,10 +71,12 @@ class DataLabGui(QtWidgets.QMainWindow):
         self.screeningModule = QtWidgets.QTabWidget()
         self.controlTab = self.control_widget()
         self.statsTab = StatsWidget(self)
+        self.vesselStatsTab = VesselStatsWidget(self)
         self.varianceTab = VarianceWidget()
         self.spectrogramTab = SpectrogramWidget(self)
         self.screeningModule.addTab(self.controlTab, 'Input')
         self.screeningModule.addTab(self.statsTab, 'Statistics')
+        self.screeningModule.addTab(self.vesselStatsTab, 'Vessel Statistics')
         self.screeningModule.addTab(self.spectrogramTab, 'Spectrograms')
         self.screeningModule.addTab(self.varianceTab, 'Variance')
 
@@ -225,13 +227,6 @@ class DataLabGui(QtWidgets.QMainWindow):
 
         return controlScreen
 
-    def message(self, title, message, buttons=QtWidgets.QMessageBox.Ok):
-        return QtWidgets.QMessageBox.information(self, title, message, buttons)
-
-    def error(self, message):
-        print(f'Error: {message}')
-        self.message('Error', message)
-
     def connect_signals(self):
         """Connect widget signals to methods/actions."""
 
@@ -239,7 +234,7 @@ class DataLabGui(QtWidgets.QMainWindow):
         self.openLoggerFile.triggered.connect(self.load_logger_file)
         self.openControlFile.triggered.connect(self.open_control_file)
         self.saveControlFile.triggered.connect(self.save_control_file)
-        self.openLoggerStats.triggered.connect(self.load_stats_file)
+        self.openLoggerStats.triggered.connect(self.load_stats_file_from_file_menu)
         self.openSpectrograms.triggered.connect(self.load_spectrograms_file)
         self.BOPPrimary.triggered.connect(self.set_directory)
 
@@ -270,6 +265,13 @@ class DataLabGui(QtWidgets.QMainWindow):
         self.saveControlFileButton.clicked.connect(self.save_control_file)
         self.checkControlFileButton.clicked.connect(self.analyse_control_file)
         self.processControlFileButton.clicked.connect(self.process_control_file)
+
+    def message(self, title, message, buttons=QtWidgets.QMessageBox.Ok):
+        return QtWidgets.QMessageBox.information(self, title, message, buttons)
+
+    def error(self, message):
+        print(f'Error: {message}')
+        self.message('Error', message)
 
     def open_control_file(self):
         """Open control file *.dat."""
@@ -313,7 +315,12 @@ class DataLabGui(QtWidgets.QMainWindow):
 
             self.show_raw_data_view()
 
-    def load_stats_file(self):
+    def load_stats_file_from_file_menu(self):
+        """Load stats file when actioned from file menu."""
+
+        self.load_stats_file(src='logger_stats')
+
+    def load_stats_file(self, src=None):
         """Load summary stats file."""
 
         # Prompt user to select file with open file dialog
@@ -347,22 +354,27 @@ class DataLabGui(QtWidgets.QMainWindow):
             for logger, df in stats_dict.items():
                 dataset = StatsDataset(logger_id=logger, df=df)
                 self.statsTab.datasets.append(dataset)
+                self.vesselStatsTab.datasets.append(dataset)
 
             # Store dataset/logger names from dictionary keys
             dataset_ids = list(stats_dict.keys())
             self.statsTab.update_stats_datasets_list(dataset_ids)
+            self.vesselStatsTab.update_stats_datasets_list(dataset_ids)
 
             # Plot stats
             if plot_flag:
                 self.statsTab.set_plot_data(init=True)
                 self.statsTab.update_plots()
+                self.vesselStatsTab.set_plot_data(init=True)
+                self.vesselStatsTab.update_plots()
 
             # Update variance plot tab - plot update is triggered upon setting dataset list index
             self.varianceTab.datasets = stats_dict
             self.varianceTab.update_variance_datasets_list(dataset_ids)
 
             # Show dashboard
-            self.show_stats_view()
+            if src == 'logger_stats':
+                self.show_stats_view()
 
     def load_spectrograms_file(self):
         """Load spectrograms spreadsheet."""
@@ -477,6 +489,11 @@ class DataLabGui(QtWidgets.QMainWindow):
         self.modulesWidget.setCurrentWidget(self.screeningModule)
         self.screeningModule.setCurrentWidget(self.statsTab)
 
+    def show_vessel_stats_view(self):
+        self.update_tool_buttons('screening')
+        self.modulesWidget.setCurrentWidget(self.screeningModule)
+        self.screeningModule.setCurrentWidget(self.vesselStatsTab)
+
     def show_spectrogram_view(self):
         self.update_tool_buttons('screening')
         self.modulesWidget.setCurrentWidget(self.screeningModule)
@@ -533,7 +550,9 @@ class DataLabGui(QtWidgets.QMainWindow):
                 self.datalab = DataLab(self.datfile)
                 self.datalab.analyse_control_file()
                 self.statusBar().showMessage('Control file check - good')
-            except InputError as e:
+            # TODO: For some reason crashes if use InputError (cos custom?)
+            # except InputError as e:
+            except Exception as e:
                 self.statusBar().showMessage('Error: ' + str(e))
                 self.error('Error: ' + str(e))
                 print(e)
@@ -616,7 +635,7 @@ class ControlFileWorker(QtCore.QThread):
             # self.parent.statsTab.set_plot_data(init=True)
             self.parent.statsTab.update_plots()
 
-            # TODO: load and plot spcetrograms data
+            # TODO: Load and plot specetrograms data
             # Store spectrogram datasets and update plot tab
             # self.parent.spectrogramTab.datasets[logger] = df
             # self.parent.spectrogramTab.update_spect_datasets_list(logger)
