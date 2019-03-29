@@ -173,9 +173,9 @@ class LoggerProperties(object):
         self.end_date = end_date
 
         # Use first and last raw logger filenames if no start-end dates read from control file
-        if self.start_date == None:
+        if self.start_date is None:
             self.start_date = min(self.file_timestamps)
-        if self.end_date == None:
+        if self.end_date is None:
             self.end_date = max(self.file_timestamps)
 
         dates = [d for d in self.file_timestamps

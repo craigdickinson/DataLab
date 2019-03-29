@@ -149,6 +149,26 @@ def read_spectrograms_excel(filename):
     return logger, df
 
 
+def read_wcfat_results(filename, locations=['LPH Weld', 'HPH Weld', 'BOP Connector']):
+    """Read fatigue damage .dmg file output from 2HWCFAT."""
+
+    df = pd.read_csv(filename, skiprows=8, header=None, sep='\t')
+
+    # Drop the event length column and last column, which is just redundant ","
+    df = df.drop([1, 5], axis=1)
+    df.columns = ['Timestamp'] + locations
+    df['Timestamp'] = df['Timestamp'].str.strip()
+    df = df.set_index('Timestamp')
+    df.index = pd.to_datetime(df.index, format='%Y_%m_%d_%H_%M')
+
+    return df
+
+
+def read_fatlasa_results(filename):
+    """Read *_MAX_DAMAGE_history.csv file output from 2HFATLASA."""
+
+
 if __name__ == '__main__':
-    df = read_logger_csv(r'dd10_2017_0310_0140.csv')
+    # df = read_logger_csv(r'dd10_2017_0310_0140.csv')
+    df = read_wcfat_results(r'C:\Users\dickinsc\PycharmProjects\DataLab\Fatigue Test Data\damage_1.dmg')
     print(df.head())

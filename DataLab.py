@@ -1,6 +1,6 @@
 __author__ = 'Craig Dickinson'
 __program__ = 'DataLab'
-__version__ = '0.7'
+__version__ = '0.8'
 __date__ = '29 March 2019'
 
 import logging
@@ -17,6 +17,7 @@ from core.control_file import InputError
 from core.datalab_main import DataLab
 from core.read_files import (read_spectrograms_csv, read_spectrograms_excel, read_spectrograms_hdf5, read_stats_csv,
                              read_stats_excel, read_stats_hdf5)
+from core.read_files import read_fatlasa_results, read_wcfat_results
 from plot_stats import PlotStyle2H, SpectrogramWidget, StatsDataset, StatsWidget, VarianceWidget, VesselStatsWidget
 from seascatter_diagram import SeascatterDiagram
 from plot_time_series import TimeSeriesPlotWidget
@@ -417,6 +418,18 @@ class DataLabGui(QtWidgets.QMainWindow):
 
             # Show dashboard
             self.show_spectrogram_view()
+
+    def load_wcfat_results_file(self):
+        """Load 2HWCFAT .dmg file."""
+
+        dmg_file, _ = QtWidgets.QFileDialog.getOpenFileName(self,
+                                                            caption='Open 2HWCFAT Fatigue Damage File',
+                                                            filter='2HWCFAT Damage Files (*.dmg)',
+                                                            )
+
+        if dmg_file:
+            df_dam = read_wcfat_results(dmg_file)
+            self.fatigueTab.process_fatigue_damage_file(df_dam)
 
     def open_logger_plot_settings(self):
         """Show raw data plot settings window."""

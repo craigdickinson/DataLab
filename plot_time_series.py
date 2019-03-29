@@ -12,12 +12,12 @@ from scipy import signal
 # from gui.gui_zoom_pan_factory import ZoomPan
 from core.read_files import read_logger_csv, read_logger_hdf5
 
+# "2H blue"
+color_2H = np.array([0, 49, 80]) / 255
+
 
 class TimeSeriesPlotWidget(QtWidgets.QWidget):
     """Create raw time series plots widget."""
-
-    # "2H blue"
-    color_2H = np.array([0, 49, 80]) / 255
 
     def __init__(self, parent=None):
         super(TimeSeriesPlotWidget, self).__init__(parent)
@@ -538,7 +538,7 @@ class TimeSeriesPlotWidget(QtWidgets.QWidget):
         fig.suptitle(title,
                      # size=16,
                      fontname='tahoma',
-                     color=self.color_2H,
+                     color=color_2H,
                      weight='bold',
                      )
 
