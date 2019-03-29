@@ -1,7 +1,7 @@
 __author__ = 'Craig Dickinson'
 __program__ = 'DataLab'
-__version__ = '0.6'
-__date__ = '27 March 2019'
+__version__ = '0.7'
+__date__ = '29 March 2019'
 
 import logging
 import os
@@ -18,6 +18,7 @@ from core.datalab_main import DataLab
 from core.read_files import (read_spectrograms_csv, read_spectrograms_excel, read_spectrograms_hdf5, read_stats_csv,
                              read_stats_excel, read_stats_hdf5)
 from plot_stats import PlotStyle2H, SpectrogramWidget, StatsDataset, StatsWidget, VarianceWidget, VesselStatsWidget
+from seascatter_diagram import SeascatterDiagram
 from plot_time_series import TimeSeriesPlotWidget
 from transfer_functions import TransferFunctionsWidget
 from fatigue_processing import FatigueProcessingWidget
@@ -50,11 +51,7 @@ class DataLabGui(QtWidgets.QMainWindow):
 
         # Create stacked central widget
         self.modulesWidget = QtWidgets.QStackedWidget()
-        self.w = QtWidgets.QTabWidget()
-        # self.setCentralWidget(self.w)
         self.setCentralWidget(self.modulesWidget)
-        # vbox = QtWidgets.QVBoxLayout(self.w)
-        # vbox.addWidget(self.dashboardsWidget)
         self.statusbar = self.statusBar()
 
         # Create menu bar and tool bar
@@ -73,10 +70,12 @@ class DataLabGui(QtWidgets.QMainWindow):
         self.statsTab = StatsWidget(self)
         self.vesselStatsTab = VesselStatsWidget(self)
         self.varianceTab = VarianceWidget()
+        self.scatterTab = SeascatterDiagram(self)
         self.spectrogramTab = SpectrogramWidget(self)
         self.screeningModule.addTab(self.controlTab, 'Input')
         self.screeningModule.addTab(self.statsTab, 'Statistics')
         self.screeningModule.addTab(self.vesselStatsTab, 'Vessel Statistics')
+        self.screeningModule.addTab(self.scatterTab, 'Seascatter Diagram')
         self.screeningModule.addTab(self.spectrogramTab, 'Spectrograms')
         self.screeningModule.addTab(self.varianceTab, 'Variance')
 
@@ -118,7 +117,7 @@ class DataLabGui(QtWidgets.QMainWindow):
         # Open submenu
         openMenu = menuFile.addMenu('&Open')
         self.openControlFile = QtWidgets.QAction('Control File')
-        self.openControlFile.setShortcut('Ctrl+C')
+        self.openControlFile.setShortcut('Ctrl+Shift+C')
         self.openControlFile.setStatusTip('Open control file (*.dat)')
         self.openLoggerFile = QtWidgets.QAction('Logger File')
         self.openLoggerFile.setShortcut('Ctrl+O')
@@ -158,7 +157,9 @@ class DataLabGui(QtWidgets.QMainWindow):
         self.calcStats = QtWidgets.QAction('Calculate Statistics')
         self.calcStats.setShortcut('Ctrl+R')
         self.calcStats.setStatusTip('Run Control File (*.dat)')
+        self.genScatterDiag = QtWidgets.QAction('Generate Seascatter Diagram')
         menuProcess.addAction(self.calcStats)
+        menuProcess.addAction(self.genScatterDiag)
 
         # Applied logic menu
         self.filter = QtWidgets.QAction('Apply Low/High Pass Filter')
@@ -175,6 +176,11 @@ class DataLabGui(QtWidgets.QMainWindow):
         menuPlotSettings.addAction(self.add2HIcon)
         menuPlotSettings.addAction(self.loggerPlotSettings)
         menuPlotSettings.addAction(self.spectPlotSettings)
+
+        # Export menu
+        self.exportScatterDiag = QtWidgets.QAction('Export Seascatter Diagram')
+        self.exportScatterDiag.setStatusTip('Export seascatter diagram to Excel')
+        menuExport.addAction(self.exportScatterDiag)
 
         # Help menu
         self.showHelp = QtWidgets.QAction('Help')
@@ -242,13 +248,17 @@ class DataLabGui(QtWidgets.QMainWindow):
         self.showControlScreen.triggered.connect(self.show_control_view)
         self.showPlotScreen.triggered.connect(self.show_screening_view)
 
-        # Run menu
+        # Process menu
         self.calcStats.triggered.connect(self.process_control_file)
+        self.genScatterDiag.triggered.connect(self.gen_scatter_diag)
 
         # Plot menu
         self.add2HIcon.triggered.connect(self.add_2h_icon)
         self.loggerPlotSettings.triggered.connect(self.open_logger_plot_settings)
         self.spectPlotSettings.triggered.connect(self.open_spect_plot_settings)
+
+        # Export menu
+        self.exportScatterDiag.triggered.connect(self.save_scatter_diagram)
 
         # Help menu
         self.showHelp.triggered.connect(self.show_help)
@@ -272,6 +282,10 @@ class DataLabGui(QtWidgets.QMainWindow):
     def error(self, message):
         print(f'Error: {message}')
         self.message('Error', message)
+
+    def warning(self, message):
+        print(f'Warning: {message}')
+        self.message('Warning', message)
 
     def open_control_file(self):
         """Open control file *.dat."""
@@ -455,7 +469,7 @@ class DataLabGui(QtWidgets.QMainWindow):
         """Show program overview and instructions message box."""
 
         msgbox = QtWidgets.QMessageBox(self)
-        msg = 'Instructions for using ' + __program__ + ':\n\n'
+        msg = f'Instructions for using {__program__}:\n\n'
         msgbox.setText(msg)
         msgbox.setWindowTitle('Help')
         msgbox.show()
@@ -506,6 +520,11 @@ class DataLabGui(QtWidgets.QMainWindow):
     def show_fatigue_view(self):
         self.update_tool_buttons('fatigue')
         self.modulesWidget.setCurrentWidget(self.fatigueModule)
+
+    def show_scatter_diag(self):
+        self.update_tool_buttons('screening')
+        self.modulesWidget.setCurrentWidget(self.screeningModule)
+        self.screeningModule.setCurrentWidget(self.scatterTab)
 
     def update_tool_buttons(self, active_button):
         # button_style = 'font-weight: bold'
@@ -578,6 +597,48 @@ class DataLabGui(QtWidgets.QMainWindow):
                 self.setEnabled(False)
                 self.worker.start()
                 self.worker.signal_error.connect(self.error)
+
+    def gen_scatter_diag(self):
+        """Create seascatter diagram if vessel stats data is loaded."""
+
+        df_vessel = self.check_vessel_dataset_loaded(datasets=self.statsTab.datasets)
+
+        if df_vessel is False:
+            msg = 'No vessel statistics dataset found in memory.\n' \
+                  'Load a statistics file containing vessel data and try again.'
+            self.warning(msg)
+        else:
+            try:
+                self.scatterTab.generate_scatter_diag(df_vessel)
+            except Exception as e:
+                msg = 'Unexpected error generating seascatter diagram'
+                self.error(f'{msg}:\n{e}\n{sys.exc_info()[0]}')
+                logging.exception(msg)
+
+        self.show_scatter_diag()
+
+    def check_vessel_dataset_loaded(self, datasets):
+        """
+        Check whether a vessel stats file has been loaded.
+        This dataset will be titled "VESSEL".
+        If found return dataset, otherwise false.
+        """
+
+        for dataset in datasets:
+            if dataset.logger_id == 'VESSEL':
+                return dataset.df
+        return False
+
+    def save_scatter_diagram(self):
+        """Export seascatter diagram to Excel."""
+
+        if self.scatterTab.df_scatter.empty is True:
+            self.warning('No seascatter diagram generated. Nothing to export!')
+        else:
+            fname, _ = QtWidgets.QFileDialog.getSaveFileName(self, 'Save Seascatter Diagram',
+                                                             filter='Excel Files (*.xlsx)')
+            if fname:
+                self.scatterTab.export_scatter_diagram(fname)
 
 
 class ControlFileWorker(QtCore.QThread):
@@ -688,7 +749,8 @@ class ControlFileProgressBar(QtWidgets.QDialog):
         layout.addWidget(self.progressBar)
         layout.addWidget(self.msgProcessingComplete)
 
-        self.buttonBox = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel)
+        self.buttonBox = QtWidgets.QDialogButtonBox(
+            QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel)
         self.buttonBox.accepted.connect(self.accept)
         self.buttonBox.rejected.connect(self.cancel)
         self.buttonBox.button(QtWidgets.QDialogButtonBox.Ok).setEnabled(False)
