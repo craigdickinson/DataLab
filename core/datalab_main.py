@@ -174,7 +174,7 @@ class DataLab(QThread):
                 self.notify_progress.emit(j + 1, n)
 
             # Add any files containing errors to screening report
-            data_report.add_bad_files(logger, data_screen[i].bad_files)
+            data_report.add_files_with_bad_data(logger, data_screen[i].bad_files)
 
             # Create dataframe of logger stats and store
             stats_out.compile_stats_dataframe(logger, data_screen[i], logger_stats[i])

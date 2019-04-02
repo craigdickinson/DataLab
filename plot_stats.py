@@ -559,11 +559,11 @@ class StatsWidget(QtWidgets.QWidget):
 
             # Modify gridlines shown
             if plot1_ax1 is False and plot1_ax2 is True:
-                self.ax1.grid(False)
+                self.ax1.grid(False, axis='y')
                 self.ax1b.grid(True)
 
             if plot2_ax1 is False and plot2_ax2 is True:
-                self.ax2.grid(False)
+                self.ax2.grid(False, axis='y')
                 self.ax2b.grid(True)
 
             self.ax1.margins(x=0, y=0)
@@ -574,8 +574,11 @@ class StatsWidget(QtWidgets.QWidget):
             days = mdates.DayLocator(interval=7)
             fmt = mdates.DateFormatter('%d-%b-%y')
             # fmt = mdates.DateFormatter('%Y-%b-%d %H:%M')
-            self.ax2.xaxis.set_major_locator(days)
-            self.ax2.xaxis.set_major_formatter(fmt)
+
+            # TODO: Bit of a fudge for now - x axis formatting
+            if len(df) > 1000:
+                self.ax2.xaxis.set_major_locator(days)
+                self.ax2.xaxis.set_major_formatter(fmt)
 
             self.fig.autofmt_xdate()
             self.fig.legend(loc='lower center',
@@ -1239,15 +1242,15 @@ class SpectrogramWidget(QtWidgets.QWidget):
         self.calcNatFreq = QtWidgets.QPushButton('Estimate Nat. Freq.')
         self.clearDatasets = QtWidgets.QPushButton('Clear Datasets')
         grid.addWidget(self.loadDataset, 0, 0)
-        grid.addWidget(lbl, 1, 0)
-        grid.addWidget(self.datasetList, 2, 0)
-        grid.addWidget(self.datetimeEdit, 3, 0)
-        grid.addWidget(lbl2, 4, 0)
-        grid.addWidget(self.timestampList, 5, 0)
-        grid.addWidget(self.slider, 5, 1)
-        grid.addWidget(self.openPlotSettings, 6, 0)
-        grid.addWidget(self.calcNatFreq, 7, 0)
-        grid.addWidget(self.clearDatasets, 8, 0)
+        grid.addWidget(self.clearDatasets, 1, 0)
+        grid.addWidget(lbl, 2, 0)
+        grid.addWidget(self.datasetList, 3, 0)
+        grid.addWidget(self.datetimeEdit, 4, 0)
+        grid.addWidget(lbl2, 5, 0)
+        grid.addWidget(self.timestampList, 6, 0)
+        grid.addWidget(self.slider, 6, 1)
+        grid.addWidget(self.openPlotSettings, 7, 0)
+        grid.addWidget(self.calcNatFreq, 8, 0)
 
         # Plot layout
         # Create plot figure, canvas widget to display figure and navbar

@@ -46,7 +46,7 @@ class LoggerProperties(object):
         self.file_type = ''  # *FILE_FORMAT
         self.file_timestamp_format = ''  # *FILE_TIMESTAMP
         self.timestamp_format = ''  # *TIMESTAMP
-        self.file_extension = ''  # *EXTENSION
+        self.file_ext = ''  # *EXTENSION
         self.file_delimiter = ''  # *DELIMITER
 
         # Number of rows/columns expected
@@ -99,6 +99,15 @@ class LoggerProperties(object):
         self.start_date = None
         self.end_date = None
 
+        # File timestamp component start and end indexes
+        self.year_span = None
+        self.month_span = None
+        self.day_span = None
+        self.hour_span = None
+        self.min_span = None
+        self.sec_span = None
+        self.ms_span = None
+
     def process_filenames(self):
         """Read all file timestamps and check that they conform to the specified format."""
 
@@ -109,7 +118,7 @@ class LoggerProperties(object):
     def get_filenames(self):
         """Get all filenames with specified extension."""
 
-        self.raw_filenames = [os.path.basename(f) for f in glob(self.logger_path + '/*.' + self.file_extension)]
+        self.raw_filenames = [os.path.basename(f) for f in glob(self.logger_path + '/*.' + self.file_ext)]
 
         if not self.raw_filenames:
             raise InputError('No ' + self.logger_id + ' logger files found in ' + self.logger_path)
@@ -147,16 +156,16 @@ class LoggerProperties(object):
             # Construct time string
             time_str = make_time_str(h, minute, sec, ms)
 
-            # Construct full date-time string
+            # Construct full datetime string
             date_time_str = (date_str + ' ' + time_str).strip()
 
             # Try to convert string to date
             try:
                 date = parse(date_time_str, yearfirst=True)
             except ValueError:
-                self.bad_filenames[f] = 'Unable to parse date from filename'
+                self.bad_filenames[f] = 'Unable to parse datetime from filename'
             else:
-                # Append if date is successfully parsed:
+                # Append if date is successfully parsed
                 self.files.append(f)
                 self.file_timestamps.append(date)
 

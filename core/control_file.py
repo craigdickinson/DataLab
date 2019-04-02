@@ -701,10 +701,10 @@ class ControlFile():
         # Return logger path
         return logger_path
 
-    def copy_logger_attributes(self, objfrom, objto, names):
+    def copy_logger_attributes(self, objfrom, objto, attribute_names):
         """Function to copy attributes from one object to another."""
 
-        for n in names:
+        for n in attribute_names:
             try:
                 param = getattr(objfrom, n)
                 setattr(objto, n, param)

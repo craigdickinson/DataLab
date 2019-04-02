@@ -10,7 +10,7 @@ from openpyxl import Workbook
 
 
 class DataScreenReport(object):
-    """Methods to write data screening results to excel."""
+    """Methods to write data screening results to Excel."""
 
     def __init__(self, project_name, campaign_name):
         """Constructor."""
@@ -18,7 +18,6 @@ class DataScreenReport(object):
         self.wb = Workbook()
         self.ws_summary = self.wb.active
         self.ws_summary.title = 'Summary'
-
         self.project_name = project_name
         self.campaign_name = campaign_name
         self.bad_filenames = []
@@ -30,7 +29,7 @@ class DataScreenReport(object):
         compiled_bad_files = self.compile_bad_files(logger, dict_bad_files)
         self.bad_filenames.extend(compiled_bad_files)
 
-    def add_bad_files(self, logger, dict_bad_files):
+    def add_files_with_bad_data(self, logger, dict_bad_files):
         """Create list of logger files containing data errors and add to summary list."""
 
         compiled_bad_files = self.compile_bad_files(logger, dict_bad_files)

@@ -1,7 +1,7 @@
 __author__ = 'Craig Dickinson'
 __program__ = 'DataLab'
-__version__ = '0.8'
-__date__ = '29 March 2019'
+__version__ = '0.9'
+__date__ = '2 April 2019'
 
 import logging
 import os
@@ -707,6 +707,7 @@ class ControlFileWorker(QtCore.QThread):
 
             # Plot stats
             # self.parent.statsTab.set_plot_data(init=True)
+            # self.parent.statsTab.filtered_ts = self.parent.statsTab.calc_filtered_data(self.df_plot)
             self.parent.statsTab.update_plots()
 
             # TODO: Load and plot specetrograms data

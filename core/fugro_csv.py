@@ -20,7 +20,7 @@ def fugro_file_format(logger_id):
     """Return a LoggerProperties object populated with fugro_csv file format settings."""
 
     logger = LoggerProperties(logger_id)
-    logger.file_extension = 'csv'
+    logger.file_ext = 'csv'
     logger.file_delimiter = ','
     logger.num_headers = 3
     logger.channel_header_row = 2

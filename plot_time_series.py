@@ -11,6 +11,7 @@ from scipy import signal
 
 # from gui.gui_zoom_pan_factory import ZoomPan
 from core.read_files import read_logger_csv, read_logger_hdf5
+from core.signal_filtering import filter_signal
 
 # "2H blue"
 color_2H = np.array([0, 49, 80]) / 255
@@ -77,8 +78,15 @@ class TimeSeriesPlotWidget(QtWidgets.QWidget):
         self.psd_xlim = (0.0, 1.0)
         self.psd_ylim = (0.0, 1.0)
 
+        # Low and high frequency cut-offs
+        self.low_cutoff = None
+        self.high_cutoff = None
+        self.low_cutoff = 0.05
+        self.high_cutoff = 0.5
+
         # To hold file data
         self.df = pd.DataFrame()
+        self.filtered_ts = None
         self.df_plot = pd.DataFrame()
         self.plot_units = []
 
@@ -216,6 +224,7 @@ class TimeSeriesPlotWidget(QtWidgets.QWidget):
 
         # This flag stops the on_xlims_change event from processing
         self.ignore_on_xlim_change = True
+        self.filtered_ts = self.calc_filtered_data(self.df_plot)
         self.update_plots()
         self.ignore_on_xlim_change = False
 
@@ -309,17 +318,34 @@ class TimeSeriesPlotWidget(QtWidgets.QWidget):
 
         return df_plot
 
+    def calc_filtered_data(self, df_raw):
+        """Remove noise."""
+
+        df_raw = df_raw.select_dtypes('number')
+
+        # if df_raw.columns[0] == 'Timestamp':
+        #     df_raw = df_raw.drop(df_raw.columns[0], axis=1)
+
+        if self.low_cutoff is None and self.high_cutoff is None:
+            return np.array([])
+        else:
+            filtered = filter_signal(df_raw, self.low_cutoff, self.high_cutoff)
+            return filtered
+
     def update_plots(self):
         """Create time series plots for selected logger channels."""
 
+        # First apply any filtering to the time series
+        # df_filtered = filter_signal(self.df_plot, low_cutoff=0.05, high_cutoff=0.5)
+
         self.draw_axes()
 
-        # Nothing to plot if dataframe contains only the Timestamp column
+        # Nothing to plot if data frame contains only the Timestamp column
         if len(self.df_plot.columns) == 1:
             return
 
         try:
-            self.plot_time_series(self.df_plot)
+            self.plot_time_series(self.df_plot, self.filtered_ts)
             self.plot_psd(self.df_plot[self.ts_xlim[0]:self.ts_xlim[1]])
         except ValueError as e:
             self.parent.error(str(e))
@@ -375,12 +401,11 @@ class TimeSeriesPlotWidget(QtWidgets.QWidget):
         # figZoom = zp.zoom_factory(self.ax2, base_scale=1.1)
         # figPan = zp.pan_factory(self.ax2)
 
-    def plot_time_series(self, df):
+    def plot_time_series(self, df, filtered_ts=np.array([])):
         """Plot time series."""
 
-        # If the first column is timestamp, drop it (this will be the case but doing the check for generality)
-        if df.columns[0] == 'Timestamp':
-            df = df.drop(df.columns[0], axis=1)
+        # Ignore timestamp column
+        df = df.select_dtypes('number')
 
         self.ax1.cla()
         self.ax1b.cla()
@@ -394,23 +419,39 @@ class TimeSeriesPlotWidget(QtWidgets.QWidget):
             self.ax1.grid(False)
             self.ax1b.grid(True)
 
-        # Event connection to refresh PSD plot up change of time series x-axis limits
+        # Event connection to refresh PSD plot upon change of time series x-axis limits
         self.ax1.callbacks.connect('xlim_changed', self.on_xlims_change)
 
         # Plot primary axis channel time series
         if self.plot_pri is True:
-            self.ax1.plot(df.iloc[:, 0], 'dodgerblue', label=df.columns[0], lw=1)
+            self.ax1.plot(df.iloc[:, 0], c='dodgerblue', label=df.columns[0], lw=1)
             ylabel = f'{df.columns[0]} ({self.plot_units[0]})'
             self.ax1.set_ylabel(ylabel)
+
+            # Plot filtered time series if exists
+            if filtered_ts.size > 0:
+                self.ax1.plot(df.index, filtered_ts[:, 0],
+                              c='red',
+                              ls='--',
+                              label=f'{df.columns[0]} (Filtered)',
+                              lw=1)
         else:
             self.ax1.yaxis.set_visible(False)
 
         # Plot secondary axis channel time series
         if self.plot_sec is True:
-            self.ax1b.plot(df.iloc[:, -1], 'red', label=df.columns[-1], lw=1)
+            self.ax1b.plot(df.iloc[:, -1], c='purple', label=df.columns[-1], lw=1)
             ylabel = f'{df.columns[-1]} ({self.plot_units[-1]})'
             self.ax1b.set_ylabel(ylabel)
             self.ax1b.yaxis.set_visible(True)
+
+            # Plot filtered time series if exists
+            if filtered_ts.size > 0:
+                self.ax1b.plot(df.index, filtered_ts[:, -1],
+                               c='green',
+                               ls='--',
+                               label=f'{df.columns[-1]} (Filtered)',
+                               lw=1)
         else:
             self.ax1b.yaxis.set_visible(False)
 
@@ -471,7 +512,7 @@ class TimeSeriesPlotWidget(QtWidgets.QWidget):
 
         # Plot primary axis channel PSD
         if self.plot_pri is True:
-            self.ax2.plot(f, pxx[0], 'dodgerblue')
+            self.ax2.plot(f, pxx[0], c='dodgerblue')
             channel = df.columns[0]
             units = self.plot_units[0]
             ylabel = f'{log10} {channel} PSD ($\mathregular{{({units})^2/Hz}})$'.lstrip()
@@ -482,7 +523,7 @@ class TimeSeriesPlotWidget(QtWidgets.QWidget):
 
         # Plot secondary axis channel PSD
         if self.plot_sec is True:
-            self.ax2b.plot(f, pxx[-1], 'red')
+            self.ax2b.plot(f, pxx[-1], c='purple')
             channel = df.columns[-1]
             units = self.plot_units[-1]
             ylabel = f'{log10} {channel} PSD ($\mathregular{{({units})^2/Hz}})$'.lstrip()
@@ -877,6 +918,19 @@ class LoggerPlotSettings(QtWidgets.QDialog):
         hbox.addWidget(frameTS)
         hbox.addWidget(framePSD)
 
+        # Low High cut-off frequencies
+        freqCutoffs = QtWidgets.QGroupBox('Frequency Cut-offs')
+        freqCutoffs.setSizePolicy(policy)
+        grid = QtWidgets.QGridLayout(freqCutoffs)
+        self.lowCutoff = QtWidgets.QLineEdit('0.05')
+        self.highCutoff = QtWidgets.QLineEdit('0.5')
+        self.lowCutoff.setFixedWidth(50)
+        self.highCutoff.setFixedWidth(50)
+        grid.addWidget(QtWidgets.QLabel('Low freq cut-off (Hz):'), 0, 0)
+        grid.addWidget(self.lowCutoff, 0, 1)
+        grid.addWidget(QtWidgets.QLabel('High freq cut-off (Hz):'), 1, 0)
+        grid.addWidget(self.highCutoff, 1, 1)
+
         # Frequency or period radio buttons
         psdXAxis = QtWidgets.QGroupBox('PSD X Axis')
         psdXAxis.setSizePolicy(policy)
@@ -894,6 +948,7 @@ class LoggerPlotSettings(QtWidgets.QDialog):
         # Combine PSD x-axis and log scale
         psdOpts = QtWidgets.QWidget()
         hbox = QtWidgets.QHBoxLayout(psdOpts)
+        hbox.addWidget(freqCutoffs)
         hbox.addWidget(psdXAxis)
         hbox.addWidget(self.logScale)
 
@@ -987,10 +1042,22 @@ class LoggerPlotSettings(QtWidgets.QDialog):
         """Get plot parameters from the time series widget and assign to settings widget."""
 
         self.optProject.setText(self.parent.project)
-        self.optTSXmin.setText(str(round(self.parent.ax1.get_xlim()[0], 1)))
-        self.optTSXmax.setText(str(round(self.parent.ax1.get_xlim()[1], 1)))
-        self.optPSDXmin.setText(str(round(self.parent.ax2.get_xlim()[0], 1)))
-        self.optPSDXmax.setText(str(round(self.parent.ax2.get_xlim()[1], 1)))
+        self.optTSXmin.setText(f'{self.parent.ax1.get_xlim()[0]:.1f}')
+        self.optTSXmax.setText(f'{self.parent.ax1.get_xlim()[1]:.1f}')
+        self.optPSDXmin.setText(f'{self.parent.ax2.get_xlim()[0]:.1f}')
+        self.optPSDXmax.setText(f'{self.parent.ax2.get_xlim()[1]:.1f}')
+
+        # Freq cut-offs
+        if self.parent.low_cutoff is None:
+            self.lowCutoff.setText('N/A')
+        else:
+            self.lowCutoff.setText(f'{self.parent.low_cutoff:.2f}')
+
+        if self.parent.high_cutoff is None:
+            self.highCutoff.setText('N/A')
+        else:
+            # self.highCutoff.setText(str(round(self.parent.high_cutoff, 2)))
+            self.highCutoff.setText(f'{self.parent.high_cutoff:.2f}')
 
         if self.parent.plot_period is True:
             self.radioPeriod.setChecked(True)
@@ -1036,6 +1103,16 @@ class LoggerPlotSettings(QtWidgets.QDialog):
             self.parent.ts_xlim = (float(self.optTSXmin.text()), float(self.optTSXmax.text()))
             self.parent.psd_xlim = (float(self.optPSDXmin.text()), float(self.optPSDXmax.text()))
 
+            if self.lowCutoff.text() == 'N/A':
+                self.parent.low_cutoff = None
+            else:
+                self.parent.low_cutoff = float(self.lowCutoff.text())
+
+            if self.highCutoff.text() == 'N/A':
+                self.parent.high_cutoff = None
+            else:
+                self.parent.high_cutoff = float(self.highCutoff.text())
+
             # Assign PSD parameters
             self.parent.num_ensembles = float(self.optNumEnsembles.text())
             self.parent.window = self.optWindow.currentText()
@@ -1072,6 +1149,7 @@ class LoggerPlotSettings(QtWidgets.QDialog):
             if self.parent.filesList.count() > 0:
                 # This flag stops the on_xlims_change event from processing
                 self.parent.ignore_on_xlim_change = True
+                self.parent.filtered_ts = self.parent.calc_filtered_data(self.parent.df_plot)
                 self.parent.update_plots()
                 self.parent.ignore_on_xlim_change = False
 

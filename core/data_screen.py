@@ -30,13 +30,10 @@ class DataScreen(object):
         # Minimum resolution
         self.res = []
 
-        # header
         self.header = []
-
-        # units
         self.units = []
 
-        # lists for sample beginning and end times
+        # Lists for sample beginning and end times
         self.sample_start = []
         self.sample_end = []
 
