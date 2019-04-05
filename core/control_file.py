@@ -11,7 +11,9 @@ from core.fugro_csv import fugro_file_format, read_fugro_sample_header, read_fug
 from core.logger_properties import LoggerProperties
 
 # Used in get_delimiter() method
-delimiters = dict(comma=',', space=' ')
+delimiters = dict(comma=',',
+                  space=' ',
+                  )
 
 
 class Error(Exception):
@@ -30,7 +32,7 @@ class InputError(Error):
         self.message = message
 
 
-class ControlFile():
+class ControlFile:
     """Read and store user setup instructions."""
 
     def __init__(self):
@@ -140,7 +142,7 @@ class ControlFile():
 
             # Append logger if new
             if i > -1:
-                j = j + i
+                j += i
                 self.logger_id_lines.append(j)
                 self.logger_ids.append(logger_id)
                 j += 1
@@ -176,7 +178,7 @@ class ControlFile():
 
         # Get file format of each logger
         for i, logger in enumerate(self.loggers):
-            print('Analysing logger ' + str(i + 1) + ' of ' + str(len(self.loggers)))
+            print(f'Analysing logger {i + 1} of {len(self.loggers)}')
 
             # Get portion of control file referring to logger
             logger_data = self.slice_data(i, logger_id_lines, data)
@@ -309,10 +311,10 @@ class ControlFile():
         logger.file_timestamp_format = file_timestamp_format
 
         # Get file extension - *EXTENSION
-        logger.file_extension = self.get_extension(data)
+        logger.file_ext = self.get_extension(data)
 
         # Key not found
-        if logger.file_extension == '':
+        if logger.file_ext == '':
             msg = 'Extension for ' + logger_id + ' data not found'
             raise InputError(msg)
 
@@ -330,8 +332,7 @@ class ControlFile():
         if i < 0:
             msg = key + ' data not found for ' + logger_id
             raise InputError(msg)
-        num_headers = self.get_integer_key_data(key, num_rows_str)
-        logger.num_headers = num_headers
+        logger.num_headers = self.get_integer_key_data(key, num_rows_str)
 
         # Get total number of columns
         # TODO remove
@@ -365,8 +366,8 @@ class ControlFile():
         """
         Set default fugro file format:
            logger_id,
+           file_ext,
            file_delimiter,
-           file_extension,
            num_headers,
            channel_header_row,
            units_header_row
@@ -376,11 +377,12 @@ class ControlFile():
         fugro = fugro_file_format(logger_id)
 
         # Attributes to copy
-        names = ['file_extension',
+        names = ['file_ext',
                  'file_delimiter',
                  'num_headers',
                  'channel_header_row',
-                 'units_header_row']
+                 'units_header_row',
+                 ]
 
         # Copy attributes from fugro object to logger
         self.copy_logger_attributes(fugro, logger, names)
@@ -427,7 +429,7 @@ class ControlFile():
         names = ['file_type',
                  'file_timestamp_format',
                  'timestamp_format',
-                 'file_extension',
+                 'file_ext',
                  'file_delimiter',
                  'num_headers',
                  # 'num_columns',
@@ -439,7 +441,8 @@ class ControlFile():
                  'channel_names',
                  'channel_units',
                  'user_channel_names',
-                 'user_channel_units']
+                 'user_channel_units',
+                 ]
 
         # Copy attributes from reference logger
         ref_logger = self.loggers[logger1_idx]
@@ -594,7 +597,7 @@ class ControlFile():
             units = header_lines[u - 1]
 
             # TODO: Sort this out for topside data where not all columns are present
-            #  Check number of columns in units row is sufficient
+            # Check number of columns in units row is sufficient
             # if last_stats_col > len(units):
             #     raise InputError(msg)
 
@@ -718,15 +721,13 @@ class ControlFile():
         key = '*CHANNEL_HEADER'
         i, row_num_str = self.get_key_data(key, data)
         if i > -1:
-            row_num = self.get_integer_key_data(key, row_num_str)
-            logger.channel_header_row = row_num
+            logger.channel_header_row = self.get_integer_key_data(key, row_num_str)
 
         # Get units header number
         key = '*UNITS_HEADER'
         i, row_num_str = self.get_key_data(key, data)
         if i > -1:
-            row_num = self.get_integer_key_data(key, row_num_str)
-            logger.units_header_row = row_num
+            logger.units_header_row = self.get_integer_key_data(key, row_num_str)
 
     def get_stats_format(self, logger, data):
         """

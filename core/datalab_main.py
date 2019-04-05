@@ -214,11 +214,11 @@ class DataLab(QThread):
 
 
 if __name__ == '__main__':
-    direc = r'C:\Users\dickinsc\PycharmProjects\_2. DataLab Analysis Files\21239\2. DAT Files'
+    direc = r'C:\Users\dickinsc\PycharmProjects\_2. DataLab Analysis Files\21239\2. Control Files'
     f = ''
-    # f = 'controlfile.dat'
+    f = 'controlfile_21239.dat'
     # f = 'example_control_files/controlfile.dat'
-    f = 'controlfile_21239_acc.dat'
+    # f = 'controlfile_21239_acc.dat'
     f = os.path.join(direc, f)
     datalab = DataLab(datfile=f)
     datalab.analyse_control_file()

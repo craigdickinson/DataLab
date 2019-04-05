@@ -193,7 +193,7 @@ class TestControlFile(unittest.TestCase):
         self.assertEqual(logger0.logger_id, 'dd09_fugro')
         self.assertEqual(logger0.logger_path, 'test_data/dd09')
         self.assertEqual(logger0.file_timestamp_format, 'xxxxxYYYYxmmDDxHHMM')
-        self.assertEqual(logger0.file_extension, 'csv')
+        self.assertEqual(logger0.file_ext, 'csv')
         self.assertEqual(logger0.file_delimiter, ',')
         self.assertEqual(logger0.num_headers, 3)
         # self.assertEqual(logger0.num_columns, 5)
@@ -205,7 +205,7 @@ class TestControlFile(unittest.TestCase):
 
         self.assertEqual(logger1.logger_path, 'test_data/dd09b')
         self.assertEqual(logger1.file_timestamp_format, 'xxxxxxYYYYxmmDDxHHMM')
-        self.assertEqual(logger1.file_extension, 'csv')
+        self.assertEqual(logger1.file_ext, 'csv')
         self.assertEqual(logger1.file_delimiter, ',')
         self.assertEqual(logger1.num_headers, 3)
         # self.assertEqual(logger1.num_columns, 5)

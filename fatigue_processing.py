@@ -43,14 +43,13 @@ class FatigueProcessingWidget(QtWidgets.QWidget):
         setupWidget = QtWidgets.QWidget()
         setupWidget.setFixedWidth(180)
         vboxSetup = QtWidgets.QVBoxLayout(setupWidget)
-        # vboxSetup.addStretch()
 
         self.loadWCFATFile = QtWidgets.QPushButton('Load 2HWCFAT Damage File')
         self.loadWCFATFile.setToolTip('Load 2HWCFAT fatigue damage (.dmg) file')
         self.loadFATLASAFile = QtWidgets.QPushButton('Load 2HFATLASA Damage File')
         self.loadFATLASAFile.setToolTip('Load 2HFATLASA max fatigue damage (.csv) file')
         self.fatigueLocsList = QtWidgets.QListWidget()
-        # self.fatigueLocsList.setFixedHeight(150)
+        self.fatigueLocsList.setFixedHeight(150)
         self.damLogScale = QtWidgets.QCheckBox('Fatigue damage log scale')
         self.damLogScale.setChecked(True)
         self.damRatePerEvent = QtWidgets.QCheckBox('Scale damage rate per event')
@@ -78,10 +77,9 @@ class FatigueProcessingWidget(QtWidgets.QWidget):
         vboxPlot.addWidget(self.canvas)
 
         # Final layout
-        layout = QtWidgets.QHBoxLayout(self)
-        # layout.setAlignment(QtCore.Qt.AlignTop)
-        layout.addWidget(setupWidget)
-        layout.addWidget(plotWidget)
+        layout = QtWidgets.QGridLayout(self)
+        layout.addWidget(setupWidget, 0, 0, QtCore.Qt.AlignTop)
+        layout.addWidget(plotWidget, 0, 1)
 
     def connect_signals(self):
         self.loadWCFATFile.clicked.connect(self.parent.load_wcfat_results_file)

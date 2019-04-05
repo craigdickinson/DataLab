@@ -10,7 +10,7 @@ from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as Navigatio
 from scipy import signal
 
 # from gui.gui_zoom_pan_factory import ZoomPan
-from core.read_files import read_logger_csv, read_logger_hdf5
+from core.read_files import read_fugro_csv, read_pulse_acc, read_logger_hdf5
 from core.signal_filtering import filter_signal
 
 # "2H blue"
@@ -79,14 +79,14 @@ class TimeSeriesPlotWidget(QtWidgets.QWidget):
         self.psd_ylim = (0.0, 1.0)
 
         # Low and high frequency cut-offs
-        self.low_cutoff = None
-        self.high_cutoff = None
+        self.apply_low_cutoff = True
+        self.apply_high_cutoff = True
         self.low_cutoff = 0.05
         self.high_cutoff = 0.5
 
         # To hold file data
         self.df = pd.DataFrame()
-        self.filtered_ts = None
+        self.filtered_ts = np.array([])
         self.df_plot = pd.DataFrame()
         self.plot_units = []
 
@@ -243,12 +243,16 @@ class TimeSeriesPlotWidget(QtWidgets.QWidget):
     def read_logger_file(self, filename):
         """Read a raw logger file."""
 
-        ext = filename.split('.')[-1]
+        ext = filename.split('.')[-1].lower()
 
-        if ext == 'h5':
+        if ext == 'csv':
+            df = read_fugro_csv(filename)
+        elif ext == 'acc':
+            df = read_pulse_acc(filename)
+        elif ext == 'h5':
             df = read_logger_hdf5(filename)
-        elif ext == 'csv':
-            df = read_logger_csv(filename)
+        else:
+            raise FileNotFoundError(f'No files with the extension {ext} found.')
 
         return df
 
@@ -323,14 +327,19 @@ class TimeSeriesPlotWidget(QtWidgets.QWidget):
 
         df_raw = df_raw.select_dtypes('number')
 
-        # if df_raw.columns[0] == 'Timestamp':
-        #     df_raw = df_raw.drop(df_raw.columns[0], axis=1)
+        low_cutoff = self.low_cutoff
+        high_cutoff = self.high_cutoff
 
-        if self.low_cutoff is None and self.high_cutoff is None:
-            return np.array([])
-        else:
-            filtered = filter_signal(df_raw, self.low_cutoff, self.high_cutoff)
-            return filtered
+        # Set cut-off values to None if they are not to be applied
+        if self.apply_low_cutoff is False:
+            low_cutoff = None
+
+        if self.apply_high_cutoff is False:
+            high_cutoff = None
+
+        filtered = filter_signal(df_raw, low_cutoff, high_cutoff)
+
+        return filtered
 
     def update_plots(self):
         """Create time series plots for selected logger channels."""
@@ -862,14 +871,14 @@ class LoggerPlotSettings(QtWidgets.QDialog):
 
         # Layout
         # self.setFixedSize(400, 300)
-        mainLayout = QtWidgets.QVBoxLayout(self)
-        mainLayout.addStretch()
+        layout = QtWidgets.QVBoxLayout(self)
+        layout.addStretch()
 
         # Title and axes labels form
         form = QtWidgets.QWidget()
-        layout = QtWidgets.QFormLayout(form)
+        formLayout = QtWidgets.QFormLayout(form)
         self.optProject = QtWidgets.QLineEdit()
-        layout.addRow(QtWidgets.QLabel('Project title:'), self.optProject)
+        formLayout.addRow(QtWidgets.QLabel('Project title:'), self.optProject)
 
         # Time series axes limits
         frameTS = QtWidgets.QGroupBox('Time Series Limits')
@@ -911,30 +920,37 @@ class LoggerPlotSettings(QtWidgets.QDialog):
         # grid.addWidget(QtWidgets.QLabel('Y max:'), 1, 2)
         # grid.addWidget(self.optPSDYmax, 1, 3)
 
-        # Combine axis limits frames
+        # Combine axis limits group
         axesLimits = QtWidgets.QWidget()
         axesLimits.setSizePolicy(policy)
         hbox = QtWidgets.QHBoxLayout(axesLimits)
         hbox.addWidget(frameTS)
         hbox.addWidget(framePSD)
 
-        # Low High cut-off frequencies
-        freqCutoffs = QtWidgets.QGroupBox('Frequency Cut-offs')
-        freqCutoffs.setSizePolicy(policy)
-        grid = QtWidgets.QGridLayout(freqCutoffs)
+        # Low/high cut-off frequencies group
+        freqCutoffsGroup = QtWidgets.QGroupBox('Frequency Cut-offs')
+        freqCutoffsGroup.setSizePolicy(policy)
+        grid = QtWidgets.QGridLayout(freqCutoffsGroup)
+
         self.lowCutoff = QtWidgets.QLineEdit('0.05')
-        self.highCutoff = QtWidgets.QLineEdit('0.5')
         self.lowCutoff.setFixedWidth(50)
+        self.highCutoff = QtWidgets.QLineEdit('0.50')
         self.highCutoff.setFixedWidth(50)
+        self.lowFreqChkBox = QtWidgets.QCheckBox('Apply cut-off?')
+        self.lowFreqChkBox.setChecked(True)
+        self.highFreqChkBox = QtWidgets.QCheckBox('Apply cut-off?')
+        self.highFreqChkBox.setChecked(True)
         grid.addWidget(QtWidgets.QLabel('Low freq cut-off (Hz):'), 0, 0)
         grid.addWidget(self.lowCutoff, 0, 1)
+        grid.addWidget(self.lowFreqChkBox, 0, 2)
         grid.addWidget(QtWidgets.QLabel('High freq cut-off (Hz):'), 1, 0)
         grid.addWidget(self.highCutoff, 1, 1)
+        grid.addWidget(self.highFreqChkBox, 1, 2)
 
         # Frequency or period radio buttons
-        psdXAxis = QtWidgets.QGroupBox('PSD X Axis')
-        psdXAxis.setSizePolicy(policy)
-        vbox = QtWidgets.QVBoxLayout(psdXAxis)
+        psdXAxisGroup = QtWidgets.QGroupBox('PSD X Axis')
+        psdXAxisGroup.setSizePolicy(policy)
+        vbox = QtWidgets.QVBoxLayout(psdXAxisGroup)
         self.radioFreq = QtWidgets.QRadioButton('Frequency')
         self.radioPeriod = QtWidgets.QRadioButton('Period')
         vbox.addWidget(self.radioFreq)
@@ -948,17 +964,16 @@ class LoggerPlotSettings(QtWidgets.QDialog):
         # Combine PSD x-axis and log scale
         psdOpts = QtWidgets.QWidget()
         hbox = QtWidgets.QHBoxLayout(psdOpts)
-        hbox.addWidget(freqCutoffs)
-        hbox.addWidget(psdXAxis)
+        hbox.addWidget(psdXAxisGroup)
         hbox.addWidget(self.logScale)
 
         # PSD parameters
         # Create a dummy container to maintain correct alignment with other widgets
         psdParams = QtWidgets.QWidget()
-        layout = QtWidgets.QVBoxLayout(psdParams)
+        formLayout = QtWidgets.QVBoxLayout(psdParams)
         frame = QtWidgets.QGroupBox('Power Spectral Density Parameters')
         frame.setSizePolicy(policy)
-        layout.addWidget(frame)
+        formLayout.addWidget(frame)
 
         # Parameters choice
         self.radioDefault = QtWidgets.QRadioButton('Default parameters')
@@ -969,7 +984,7 @@ class LoggerPlotSettings(QtWidgets.QDialog):
         # PSD parameters form
         params = QtWidgets.QWidget()
         params.setSizePolicy(policy)
-        layout = QtWidgets.QFormLayout(params)
+        formLayout = QtWidgets.QFormLayout(params)
 
         self.optNumEnsembles = QtWidgets.QLineEdit()
         self.optWindow = QtWidgets.QComboBox()
@@ -989,11 +1004,11 @@ class LoggerPlotSettings(QtWidgets.QDialog):
         self.optNperseg.setEnabled(False)
         self.optFs.setEnabled(False)
 
-        layout.addRow(QtWidgets.QLabel('Number of ensembles:'), self.optNumEnsembles)
-        layout.addRow(QtWidgets.QLabel('Window:'), self.optWindow)
-        layout.addRow(QtWidgets.QLabel('Window overlap (%):'), self.optOverlap)
-        layout.addRow(QtWidgets.QLabel('Number of points per ensemble (echo):'), self.optNperseg)
-        layout.addRow(QtWidgets.QLabel('Sampling frequency (Hz) (echo):'), self.optFs)
+        formLayout.addRow(QtWidgets.QLabel('Number of ensembles:'), self.optNumEnsembles)
+        formLayout.addRow(QtWidgets.QLabel('Window:'), self.optWindow)
+        formLayout.addRow(QtWidgets.QLabel('Window overlap (%):'), self.optOverlap)
+        formLayout.addRow(QtWidgets.QLabel('Number of points per ensemble (echo):'), self.optNperseg)
+        formLayout.addRow(QtWidgets.QLabel('Sampling frequency (Hz) (echo):'), self.optFs)
 
         hbox = QtWidgets.QHBoxLayout(frame)
         paramsChoice = QtWidgets.QWidget()
@@ -1005,16 +1020,11 @@ class LoggerPlotSettings(QtWidgets.QDialog):
         hbox.addWidget(paramsChoice)
         hbox.addWidget(params)
 
-        # vbox = QtWidgets.QVBoxLayout(frame)
-        # vbox.addWidget(self.radioDefault)
-        # vbox.addWidget(self.radioCustom)
-        # vbox.addWidget(params)
-
         # Button box
-        self.buttons = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Ok |
-                                                  QtWidgets.QDialogButtonBox.Cancel |
-                                                  QtWidgets.QDialogButtonBox.Apply |
-                                                  QtWidgets.QDialogButtonBox.Reset)
+        self.buttonBox = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Ok |
+                                                    QtWidgets.QDialogButtonBox.Cancel |
+                                                    QtWidgets.QDialogButtonBox.Apply |
+                                                    QtWidgets.QDialogButtonBox.Reset)
 
         # Final layout
         # sectionLabel = QtWidgets.QLabel('Plot Title and Axes Labels')
@@ -1022,21 +1032,36 @@ class LoggerPlotSettings(QtWidgets.QDialog):
         # bold.setBold(True)
         # sectionLabel.setFont(bold)
         # mainLayout.addWidget(sectionLabel)
-        mainLayout.addWidget(form)
-        mainLayout.addWidget(axesLimits)
-        mainLayout.addWidget(psdOpts)
-        mainLayout.addWidget(psdParams)
-        mainLayout.addWidget(self.buttons, stretch=0, alignment=QtCore.Qt.AlignRight)
+        layout.addWidget(form)
+        layout.addWidget(axesLimits)
+        layout.addWidget(psdOpts)
+        layout.addWidget(freqCutoffsGroup)
+        layout.addWidget(psdParams)
+        layout.addWidget(self.buttonBox, stretch=0)
 
     def connect_signals(self):
-        self.buttons.accepted.connect(self.accept)
-        self.buttons.accepted.connect(self.set_params)
-        self.buttons.rejected.connect(self.reject)
-        self.buttons.button(QtWidgets.QDialogButtonBox.Apply).clicked.connect(self.set_params)
-        self.buttons.button(QtWidgets.QDialogButtonBox.Reset).clicked.connect(self.reset_values)
+        self.lowFreqChkBox.toggled.connect(self.set_low_freq_cutoff_state)
+        self.highFreqChkBox.toggled.connect(self.set_high_freq_cutoff_state)
         self.radioFreq.toggled.connect(self.switch_psd_xaxis)
         self.radioDefault.toggled.connect(self.switch_welch_params)
         self.radioWelch.toggled.connect(self.switch_welch_params)
+        self.buttonBox.accepted.connect(self.accept)
+        self.buttonBox.accepted.connect(self.set_params)
+        self.buttonBox.rejected.connect(self.reject)
+        self.buttonBox.button(QtWidgets.QDialogButtonBox.Apply).clicked.connect(self.set_params)
+        self.buttonBox.button(QtWidgets.QDialogButtonBox.Reset).clicked.connect(self.reset_values)
+
+    def set_low_freq_cutoff_state(self):
+        if self.lowFreqChkBox.isChecked() is True:
+            self.lowCutoff.setEnabled(True)
+        else:
+            self.lowCutoff.setEnabled(False)
+
+    def set_high_freq_cutoff_state(self):
+        if self.highFreqChkBox.isChecked() is True:
+            self.highCutoff.setEnabled(True)
+        else:
+            self.highCutoff.setEnabled(False)
 
     def get_params(self):
         """Get plot parameters from the time series widget and assign to settings widget."""
@@ -1048,16 +1073,8 @@ class LoggerPlotSettings(QtWidgets.QDialog):
         self.optPSDXmax.setText(f'{self.parent.ax2.get_xlim()[1]:.1f}')
 
         # Freq cut-offs
-        if self.parent.low_cutoff is None:
-            self.lowCutoff.setText('N/A')
-        else:
-            self.lowCutoff.setText(f'{self.parent.low_cutoff:.2f}')
-
-        if self.parent.high_cutoff is None:
-            self.highCutoff.setText('N/A')
-        else:
-            # self.highCutoff.setText(str(round(self.parent.high_cutoff, 2)))
-            self.highCutoff.setText(f'{self.parent.high_cutoff:.2f}')
+        self.lowCutoff.setText(f'{self.parent.low_cutoff:.2f}')
+        self.highCutoff.setText(f'{self.parent.high_cutoff:.2f}')
 
         if self.parent.plot_period is True:
             self.radioPeriod.setChecked(True)
@@ -1103,15 +1120,17 @@ class LoggerPlotSettings(QtWidgets.QDialog):
             self.parent.ts_xlim = (float(self.optTSXmin.text()), float(self.optTSXmax.text()))
             self.parent.psd_xlim = (float(self.optPSDXmin.text()), float(self.optPSDXmax.text()))
 
-            if self.lowCutoff.text() == 'N/A':
-                self.parent.low_cutoff = None
-            else:
+            if self.lowFreqChkBox.isChecked() is True:
+                self.parent.apply_low_cutoff = True
                 self.parent.low_cutoff = float(self.lowCutoff.text())
-
-            if self.highCutoff.text() == 'N/A':
-                self.parent.high_cutoff = None
             else:
+                self.parent.apply_low_cutoff = False
+
+            if self.highFreqChkBox.isChecked() is True:
+                self.parent.apply_high_cutoff = True
                 self.parent.high_cutoff = float(self.highCutoff.text())
+            else:
+                self.parent.apply_high_cutoff = False
 
             # Assign PSD parameters
             self.parent.num_ensembles = float(self.optNumEnsembles.text())
