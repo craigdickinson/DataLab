@@ -163,7 +163,7 @@ def read_stats_excel(filename):
     xl = pd.ExcelFile(filename)
 
     for sh in xl.sheet_names:
-        df = pd.read_excel(xl, sheet_name=sh, header=[0, 1, 2])
+        df = pd.read_excel(xl, sheet_name=sh, header=[0, 1, 2], index_col=0)
         df.drop(df.columns[0], axis=1, inplace=True)
         df.index = pd.to_datetime(df.index, format='%Y-%m-%d %H:%M:%S')
         df.index.name = 'Datetime'
