@@ -7,6 +7,7 @@ import os
 from glob import glob
 
 from dateutil.parser import parse
+from datetime import datetime
 
 from core.custom_date import get_date_code_span, make_time_str
 
@@ -30,12 +31,11 @@ class InputError(Error):
 class LoggerProperties(object):
     """Holds properties of a logger."""
 
-    def __init__(self, logger_id):
+    def __init__(self, logger_id=''):
         """
         Constructor - initialise properties.
         May wish to use a dictionary to hold these properties in future
-        and then write this dictionary straight to JSON as part of the config
-        file.
+        and then write this dictionary straight to JSON as part of the config file.
         """
 
         # Name and location
@@ -43,7 +43,7 @@ class LoggerProperties(object):
         self.logger_path = ''  # *PATH
 
         # File format variables
-        self.file_type = ''  # *FILE_FORMAT
+        self.file_format = ''  # *FILE_FORMAT
         self.file_timestamp_format = ''  # *FILE_TIMESTAMP
         self.timestamp_format = ''  # *TIMESTAMP
         self.file_ext = ''  # *EXTENSION
@@ -51,7 +51,7 @@ class LoggerProperties(object):
 
         # Number of rows/columns expected
         self.num_headers = 0  # *NUM_HEADERS
-        # self.num_columns = 0  # *NUM_COLUMNS
+        self.num_columns = 0  # *NUM_COLUMNS
 
         # Header row numbers. Note 1-indexed!
         self.channel_header_row = 0  # *CHANNEL_HEADER
@@ -82,7 +82,7 @@ class LoggerProperties(object):
         # list of raw filenames
         self.raw_filenames = []
 
-        # List of accepted files time stamps for each filename
+        # List of accepted file timestamps for each filename
         self.files = []
         self.file_timestamps = []
         self.dates = []
@@ -157,11 +157,12 @@ class LoggerProperties(object):
             time_str = make_time_str(h, minute, sec, ms)
 
             # Construct full datetime string
-            date_time_str = (date_str + ' ' + time_str).strip()
+            datetime_str = (date_str + ' ' + time_str).strip()
 
             # Try to convert string to date
             try:
-                date = parse(date_time_str, yearfirst=True)
+                date = parse(datetime_str, yearfirst=True)
+                date2 = datetime.strptime(datetime_str, '%Y-%m-%d %H:%M')  # Alternative to dateutil
             except ValueError:
                 self.bad_filenames[f] = 'Unable to parse datetime from filename'
             else:
@@ -203,3 +204,25 @@ class LoggerProperties(object):
             msg = 'No valid logger files found within date range input for ' + self.logger_id
             msg += '\n Check date range and file timestamp inputs'
             raise InputError(msg)
+
+    def props_to_dict(self):
+        """Creates a dictionary format of the logger properties."""
+
+        dict_props = {}
+        dict_props['logger_id'] = self.logger_id = ''
+        dict_props['file_format'] = self.file_format
+        dict_props['logger_path'] = self.logger_path
+        dict_props['file_timstamp'] = self.file_timstamp
+        dict_props['data_timstamp'] = self.data_timstamp
+        dict_props['file_ext'] = self.file_ext
+        dict_props['file_delimiter'] = self.file_delimiter
+        dict_props['num_header_rows'] = self.num_header_rows
+        dict_props['num_columns'] = self.num_columns
+        dict_props['channel_header_row'] = self.channel_header_row
+        dict_props['units_header_row'] = self.units_header_row
+        dict_props['logging_freq'] = self.logging_freq
+        dict_props['logging_duration'] = self.logging_duration
+        dict_props['channel_names'] = self.channel_names
+        dict_props['channel_units'] = self.channel_units
+
+        return dict_props

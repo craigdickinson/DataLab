@@ -1,7 +1,7 @@
 __author__ = 'Craig Dickinson'
 __program__ = 'DataLab'
-__version__ = '0.10'
-__date__ = '5 April 2019'
+__version__ = '0.11'
+__date__ = '11 April 2019'
 
 import logging
 import os
@@ -62,7 +62,7 @@ class DataLabGui(QtWidgets.QMainWindow):
 
         # Project config module
         self.projConfigModule = ProjectConfigModule(self)
-        self.projectConfigTab = self.projConfigModule.projSettingsTab
+        self.projectConfigTab = self.projConfigModule.generalTab
 
         # self.projConfigModule = QtWidgets.QTabWidget()
         # self.projectConfigTab = ProjectConfig(self)
@@ -275,7 +275,7 @@ class DataLabGui(QtWidgets.QMainWindow):
 
         # Help menu
         self.showHelp.triggered.connect(self.show_help)
-        self.showAbout.triggered.connect(self.show_version)
+        self.showAbout.triggered.connect(self.show_about)
 
         # Toolbar dashboard buttons
         self.projConfigButton.clicked.connect(self.view_proj_config_mod)
@@ -290,16 +290,22 @@ class DataLabGui(QtWidgets.QMainWindow):
         self.checkControlFileButton.clicked.connect(self.analyse_control_file)
         self.processControlFileButton.clicked.connect(self.process_control_file)
 
-    def message(self, title, message, buttons=QtWidgets.QMessageBox.Ok):
+    def message_information(self, title, message, buttons=QtWidgets.QMessageBox.Ok):
         return QtWidgets.QMessageBox.information(self, title, message, buttons)
+
+    def message_warning(self, title, message, buttons=QtWidgets.QMessageBox.Ok):
+        return QtWidgets.QMessageBox.warning(self, title, message, buttons)
+
+    def message_critical(self, title, message, buttons=QtWidgets.QMessageBox.Ok):
+        return QtWidgets.QMessageBox.critical(self, title, message, buttons)
 
     def error(self, message):
         print(f'Error: {message}')
-        self.message('Error', message)
+        self.message_warning('Error', message)
 
     def warning(self, message):
         print(f'Warning: {message}')
-        self.message('Warning', message)
+        self.message_information('Warning', message)
 
     def open_control_file(self):
         """Open control file *.dat."""
@@ -482,23 +488,17 @@ class DataLabGui(QtWidgets.QMainWindow):
                 text = self.controlFileEdit.toPlainText()
                 f.write(text)
 
-    def show_version(self):
+    def show_about(self):
         """Show program version info message box."""
 
-        msgbox = QtWidgets.QMessageBox(self)
         msg = f'Program: {__program__}\nVersion: {__version__}\nDate: {__date__}'
-        msgbox.setText(msg)
-        msgbox.setWindowTitle('About')
-        msgbox.show()
+        self.message_information('About', msg)
 
     def show_help(self):
         """Show program overview and instructions message box."""
 
-        msgbox = QtWidgets.QMessageBox(self)
         msg = f'Instructions for using {__program__}:\n\n'
-        msgbox.setText(msg)
-        msgbox.setWindowTitle('Help')
-        msgbox.show()
+        self.message_information('Help', msg)
 
     def show_error_msg(self, msg):
         self.errorBar.setAutoFillBackground(True)
@@ -693,7 +693,7 @@ class ControlFileWorker(QtCore.QThread):
         self.datalab = DataLab(self.parent.datfile)
         try:
             self.datalab.analyse_control_file()
-        except:
+        except Exception:
             # Handle error in parent class
             raise
 

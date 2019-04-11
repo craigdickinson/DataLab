@@ -60,6 +60,7 @@ class DataLab(QThread):
             datfile = parser.datfile.name
 
         self.datfile = datfile
+        self.control = None
         self.stats_dict = {}
         self.logger_path = None
         self.stats_file_type = 'csv'

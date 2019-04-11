@@ -4,7 +4,7 @@ import numpy as np
 def filter_signal(df, low_cutoff=None, high_cutoff=None, include_mean=True):
     """Apply bandpass filter to data frame of time series and return filtered time series."""
 
-    # If both cut-off frequencies are None, return empty array
+    # If no cut-off frequencies are set, return empty array
     if low_cutoff is None and high_cutoff is None:
         return np.array([])
 

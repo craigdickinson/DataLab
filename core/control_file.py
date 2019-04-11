@@ -44,7 +44,8 @@ class ControlFile:
         # List to hold text lines from control file
         self.data = []
 
-        # Project and campaign names
+        # Project and campaign details
+        self.project_num = ''
         self.project_name = ''
         self.campaign_name = ''
 
@@ -202,15 +203,13 @@ class ControlFile:
 
             # Assign logger properties
             # General file format
-            if file_format.upper() == 'GENERAL-CSV':
-                logger.file_type = 'GENERAL-CSV'
+            if file_format.lower() == 'general-csv':
                 self.set_general_file_format(logger, logger_data)
 
             # fugro csv format - need to detect some properties from the file
             # However we want to check all data in control file is valid first
             # So just extract the information from the control file for now
-            elif file_format.upper() == 'FUGRO-CSV':
-                logger.file_type = 'FUGRO-CSV'
+            elif file_format.lower() == 'fugro-csv':
                 self.set_fugro_file_format(logger, logger_data)
 
             # Copy logger file format of logger properties provided
@@ -242,7 +241,7 @@ class ControlFile:
             file1 = logger.files[0]
 
             # Now detect any properties we need to from known file formats
-            if logger.file_type == 'FUGRO-CSV':
+            if logger.file_format.lower() == 'fugro-csv':
                 # Detect sample rate and timestamp format from first fugro file
                 self.detect_fugro_file_properties(logger, file1)
                 self.get_logging_duration(logger, logger_data)
@@ -288,18 +287,22 @@ class ControlFile:
     def set_general_file_format(self, logger, data):
         """
         Set:
-            file timestamp
-            extension
-            delimiter
-            num headers
-            num columns
-            expected logging frequency
-            expected logging duration
-            expected points per file
-            timestamp detection option
+            file_format
+            file_timestamp
+            file_ext
+            file_delimiter
+            num_headers
+            num_columns
+            timestamp_format
+            freq
+            duration
+            expected_data_points
+            channel_header_row
+            units_header_row
         """
 
         logger_id = logger.logger_id
+        logger.file_format = 'General-csv'
 
         # Get file timestamp - *FILE_TIMESTAMP
         file_timestamp_format = self.get_file_timestamp(data)
@@ -364,17 +367,18 @@ class ControlFile:
 
     def set_fugro_file_format(self, logger, data):
         """
-        Set default fugro file format:
-           logger_id,
-           file_ext,
-           file_delimiter,
-           num_headers,
-           channel_header_row,
-           units_header_row
+        Set the following logger properies to Fugro standard file format:
+            file_format
+            file_ext
+            file_delimiter
+            num_headers
+            channel_header_row
+            units_header_row
         """
 
         logger_id = logger.logger_id
-        fugro = fugro_file_format(logger_id)
+        # fugro = fugro_file_format(logger_id)
+        logger = fugro_file_format(logger)
 
         # Attributes to copy
         names = ['file_ext',
@@ -385,7 +389,7 @@ class ControlFile:
                  ]
 
         # Copy attributes from fugro object to logger
-        self.copy_logger_attributes(fugro, logger, names)
+        # self.copy_logger_attributes(fugro, logger, names)
 
         # Get file timestamp - *FILE_TIMESTAMP
         file_timestamp_format = self.get_file_timestamp(data)
@@ -426,7 +430,7 @@ class ControlFile:
             raise InputError(msg)
 
         # Attributes to copy
-        names = ['file_type',
+        names = ['file_format',
                  'file_timestamp_format',
                  'timestamp_format',
                  'file_ext',

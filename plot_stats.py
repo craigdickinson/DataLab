@@ -1605,23 +1605,23 @@ class SpectroPlotSettings(QtWidgets.QDialog):
         vbox.addWidget(self.logScale)
 
         # Button box
-        self.buttons = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Ok |
-                                                  QtWidgets.QDialogButtonBox.Cancel |
-                                                  QtWidgets.QDialogButtonBox.Apply |
-                                                  QtWidgets.QDialogButtonBox.Reset)
+        self.buttonBox = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Ok |
+                                                    QtWidgets.QDialogButtonBox.Cancel |
+                                                    QtWidgets.QDialogButtonBox.Apply |
+                                                    QtWidgets.QDialogButtonBox.Reset)
 
         # Final layout
         mainLayout.addWidget(form)
         mainLayout.addWidget(axesLimits)
         mainLayout.addWidget(psdOpts)
-        mainLayout.addWidget(self.buttons, stretch=0, alignment=QtCore.Qt.AlignRight)
+        mainLayout.addWidget(self.buttonBox, stretch=0, alignment=QtCore.Qt.AlignRight)
 
     def connect_signals(self):
-        self.buttons.accepted.connect(self.accept)
-        self.buttons.accepted.connect(self.set_params)
-        self.buttons.rejected.connect(self.reject)
-        self.buttons.button(QtWidgets.QDialogButtonBox.Apply).clicked.connect(self.set_params)
-        self.buttons.button(QtWidgets.QDialogButtonBox.Reset).clicked.connect(self.reset_values)
+        self.buttonBox.accepted.connect(self.accept)
+        self.buttonBox.accepted.connect(self.set_params)
+        self.buttonBox.rejected.connect(self.reject)
+        self.buttonBox.button(QtWidgets.QDialogButtonBox.Apply).clicked.connect(self.set_params)
+        self.buttonBox.button(QtWidgets.QDialogButtonBox.Reset).clicked.connect(self.reset_values)
 
     def get_params(self):
         """Get plot parameters from the spectrogram widget and assign to settings widget."""
