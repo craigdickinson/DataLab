@@ -18,7 +18,7 @@ from core.datalab_main import DataLab
 from core.read_files import (read_spectrograms_csv, read_spectrograms_excel, read_spectrograms_hdf5, read_stats_csv,
                              read_stats_excel, read_stats_hdf5)
 from core.read_files import read_fatlasa_results, read_wcfat_results
-from project_config_screen import ProjectConfigModule
+from project_config_screen import ConfigModule
 from plot_stats import PlotStyle2H, SpectrogramWidget, StatsDataset, StatsWidget, VarianceWidget, VesselStatsWidget
 from seascatter_diagram import SeascatterDiagram
 from plot_time_series import TimeSeriesPlotWidget
@@ -61,8 +61,8 @@ class DataLabGui(QtWidgets.QMainWindow):
         self.tool_bar()
 
         # Project config module
-        self.projConfigModule = ProjectConfigModule(self)
-        self.projectConfigTab = self.projConfigModule.generalTab
+        self.projConfigModule = ConfigModule(self)
+        self.projectConfigTab = self.projConfigModule.campaignlTab
 
         # self.projConfigModule = QtWidgets.QTabWidget()
         # self.projectConfigTab = ProjectConfig(self)

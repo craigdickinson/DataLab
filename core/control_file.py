@@ -7,7 +7,7 @@ import os.path
 
 from dateutil.parser import parse
 
-from core.fugro_csv import fugro_file_format, read_fugro_sample_header, read_fugro_timestamp_format, read_headers
+from core.fugro_csv import set_fugro_file_format, read_fugro_sample_header, read_fugro_timestamp_format, read_headers
 from core.logger_properties import LoggerProperties
 
 # Used in get_delimiter() method
@@ -378,7 +378,7 @@ class ControlFile:
 
         logger_id = logger.logger_id
         # fugro = fugro_file_format(logger_id)
-        logger = fugro_file_format(logger)
+        logger = set_fugro_file_format(logger)
 
         # Attributes to copy
         names = ['file_ext',
@@ -781,24 +781,20 @@ class ControlFile:
         i, stats_start_str = self.get_key_data(key, data)
         if i != -1:
             try:
-                d = parse(stats_start_str, yearfirst=True)
+                logger.stats_start = parse(stats_start_str, yearfirst=True)
             except ValueError:
                 msg = key + ' format not recognised for ' + logger.logger_id
                 raise InputError(msg)
-
-            logger.stats_start = d
 
         # Get end date if specified
         key = '*STATS_END'
         i, stats_end_str = self.get_key_data(key, data)
         if i != -1:
             try:
-                d = parse(stats_end_str, yearfirst=True)
+                logger.stats_end = parse(stats_end_str, yearfirst=True)
             except ValueError:
                 msg = key + ' format not recognised for ' + logger.logger_id
                 raise InputError(msg)
-
-            logger.stats_end = d
 
     def copy_stats_format(self, key, ref_logger_name, logger):
         """

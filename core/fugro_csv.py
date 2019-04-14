@@ -16,7 +16,7 @@ from core.custom_date import user_date_to_date_format
 from core.logger_properties import LoggerProperties
 
 
-def fugro_file_format(logger):
+def set_fugro_file_format(logger):
     # def fugro_file_format(logger_id):
     """Return a LoggerProperties object populated with fugro_csv file format settings."""
 
