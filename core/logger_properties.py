@@ -204,25 +204,3 @@ class LoggerProperties(object):
             msg = 'No valid logger files found within date range input for ' + self.logger_id
             msg += '\n Check date range and file timestamp inputs'
             raise InputError(msg)
-
-    def props_to_dict(self):
-        """Creates a dictionary format of the logger properties."""
-
-        dict_props = {}
-        dict_props['logger_id'] = self.logger_id = ''
-        dict_props['file_format'] = self.file_format
-        dict_props['logger_path'] = self.logger_path
-        dict_props['file_timstamp'] = self.file_timstamp
-        dict_props['data_timstamp'] = self.data_timstamp
-        dict_props['file_ext'] = self.file_ext
-        dict_props['file_delimiter'] = self.file_delimiter
-        dict_props['num_header_rows'] = self.num_header_rows
-        dict_props['num_columns'] = self.num_columns
-        dict_props['channel_header_row'] = self.channel_header_row
-        dict_props['units_header_row'] = self.units_header_row
-        dict_props['logging_freq'] = self.logging_freq
-        dict_props['logging_duration'] = self.logging_duration
-        dict_props['channel_names'] = self.channel_names
-        dict_props['channel_units'] = self.channel_units
-
-        return dict_props

@@ -32,7 +32,7 @@ class InputError(Error):
         self.message = message
 
 
-class ControlFile:
+class ControlFile(object):
     """Read and store user setup instructions."""
 
     def __init__(self):
@@ -40,6 +40,7 @@ class ControlFile:
 
         # Control file name to read from
         self.control_file = ''
+        self.config_file = ''
 
         # List to hold text lines from control file
         self.data = []
@@ -48,6 +49,7 @@ class ControlFile:
         self.project_num = ''
         self.project_name = ''
         self.campaign_name = ''
+        self.project_path = ''
 
         # Output directory
         self.output_folder = ''
