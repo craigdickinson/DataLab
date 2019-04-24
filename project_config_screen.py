@@ -1,80 +1,108 @@
+import json
+import logging
 import os
 import sys
-import logging
-import json
 
-from pathlib import Path
-from PyQt5 import QtCore, QtGui, QtWidgets
+from PyQt5 import QtCore, QtWidgets
+from dateutil.parser import parse
+
 from core.control_file import ControlFile, InputError
-from core.logger_properties import LoggerProperties
 from core.fugro_csv import set_fugro_file_format
+from core.logger_properties import LoggerProperties
 
 
-class ProjectConfig:
+class ProjectConfigJSONFile:
     def __init__(self):
-        # Config data dictionary to be written to a json file
+        # Config data dictionary to be written to a JSON file
         self.data = {}
         self.filename = ''
 
     def load_config(self, file_name):
-        """Load project config json file."""
+        """Load project config JSON file and return the dictionary data."""
 
         with open(file_name, encoding='utf-8') as f:
-            self.data = json.load(f)
+            data = json.load(f)
 
         # Store file name and set directory to project root
         fpath, self.filename = os.path.split(file_name)
         os.chdir(fpath)
 
-    def get_config_section(self, key):
+        return data
+
+    def get_config_section(self, data, key):
         """Return requested subsection of the config dictionary."""
 
-        if key in self.data.keys():
-            return self.data[key].keys(), self.data[key]
+        if key in data.keys():
+            return data[key].keys(), data[key]
         else:
             raise KeyError(key)
 
-    def add_general_data(self, key, campaign_data):
+    def add_campaign_data(self, control):
         """Add project and campaign details."""
 
         d = dict()
-        d['project_number'] = campaign_data.project_num
-        d['project_name'] = campaign_data.project_name
-        d['campaign_name'] = campaign_data.campaign_name
-        d['project_location'] = campaign_data.project_path
+        d['project_number'] = control.project_num
+        d['project_name'] = control.project_name
+        d['campaign_name'] = control.campaign_name
+        d['project_location'] = control.project_path
 
-        self.data[key] = d
+        self.data['campaign'] = d
 
-    def add_logger_props(self, key, loggers_data):
+    def add_logger_data(self, loggers):
         """Add properties of all loggers."""
 
-        d = dict()
-        for logger in loggers_data:
-            dict_props = {}
-            dict_props['logger_id'] = logger.logger_id
+        if not loggers:
+            return
+
+        self.data['loggers'] = dict()
+
+        for logger in loggers:
+            dict_props = dict()
+
+            # Add logger properties
             dict_props['file_format'] = logger.file_format
             dict_props['logger_path'] = logger.logger_path
-            dict_props['file_timstamp'] = logger.file_timstamp
-            dict_props['data_timstamp'] = logger.data_timstamp
+            dict_props['file_timestamp_format'] = logger.file_timestamp_format
+            dict_props['data_timestamp_format'] = logger.timestamp_format
+            dict_props['data_datetime_format'] = logger.datetime_format
             dict_props['file_ext'] = logger.file_ext
             dict_props['file_delimiter'] = logger.file_delimiter
-            dict_props['num_header_rows'] = logger.num_header_rows
+            dict_props['num_header_rows'] = logger.num_headers
             dict_props['num_columns'] = logger.num_columns
             dict_props['channel_header_row'] = logger.channel_header_row
             dict_props['units_header_row'] = logger.units_header_row
-            dict_props['logging_freq'] = logger.logging_freq
-            dict_props['logging_duration'] = logger.logging_duration
+            dict_props['logging_freq'] = logger.freq
+            dict_props['logging_duration'] = logger.duration
             dict_props['channel_names'] = logger.channel_names
             dict_props['channel_units'] = logger.channel_units
 
-            d['loggers'][logger.logger_id] = dict_props
+            # Add logger stats settings
+            dict_props['stats_columns'] = logger.stats_cols
+            dict_props['stats_unit_convs'] = logger.stats_unit_conv_factors
+            dict_props['stats_interval'] = logger.stats_interval
 
-        self.data[key] = d
+            # Need to convert start and end datetimes to strings to write to JSON format
+            # Stats start
+            if logger.stats_start is None:
+                dict_props['stats_start'] = None
+            else:
+                dict_props['stats_start'] = logger.stats_start.strftime('%Y-%m-%d %H:%M')
+
+            # Stats end
+            if logger.stats_end is None:
+                dict_props['stats_end'] = None
+            else:
+                dict_props['stats_end'] = logger.stats_end.strftime('%Y-%m-%d %H:%M')
+
+            dict_props['user_channel_names'] = logger.user_channel_names
+            dict_props['user_channel_units'] = logger.user_channel_units
+
+            self.data['loggers'][logger.logger_id] = dict_props
 
     def export_config(self, proj_num, proj_name):
         """Export project configuration data as json file."""
 
-        proj_name = '_'.join(proj_name.split(' '))
+        proj_name = '_'.join(proj_name.split())
         self.filename = '_'.join((proj_num, proj_name, 'Config.json'))
 
         # Save as json file
@@ -92,7 +120,7 @@ class ConfigModule(QtWidgets.QWidget):
         self.parent = parent
 
         # JSON config class - hold config data dictionary
-        self.config = ProjectConfig()
+        self.config = ProjectConfigJSONFile()
         self.control = ControlFile()
 
         self.init_ui()
@@ -127,7 +155,7 @@ class ConfigModule(QtWidgets.QWidget):
         self.statsTab = StatsSettingsTab(self)
         self.spectralTab = SpectralSettingsTab(self)
         self.tabsContainer.addTab(self.campaignTab, 'Campaign Details')
-        self.tabsContainer.addTab(self.loggerPropsTab, 'Logger Properties')
+        self.tabsContainer.addTab(self.loggerPropsTab, 'Logger File Properties')
         self.tabsContainer.addTab(self.statsTab, 'Statistical Analysis')
         self.tabsContainer.addTab(self.spectralTab, 'Spectral Analysis')
 
@@ -157,12 +185,28 @@ class ConfigModule(QtWidgets.QWidget):
     def connect_signals(self):
         self.loadConfigButton.clicked.connect(self.load_config_file)
         self.saveConfigButton.clicked.connect(self.save_config_file)
-        self.loggerCombo.currentIndexChanged.connect(self.update_dashboard)
-        self.newProjButton.clicked.connect(self.create_new_project)
+        self.loggerCombo.currentIndexChanged.connect(self.on_logger_combo_changed)
+        self.newProjButton.clicked.connect(self.new_project)
 
-    def create_new_project(self):
-        """Create new project config file."""
-        pass
+    def new_project(self):
+        """Clear project control object and all config dashboard values."""
+
+        # Create new control object and map to campaignTab and loggerTab
+        self.control = ControlFile()
+        self.campaignTab.control = self.control
+        self.loggerPropsTab.control = self.control
+
+        # Clear logger combo box
+        # Note: This will trigger the clearing of the logger properties, stats and spectral dashboards
+        self.loggerCombo.clear()
+        self.loggerCombo.addItem('-')
+
+        # Clear campaign data dashboard
+        self.campaignTab.clear_dashboard()
+
+        # TODO: This already gets run on combo change event
+        # self.loggerPropsTab.clear_dashboard()
+        self.set_window_title()
 
     def load_config_file(self):
         """Load config JSON file."""
@@ -174,79 +218,269 @@ class ConfigModule(QtWidgets.QWidget):
 
         if filename:
             try:
-                # Read json file and store data in config object
-                self.config.load_config(filename)
+                # Read JSON file and store data in config object
+                data = self.config.load_config(filename)
 
-                # Assign config data to project dashboard
-                self.store_campaign_info()
+                # Create new control object to hold setup data
+                self.control = ControlFile()
+
+                # Assign config data to control object and project dashboard
+                self.map_campaign_json_section(data)
+                self.map_loggers_json_section(data)
+                self.set_dashboards()
+                self.set_window_title(filename)
             except InputError as e:
                 self.parent.error(str(e))
+                logging.exception(str(e))
             except KeyError as e:
                 msg = f'{e} key not found in config file'
-                self.parent.error(msg)
+                self.parent.warning(msg)
+                logging.exception(str(e))
             except Exception as e:
                 msg = 'Unexpected error loading config file'
                 self.parent.error(f'{msg}:\n{e}\n{sys.exc_info()[0]}')
                 logging.exception(str(e))
 
-    def store_campaign_info(self):
-        """Assign campaign info to control object and config dashboard."""
-
-        keys, data = self.config.get_config_section('general')
-
-        try:
-            self.control.project_num = data['project_number']
-            self.control.project_name = data['project_name']
-            self.control.campaign_name = data['campaign_name']
-            self.control.output_folder = os.path.join(data['project_location'], 'Output')
-            self.control.config_file = self.config.filename
-        except:
-            raise
-
-        self.campaignTab.set_dashboard_values()
-
     def save_config_file(self):
         """Save project configuration settings as a dictionary to a JSON file."""
 
         if self.control.project_num == '':
-            self.parent.error('Project number required to create project config file.')
-            return
+            return self.parent.error('Project number required to create project config file.')
 
         if self.control.project_name == '':
-            self.parent.error('Project name required to create project config file.')
-            return
+            return self.parent.error('Project name required to create project config file.')
 
         # Compile configuration data into a dictionary and save as a json file
-        config = ProjectConfig()
-        config.add_general_data(key='general', campaign_data=self.control)
-        config.add_logger_props(key='loggers', loggers_data=self.control.loggers)
+        config = ProjectConfigJSONFile()
+        config.add_campaign_data(self.control)
+        config.add_logger_data(self.control.loggers)
         config.export_config(proj_num=self.control.project_num,
                              proj_name=self.control.project_name,
                              )
 
         # Check file created
-        file = Path(config.filename)
-        if file.is_file():
+        if os.path.exists(config.filename):
             # Write to gui and inform user
             self.campaignTab.configFile.setText(config.filename)
             msg = f'Project config settings saved to {config.filename}'
-            QtWidgets.QMessageBox.information(self, 'Save Project Config', msg, QtWidgets.QMessageBox.Ok)
+            QtWidgets.QMessageBox.information(self, 'Save Project Config', msg)
 
-    def update_dashboard(self):
-        """Update dashboard data pertaining to logger."""
+    def get_key_value(self, id, data, key, attr=None):
+        """Assign data from a JSON key to control object attribute."""
+
+        try:
+            return data[key]
+        except KeyError as e:
+            # self.parent.warning(f'{e} key not found in config file under {id} dictionary')
+            # logging.exception(str(e))
+            return attr
+
+    def map_campaign_json_section(self, data):
+        """Map the config campaign section to the control object."""
+
+        try:
+            section = 'campaign'
+            keys, data = self.config.get_config_section(data, key=section)
+        except KeyError as e:
+            msg = f'{e} key not found in config file'
+            self.parent.warning(msg)
+            logging.exception(str(e))
+        else:
+            self.control.project_num = self.get_key_value(id=section,
+                                                          data=data,
+                                                          key='project_number',
+                                                          attr=self.control.project_num)
+            self.control.project_name = self.get_key_value(id=section,
+                                                           data=data,
+                                                           key='project_name',
+                                                           attr=self.control.project_name)
+            self.control.campaign_name = self.get_key_value(id=section,
+                                                            data=data,
+                                                            key='campaign_name',
+                                                            attr=self.control.campaign_name)
+            proj_loc = self.get_key_value(id=section,
+                                          data=data,
+                                          key='project_location')
+            self.control.output_folder = os.path.join(proj_loc, 'Output')
+            self.control.config_file = self.config.filename
+
+    def map_loggers_json_section(self, data):
+        """Map the config loggers section to the control object for all logger."""
+
+        try:
+            keys, data = self.config.get_config_section(data, key='loggers')
+        except KeyError as e:
+            msg = f'{e} key not found in config file'
+            self.parent.warning(msg)
+            logging.exception(str(e))
+        else:
+            for logger_id, logger_dict in data.items():
+                # Create new logger properties object and assign attributes from JSON dictionary
+                logger = LoggerProperties()
+                logger.logger_id = logger_id
+
+                # Logger properties
+                logger.file_format = self.get_key_value(id=logger_id,
+                                                        data=logger_dict,
+                                                        key='file_format',
+                                                        attr=logger.file_format)
+                logger.logger_path = self.get_key_value(id=logger_id,
+                                                        data=logger_dict,
+                                                        key='logger_path',
+                                                        attr=logger.logger_path)
+                logger.file_timestamp_format = self.get_key_value(id=logger_id,
+                                                                  data=logger_dict,
+                                                                  key='file_timestamp_format',
+                                                                  attr=logger.file_timestamp_format)
+                logger.timestamp_format = self.get_key_value(id=logger_id,
+                                                             data=logger_dict,
+                                                             key='data_timestamp_format',
+                                                             attr=logger.timestamp_format)
+                logger.datetime_format = self.get_key_value(id=logger_id,
+                                                            data=logger_dict,
+                                                            key='data_datetime_format',
+                                                            attr=logger.datetime_format)
+                logger.file_ext = self.get_key_value(id=logger_id,
+                                                     data=logger_dict,
+                                                     key='file_ext',
+                                                     attr=logger.file_ext)
+                logger.file_delimiter = self.get_key_value(id=logger_id,
+                                                           data=logger_dict,
+                                                           key='file_delimiter',
+                                                           attr=logger.file_delimiter)
+                logger.num_headers = self.get_key_value(id=logger_id,
+                                                        data=logger_dict,
+                                                        key='num_header_rows',
+                                                        attr=logger.num_headers)
+                logger.num_columns = self.get_key_value(id=logger_id,
+                                                        data=logger_dict,
+                                                        key='num_columns',
+                                                        attr=logger.num_columns)
+                logger.channel_header_row = self.get_key_value(id=logger_id,
+                                                               data=logger_dict,
+                                                               key='channel_header_row',
+                                                               attr=logger.channel_header_row)
+                logger.units_header_row = self.get_key_value(id=logger_id,
+                                                             data=logger_dict,
+                                                             key='units_header_row',
+                                                             attr=logger.units_header_row)
+                logger.freq = self.get_key_value(id=logger_id,
+                                                 data=logger_dict,
+                                                 key='logging_freq',
+                                                 attr=logger.freq)
+                logger.duration = self.get_key_value(id=logger_id,
+                                                     data=logger_dict,
+                                                     key='logging_duration',
+                                                     attr=logger.duration)
+                logger.channel_names = self.get_key_value(id=logger_id,
+                                                          data=logger_dict,
+                                                          key='channel_names',
+                                                          attr=logger.channel_names)
+                logger.channel_units = self.get_key_value(id=logger_id,
+                                                          data=logger_dict,
+                                                          key='channel_units',
+                                                          attr=logger.channel_units)
+
+                # Logger stats settings
+                logger.stats_cols = self.get_key_value(id=logger_id,
+                                                       data=logger_dict,
+                                                       key='stats_columns',
+                                                       attr=logger.stats_cols)
+                logger.stats_unit_conv_factors = self.get_key_value(id=logger_id,
+                                                                    data=logger_dict,
+                                                                    key='stats_unit_convs',
+                                                                    attr=logger.stats_unit_conv_factors)
+                logger.stats_interval = self.get_key_value(id=logger_id,
+                                                           data=logger_dict,
+                                                           key='stats_interval',
+                                                           attr=logger.stats_interval)
+
+                stats_start = self.get_key_value(id=logger_id,
+                                                 data=logger_dict,
+                                                 key='stats_start',
+                                                 attr=logger.stats_start)
+                try:
+                    # Need to convert stats start to datetime
+                    logger.stats_start = parse(stats_start, yearfirst=True)
+                except ValueError:
+                    self.parent.warning(f'stats_start datetime format not recognised {logger_id}')
+
+                stats_end = self.get_key_value(id=logger_id,
+                                               data=logger_dict,
+                                               key='stats_end',
+                                               attr=logger.stats_end)
+                try:
+                    # Need to convert stats end to datetime
+                    logger.stats_end = parse(stats_end, yearfirst=True)
+                except ValueError:
+                    self.parent.warning(f'stats_end datetime format not recognised {logger_id}')
+
+                logger.user_channel_names = self.get_key_value(id=logger_id,
+                                                               data=logger_dict,
+                                                               key='user_channel_names',
+                                                               attr=logger.user_channel_names)
+                logger.user_channel_units = self.get_key_value(id=logger_id,
+                                                               data=logger_dict,
+                                                               key='user_channel_units',
+                                                               attr=logger.user_channel_units)
+
+                # Finally assign logger to control object
+                self.control.logger_ids.append(logger_id)
+                self.control.logger_ids_upper.append(logger_id.upper())
+                self.control.loggers.append(logger)
+
+    def set_dashboards(self):
+        """Set dashboard values with data in control object."""
+
+        # First need to map the newly loaded control object to campaignTab and loggerTab
+        self.campaignTab.control = self.control
+        self.loggerPropsTab.control = self.control
+        self.statsTab.control = self.control
+        # self.spectralTab.control = self.control
+
+        # Set campaign data to dashboard
+        self.campaignTab.set_campaign_dashboard()
+
+        # Add loggers to dashboard list and combo boxes if loggers have been loaded and exist in control object
+        if self.control.loggers:
+            self.loggerPropsTab.loggersList.clear()
+
+            # Populate logger list
+            for logger_id in self.control.logger_ids:
+                item = QtWidgets.QListWidgetItem(logger_id)
+                item.setFlags(item.flags() | QtCore.Qt.ItemIsEditable)
+                self.loggerPropsTab.loggersList.addItem(item)
+
+            # Populate logger combo box
+            # Note: This will trigger the setting of the logger properties, stats and spectral dashboards
+            self.loggerCombo.clear()
+            self.loggerCombo.addItems(self.control.logger_ids)
+
+    def set_window_title(self, filename=None):
+        """Update main window title with config file name."""
+
+        if filename:
+            self.parent.setWindowTitle(f'DataLab {self.parent.version} - Loaded Project: {filename}')
+        else:
+            self.parent.setWindowTitle(f'DataLab {self.parent.version}')
+
+    def on_logger_combo_changed(self):
+        """Update dashboard data pertaining to selected logger."""
 
         # Check combo is not empty
         logger_idx = self.loggerCombo.currentIndex()
         if logger_idx == -1:
             return
 
-        # Check that loggers list is not empty
+        # Check that control object contains at least one logger
         if self.control.loggers:
             logger = self.control.loggers[logger_idx]
-            self.loggerPropsTab.set_dashboard_values(logger)
+            self.loggerPropsTab.set_logger_dashboard(logger)
+            self.statsTab.set_stats_dashboard(logger)
         # Clear values from dashboard
         else:
             self.loggerPropsTab.clear_dashboard()
+            self.statsTab.clear_dashboard()
 
 
 class CampaignInfoTab(QtWidgets.QWidget):
@@ -259,14 +493,13 @@ class CampaignInfoTab(QtWidgets.QWidget):
 
         # Map control object containing all setup data
         self.control = self.parent.control
-        self.editInfo = CampaignInfoDialog(self)
 
         # Trick to get Pycharm's intellisense to detect the ControlFile class
-        try:
-            if isinstance(self.control, ControlFile):
-                pass
-        except:
-            pass
+        # try:
+        #     if isinstance(self.control, ControlFile):
+        #         pass
+        # except:
+        #     pass
 
         self.init_ui()
         self.connect_signals()
@@ -281,15 +514,15 @@ class CampaignInfoTab(QtWidgets.QWidget):
         self.group = QtWidgets.QGroupBox('Project and Campaign Details')
         self.form = QtWidgets.QFormLayout(self.group)
 
-        self.editButton = QtWidgets.QPushButton('Edit Values')
+        self.editButton = QtWidgets.QPushButton('Edit Data')
         self.editButton.setShortcut('Ctrl+E')
-        self.projNum = QtWidgets.QLabel('Not set')
+        self.projNum = QtWidgets.QLabel('-')
         self.projNum.setFixedWidth(40)
-        self.projName = QtWidgets.QLabel('Not set')
-        self.campaignName = QtWidgets.QLabel('Not set')
-        self.projPath = QtWidgets.QLabel('Not set')
+        self.projName = QtWidgets.QLabel('-')
+        self.campaignName = QtWidgets.QLabel('-')
+        self.projPath = QtWidgets.QLabel('-')
         self.projPath.setWordWrap(True)
-        self.configFile = QtWidgets.QLabel('Not set')
+        self.configFile = QtWidgets.QLabel('-')
 
         self.form.addRow(self.editButton, QtWidgets.QLabel(''))
         self.form.addRow(QtWidgets.QLabel('Project number:'), self.projNum)
@@ -326,17 +559,32 @@ class CampaignInfoTab(QtWidgets.QWidget):
         self.editButton.clicked.connect(self.show_edit_dialog)
 
     def show_edit_dialog(self):
-        self.editInfo.set_dialog_data()
-        self.editInfo.show()
+        editInfo = CampaignInfoDialog(self, self.control)
+        editInfo.set_dialog_data()
+        editInfo.show()
 
-    def set_dashboard_values(self):
+    def set_campaign_dashboard(self):
         """Set config tab campaign info."""
 
+        # self.projNum.setText(control.project_num)
+        # self.projName.setText(control.project_name)
+        # self.campaignName.setText(control.campaign_name)
+        # self.projPath.setText(control.project_path)
+        # self.configFile.setText(control.config_file)
         self.projNum.setText(self.control.project_num)
         self.projName.setText(self.control.project_name)
         self.campaignName.setText(self.control.campaign_name)
         self.projPath.setText(self.control.project_path)
         self.configFile.setText(self.control.config_file)
+
+    def clear_dashboard(self):
+        """Initialise all values in logger dashboard."""
+
+        self.projNum.setText('-')
+        self.projName.setText('-')
+        self.campaignName.setText('-')
+        self.projPath.setText('-')
+        self.configFile.setText('-')
 
 
 class LoggerPropertiesTab(QtWidgets.QWidget):
@@ -350,8 +598,8 @@ class LoggerPropertiesTab(QtWidgets.QWidget):
         # Map control object containing all setup data
         self.control = self.parent.control
 
-        # Edit logger properties dialog class
-        self.editLoggerProps = LoggerPropertiesDialog(self)
+        self.skip_on_logger_item_edited = False
+
         self.init_ui()
         self.connect_signals()
 
@@ -360,7 +608,7 @@ class LoggerPropertiesTab(QtWidgets.QWidget):
 
         self.layout = QtWidgets.QGridLayout(self)
 
-        # Logger list group
+        # Loggers list group
         self.loggersGroup = QtWidgets.QGroupBox('Campaign Loggers')
         self.loggersGroup.setFixedWidth(150)
         self.vbox = QtWidgets.QVBoxLayout(self.loggersGroup)
@@ -378,27 +626,24 @@ class LoggerPropertiesTab(QtWidgets.QWidget):
         self.loggerPropsGroup = QtWidgets.QGroupBox('Logger Properties')
         self.form = QtWidgets.QFormLayout(self.loggerPropsGroup)
 
-        self.editLoggerButton = QtWidgets.QPushButton('&Edit Values')
-        self.editLoggerButton.setShortcut('Ctrl+E')
-        self.editLoggerButton.setEnabled(False)
-
-        # Logger properties form
-        self.loggerID = QtWidgets.QLabel('N/A')
-        self.fileFormat = QtWidgets.QLabel('N/A')
-        self.loggerPath = QtWidgets.QLabel('N/A')
+        self.editButton = QtWidgets.QPushButton('Edit Data')
+        self.editButton.setShortcut('Ctrl+E')
+        self.loggerID = QtWidgets.QLabel('-')
+        self.fileFormat = QtWidgets.QLabel('-')
+        self.loggerPath = QtWidgets.QLabel('-')
         self.loggerPath.setWordWrap(True)
-        self.fileTimestampFormat = QtWidgets.QLabel('N/A')
-        self.dataTimestampFormat = QtWidgets.QLabel('N/A')
-        self.fileExt = QtWidgets.QLabel('N/A')
-        self.fileDelimiter = QtWidgets.QLabel('N/A')
-        self.numHeaderRows = QtWidgets.QLabel('N/A')
-        self.numColumns = QtWidgets.QLabel('N/A')
-        self.channelHeaderRow = QtWidgets.QLabel('N/A')
-        self.unitsHeaderRow = QtWidgets.QLabel('N/A')
-        self.loggingFreq = QtWidgets.QLabel('N/A')
-        self.loggingDuration = QtWidgets.QLabel('N/A')
+        self.fileTimestampFormat = QtWidgets.QLabel('-')
+        self.dataTimestampFormat = QtWidgets.QLabel('-')
+        self.fileExt = QtWidgets.QLabel('-')
+        self.fileDelimiter = QtWidgets.QLabel('-')
+        self.numHeaderRows = QtWidgets.QLabel('-')
+        self.numColumns = QtWidgets.QLabel('-')
+        self.channelHeaderRow = QtWidgets.QLabel('-')
+        self.unitsHeaderRow = QtWidgets.QLabel('-')
+        self.loggingFreq = QtWidgets.QLabel('-')
+        self.loggingDuration = QtWidgets.QLabel('-')
 
-        self.form.addRow(self.editLoggerButton, QtWidgets.QLabel(''))
+        self.form.addRow(self.editButton, QtWidgets.QLabel(''))
         self.form.addRow(QtWidgets.QLabel('Logger ID:'), self.loggerID)
         self.form.addRow(QtWidgets.QLabel('File type:'), self.fileFormat)
         self.form.addRow(QtWidgets.QLabel('Logger path:'), self.loggerPath)
@@ -429,7 +674,64 @@ class LoggerPropertiesTab(QtWidgets.QWidget):
         self.addLoggerButton.clicked.connect(self.add_logger)
         self.remLoggerButton.clicked.connect(self.remove_logger)
         self.loggersList.itemChanged.connect(self.on_logger_item_edited)
-        self.editLoggerButton.clicked.connect(self.show_edit_logger_form)
+        self.editButton.clicked.connect(self.show_edit_dialog)
+
+    def show_edit_dialog(self):
+        """Open logger properties edit form."""
+
+        if self.loggersList.count() == 0:
+            msg = f'No loggers exist to edit. Add a logger first.'
+            return QtWidgets.QMessageBox.information(self, 'Edit Logger Properties', msg)
+
+        # Retrieve selected logger object
+        # TODO: If adding logger, dialog should show new logger id - works but if remove one first id may not be unique
+        logger_idx = self.parent.loggerCombo.currentIndex()
+        logger = self.control.loggers[logger_idx]
+
+        # Create edit logger properties dialog window instance
+        editLoggerProps = LoggerPropertiesDialog(self, logger, logger_idx)
+        editLoggerProps.set_dialog_data()
+        editLoggerProps.show()
+
+    def set_logger_dashboard(self, logger):
+        """Set dashboard with logger properties from logger object."""
+
+        delimiters_dict = {',': 'comma',
+                           ' ': 'space',
+                           }
+
+        self.loggerID.setText(logger.logger_id)
+        self.fileFormat.setText(logger.file_format)
+        self.loggerPath.setText(logger.logger_path)
+        self.fileTimestampFormat.setText(logger.file_timestamp_format)
+        self.dataTimestampFormat.setText(logger.timestamp_format)
+        self.fileExt.setText(logger.file_ext)
+        self.fileDelimiter.setText(delimiters_dict[logger.file_delimiter])
+        self.numHeaderRows.setText(str(logger.num_headers))
+        self.numColumns.setText(str(logger.num_columns))
+        self.channelHeaderRow.setText(str(logger.channel_header_row))
+        self.unitsHeaderRow.setText(str(logger.units_header_row))
+        self.loggingFreq.setText(str(logger.freq))
+        self.loggingDuration.setText(str(logger.duration))
+
+    def clear_dashboard(self):
+        """Initialise all values in logger dashboard."""
+
+        # Clear loggers list and properties
+        self.loggersList.clear()
+        self.loggerID.setText('-')
+        self.fileFormat.setText('-')
+        self.loggerPath.setText('-')
+        self.fileTimestampFormat.setText('-')
+        self.dataTimestampFormat.setText('-')
+        self.fileExt.setText('-')
+        self.fileDelimiter.setText('-')
+        self.numHeaderRows.setText('-')
+        self.numColumns.setText('-')
+        self.channelHeaderRow.setText('-')
+        self.unitsHeaderRow.setText('-')
+        self.loggingFreq.setText('-')
+        self.loggingDuration.setText('-')
 
     def add_logger(self):
         """Add new logger to list. Initial logger name format is 'Logger n'."""
@@ -452,14 +754,12 @@ class LoggerPropertiesTab(QtWidgets.QWidget):
         if self.parent.loggerCombo.currentText() == '-':
             self.parent.loggerCombo.clear()
 
+        # TODO: Adding item triggers combo change which sets dashboards values before confirmed by user
         self.parent.loggerCombo.addItem(logger_id)
         self.parent.loggerCombo.setCurrentText(logger_id)
 
-        # Enable edit values button
-        self.editLoggerButton.setEnabled(True)
-
         # Open logger properties edit widget
-        self.show_edit_logger_form()
+        self.show_edit_dialog()
 
     def remove_logger(self):
         """Remove selected logger."""
@@ -477,7 +777,7 @@ class LoggerPropertiesTab(QtWidgets.QWidget):
 
         # Confirm with user
         msg = f'Are you sure you want to remove the logger named {logger}?'
-        response = QtWidgets.QMessageBox.question(self, 'Remove Logger?', msg)
+        response = QtWidgets.QMessageBox.question(self, 'Remove Logger', msg)
 
         if response == QtWidgets.QMessageBox.Yes:
             # Remove logger from control object
@@ -490,65 +790,35 @@ class LoggerPropertiesTab(QtWidgets.QWidget):
 
             if self.parent.loggerCombo.count() == 0:
                 self.parent.loggerCombo.addItem('-')
-                self.editLoggerButton.setEnabled(False)
 
     def on_logger_item_edited(self):
-        """Update logger combobox to match logger names of list widget."""
+        """Update logger combo box to match logger names of list widget."""
 
+        if self.skip_on_logger_item_edited is True:
+            return
+
+        # Retrieve new logger id from list and apply to combo box
         i = self.loggersList.currentRow()
-        new_name = self.loggersList.currentItem().text()
-        self.parent.loggerCombo.setItemText(i, new_name)
+        new_logger_id = self.loggersList.currentItem().text()
+        self.parent.loggerCombo.setItemText(i, new_logger_id)
 
-    def show_edit_logger_form(self):
-        """Open logger properties edit form."""
+        # Update logger id in control object
+        logger = self.control.loggers[i]
+        logger.logger_id = new_logger_id
 
-        # Retrieve selected logger object
-        logger_idx = self.parent.loggerCombo.currentIndex()
-        logger = self.control.loggers[logger_idx]
-        self.editLoggerProps.logger_idx = logger_idx
-        self.editLoggerProps.set_dialog_data(logger)
-        self.editLoggerProps.show()
+        # Update dashboard logger id if selected logger is the same as the one edited in the list
+        combo_idx = self.parent.loggerCombo.currentIndex()
+        if combo_idx == i:
+            self.loggerID.setText(new_logger_id)
 
-    def set_dashboard_values(self, logger):
-        """Set gui logger properties with logger properties from logger object."""
+    def update_logger_id_list(self, logger_id, logger_idx):
+        """Update logger name in the loggers list and combo box if logger id in form is changed."""
 
-        delimiters_dict = {',': 'comma',
-                           ' ': 'space',
-                           }
-
-        self.loggerID.setText(logger.logger_id)
-        self.fileFormat.setText(logger.file_format)
-        self.loggerPath.setText(logger.logger_path)
-        self.fileTimestampFormat.setText(logger.file_timestamp_format)
-        self.dataTimestampFormat.setText(logger.timestamp_format)
-        self.fileExt.setText(logger.file_ext)
-        self.fileDelimiter.setText(delimiters_dict[logger.file_delimiter])
-        self.numHeaderRows.setText(str(logger.num_headers))
-        self.numColumns.setText(str(logger.num_columns))
-        self.channelHeaderRow.setText(str(logger.channel_header_row))
-        self.unitsHeaderRow.setText(str(logger.units_header_row))
-        self.loggingFreq.setText(str(logger.freq))
-        self.loggingDuration.setText(str(logger.duration))
-        # channel_items_str = ' '.join([i for i in logger.user_channel_names])
-        # self.channelNames.setText(channel_items_str)
-        # units_items_str = ' '.join([i for i in logger.user_channel_units])
-        # self.channelUnits.setText(units_items_str)
-
-    def clear_dashboard(self):
-        """Initialise all values in logger dashboard."""
-        self.loggerID.setText('-')
-        self.fileFormat.setText('-')
-        self.loggerPath.setText('-')
-        self.fileTimestampFormat.setText('-')
-        self.dataTimestampFormat.setText('-')
-        self.fileExt.setText('-')
-        self.fileDelimiter.setText('-')
-        self.numHeaderRows.setText('-')
-        self.numColumns.setText('-')
-        self.channelHeaderRow.setText('-')
-        self.unitsHeaderRow.setText('-')
-        self.loggingFreq.setText('-')
-        self.loggingDuration.setText('-')
+        # Set flag to skip logger list edit action when triggered
+        self.skip_on_logger_item_edited = True
+        self.loggersList.item(logger_idx).setText(logger_id)
+        self.parent.loggerCombo.setItemText(logger_idx, logger_id)
+        self.skip_on_logger_item_edited = False
 
 
 class StatsSettingsTab(QtWidgets.QWidget):
@@ -557,13 +827,15 @@ class StatsSettingsTab(QtWidgets.QWidget):
     def __init__(self, parent=None):
         super(StatsSettingsTab, self).__init__(parent)
 
+        self.parent = parent
+        self.control = self.parent.control
+
         self.stats_columns = ''
         self.stats_unit_convs = ''
         self.stats_interval = ''
         self.stats_start = ''
         self.stats_end = ''
 
-        # Edit logger properties dialog class
         self.init_ui()
         self.connect_signals()
 
@@ -571,18 +843,22 @@ class StatsSettingsTab(QtWidgets.QWidget):
         """Create widget layout."""
 
         self.layout = QtWidgets.QVBoxLayout(self)
+
+        # Stats settings group
         self.group = QtWidgets.QGroupBox('Statistical Analysis Settings')
         self.form = QtWidgets.QFormLayout(self.group)
 
-        # Stats settings form
-        self.statsColumns = QtWidgets.QLabel('N/A')
-        self.statsUnitConvs = QtWidgets.QLabel('N/A')
-        self.statsInterval = QtWidgets.QLabel('N/A')
-        self.statsStart = QtWidgets.QLabel('N/A')
-        self.statsEnd = QtWidgets.QLabel('N/A')
-        self.statsChannelNames = QtWidgets.QLabel('N/A')
-        self.statsChannelUnits = QtWidgets.QLabel('N/A')
+        self.editButton = QtWidgets.QPushButton('Edit Data')
+        self.editButton.setShortcut('Ctrl+E')
+        self.statsColumns = QtWidgets.QLabel('-')
+        self.statsUnitConvs = QtWidgets.QLabel('-')
+        self.statsInterval = QtWidgets.QLabel('-')
+        self.statsStart = QtWidgets.QLabel('-')
+        self.statsEnd = QtWidgets.QLabel('-')
+        self.statsChannelNames = QtWidgets.QLabel('-')
+        self.statsChannelUnits = QtWidgets.QLabel('-')
 
+        self.form.addRow(self.editButton, QtWidgets.QLabel(''))
         self.form.addRow(QtWidgets.QLabel('Stats columns:'), self.statsColumns)
         self.form.addRow(QtWidgets.QLabel('Stats unit conversion factors:'), self.statsUnitConvs)
         self.form.addRow(QtWidgets.QLabel('Stats interval:'), self.statsInterval)
@@ -594,7 +870,73 @@ class StatsSettingsTab(QtWidgets.QWidget):
         self.layout.addWidget(self.group)
 
     def connect_signals(self):
-        pass
+        self.editButton.clicked.connect(self.show_edit_dialog)
+
+    def show_edit_dialog(self):
+        """Open logger stats edit form."""
+
+        if self.parent.loggerCombo.currentText() == '-':
+            msg = f'No loggers exist to edit. Add a logger first.'
+            return QtWidgets.QMessageBox.information(self, 'Edit Logger Statisitcs', msg)
+
+        # Retrieve selected logger object
+        logger_idx = self.parent.loggerCombo.currentIndex()
+        logger = self.control.loggers[logger_idx]
+
+        # Edit stats dialog class
+        editStatsProps = LoggerStatsDialog(self, logger, logger_idx)
+        editStatsProps.set_dialog_data()
+        editStatsProps.show()
+
+    def set_stats_dashboard(self, logger):
+        """Set dashboard with logger stats from logger object."""
+
+        # Stats columns
+        if logger.stats_cols is not None:
+            stats_cols_str = ' '.join([i for i in logger.stats_cols])
+            self.statsColumns.setText(stats_cols_str)
+
+        # Unit conversion factors
+        if logger.stats_unit_conv_factors is not None:
+            stats_unit_conv_factors_str = ' '.join([i for i in logger.stats_unit_conv_factors])
+            self.statsUnitConvs.setText(stats_unit_conv_factors_str)
+            self.statsInterval.setText(str(logger.stats_interval))
+
+        # Stats start
+        if logger.stats_start is None:
+            stats_start = 'Not used'
+        else:
+            stats_start = logger.stats_start.strftime('%Y-%m-%d %H:%M')
+        self.statsStart.setText(stats_start)
+
+        # Stats end
+        if logger.stats_end is None:
+            stats_end = 'Not used'
+        else:
+            stats_end = logger.stats_end.strftime('%Y-%m-%d %H:%M')
+        self.statsEnd.setText(stats_end)
+
+        # Stats channel names
+        if logger.user_channel_names is not None:
+            channel_items_str = ' '.join([i for i in logger.user_channel_names])
+            self.statsChannelNames.setText(channel_items_str)
+
+        # Stats units names
+        if logger.user_channel_units is not None:
+            units_items_str = ' '.join([i for i in logger.user_channel_units])
+            self.statsChannelUnits.setText(units_items_str)
+
+    def clear_dashboard(self):
+        """Initialise all values in stats dashboard."""
+
+        # Clear logger stats settings
+        self.statsColumns.setText('-')
+        self.statsUnitConvs.setText('-')
+        self.statsInterval.setText('-')
+        self.statsStart.setText('-')
+        self.statsEnd.setText('-')
+        self.statsChannelNames.setText('-')
+        self.statsChannelUnits.setText('-')
 
 
 class SpectralSettingsTab(QtWidgets.QWidget):
@@ -602,6 +944,8 @@ class SpectralSettingsTab(QtWidgets.QWidget):
 
     def __init__(self, parent=None):
         super(SpectralSettingsTab, self).__init__(parent)
+
+        self.parent = parent
 
         self.stats_columns = ''
         self.stats_unit_convs = ''
@@ -621,17 +965,17 @@ class SpectralSettingsTab(QtWidgets.QWidget):
         self.form = QtWidgets.QFormLayout(self.group)
 
         # Spectral settings form
-        self.spectralColumns = QtWidgets.QLabel('N/A')
-        self.spectralUnitConvs = QtWidgets.QLabel('N/A')
-        self.spectralInterval = QtWidgets.QLabel('N/A')
-        self.spectralStart = QtWidgets.QLabel('N/A')
-        self.spectralEnd = QtWidgets.QLabel('N/A')
-        self.spectralChannelNames = QtWidgets.QLabel('N/A')
-        self.spectralChannelUnits = QtWidgets.QLabel('N/A')
+        self.spectralColumns = QtWidgets.QLabel('-')
+        self.spectralUnitConvs = QtWidgets.QLabel('-')
+        self.spectralInterval = QtWidgets.QLabel('-')
+        self.spectralStart = QtWidgets.QLabel('-')
+        self.spectralEnd = QtWidgets.QLabel('-')
+        self.spectralChannelNames = QtWidgets.QLabel('-')
+        self.spectralChannelUnits = QtWidgets.QLabel('-')
 
         self.form.addRow(QtWidgets.QLabel('Stats columns:'), self.spectralColumns)
         self.form.addRow(QtWidgets.QLabel('Stats unit conversion factors:'), self.spectralUnitConvs)
-        self.form.addRow(QtWidgets.QLabel('Stats interval:'), self.spectralInterval)
+        self.form.addRow(QtWidgets.QLabel('Stats interval (s):'), self.spectralInterval)
         self.form.addRow(QtWidgets.QLabel('Stats start timestamp:'), self.spectralStart)
         self.form.addRow(QtWidgets.QLabel('Stats end timestamp:'), self.spectralEnd)
         self.form.addRow(QtWidgets.QLabel('Channel names:'), self.spectralChannelNames)
@@ -646,11 +990,11 @@ class SpectralSettingsTab(QtWidgets.QWidget):
 class CampaignInfoDialog(QtWidgets.QDialog):
     """Edit window for project and campaign data."""
 
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, control=None):
         super(CampaignInfoDialog, self).__init__(parent)
 
         self.parent = parent
-        self.control = self.parent.control
+        self.control = control
         self.init_ui()
         self.connect_signals()
 
@@ -686,26 +1030,34 @@ class CampaignInfoDialog(QtWidgets.QDialog):
     def connect_signals(self):
         self.browseButton.clicked.connect(self.set_project_path)
         self.buttonBox.accepted.connect(self.accept)
-        self.buttonBox.accepted.connect(self.set_control_data)
+        self.buttonBox.accepted.connect(self.on_ok_clicked)
         self.buttonBox.rejected.connect(self.reject)
 
     def set_dialog_data(self):
         """Set dialog data with campaign info from control object."""
 
-        self.projNum.setText(self.control.project_num)
-        self.projName.setText(self.control.project_name)
-        self.campaignName.setText(self.control.campaign_name)
-        self.projPath.setText(self.control.project_path)
+        control = self.control
+
+        self.projNum.setText(control.project_num)
+        self.projName.setText(control.project_name)
+        self.campaignName.setText(control.campaign_name)
+        self.projPath.setText(control.project_path)
+
+    def on_ok_clicked(self):
+        """Assign values to the control object and update the dashboard."""
+
+        self.set_control_data()
+        self.parent.set_campaign_dashboard()
 
     def set_control_data(self):
-        """Assign values to the control object and update dashboard."""
+        """Assign values to the control object."""
 
-        self.control.project_num = self.projNum.text()
-        self.control.project_name = self.projName.text()
-        self.control.campaign_name = self.campaignName.text()
-        self.control.project_path = self.projPath.text()
+        control = self.control
 
-        self.parent.set_dashboard_values()
+        control.project_num = self.projNum.text()
+        control.project_name = self.projName.text()
+        control.campaign_name = self.campaignName.text()
+        control.project_path = self.projPath.text()
 
     def set_project_path(self):
         """Set location of project root directory."""
@@ -718,10 +1070,15 @@ class CampaignInfoDialog(QtWidgets.QDialog):
 
 
 class LoggerPropertiesDialog(QtWidgets.QDialog):
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, logger=None, logger_idx=0):
         super(LoggerPropertiesDialog, self).__init__(parent)
 
         self.parent = parent
+
+        # Logger properties object and index of selected logger in combo
+        self.logger = logger
+        self.logger_idx = logger_idx
+
         self.file_types = ['Fugro-csv',
                            'Pulse-acc',
                            'General-csv',
@@ -730,33 +1087,45 @@ class LoggerPropertiesDialog(QtWidgets.QDialog):
                            'space',
                            ]
 
-        # Index of selected logger in combo
-        self.logger_idx = 0
+        # To hold the datetime format string detected from a test raw file, e.g. %d-%b-%Y %H:%M:%S.%f
+        self.datetime_format = ''
 
         self.init_ui()
         self.connect_signals()
 
     def init_ui(self):
-        self.setWindowTitle('Edit Logger Properties')
+        self.setWindowTitle('Edit Logger File Properties')
         self.setMinimumWidth(500)
 
         self.layout = QtWidgets.QVBoxLayout(self)
         # self.layout.addStretch()
 
-        # Logger properties group
-        self.loggerProps = QtWidgets.QGroupBox('Logger Properties')
-        propsForm = QtWidgets.QFormLayout(self.loggerProps)
+        # Logger type group
+        self.loggerType = QtWidgets.QGroupBox('Logger Type')
+        self.typeForm = QtWidgets.QFormLayout(self.loggerType)
         self.loggerID = QtWidgets.QLineEdit()
         self.fileFormat = QtWidgets.QComboBox()
         self.fileFormat.setFixedWidth(100)
         self.fileFormat.addItems(self.file_types)
         self.loggerPath = QtWidgets.QTextEdit()
         self.loggerPath.setFixedHeight(40)
-        self.browseLoggerPathButton = QtWidgets.QPushButton('Browse')
-        self.browseLoggerPathButton.setFixedWidth(70)
+        self.browseButton = QtWidgets.QPushButton('Browse')
+
+        # Detect properties button
+        self.detectButton = QtWidgets.QPushButton('Detect Properties')
+
+        # Set button sizing policy
+        policy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed)
+        self.browseButton.setSizePolicy(policy)
+        self.detectButton.setSizePolicy(policy)
+
+        # Logger properties group
+        self.loggerProps = QtWidgets.QGroupBox('Logger Properties')
+        self.propsForm = QtWidgets.QFormLayout(self.loggerProps)
         self.fileTimestampFormat = QtWidgets.QLineEdit()
         self.dataTimestampFormat = QtWidgets.QLineEdit()
         self.fileExt = QtWidgets.QLineEdit()
+        self.fileExt.setFixedWidth(30)
         self.fileDelimiter = QtWidgets.QComboBox()
         self.fileDelimiter.setFixedWidth(60)
         self.fileDelimiter.addItems(self.delimiters)
@@ -772,26 +1141,22 @@ class LoggerPropertiesDialog(QtWidgets.QDialog):
         self.loggingFreq.setFixedWidth(30)
         self.loggingDuration = QtWidgets.QLineEdit()
         self.loggingDuration.setFixedWidth(50)
-        # self.channelNames = QtWidgets.QLineEdit()
-        # self.channelUnits = QtWidgets.QLineEdit()
 
-        # Place widgets
-        propsForm.addRow(QtWidgets.QLabel('Logger ID:'), self.loggerID)
-        propsForm.addRow(QtWidgets.QLabel('File format:'), self.fileFormat)
-        propsForm.addRow(QtWidgets.QLabel('Logger path:'), self.loggerPath)
-        propsForm.addRow(QtWidgets.QLabel(''), self.browseLoggerPathButton)
-        propsForm.addRow(QtWidgets.QLabel('File timestamp:'), self.fileTimestampFormat)
-        propsForm.addRow(QtWidgets.QLabel('Data timestamp:'), self.dataTimestampFormat)
-        propsForm.addRow(QtWidgets.QLabel('File extension:'), self.fileExt)
-        propsForm.addRow(QtWidgets.QLabel('File delimiter:'), self.fileDelimiter)
-        propsForm.addRow(QtWidgets.QLabel('Number of header rows:'), self.numHeaderRows)
-        propsForm.addRow(QtWidgets.QLabel('Number of expected columns:'), self.numColumns)
-        propsForm.addRow(QtWidgets.QLabel('Channel header row:'), self.channelHeaderRow)
-        propsForm.addRow(QtWidgets.QLabel('Units header row:'), self.unitsHeaderRow)
-        propsForm.addRow(QtWidgets.QLabel('Logging frequency (Hz):'), self.loggingFreq)
-        propsForm.addRow(QtWidgets.QLabel('Logging duration (s):'), self.loggingDuration)
-        # propsForm.addRow(QtWidgets.QLabel('Channel names:'), self.channelNames)
-        # propsForm.addRow(QtWidgets.QLabel('Channel units:'), self.channelUnits)
+        self.typeForm.addRow(QtWidgets.QLabel('Logger ID:'), self.loggerID)
+        self.typeForm.addRow(QtWidgets.QLabel('Logger path:'), self.loggerPath)
+        self.typeForm.addRow(QtWidgets.QLabel(''), self.browseButton)
+        self.typeForm.addRow(QtWidgets.QLabel('File format:'), self.fileFormat)
+
+        self.propsForm.addRow(QtWidgets.QLabel('File timestamp:'), self.fileTimestampFormat)
+        self.propsForm.addRow(QtWidgets.QLabel('Data timestamp:'), self.dataTimestampFormat)
+        self.propsForm.addRow(QtWidgets.QLabel('File extension:'), self.fileExt)
+        self.propsForm.addRow(QtWidgets.QLabel('File delimiter:'), self.fileDelimiter)
+        self.propsForm.addRow(QtWidgets.QLabel('Number of header rows:'), self.numHeaderRows)
+        self.propsForm.addRow(QtWidgets.QLabel('Number of expected columns:'), self.numColumns)
+        self.propsForm.addRow(QtWidgets.QLabel('Channel header row:'), self.channelHeaderRow)
+        self.propsForm.addRow(QtWidgets.QLabel('Units header row:'), self.unitsHeaderRow)
+        self.propsForm.addRow(QtWidgets.QLabel('Logging frequency (Hz):'), self.loggingFreq)
+        self.propsForm.addRow(QtWidgets.QLabel('Logging duration (s):'), self.loggingDuration)
 
         # Button box
         # self.assignButton = QtWidgets.QPushButton('Assign')
@@ -800,29 +1165,28 @@ class LoggerPropertiesDialog(QtWidgets.QDialog):
         # self.buttons.addButton(self.assignButton, QtWidgets.QDialogButtonBox.AcceptRole)
         # self.buttons.addButton(QtWidgets.QDialogButtonBox.Cancel)
 
+        self.layout.addWidget(self.loggerType)
+        self.layout.addWidget(self.detectButton, alignment=QtCore.Qt.AlignRight)
         self.layout.addWidget(self.loggerProps)
         self.layout.addWidget(self.buttonBox, stretch=0, alignment=QtCore.Qt.AlignRight)
 
     def connect_signals(self):
-        self.buttonBox.accepted.connect(self.set_control_data)
+        self.buttonBox.accepted.connect(self.on_ok_clicked)
         self.buttonBox.accepted.connect(self.accept)
         self.buttonBox.rejected.connect(self.reject)
-        self.fileFormat.currentIndexChanged.connect(self.on_file_format_change)
-        self.browseLoggerPathButton.clicked.connect(self.set_logger_path)
+        # self.fileFormat.currentIndexChanged.connect(self.on_file_format_change)
+        self.browseButton.clicked.connect(self.set_logger_path)
+        self.detectButton.clicked.connect(self.detect_properties)
 
-    def set_dialog_data(self, logger):
+    def set_dialog_data(self):
         """Set dialog data with logger properties from control object."""
 
         delimiters_dict = {',': 'comma',
                            ' ': 'space',
                            }
 
-        # Trick to get Pycharm's intellisense to detect the LoggerProperties class
-        try:
-            if isinstance(logger, LoggerProperties):
-                pass
-        except:
-            pass
+        # Logger properties object of selected logger
+        logger = self.logger
 
         self.loggerID.setText(logger.logger_id)
         self.fileFormat.setCurrentText(logger.file_format)
@@ -837,20 +1201,22 @@ class LoggerPropertiesDialog(QtWidgets.QDialog):
         self.unitsHeaderRow.setText(str(logger.units_header_row))
         self.loggingFreq.setText(str(logger.freq))
         self.loggingDuration.setText(str(logger.duration))
-        # channel_items_str = ' '.join([i for i in logger.user_channel_names])
-        # self.channelNames.setText(channel_items_str)
-        # units_items_str = ' '.join([i for i in logger.user_channel_units])
-        # self.channelUnits.setText(units_items_str)
+
+    def on_ok_clicked(self):
+        """Assign logger properties to the control object and update the dashboard."""
+
+        self.set_control_data()
+        self.parent.set_logger_dashboard(self.logger)
+        self.parent.update_logger_id_list(self.logger.logger_id, self.logger_idx)
 
     def set_control_data(self):
-        """Assign values to the control object and update dashboard."""
+        """Assign values to the control object."""
 
         delimiters_dict = {'comma': ',',
                            'space': ' ',
                            }
 
-        # Retrieve selected logger object
-        logger = self.parent.control.loggers[self.logger_idx]
+        logger = self.logger
 
         # Assign form values to control logger object
         logger.logger_id = self.loggerID.text()
@@ -858,6 +1224,7 @@ class LoggerPropertiesDialog(QtWidgets.QDialog):
         logger.logger_path = self.loggerPath.toPlainText()
         logger.file_timestamp_format = self.fileTimestampFormat.text()
         logger.timestamp_format = self.dataTimestampFormat.text()
+        logger.datetime_format = self.datetime_format
         logger.file_ext = self.fileExt.text()
         logger.file_delimiter = delimiters_dict[self.fileDelimiter.currentText()]
         logger.num_headers = int(self.numHeaderRows.text())
@@ -865,30 +1232,48 @@ class LoggerPropertiesDialog(QtWidgets.QDialog):
         logger.channel_header_row = int(self.channelHeaderRow.text())
         logger.units_header_row = int(self.unitsHeaderRow.text())
         logger.freq = int(self.loggingFreq.text())
-        logger.duration = int(self.loggingDuration.text())
-        # logger.user_channel_names = self.channelNames.text().split()
-        # logger.user_channel_units = self.channelUnits.text().split()
+        logger.duration = float(self.loggingDuration.text())
 
-        self.parent.set_dashboard_values(logger)
+        # Set expected number of points
+        logger.expected_data_points = logger.freq * logger.duration
 
-    def on_file_format_change(self):
-        """Set standard logger properties for selected file format."""
+    def set_logger_path(self):
+        """Set location of project root directory."""
 
-        # no logger added
-        if self.parent.loggersList.count() == 0:
-            return
+        logger_path = QtWidgets.QFileDialog.getExistingDirectory(self, 'Logger Location')
 
+        if logger_path:
+            self.loggerPath.setText(logger_path)
+
+    def detect_properties(self):
+        """Detect standard logger properties for selected file format."""
+
+        logger_id = self.loggerID.text()
         file_format = self.fileFormat.currentText()
-        logger = self.parent.control.loggers[self.logger_idx]
+        logger_path = self.loggerPath.toPlainText()
 
-        if file_format == 'Fugro-csv':
-            self.set_fugro_file_format(logger)
-        elif file_format == 'Pulse-acc':
-            pass
-        else:
-            pass
+        if not os.path.exists(logger_path):
+            return QtWidgets.QMessageBox.information(self, 'Detect Logger Properties', 'Logger path does not exist')
 
-    def set_fugro_file_format(self, logger):
+        # Create a test logger object to assign properties since we do not want to
+        # assign them to the control object until the dialog OK button is clicked
+        test_logger = LoggerProperties(logger_id)
+        test_logger.logger_path = logger_path
+
+        try:
+            if file_format == 'Fugro-csv':
+                self.set_fugro_file_format(test_logger)
+                self.detect_fugro_file_properties(test_logger)
+            elif file_format == 'Pulse-acc':
+                pass
+            else:
+                pass
+        except InputError as e:
+            QtWidgets.QMessageBox.warning(self, 'Error', str(e))
+        except Exception as e:
+            QtWidgets.QMessageBox.warning(self, 'Error', str(e))
+
+    def set_fugro_file_format(self, test_logger):
         """
         Set Fugro file format standard properties.
         :param logger: LoggerProperties object
@@ -896,22 +1281,159 @@ class LoggerPropertiesDialog(QtWidgets.QDialog):
         """
 
         # Assign Fugro standard logger properties
-        logger = set_fugro_file_format(logger)
+        test_logger = set_fugro_file_format(test_logger)
 
-        # Input in edit widget
-        self.fileExt.setText(logger.file_ext)
+        # Set edit dialog values
+        self.fileExt.setText(test_logger.file_ext)
         self.fileDelimiter.setCurrentText('comma')
-        self.numHeaderRows.setText(str(logger.num_headers))
-        self.channelHeaderRow.setText(str(logger.channel_header_row))
-        self.unitsHeaderRow.setText(str(logger.units_header_row))
+        self.numHeaderRows.setText(str(test_logger.num_headers))
+        self.channelHeaderRow.setText(str(test_logger.channel_header_row))
+        self.unitsHeaderRow.setText(str(test_logger.units_header_row))
 
-    def set_logger_path(self):
-        """Set location of project root directory."""
+    def detect_fugro_file_properties(self, test_logger):
+        """
+        For Fugro logger file detect:
+            sample frequency
+            timestamp format (user style format string)
+            datetime format (datetime/pandas format string)
+            expected number of columns
+            expected logging duration
+        """
 
-        file_path = QtWidgets.QFileDialog.getExistingDirectory(self, 'Logger Location')
+        test_logger = test_logger.detect_fugro_file_properties(test_logger)
 
-        if file_path:
-            self.loggerPath.setText(file_path)
+        # Assign detected properties to edit dialog
+        self.loggingFreq.setText(str(test_logger.freq))
+        self.dataTimestampFormat.setText(test_logger.timestamp_format)
+        self.datetime_format = test_logger.datetime_format
+        self.numColumns.setText(str(test_logger.num_columns))
+        self.loggingDuration.setText(str(test_logger.duration))
+
+
+class LoggerStatsDialog(QtWidgets.QDialog):
+    def __init__(self, parent=None, logger=None, logger_idx=0):
+        super(LoggerStatsDialog, self).__init__(parent)
+
+        self.parent = parent
+
+        # Logger properties object and index of selected logger in combo
+        self.logger = logger
+        self.logger_idx = logger_idx
+
+        self.init_ui()
+        self.connect_signals()
+
+    def init_ui(self):
+        self.setWindowTitle('Edit Logger File Properties')
+        self.setMinimumWidth(500)
+
+        self.layout = QtWidgets.QVBoxLayout(self)
+
+        # Logger stats group
+        self.loggerStats = QtWidgets.QGroupBox('Logger Statistics Settings')
+        self.form = QtWidgets.QFormLayout(self.loggerStats)
+        self.statsColumns = QtWidgets.QLineEdit()
+        self.statsUnitConvs = QtWidgets.QLineEdit()
+        self.statsInterval = QtWidgets.QLineEdit()
+        self.statsStart = QtWidgets.QLineEdit()
+        self.statsEnd = QtWidgets.QLineEdit()
+        self.statsChannelNames = QtWidgets.QLineEdit()
+        self.statsChannelUnits = QtWidgets.QLineEdit()
+
+        self.form.addRow(QtWidgets.QLabel('Stats columns:'), self.statsColumns)
+        self.form.addRow(QtWidgets.QLabel('Stats unit conversion factors:'), self.statsUnitConvs)
+        self.form.addRow(QtWidgets.QLabel('Stats interval (s):'), self.statsInterval)
+        self.form.addRow(QtWidgets.QLabel('Stats start timestamp:'), self.statsStart)
+        self.form.addRow(QtWidgets.QLabel('Stats end timestamp:'), self.statsEnd)
+        self.form.addRow(QtWidgets.QLabel('Channel names:'), self.statsChannelNames)
+        self.form.addRow(QtWidgets.QLabel('Channel units:'), self.statsChannelUnits)
+
+        # Button box
+        self.buttonBox = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Ok |
+                                                    QtWidgets.QDialogButtonBox.Cancel)
+
+        self.layout.addWidget(self.loggerStats)
+        self.layout.addWidget(self.buttonBox, stretch=0, alignment=QtCore.Qt.AlignRight)
+
+    def connect_signals(self):
+        self.buttonBox.accepted.connect(self.on_ok_clicked)
+        self.buttonBox.accepted.connect(self.accept)
+        self.buttonBox.rejected.connect(self.reject)
+
+    def set_dialog_data(self):
+        """Set dialog data with logger stats from control object."""
+
+        logger = self.logger
+
+        # Stats columns
+        stats_cols_str = ' '.join([i for i in logger.stats_cols])
+        self.statsColumns.setText(stats_cols_str)
+
+        # Unit conversion factors
+        stats_unit_conv_factors_str = ' '.join([i for i in logger.stats_unit_conv_factors])
+        self.statsUnitConvs.setText(stats_unit_conv_factors_str)
+        self.statsInterval.setText(str(logger.stats_interval))
+
+        # Stats start
+        if logger.stats_start is None:
+            stats_start = 'Not used'
+        else:
+            stats_start = logger.stats_start.strftime('%Y-%m-%d %H:%M')
+        self.statsStart.setText(stats_start)
+
+        # Stats end
+        if logger.stats_end is None:
+            stats_end = 'Not used'
+        else:
+            stats_end = logger.stats_end.strftime('%Y-%m-%d %H:%M')
+        self.statsEnd.setText(stats_end)
+
+        # Channel and units names
+        channel_items_str = ' '.join([i for i in logger.user_channel_names])
+        self.statsChannelNames.setText(channel_items_str)
+        units_items_str = ' '.join([i for i in logger.user_channel_units])
+        self.statsChannelUnits.setText(units_items_str)
+
+    def on_ok_clicked(self):
+        """Assign logger properties to the control object and update the dashboard."""
+
+        self.set_control_data()
+        self.parent.set_stats_dashboard(self.logger)
+
+    def set_control_data(self):
+        """Assign values to the control object."""
+
+        logger = self.logger
+
+        # Assign form values to control logger object
+        logger.stats_cols = self.statsColumns.text().split()
+        logger.stats_unit_conv_factors = self.statsUnitConvs.text().split()
+        logger.stats_interval = self.statsInterval.text()
+
+        stats_start = self.statsStart.text()
+        if stats_start == 'Not used':
+            logger.stats_start = None
+        else:
+            try:
+                logger.stats_start = parse(stats_start, yearfirst=True)
+            except ValueError:
+                logger.stats_start = None
+                msg = 'Stats start datetime format not recognised; no timestamp set'
+                QtWidgets.QMessageBox.information(self, 'Stats Start Input', msg)
+
+        stats_end = self.statsEnd.text()
+        if stats_end == 'Not used':
+            logger.stats_end = None
+        else:
+            try:
+                logger.stats_end = parse(stats_end, yearfirst=True)
+            except ValueError:
+                logger.stats_end = None
+                msg = 'Stats end datetime format not recognised, no timestamp set'
+                QtWidgets.QMessageBox.information(self, 'Stats End Input', msg)
+
+        logger.user_channel_names = self.statsChannelNames.text().split()
+        logger.user_channel_units = self.statsChannelUnits.text().split()
 
 
 if __name__ == '__main__':

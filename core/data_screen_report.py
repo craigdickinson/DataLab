@@ -37,7 +37,8 @@ class DataScreenReport(object):
 
     def compile_bad_files(self, logger, dict_bad_files):
         """
-        Create list of errors encountered when processing logger filenames or screening files, in format to write to Excel.
+        Create list of errors encountered when processing logger filenames or screening files,
+        in format to write to Excel.
         :param logger: Logger id
         :param dict_bad_files: Dictionary of filename-error pairs
         :return: Compiled list of [logger id, filename, error] for output to Excel

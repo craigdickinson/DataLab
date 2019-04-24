@@ -7,7 +7,7 @@ import os.path
 
 from dateutil.parser import parse
 
-from core.fugro_csv import set_fugro_file_format, read_fugro_sample_header, read_fugro_timestamp_format, read_headers
+from core.fugro_csv import read_fugro_sample_header, read_fugro_timestamp_format, read_headers, set_fugro_file_format
 from core.logger_properties import LoggerProperties
 
 # Used in get_delimiter() method
@@ -139,9 +139,8 @@ class ControlFile(object):
 
         i = 0
         j = 0
-        key = '*LOGGER_ID'
         while (j < len(self.data) - 1) and (i != -1):
-            i, logger_id = self.get_key_data(key, self.data[j:])
+            i, logger_id = self.get_key_data(key='*LOGGER_ID', data=self.data[j:])
 
             # Append logger if new
             if i > -1:
@@ -207,17 +206,14 @@ class ControlFile(object):
             # General file format
             if file_format.lower() == 'general-csv':
                 self.set_general_file_format(logger, logger_data)
-
-            # fugro csv format - need to detect some properties from the file
+            # Fugro csv format - need to detect some properties from the file
             # However we want to check all data in control file is valid first
             # So just extract the information from the control file for now
             elif file_format.lower() == 'fugro-csv':
                 self.set_fugro_file_format(logger, logger_data)
-
             # Copy logger file format of logger properties provided
             elif copy_file_format != '':
                 self.copy_file_format(logger, logger_data)
-
             # Unknown format
             else:
                 raise InputError('File format option not recognised.')
@@ -237,19 +233,19 @@ class ControlFile(object):
             logger.process_filenames()
 
             # Select only files within specified date range
-            logger.set_range(logger.stats_start, logger.stats_end)
+            logger.set_datetime_range(logger.stats_start, logger.stats_end)
 
             # Select first logger file to detect additional properties and checks on
-            file1 = logger.files[0]
+            test_file = logger.files[0]
 
             # Now detect any properties we need to from known file formats
             if logger.file_format.lower() == 'fugro-csv':
-                # Detect sample rate and timestamp format from first fugro file
-                self.detect_fugro_file_properties(logger, file1)
+                # Detect sample rate and timestamp format from first Fugro file
+                self.detect_fugro_file_properties(logger, test_file)
                 self.get_logging_duration(logger, logger_data)
 
             # Detect number of columns and read headers from the first file
-            self.detect_file_properties(logger, file1)
+            self.detect_file_properties(logger, test_file)
 
             # Make any user defined units and channels override any detected
             self.user_header_override(logger)
@@ -379,7 +375,6 @@ class ControlFile(object):
         """
 
         logger_id = logger.logger_id
-        # fugro = fugro_file_format(logger_id)
         logger = set_fugro_file_format(logger)
 
         # Attributes to copy
@@ -523,7 +518,7 @@ class ControlFile(object):
         # Check header lengths make sense
         if len(header) != len(units) or len(units) == 0:
             msg = 'Headers in first file for logger ' + logger.logger_id
-            msg += 'do not match fugro-csv format'
+            msg += 'do not match Fugro-csv format'
             msg += '\n File: ' + file
             raise InputError(msg)
 
@@ -537,8 +532,8 @@ class ControlFile(object):
         #     raise InputError(msg)
 
         # Determine timestamp format from first units header
-        timestamp = units[0]
-        logger.timestamp_format = read_fugro_timestamp_format(timestamp)
+        timestamp_format = units[0]
+        logger.datetime_format = read_fugro_timestamp_format(timestamp_format)
 
     def get_logging_duration(self, logger, data):
         """Get expected logging duration from control file."""
@@ -594,8 +589,8 @@ class ControlFile(object):
             # if last_stats_col > len(header):
             #     raise InputError(msg)
 
-            # Keep headers requested
             # TODO: Issue here if first file doesn't have all columns
+            # Keep headers requested
             # logger.channel_names = [header[i] for i in logger.stats_cols]
 
         # Get units for the columns to be processed
@@ -607,8 +602,8 @@ class ControlFile(object):
             # if last_stats_col > len(units):
             #     raise InputError(msg)
 
-            # Keep headers requested
             # TODO: Issue here if first file doesn't have all columns
+            # Keep headers requested
             # logger.channel_units = [units[i] for i in logger.stats_cols]
 
     def user_header_override(self, logger):
@@ -690,6 +685,11 @@ class ControlFile(object):
             raise InputError(msg)
 
         logger.timestamp_format = timestamp_str
+
+        # TODO: Set datetime_format to be the same for now. Intention will be that e.g.
+        # timestamp_format = dd-mmm-yyyy HH:MM:SS.FFF
+        # datetime_format = %d-%b-%Y %H:%M:%S.%f
+        logger.datetime_format = timestamp_str
 
     def get_logger_path(self, logger_id, data):
         """Extract path to logger data from control file data."""

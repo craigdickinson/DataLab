@@ -1,7 +1,7 @@
 __author__ = 'Craig Dickinson'
 __program__ = 'DataLab'
-__version__ = '0.12'
-__date__ = '15 April 2019'
+__version__ = '0.13'
+__date__ = '24 April 2019'
 
 import logging
 import os
@@ -35,10 +35,11 @@ class DataLabGui(QtWidgets.QMainWindow):
     def __init__(self):
         super().__init__()
 
+        self.version = __version__
+
         # Set root path because path is changed when using file tree
         self.root = os.getcwd()
         self.datfile = None
-        self.setWindowTitle('DataLab')
         self.init_ui()
         self.connect_signals()
         # self._centre()
@@ -49,6 +50,7 @@ class DataLabGui(QtWidgets.QMainWindow):
     def init_ui(self):
         """Initialise gui."""
 
+        self.setWindowTitle(f'DataLab {self.version}')
         self.setGeometry(50, 50, 1400, 800)
 
         # Create stacked central widget
@@ -602,12 +604,12 @@ class DataLabGui(QtWidgets.QMainWindow):
                 self.datalab = DataLab(self.datfile)
                 self.datalab.analyse_control_file()
                 self.statusBar().showMessage('Control file check - good')
-            # TODO: For some reason crashes if use InputError (cos custom?)
-            # except InputError as e:
+            except InputError as e:
+                self.error(str(e))
             except Exception as e:
-                self.statusBar().showMessage('Error: ' + str(e))
-                self.error('Error: ' + str(e))
-                print(e)
+                msg = 'Unexpected error checking config file'
+                self.error(f'{msg}:\n{e}\n{sys.exc_info()[0]}')
+                logging.exception(str(e))
 
     def process_control_file(self):
         """Run control file *.dat."""

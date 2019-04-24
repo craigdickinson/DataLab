@@ -28,6 +28,7 @@ class DataScreen(object):
         self.points_per_file = []
 
         # Minimum resolution
+        # TODO: Output this in data screen report
         self.res = []
 
         self.header = []
@@ -86,7 +87,7 @@ class DataScreen(object):
 
         # Process first column - should be time
         data[columns[0]] = self.parse_timestamp(data[columns[0]],
-                                                self.logger.timestamp_format)
+                                                self.logger.datetime_format)
 
         # Convert any non numeric to NaN
         data[columns[1:]] = self.parse_numeric(data[columns[1:]])
@@ -94,7 +95,7 @@ class DataScreen(object):
         return data
 
     def read_data(self, fname, delim, header, skip_rows, use_cols):
-        """Read logger file data into Pandas dataframe."""
+        """Read logger file data into Pandas data frame."""
 
         df = pd.read_csv(fname,
                          sep=delim,
@@ -142,46 +143,46 @@ class DataScreen(object):
         # except ValueError as e:
         #     raise ValueError(str(e))
 
-    def parse_timestamp(self, data, fmt):
+    def parse_timestamp(self, df, fmt):
         """Convert DataFrame column of text to datetime data must be a column of a data frame."""
 
         if fmt == 'DETECT':
             # This is very slow
-            data = pd.to_datetime(data,
-                                  infer_datetime_format=True,
-                                  errors='coerce')
+            df = pd.to_datetime(df,
+                                infer_datetime_format=True,
+                                errors='coerce')
         else:
             # Much faster
-            data = pd.to_datetime(data,
-                                  format=fmt,
-                                  errors='coerce')
-        return data
+            df = pd.to_datetime(df,
+                                format=fmt,
+                                errors='coerce')
+        return df
 
-    def parse_numeric(self, data):
+    def parse_numeric(self, df):
         """Convert data from string to numeric."""
 
-        data = data.apply(lambda x: pd.to_numeric(x, errors='coerce'))
-        return data
+        df = df.apply(pd.to_numeric, errors='coerce')
+        return df
 
-    def screen_data(self, file_num, data):
-        """Perform basic data screening operations on dataframe."""
+    def screen_data(self, file_num, df):
+        """Perform basic data screening operations on data frame."""
 
         # Number of points in file
         # pts = min(data.count())
-        pts = len(data)
+        pts = len(df)
         self.points_per_file.append(pts)
 
         # Check number of points is valid
         if pts != self.logger.expected_data_points:
-            fname = self.logger.files[file_num]
-            self.bad_files[fname] = 'Unexpected number of points'
+            filename = self.logger.files[file_num]
+            self.bad_files[filename] = 'Unexpected number of points'
         else:
             # Calculate resolution for each channel
-            self.res.append(self.resolution(data))
+            self.res.append(self.resolution(df))
 
     def resolution(self, df):
         """
-        Return smallest difference between rows of a dataframe for each
+        Return smallest difference between rows of a data frame for each
         column. Assumes column names are not multi-indexed.
         """
 

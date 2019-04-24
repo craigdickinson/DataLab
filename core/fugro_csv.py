@@ -3,7 +3,7 @@ Created on 15 Sep 2016
 
 @author: bowdenc
 
-Methods to setup data read from a fugro-csv file
+Methods to set up data read from a fugro-csv file
 
 Example fugro-csv file format is:
 
@@ -13,14 +13,11 @@ dd-mmm-yyyy HH:MM:SS.FFF,mm/s2,mm/s2,rad/s,rad/s
 17-Mar-2016 02:00:00.000,-48.085023,-1.237695e+002,-7.414453e-004,2.252544e-003
 """
 from core.custom_date import user_date_to_date_format
-from core.logger_properties import LoggerProperties
 
 
 def set_fugro_file_format(logger):
-    # def fugro_file_format(logger_id):
     """Return a LoggerProperties object populated with fugro_csv file format settings."""
 
-    # logger = LoggerProperties(logger_id)
     logger.file_format = 'Fugro-csv'
     logger.file_ext = 'csv'
     logger.file_delimiter = ','
@@ -31,15 +28,15 @@ def set_fugro_file_format(logger):
     return logger
 
 
-def read_fugro_sample_header(fname):
+def read_fugro_sample_header(filename):
     """
-    Read the first line of fname which should be of the format:
+    Read the first line of filename which should be of the format:
     #Sample Interval: 0.100000 (seconds)
     If successful return the sample interval, otherwise return 0.
     """
 
     # Read the first line
-    with open(fname) as f:
+    with open(filename) as f:
         line = f.readline()
 
     # Split by a space
@@ -56,16 +53,15 @@ def read_fugro_sample_header(fname):
         return 0
 
 
-def read_headers(fname):
-    """Return the second and third headers in fname as lists."""
+def read_headers(filename):
+    """Return the second and third headers in filename as lists."""
 
     # Skip the first two lines
-    with open(fname) as f:
+    with open(filename) as f:
         next(f)
         header = f.readline().split(',')
         units = f.readline().split(',')
 
-    # Split the header and get the timestamp format
     return header, units
 
 

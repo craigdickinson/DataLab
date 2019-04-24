@@ -4,12 +4,13 @@ Created on 5 Aug 2016
 @author: bowdenc
 """
 import os
+from datetime import datetime
 from glob import glob
 
 from dateutil.parser import parse
-from datetime import datetime
 
 from core.custom_date import get_date_code_span, make_time_str
+from core.fugro_csv import read_fugro_sample_header, read_fugro_timestamp_format, read_headers
 
 
 class Error(Exception):
@@ -46,6 +47,10 @@ class LoggerProperties(object):
         self.file_format = ''  # *FILE_FORMAT
         self.file_timestamp_format = ''  # *FILE_TIMESTAMP
         self.timestamp_format = ''  # *TIMESTAMP
+
+        # Datetime format string to convert timestamp strings to datetimes, e.g. %d-%b-%Y %H:%M:%S.%f
+        self.datetime_format = ''
+
         self.file_ext = ''  # *EXTENSION
         self.file_delimiter = ''  # *DELIMITER
 
@@ -170,11 +175,11 @@ class LoggerProperties(object):
                 self.files.append(f)
                 self.file_timestamps.append(date)
 
-    def set_range(self, start_date=None, end_date=None):
+    def set_datetime_range(self, start_date=None, end_date=None):
         """
         Filter out dates outside start_date, end_date range.
-        :param start_date: dateutil object
-        :param end_date: dateutil object
+        :param start_date: datetime
+        :param end_date: datetime
         :return: New list of file_timestamps and files within date range
         """
 
@@ -188,15 +193,12 @@ class LoggerProperties(object):
         if self.end_date is None:
             self.end_date = max(self.file_timestamps)
 
-        dates = [d for d in self.file_timestamps
-                 if ((d >= self.start_date) and (d <= self.end_date))]
-
-        files = [f for d, f in zip(self.file_timestamps, self.files)
-                 if ((d >= self.start_date) and (d <= self.end_date))]
+        dates_files = [(d, f) for d, f in zip(self.file_timestamps, self.files)
+                       if ((d >= self.start_date) and (d <= self.end_date))]
 
         # Make sure files are processed in correct order
         try:
-            d, f = [list(t) for t in zip(*sorted(zip(dates, files)))]
+            d, f = list(zip(*sorted(dates_files)))
             self.file_timestamps = d
             self.files = f
         # Empty lists
@@ -204,3 +206,48 @@ class LoggerProperties(object):
             msg = 'No valid logger files found within date range input for ' + self.logger_id
             msg += '\n Check date range and file timestamp inputs'
             raise InputError(msg)
+
+    def detect_fugro_file_properties(self, logger):
+        """
+        For Fugro logger file detect:
+            sample frequency
+            timestamp format (user style format string)
+            datetime format (datetime/pandas format string)
+            expected number of columns
+            expected logging duration
+        """
+
+        # TODO: Need to check file is of expected filename first!
+        raw_files = glob(logger.logger_path + '/*.' + logger.file_ext)
+        test_file = raw_files[0]
+        test_filename = os.path.basename(test_file)
+
+        # Read sample interval
+        sample_interval = read_fugro_sample_header(test_file)
+
+        # Convert to sample frequency
+        if sample_interval > 0:
+            logger.freq = int(1 / sample_interval)
+        else:
+            msg = f'Could not read sample interval for logger {logger.logger_id}\nFile: {test_filename}'
+            raise InputError(msg)
+
+        # Read headers
+        header, units = read_headers(test_file)
+
+        # Determine timestamp format from first units header
+        logger.timestamp_format = units[0]
+        logger.datetime_format = read_fugro_timestamp_format(logger.timestamp_format)
+
+        # Get expected number of columns
+        logger.num_columns = len(header) - 1
+
+        # Get expected logging duration
+        # Read number of data points
+        with open(test_file) as f:
+            data = f.readlines()
+
+        n = len(data) - 3
+        logger.duration = n / logger.freq
+
+        return logger

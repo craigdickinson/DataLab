@@ -8,6 +8,7 @@ Program to perform signal processing on logger data
 __author__ = 'Craig Dickinson'
 
 import argparse
+import logging
 import os
 import sys
 from datetime import timedelta
@@ -137,16 +138,16 @@ class DataLab(QThread):
                 # TODO: If expected file in sequence is missing, store results as nan
 
                 # Update console
-                fname = os.path.basename(f)
+                filename = os.path.basename(f)
                 progress = 'Processing ' + logger.logger_id
-                progress += ' file ' + str(j + 1) + ' of ' + str(n) + ' (' + fname + ')'
+                progress += ' file ' + str(j + 1) + ' of ' + str(n) + ' (' + filename + ')'
                 print('\r%s' % progress, end='')
 
                 # Read the file into a pandas dataframe and parse dates and floats
                 df = data_screen[i].read_logger_file(f)
 
                 # Perform basic screening checks on file - check file has expected number of data points
-                data_screen[i].screen_data(file_num=j, data=df)
+                data_screen[i].screen_data(file_num=j, df=df)
 
                 # Ignore file if not of expected length
                 # TODO: Allowing short sample length (revisit)
@@ -216,11 +217,18 @@ class DataLab(QThread):
 
 if __name__ == '__main__':
     direc = r'C:\Users\dickinsc\PycharmProjects\_2. DataLab Analysis Files\21239\2. Control Files'
-    f = ''
+    # direc = r'C:\Users\dickinsc\PycharmProjects\DataLab\Demo Data\2. Control Files'
+    # f = ''
     f = 'controlfile_21239.dat'
+    # f = 'controlfile1_all_loggers.dat'
     # f = 'example_control_files/controlfile.dat'
     # f = 'controlfile_21239_acc.dat'
     f = os.path.join(direc, f)
     datalab = DataLab(datfile=f)
-    datalab.analyse_control_file()
-    datalab.process_control_file()
+
+    try:
+        datalab.analyse_control_file()
+        datalab.process_control_file()
+    except Exception as e:
+        print(str(e))
+        logging.exception(str(e))
