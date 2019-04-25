@@ -96,19 +96,17 @@ class StatsOutput(object):
         # print(stats)
         # print(ss)
 
-        # Create statistics dataframe
+        # Create statistics data frame
         cols = pd.MultiIndex.from_arrays([channel_header, stats_header, units_header],
                                          names=['channels', 'stats', 'units'])
-        # df = pd.DataFrame(self.stats, index=self.start, columns=cols)
         df = pd.DataFrame(self.stats, index=data_screen.sample_start, columns=cols)
 
-        # Add stats dataframe to logger dict for use by gui
+        # Add stats data frame to logger dict for use by gui
         self.stats_dict[logger.logger_id] = df
 
-        # Now create a new dataframe to write to file (csv/xlsx/hdf5)
+        # Now create a new data frame to write to file (csv/xlsx/hdf5)
         # Add end time columns, reset index and rename first column to Start
         self.df_stats = pd.DataFrame(self.stats, index=self.start, columns=cols)
-        # self.stats_df.insert(loc=0, column='End', value=data_screen.sample_end)
         self.df_stats.insert(loc=0, column='End', value=self.end)
         self.df_stats.reset_index(inplace=True)
         self.df_stats.rename({'index': 'Start'}, axis=1, inplace=True)

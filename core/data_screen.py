@@ -22,7 +22,7 @@ class DataScreen(object):
         self.files = []
 
         # Dictionary of files with errors for specified logger
-        self.bad_files = {}
+        self.bad_files_dict = {}
 
         # Number of points per file
         self.points_per_file = []
@@ -57,11 +57,9 @@ class DataScreen(object):
 
         # Set csv read properties
         self.header_row = self.logger.channel_header_row - 1
-
         self.skip_rows = [i for i in range(self.logger.num_headers)
                           if i > self.header_row]
-
-        self.use_cols = [0] + self.logger.stats_cols
+        self.use_cols = [0] + [c - 1 for c in self.logger.stats_cols]
 
         # No header row specified
         if self.header_row < 0:
@@ -175,7 +173,7 @@ class DataScreen(object):
         # Check number of points is valid
         if pts != self.logger.expected_data_points:
             filename = self.logger.files[file_num]
-            self.bad_files[filename] = 'Unexpected number of points'
+            self.bad_files_dict[filename] = 'Unexpected number of points'
         else:
             # Calculate resolution for each channel
             self.res.append(self.resolution(df))

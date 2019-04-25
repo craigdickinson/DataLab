@@ -4,11 +4,15 @@ import os
 import sys
 
 from PyQt5 import QtCore, QtWidgets
+from PyQt5.QtCore import pyqtSignal
 from dateutil.parser import parse
-
+from datetime import timedelta
+from time import time
+from plot_stats import StatsDataset
 from core.control_file import ControlFile, InputError
+from core.datalab_main import DataLab
 from core.fugro_csv import set_fugro_file_format
-from core.logger_properties import LoggerProperties
+from core.logger_properties import LoggerProperties, LoggerError
 
 
 class ProjectConfigJSONFile:
@@ -23,9 +27,9 @@ class ProjectConfigJSONFile:
         with open(file_name, encoding='utf-8') as f:
             data = json.load(f)
 
-        # Store file name and set directory to project root
-        fpath, self.filename = os.path.split(file_name)
-        os.chdir(fpath)
+        # Store filename and set directory to project root
+        file_path, self.filename = os.path.split(file_name)
+        os.chdir(file_path)
 
         return data
 
@@ -105,7 +109,7 @@ class ProjectConfigJSONFile:
         proj_name = '_'.join(proj_name.split())
         self.filename = '_'.join((proj_num, proj_name, 'Config.json'))
 
-        # Save as json file
+        # Save as JSON file
         # Prevents ascii characters in file. Indent gives nicer layout instead of one long line string
         with open(self.filename, 'w', encoding='utf-8') as f:
             f.write(json.dumps(self.data, indent=4, sort_keys=False, ensure_ascii=False))
@@ -154,7 +158,7 @@ class ConfigModule(QtWidgets.QWidget):
         self.loggerPropsTab = LoggerPropertiesTab(self)
         self.statsTab = StatsSettingsTab(self)
         self.spectralTab = SpectralSettingsTab(self)
-        self.tabsContainer.addTab(self.campaignTab, 'Campaign Details')
+        self.tabsContainer.addTab(self.campaignTab, 'Campaign Info')
         self.tabsContainer.addTab(self.loggerPropsTab, 'Logger File Properties')
         self.tabsContainer.addTab(self.statsTab, 'Statistical Analysis')
         self.tabsContainer.addTab(self.spectralTab, 'Spectral Analysis')
@@ -187,26 +191,7 @@ class ConfigModule(QtWidgets.QWidget):
         self.saveConfigButton.clicked.connect(self.save_config_file)
         self.loggerCombo.currentIndexChanged.connect(self.on_logger_combo_changed)
         self.newProjButton.clicked.connect(self.new_project)
-
-    def new_project(self):
-        """Clear project control object and all config dashboard values."""
-
-        # Create new control object and map to campaignTab and loggerTab
-        self.control = ControlFile()
-        self.campaignTab.control = self.control
-        self.loggerPropsTab.control = self.control
-
-        # Clear logger combo box
-        # Note: This will trigger the clearing of the logger properties, stats and spectral dashboards
-        self.loggerCombo.clear()
-        self.loggerCombo.addItem('-')
-
-        # Clear campaign data dashboard
-        self.campaignTab.clear_dashboard()
-
-        # TODO: This already gets run on combo change event
-        # self.loggerPropsTab.clear_dashboard()
-        self.set_window_title()
+        self.processButton.clicked.connect(self.run_analysis)
 
     def load_config_file(self):
         """Load config JSON file."""
@@ -265,14 +250,98 @@ class ConfigModule(QtWidgets.QWidget):
             msg = f'Project config settings saved to {config.filename}'
             QtWidgets.QMessageBox.information(self, 'Save Project Config', msg)
 
+    def on_logger_combo_changed(self):
+        """Update dashboard data pertaining to selected logger."""
+
+        # Check combo is not empty
+        logger_idx = self.loggerCombo.currentIndex()
+        if logger_idx == -1:
+            return
+
+        # Check that control object contains at least one logger
+        if self.control.loggers:
+            logger = self.control.loggers[logger_idx]
+            self.loggerPropsTab.set_logger_dashboard(logger)
+            self.statsTab.set_stats_dashboard(logger)
+        # Clear values from dashboard
+        else:
+            self.loggerPropsTab.clear_dashboard()
+            self.statsTab.clear_dashboard()
+
+    def new_project(self):
+        """Clear project control object and all config dashboard values."""
+
+        # Create new control object and map to campaignTab and loggerTab
+        self.control = ControlFile()
+        self.campaignTab.control = self.control
+        self.loggerPropsTab.control = self.control
+
+        # Clear logger combo box
+        # Note: This will trigger the clearing of the logger properties, stats and spectral dashboards
+        self.loggerCombo.clear()
+        self.loggerCombo.addItem('-')
+
+        # Clear campaign data dashboard and update window title to include config file path
+        self.campaignTab.clear_dashboard()
+        self.set_window_title()
+
+    def run_analysis(self):
+        """Run DataLab processing engine."""
+
+        try:
+            # First get all raw data filenames for all loggers to be processed and perform some screening checks
+            # Get raw filenames, check timestamps and select files in processing datetime range
+            for logger in self.control.loggers:
+                logger.process_filenames()
+                logger.select_files_in_datetime_range(logger.stats_start, logger.stats_end)
+                logger.expected_data_points = logger.freq * logger.duration
+                logger.channel_names = logger.user_channel_names
+                logger.channel_units = logger.user_channel_units
+
+            # Create output folder if necessary
+            self.control.ensure_dir_exists(self.control.output_folder)
+
+            # Check all ids are unique
+            self.control.check_logger_ids(self.control.logger_ids)
+
+            # Create datalab object, map control data and process
+            # self.datalab = DataLab(no_dat=True)
+            # self.datalab.control = self.control
+            # # TODO: Temp fix
+            # self.datalab.control.create_spectrograms = [False, False]
+            # self.datalab.process_control_file()
+        except InputError as e:
+            self.parent.error(str(e))
+        except LoggerError as e:
+            self.parent.error(str(e))
+        except Exception as e:
+            self.parent.error(str(e))
+            logging.exception(str(e))
+
+        # QThread
+        try:
+            self.worker = ControlFileWorker(self.control,parent=self)
+        except InputError as e:
+            self.parent.error(f'Reading control file error: {e}')
+        except LoggerError as e:
+            self.parent.error(str(e))
+        except Exception as e:
+            msg = 'Unexpected error on processing control file'
+            self.parent.error(f'{msg}:\n{e}\n{sys.exc_info()[0]}')
+            logging.exception(msg)
+        else:
+            self.parent.setEnabled(False)
+            self.worker.start()
+            self.worker.signal_error.connect(self.parent.error)
+
     def get_key_value(self, id, data, key, attr=None):
         """Assign data from a JSON key to control object attribute."""
 
         try:
             return data[key]
         except KeyError as e:
-            # self.parent.warning(f'{e} key not found in config file under {id} dictionary')
-            # logging.exception(str(e))
+            self.parent.warning(f'{e} key not found in config file under {id} dictionary')
+            logging.exception(str(e))
             return attr
 
     def map_campaign_json_section(self, data):
@@ -298,10 +367,11 @@ class ConfigModule(QtWidgets.QWidget):
                                                             data=data,
                                                             key='campaign_name',
                                                             attr=self.control.campaign_name)
-            proj_loc = self.get_key_value(id=section,
-                                          data=data,
-                                          key='project_location')
-            self.control.output_folder = os.path.join(proj_loc, 'Output')
+            self.control.project_path = self.get_key_value(id=section,
+                                                           data=data,
+                                                           key='project_location',
+                                                           attr=self.control.project_path)
+            self.control.output_folder = os.path.join(self.control.project_path, 'Output')
             self.control.config_file = self.config.filename
 
     def map_loggers_json_section(self, data):
@@ -457,30 +527,147 @@ class ConfigModule(QtWidgets.QWidget):
             self.loggerCombo.addItems(self.control.logger_ids)
 
     def set_window_title(self, filename=None):
-        """Update main window title with config file name."""
+        """Update main window title with config filename."""
 
         if filename:
             self.parent.setWindowTitle(f'DataLab {self.parent.version} - Loaded Project: {filename}')
         else:
             self.parent.setWindowTitle(f'DataLab {self.parent.version}')
 
-    def on_logger_combo_changed(self):
-        """Update dashboard data pertaining to selected logger."""
 
-        # Check combo is not empty
-        logger_idx = self.loggerCombo.currentIndex()
-        if logger_idx == -1:
-            return
+class ControlFileWorker(QtCore.QThread):
+    """Worker class to process control file in separate thread."""
 
-        # Check that control object contains at least one logger
-        if self.control.loggers:
-            logger = self.control.loggers[logger_idx]
-            self.loggerPropsTab.set_logger_dashboard(logger)
-            self.statsTab.set_stats_dashboard(logger)
-        # Clear values from dashboard
-        else:
-            self.loggerPropsTab.clear_dashboard()
-            self.statsTab.clear_dashboard()
+    signal_status = pyqtSignal(bool)
+    runtime = pyqtSignal(str)
+    signal_error = pyqtSignal(str)
+
+    def __init__(self, control, parent=None):
+        """Worker class to allow control file processing on a separate thread to the gui."""
+        super(ControlFileWorker, self).__init__(parent)
+
+        # self.id = QtCore.QThread.currentThreadId()
+        # print(self.id)
+        self.parent = parent
+
+        # DataLab processing object
+        self.datalab = DataLab(no_dat=True)
+        self.datalab.control = control
+        self.datalab.control.create_spectrograms = [False, False]
+
+        # Initialise progress bar
+        self.pb = ControlFileProgressBar()
+        self.pb.quit_worker_signal.connect(self.quit_worker)
+        self.datalab.notify_progress.connect(self.pb.update_progress_bar)
+        self.runtime.connect(self.pb.report_runtime)
+
+    def run(self):
+        """Override of thread run method to process control file."""
+
+        try:
+            t0 = time()
+
+            # Run DataLab processing; compute and write requested logger statistics and spectrograms
+            self.datalab.process_control_file()
+
+            # For each logger create stats dataset object containing data, logger id, list of channels and
+            # pri/sec plot flags and add to stats plot class
+            for logger, df in self.datalab.stats_dict.items():
+                dataset = StatsDataset(logger_id=logger, df=df)
+                self.parent.parent.statsTab.datasets.append(dataset)
+
+            # Store dataset/logger names from dictionary keys
+            dataset_ids = list(self.datalab.stats_dict.keys())
+
+            # TODO: Weird QObject warning gets raised here - resolve
+            self.parent.parent.statsTab.update_stats_datasets_list(dataset_ids)
+
+            # Plot stats
+            # self.parent.statsTab.set_plot_data(init=True)
+            # self.parent.statsTab.filtered_ts = self.parent.statsTab.calc_filtered_data(self.df_plot)
+            self.parent.parent.statsTab.update_plots()
+
+            # TODO: Load and plot spectrograms data
+            # Store spectrogram datasets and update plot tab
+            # self.parent.spectrogramTab.datasets[logger] = df
+            # self.parent.spectrogramTab.update_spect_datasets_list(logger)
+
+            # Update variance plot tab - plot update is triggered upon setting dataset list index
+            self.parent.parent.varianceTab.datasets = self.datalab.stats_dict
+            self.parent.parent.varianceTab.update_variance_datasets_list(dataset_ids)
+            self.parent.parent.varianceTab.datasetList.setCurrentRow(0)
+            self.parent.parent.varianceTab.update_variance_plot(init_plot=True)
+            self.parent.parent.view_stats_tab()
+            t = str(timedelta(seconds=round(time() - t0)))
+            self.runtime.emit(t)
+        except Exception as e:
+            msg = 'Unexpected error on processing control file'
+            self.signal_error.emit(f'{msg}:\n{e}\n{sys.exc_info()[0]}')
+            logging.exception(msg)
+        finally:
+            self.parent.parent.setEnabled(True)
+            # self.quit()
+            # self.wait()
+
+    def quit_worker(self):
+        """Quit thread on progress bar cancel button clicked."""
+
+        if self.isRunning():
+            # TODO: Should find a better way of doing this by setting an external flag
+            self.terminate()
+            self.wait()
+
+        self.pb.close()
+        self.parent.parent.setEnabled(True)
+
+
+class ControlFileProgressBar(QtWidgets.QDialog):
+    """Progress bar window for processing control file."""
+
+    quit_worker_signal = pyqtSignal()
+
+    def __init__(self):
+        super().__init__()
+
+        # self.setFixedSize(400, 80)
+        self.setFixedWidth(400)
+        self.setWindowTitle('Processing Logger Statistics')
+        layout = QtWidgets.QVBoxLayout(self)
+        self.label = QtWidgets.QLabel(self)
+        self.progressBar = QtWidgets.QProgressBar(self)
+        self.msgProcessingComplete = QtWidgets.QLabel(self)
+        layout.addWidget(self.label)
+        layout.addWidget(self.progressBar)
+        layout.addWidget(self.msgProcessingComplete)
+
+        self.buttonBox = QtWidgets.QDialogButtonBox(
+            QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel)
+        self.buttonBox.accepted.connect(self.accept)
+        self.buttonBox.rejected.connect(self.cancel)
+        self.buttonBox.button(QtWidgets.QDialogButtonBox.Ok).setEnabled(False)
+        layout.addWidget(self.buttonBox)
+
+        self.show()
+
+    def cancel(self):
+        """Cancel progress bar."""
+
+        print('\nStop!!!')
+        self.quit_worker_signal.emit()
+
+    def update_progress_bar(self, i, n):
+        """Update progress bar window."""
+
+        self.label.setText('Processing logger file ' + str(i) + ' of ' + str(n))
+
+        p = (i / n) * 100
+        self.progressBar.setValue(p)
+        if int(p) == 100:
+            self.buttonBox.button(QtWidgets.QDialogButtonBox.Ok).setEnabled(True)
+        # self.close()
+
+    def report_runtime(self, t):
+        self.msgProcessingComplete.setText('Processing complete: elapsed time = ' + t)
 
 
 class CampaignInfoTab(QtWidgets.QWidget):
@@ -511,7 +698,7 @@ class CampaignInfoTab(QtWidgets.QWidget):
         self.layout = QtWidgets.QVBoxLayout(self)
 
         # Form
-        self.group = QtWidgets.QGroupBox('Project and Campaign Details')
+        self.group = QtWidgets.QGroupBox('Project and Campaign Info')
         self.form = QtWidgets.QFormLayout(self.group)
 
         self.editButton = QtWidgets.QPushButton('Edit Data')
@@ -566,11 +753,6 @@ class CampaignInfoTab(QtWidgets.QWidget):
     def set_campaign_dashboard(self):
         """Set config tab campaign info."""
 
-        # self.projNum.setText(control.project_num)
-        # self.projName.setText(control.project_name)
-        # self.campaignName.setText(control.campaign_name)
-        # self.projPath.setText(control.project_path)
-        # self.configFile.setText(control.config_file)
         self.projNum.setText(self.control.project_num)
         self.projName.setText(self.control.project_name)
         self.campaignName.setText(self.control.campaign_name)
@@ -893,37 +1075,39 @@ class StatsSettingsTab(QtWidgets.QWidget):
 
         # Stats columns
         if logger.stats_cols is not None:
-            stats_cols_str = ' '.join([i for i in logger.stats_cols])
+            stats_cols_str = ' '.join([str(i) for i in logger.stats_cols])
             self.statsColumns.setText(stats_cols_str)
 
         # Unit conversion factors
         if logger.stats_unit_conv_factors is not None:
-            stats_unit_conv_factors_str = ' '.join([i for i in logger.stats_unit_conv_factors])
+            stats_unit_conv_factors_str = ' '.join([str(i) for i in logger.stats_unit_conv_factors])
             self.statsUnitConvs.setText(stats_unit_conv_factors_str)
+
+            # Stats interval
             self.statsInterval.setText(str(logger.stats_interval))
 
-        # Stats start
-        if logger.stats_start is None:
-            stats_start = 'Not used'
-        else:
-            stats_start = logger.stats_start.strftime('%Y-%m-%d %H:%M')
-        self.statsStart.setText(stats_start)
+            # Stats start
+            if logger.stats_start is None:
+                stats_start = 'Not used'
+            else:
+                stats_start = logger.stats_start.strftime('%Y-%m-%d %H:%M')
+            self.statsStart.setText(stats_start)
 
-        # Stats end
-        if logger.stats_end is None:
-            stats_end = 'Not used'
-        else:
-            stats_end = logger.stats_end.strftime('%Y-%m-%d %H:%M')
-        self.statsEnd.setText(stats_end)
+            # Stats end
+            if logger.stats_end is None:
+                stats_end = 'Not used'
+            else:
+                stats_end = logger.stats_end.strftime('%Y-%m-%d %H:%M')
+            self.statsEnd.setText(stats_end)
 
-        # Stats channel names
-        if logger.user_channel_names is not None:
-            channel_items_str = ' '.join([i for i in logger.user_channel_names])
+            # Stats channel names
+            if logger.user_channel_names is not None:
+                channel_items_str = ' '.join([i for i in logger.user_channel_names])
             self.statsChannelNames.setText(channel_items_str)
 
-        # Stats units names
-        if logger.user_channel_units is not None:
-            units_items_str = ' '.join([i for i in logger.user_channel_units])
+            # Stats units names
+            if logger.user_channel_units is not None:
+                units_items_str = ' '.join([i for i in logger.user_channel_units])
             self.statsChannelUnits.setText(units_items_str)
 
     def clear_dashboard(self):
@@ -1234,9 +1418,6 @@ class LoggerPropertiesDialog(QtWidgets.QDialog):
         logger.freq = int(self.loggingFreq.text())
         logger.duration = float(self.loggingDuration.text())
 
-        # Set expected number of points
-        logger.expected_data_points = logger.freq * logger.duration
-
     def set_logger_path(self):
         """Set location of project root directory."""
 
@@ -1253,7 +1434,8 @@ class LoggerPropertiesDialog(QtWidgets.QDialog):
         logger_path = self.loggerPath.toPlainText()
 
         if not os.path.exists(logger_path):
-            return QtWidgets.QMessageBox.information(self, 'Detect Logger Properties', 'Logger path does not exist')
+            msg = 'Logger path does not exist. Set a logger path first.'
+            return QtWidgets.QMessageBox.information(self, 'Detect Logger Properties', msg)
 
         # Create a test logger object to assign properties since we do not want to
         # assign them to the control object until the dialog OK button is clicked
@@ -1263,12 +1445,12 @@ class LoggerPropertiesDialog(QtWidgets.QDialog):
         try:
             if file_format == 'Fugro-csv':
                 self.set_fugro_file_format(test_logger)
-                self.detect_fugro_file_properties(test_logger)
+                self.detect_fugro_file_props(test_logger)
             elif file_format == 'Pulse-acc':
                 pass
             else:
                 pass
-        except InputError as e:
+        except LoggerError as e:
             QtWidgets.QMessageBox.warning(self, 'Error', str(e))
         except Exception as e:
             QtWidgets.QMessageBox.warning(self, 'Error', str(e))
@@ -1290,17 +1472,17 @@ class LoggerPropertiesDialog(QtWidgets.QDialog):
         self.channelHeaderRow.setText(str(test_logger.channel_header_row))
         self.unitsHeaderRow.setText(str(test_logger.units_header_row))
 
-    def detect_fugro_file_properties(self, test_logger):
+    def detect_fugro_file_props(self, test_logger):
         """
         For Fugro logger file detect:
-            sample frequency
+            sampling frequency
             timestamp format (user style format string)
             datetime format (datetime/pandas format string)
             expected number of columns
             expected logging duration
         """
 
-        test_logger = test_logger.detect_fugro_file_properties(test_logger)
+        test_logger = test_logger.detect_fugro_logger_properties(test_logger)
 
         # Assign detected properties to edit dialog
         self.loggingFreq.setText(str(test_logger.freq))
@@ -1366,12 +1548,14 @@ class LoggerStatsDialog(QtWidgets.QDialog):
         logger = self.logger
 
         # Stats columns
-        stats_cols_str = ' '.join([i for i in logger.stats_cols])
+        stats_cols_str = ' '.join([str(i) for i in logger.stats_cols])
         self.statsColumns.setText(stats_cols_str)
 
         # Unit conversion factors
-        stats_unit_conv_factors_str = ' '.join([i for i in logger.stats_unit_conv_factors])
+        stats_unit_conv_factors_str = ' '.join([str(i) for i in logger.stats_unit_conv_factors])
         self.statsUnitConvs.setText(stats_unit_conv_factors_str)
+
+        # Stats interval
         self.statsInterval.setText(str(logger.stats_interval))
 
         # Stats start
@@ -1405,10 +1589,10 @@ class LoggerStatsDialog(QtWidgets.QDialog):
 
         logger = self.logger
 
-        # Assign form values to control logger object
-        logger.stats_cols = self.statsColumns.text().split()
-        logger.stats_unit_conv_factors = self.statsUnitConvs.text().split()
-        logger.stats_interval = self.statsInterval.text()
+        # Assign form values to control logger object - convert strings to appropriate data type
+        logger.stats_cols = list(map(int, self.statsColumns.text().split()))
+        logger.stats_unit_conv_factors = list(map(float, self.statsUnitConvs.text().split()))
+        logger.stats_interval = int(self.statsInterval.text())
 
         stats_start = self.statsStart.text()
         if stats_start == 'Not used':

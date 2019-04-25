@@ -1,7 +1,7 @@
 __author__ = 'Craig Dickinson'
 __program__ = 'DataLab'
-__version__ = '0.13'
-__date__ = '24 April 2019'
+__version__ = '0.14'
+__date__ = '25 April 2019'
 
 import logging
 import os
@@ -15,6 +15,7 @@ from PyQt5.QtCore import pyqtSignal
 
 from core.control_file import InputError
 from core.datalab_main import DataLab
+from core.logger_properties import LoggerError
 from core.read_files import (read_spectrograms_csv, read_spectrograms_excel, read_spectrograms_hdf5, read_stats_csv,
                              read_stats_excel, read_stats_hdf5)
 from core.read_files import read_fatlasa_results, read_wcfat_results
@@ -606,6 +607,8 @@ class DataLabGui(QtWidgets.QMainWindow):
                 self.statusBar().showMessage('Control file check - good')
             except InputError as e:
                 self.error(str(e))
+            except LoggerError as e:
+                self.error(str(e))
             except Exception as e:
                 msg = 'Unexpected error checking config file'
                 self.error(f'{msg}:\n{e}\n{sys.exc_info()[0]}')
@@ -624,6 +627,8 @@ class DataLabGui(QtWidgets.QMainWindow):
                 self.worker = ControlFileWorker(self)
             except InputError as e:
                 self.error(f'Reading control file error: {e}')
+            except LoggerError as e:
+                self.error(str(e))
             except Exception as e:
                 msg = 'Unexpected error on processing control file'
                 self.error(f'{msg}:\n{e}\n{sys.exc_info()[0]}')
@@ -732,7 +737,7 @@ class ControlFileWorker(QtCore.QThread):
             # self.parent.statsTab.filtered_ts = self.parent.statsTab.calc_filtered_data(self.df_plot)
             self.parent.statsTab.update_plots()
 
-            # TODO: Load and plot specetrograms data
+            # TODO: Load and plot spectrograms data
             # Store spectrogram datasets and update plot tab
             # self.parent.spectrogramTab.datasets[logger] = df
             # self.parent.spectrogramTab.update_spect_datasets_list(logger)

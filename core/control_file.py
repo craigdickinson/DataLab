@@ -68,10 +68,10 @@ class ControlFile(object):
         # Spectrogram option - array of boolean
         self.create_spectrograms = []
 
-    def set_filename(self, fname):
+    def set_filename(self, filename):
         """Set control file to read from """
 
-        self.control_file = fname
+        self.control_file = filename
 
     def analyse(self):
         """Read all data from control file"""
@@ -122,7 +122,7 @@ class ControlFile(object):
     def ensure_dir_exists(self, directory):
         """Create directory (and intermediate directories) if do not exist."""
 
-        if not os.path.exists(directory):
+        if directory != '' and os.path.exists(directory) is False:
             os.makedirs(directory)
 
     def process_logger_names(self):
@@ -202,7 +202,16 @@ class ControlFile(object):
                 msg += logger.logger_id
                 raise InputError(msg)
 
-            # Assign logger properties
+            # Get file timestamp - *FILE_TIMESTAMP
+            file_timestamp_format = self.get_file_timestamp(data)
+
+            # Key not found
+            if file_timestamp_format == '':
+                msg = f'File timestamp format for {logger.logger_id} not found'
+                raise InputError(msg)
+            logger.file_timestamp_format = file_timestamp_format
+
+            # Assign file format-specific logger properties
             # General file format
             if file_format.lower() == 'general-csv':
                 self.set_general_file_format(logger, logger_data)
@@ -218,6 +227,9 @@ class ControlFile(object):
             else:
                 raise InputError('File format option not recognised.')
 
+            # Set logging duration
+            self.get_logging_duration(logger, logger_data)
+
             # Get header info if not copying a setting of a previous logger
             if copy_file_format == '':
                 # Check for user defined headers and units
@@ -232,8 +244,8 @@ class ControlFile(object):
             # Get filenames and check timestamps
             logger.process_filenames()
 
-            # Select only files within specified date range
-            logger.set_datetime_range(logger.stats_start, logger.stats_end)
+            # Select only files within specified datetime range
+            logger.select_files_in_datetime_range(logger.stats_start, logger.stats_end)
 
             # Select first logger file to detect additional properties and checks on
             test_file = logger.files[0]
@@ -242,10 +254,12 @@ class ControlFile(object):
             if logger.file_format.lower() == 'fugro-csv':
                 # Detect sample rate and timestamp format from first Fugro file
                 self.detect_fugro_file_properties(logger, test_file)
-                self.get_logging_duration(logger, logger_data)
 
             # Detect number of columns and read headers from the first file
             self.detect_file_properties(logger, test_file)
+
+            # Set expected number of points
+            logger.expected_data_points = logger.freq * logger.duration
 
             # Make any user defined units and channels override any detected
             self.user_header_override(logger)
@@ -302,21 +316,12 @@ class ControlFile(object):
         logger_id = logger.logger_id
         logger.file_format = 'General-csv'
 
-        # Get file timestamp - *FILE_TIMESTAMP
-        file_timestamp_format = self.get_file_timestamp(data)
-
-        # Key not found
-        if file_timestamp_format == '':
-            msg = 'File timestamp format for ' + logger_id + ' not found'
-            raise InputError(msg)
-        logger.file_timestamp_format = file_timestamp_format
-
         # Get file extension - *EXTENSION
         logger.file_ext = self.get_extension(data)
 
         # Key not found
         if logger.file_ext == '':
-            msg = 'Extension for ' + logger_id + ' data not found'
+            msg = f'Extension for {logger_id} data not found'
             raise InputError(msg)
 
         # Get file delimiter - *DELIMITER
@@ -324,14 +329,14 @@ class ControlFile(object):
 
         # Key not found
         if logger.file_delimiter == '':
-            msg = 'Delimiter for' + logger_id + ' data not found'
+            msg = f'Delimiter for {logger_id} data not found'
             raise InputError(msg)
 
         # Get number of header lines
         key = '*NUM_HEADERS'
         i, num_rows_str = self.get_key_data(key, data)
         if i < 0:
-            msg = key + ' data not found for ' + logger_id
+            msg = f'{key} data not found for {logger_id}'
             raise InputError(msg)
         logger.num_headers = self.get_integer_key_data(key, num_rows_str)
 
@@ -352,12 +357,10 @@ class ControlFile(object):
         key = '*LOGGING_FREQUENCY'
         i, freq_str = self.get_key_data(key, data)
         if i < 0:
-            msg = key + ' data not found for ' + logger_id
+            msg = f'{key} data not found for {logger_id}'
             raise InputError(msg)
         freq = self.get_float_key_data(key, freq_str)
         logger.freq = freq
-
-        self.get_logging_duration(logger, data)
 
         # Optional keywords
         # Get channel and unit names header numbers
@@ -376,26 +379,6 @@ class ControlFile(object):
 
         logger_id = logger.logger_id
         logger = set_fugro_file_format(logger)
-
-        # Attributes to copy
-        names = ['file_ext',
-                 'file_delimiter',
-                 'num_headers',
-                 'channel_header_row',
-                 'units_header_row',
-                 ]
-
-        # Copy attributes from fugro object to logger
-        # self.copy_logger_attributes(fugro, logger, names)
-
-        # Get file timestamp - *FILE_TIMESTAMP
-        file_timestamp_format = self.get_file_timestamp(data)
-
-        # Key not found
-        if file_timestamp_format == '':
-            msg = 'File timestamp format for ' + logger_id + ' not found'
-            raise InputError(msg)
-        logger.file_timestamp_format = file_timestamp_format
 
         # TODO CD note: num_columns is never used in code! Question if required?
         # Also get total number of columns
@@ -493,7 +476,7 @@ class ControlFile(object):
     def detect_fugro_file_properties(self, logger, file):
         """
         For Fugro logger file detect:
-            sample rate
+            sampling frequency
             timestamp format
         """
 
@@ -549,9 +532,6 @@ class ControlFile(object):
         duration = self.get_float_key_data(key, dur_str)
         logger.duration = duration
 
-        # Set expected number of points
-        logger.expected_data_points = logger.freq * logger.duration
-
     def detect_file_properties(self, logger, file):
         """Detect number of columns and channel names/units from headers of logger file."""
 
@@ -566,7 +546,7 @@ class ControlFile(object):
         # Rows/cols to process
         c = logger.channel_header_row
         u = logger.units_header_row
-        last_stats_col = max(logger.stats_cols) + 1
+        last_stats_col = max(logger.stats_cols)
         first_row = first_row.split(delim)
 
         # Check stats columns make sense
@@ -591,7 +571,7 @@ class ControlFile(object):
 
             # TODO: Issue here if first file doesn't have all columns
             # Keep headers requested
-            # logger.channel_names = [header[i] for i in logger.stats_cols]
+            # logger.channel_names = [header[i - 1] for i in logger.stats_cols]
 
         # Get units for the columns to be processed
         if u > 0:
@@ -604,7 +584,7 @@ class ControlFile(object):
 
             # TODO: Issue here if first file doesn't have all columns
             # Keep headers requested
-            # logger.channel_units = [units[i] for i in logger.stats_cols]
+            # logger.channel_units = [units[i - 1] for i in logger.stats_cols]
 
     def user_header_override(self, logger):
         """Override detected units and headers with user defined values."""
@@ -754,15 +734,15 @@ class ControlFile(object):
             msg = key + ' data not found for ' + logger.logger_id
             raise InputError(msg)
 
-        logger.stats_cols = [int(s) - 1 for s in stats_col_str.split()]
+        logger.stats_cols = list(map(int, stats_col_str.split()))
 
         # Get unit conversion factors (optional)
         key = '*STATS_UNIT_CONV_FACTORS'
         i, unit_conv_factors_str = self.get_key_data(key, data)
         if i != -1:
             try:
-                # Extract and store unit conversion factor
-                unit_conv_factors = [float(s) for s in unit_conv_factors_str.split()]
+                # Extract and store unit conversion factors
+                unit_conv_factors = list(map(float, unit_conv_factors_str.split()))
                 logger.stats_unit_conv_factors = unit_conv_factors
             except ValueError:
                 msg = key + ' each unit conversion factor must be a number'
@@ -854,7 +834,7 @@ class ControlFile(object):
                 return line, key_data
 
         # Return empty string and negative row number if not found
-        return (-1, '')
+        return -1, ''
 
     def get_integer_key_data(self, key, num_str):
         """Extract positive integer from control file data."""

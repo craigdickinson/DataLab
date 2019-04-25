@@ -37,6 +37,7 @@ def read_pulse_acc(filename):
     with open(filename, 'r') as f:
         accreader = csv.reader(f, delimiter=' ')
 
+        # Skip file info headers
         for i in range(17):
             next(accreader)
 
@@ -46,7 +47,7 @@ def read_pulse_acc(filename):
 
         # Read the start timestamp marker
         ts_marker = next(accreader)[1:]
-        ts_marker = [int(i) for i in ts_marker]
+        ts_marker = list(map(int, ts_marker))
 
         for line in accreader:
             line = line[:-1]
@@ -55,7 +56,7 @@ def read_pulse_acc(filename):
         # Convert column names list to be split by ":" not space
         cols = ' '.join(cols).split(':')
 
-        # Lose the "%Data," in thefirst column
+        # Lose the "%Data," in the first column
         cols[0] = cols[0].split(',')[1]
 
         # Create multiindex header of channel names and units
@@ -84,7 +85,7 @@ def read_pulse_acc(filename):
         df = df.set_index(df.columns[0])
         df.index.name = 'Time (s)'
 
-        # Time interval values and insert timestamp column to data frame
+        # Create timestamp column
         ts = df.index.values
         timestamps = [dt_start + timedelta(seconds=t) for t in ts]
         df.insert(loc=0, column='Timestamp', value=timestamps)

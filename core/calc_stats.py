@@ -7,7 +7,7 @@ import numpy as np
 
 
 class LoggerStats(object):
-    """Screen data from a list of file names and store stats."""
+    """Screen data from a list of filenames and store stats."""
 
     def __init__(self):
         """Lists for stats of each channel."""

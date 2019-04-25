@@ -207,7 +207,7 @@ class TimeSeriesPlotWidget(QtWidgets.QWidget):
 
         self.df = self.read_logger_file(filename)
 
-        # Store logger ID (assume the first portion of the file name)
+        # Store logger ID (assume the first portion of the filename)
         self.logger_id = filename.split('_')[0]
 
         # Store channel names and units - ignore column 1 (Timestamps)

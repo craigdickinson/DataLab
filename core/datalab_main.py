@@ -30,7 +30,7 @@ prog_info = 'Program to perform signal processing on logger data'
 def parse_args(args):
     """Parse command line arguments."""
 
-    parser = argparse.ArgumentParser(prog='DSPLab', description=prog_info)
+    parser = argparse.ArgumentParser(prog='DataLab', description=prog_info)
     parser.add_argument('-V', '--version',
                         version='%(prog)s (version 0.1)',
                         action='version'
@@ -38,27 +38,25 @@ def parse_args(args):
     parser.add_argument('datfile',
                         action='store',
                         type=argparse.FileType('r'),
-                        help=('specify the controlling *.dat file'
-                              ' including extension'))
+                        help='specify the controlling *.dat file including extension')
 
     return parser.parse_args(args)
 
 
 class DataLab(QThread):
-    """
-    Class for main DataLab program. Defined as a thread object for use with gui.
-    """
+    """Class for main DataLab program. Defined as a thread object for use with gui."""
 
     # Signal to report logger file processing progress
     notify_progress = pyqtSignal(int, int)
 
-    def __init__(self, datfile=''):
+    def __init__(self, datfile='', no_dat=False):
         super().__init__()
 
-        # Get dat file from command line if not already supplied
-        if not datfile:
-            parser = parse_args(sys.argv[1:])
-            datfile = parser.datfile.name
+        if no_dat is False:
+            # Get dat file from command line if not already supplied
+            if datfile == '':
+                parser = parse_args(sys.argv[1:])
+                datfile = parser.datfile.name
 
         self.datfile = datfile
         self.control = None
@@ -108,7 +106,7 @@ class DataLab(QThread):
             self.logger_path = logger.logger_path
 
             # Add any bad filenames to screening report
-            data_report.add_bad_filenames(logger, logger.bad_filenames)
+            data_report.add_bad_filenames(logger.logger_id, logger.bad_filenames_dict)
 
             # Create object to store stats and data screening results
             data_screen.append(DataScreen())
@@ -143,7 +141,7 @@ class DataLab(QThread):
                 progress += ' file ' + str(j + 1) + ' of ' + str(n) + ' (' + filename + ')'
                 print('\r%s' % progress, end='')
 
-                # Read the file into a pandas dataframe and parse dates and floats
+                # Read the file into a pandas data frame and parse dates and floats
                 df = data_screen[i].read_logger_file(f)
 
                 # Perform basic screening checks on file - check file has expected number of data points
@@ -176,9 +174,9 @@ class DataLab(QThread):
                 self.notify_progress.emit(j + 1, n)
 
             # Add any files containing errors to screening report
-            data_report.add_files_with_bad_data(logger, data_screen[i].bad_files)
+            data_report.add_files_with_bad_data(logger.logger_id, data_screen[i].bad_files_dict)
 
-            # Create dataframe of logger stats and store
+            # Create data frame of logger stats and store
             stats_out.compile_stats_dataframe(logger, data_screen[i], logger_stats[i])
 
             if self.stats_file_type == 'csv':
@@ -218,12 +216,12 @@ class DataLab(QThread):
 if __name__ == '__main__':
     direc = r'C:\Users\dickinsc\PycharmProjects\_2. DataLab Analysis Files\21239\2. Control Files'
     # direc = r'C:\Users\dickinsc\PycharmProjects\DataLab\Demo Data\2. Control Files'
-    # f = ''
     f = 'controlfile_21239.dat'
     # f = 'controlfile1_all_loggers.dat'
     # f = 'example_control_files/controlfile.dat'
     # f = 'controlfile_21239_acc.dat'
     f = os.path.join(direc, f)
+    f = ''
     datalab = DataLab(datfile=f)
 
     try:

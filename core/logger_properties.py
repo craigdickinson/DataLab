@@ -4,7 +4,6 @@ Created on 5 Aug 2016
 @author: bowdenc
 """
 import os
-from datetime import datetime
 from glob import glob
 
 from dateutil.parser import parse
@@ -18,8 +17,8 @@ class Error(Exception):
     pass
 
 
-class InputError(Error):
-    """Exception raised for errors in the input.
+class LoggerError(Error):
+    """Exception raised for errors in the logger properties.
 
     Attributes:
         message -- explanation of the error
@@ -93,14 +92,15 @@ class LoggerProperties(object):
         self.dates = []
 
         # Dictionary of files with bad timestamps
-        self.bad_filenames = {}
+        self.bad_filenames_dict = {}
 
         # Recording properties
         self.freq = 0  # *LOGGING_FREQUENCY
         self.duration = 0  # *LOGGING_DURATION
         self.expected_data_points = 0
 
-        # Processing start and end dates - these hold sampling dates and not the control file start/end dates
+        # Processing start and end dates
+        # These hold sampling dates and not the control file stats start/end dates (which may not be provided)
         self.start_date = None
         self.end_date = None
 
@@ -121,12 +121,12 @@ class LoggerProperties(object):
         self.check_file_timestamps()
 
     def get_filenames(self):
-        """Get all filenames with specified extension."""
+        """Get all filenames with specified extension in logger path."""
 
         self.raw_filenames = [os.path.basename(f) for f in glob(self.logger_path + '/*.' + self.file_ext)]
 
         if not self.raw_filenames:
-            raise InputError('No ' + self.logger_id + ' logger files found in ' + self.logger_path)
+            raise LoggerError(f'No {self.logger_id} logger files found in {self.logger_path}')
 
     def get_timestamp_span(self):
         """Extract timestamp code spans using filename format given in control file."""
@@ -145,6 +145,9 @@ class LoggerProperties(object):
 
     def check_file_timestamps(self):
         """Check timestamps in all logger filenames are valid."""
+
+        self.files = []
+        self.file_timestamps = []
 
         for f in self.raw_filenames:
             y = f[self.year_span[0]:self.year_span[1]]
@@ -167,15 +170,14 @@ class LoggerProperties(object):
             # Try to convert string to date
             try:
                 date = parse(datetime_str, yearfirst=True)
-                date2 = datetime.strptime(datetime_str, '%Y-%m-%d %H:%M')  # Alternative to dateutil
             except ValueError:
-                self.bad_filenames[f] = 'Unable to parse datetime from filename'
+                self.bad_filenames_dict[f] = 'Unable to parse datetime from filename'
             else:
                 # Append if date is successfully parsed
                 self.files.append(f)
                 self.file_timestamps.append(date)
 
-    def set_datetime_range(self, start_date=None, end_date=None):
+    def select_files_in_datetime_range(self, start_date=None, end_date=None):
         """
         Filter out dates outside start_date, end_date range.
         :param start_date: datetime
@@ -194,20 +196,20 @@ class LoggerProperties(object):
             self.end_date = max(self.file_timestamps)
 
         dates_files = [(d, f) for d, f in zip(self.file_timestamps, self.files)
-                       if ((d >= self.start_date) and (d <= self.end_date))]
+                       if self.start_date <= d <= self.end_date]
 
-        # Make sure files are processed in correct order
+        # Make sure files are processed in correct order (and make sure they are lists not tuples)
         try:
             d, f = list(zip(*sorted(dates_files)))
-            self.file_timestamps = d
-            self.files = f
+            self.file_timestamps = list(d)
+            self.files = list(f)
         # Empty lists
-        except Exception:
-            msg = 'No valid logger files found within date range input for ' + self.logger_id
-            msg += '\n Check date range and file timestamp inputs'
-            raise InputError(msg)
+        except ValueError:
+            msg = f'No valid logger files found within date range input for {self.logger_id}.\n' \
+                f'Check date range and file timestamp inputs.'
+            raise LoggerError(msg)
 
-    def detect_fugro_file_properties(self, logger):
+    def detect_fugro_logger_properties(self, logger):
         """
         For Fugro logger file detect:
             sample frequency
@@ -230,7 +232,7 @@ class LoggerProperties(object):
             logger.freq = int(1 / sample_interval)
         else:
             msg = f'Could not read sample interval for logger {logger.logger_id}\nFile: {test_filename}'
-            raise InputError(msg)
+            raise LoggerError(msg)
 
         # Read headers
         header, units = read_headers(test_file)
