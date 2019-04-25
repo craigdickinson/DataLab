@@ -624,7 +624,7 @@ class DataLabGui(QtWidgets.QMainWindow):
             self.statusBar().showMessage('Error: Load a control file (*.dat) first')
         else:
             try:
-                self.worker = ControlFileWorker(self)
+                self.worker = ControlFileWorkerDat(self)
             except InputError as e:
                 self.error(f'Reading control file error: {e}')
             except LoggerError as e:
@@ -637,6 +637,49 @@ class DataLabGui(QtWidgets.QMainWindow):
                 self.setEnabled(False)
                 self.worker.start()
                 self.worker.signal_error.connect(self.error)
+
+    def process_datalab_config(self, control):
+        """Run statistical and spectral analysis in config setup."""
+
+        try:
+            # First get all raw data filenames for all loggers to be processed and perform some screening checks
+            # Get raw filenames, check timestamps and select files in processing datetime range
+            for logger in control.loggers:
+                logger.process_filenames()
+                logger.select_files_in_datetime_range(logger.stats_start, logger.stats_end)
+                logger.expected_data_points = logger.freq * logger.duration
+                logger.channel_names = logger.user_channel_names
+                logger.channel_units = logger.user_channel_units
+
+            # Create output folder if necessary
+            control.ensure_dir_exists(control.output_folder)
+
+            # Check all ids are unique
+            control.check_logger_ids(control.logger_ids)
+        except InputError as e:
+            return self.error(str(e))
+        except LoggerError as e:
+            return self.error(str(e))
+        except Exception as e:
+            self.error(str(e))
+            return logging.exception(str(e))
+
+        # QThread
+        try:
+            # Create datalab object, map control data and process
+            datalab = DataLab(no_dat=True)
+            datalab.control = control
+            datalab.control.create_spectrograms = [False, False]
+
+            # Create worker object
+            self.worker = ControlFileWorker(datalab, parent=self)
+            self.worker.signal_error.connect(self.error)
+            self.worker.signal_datalab.connect(self.set_datalab_output_to_gui)
+            self.worker.start()
+        except Exception as e:
+            msg = 'Unexpected error on processing control file'
+            self.error(f'{msg}:\n{e}\n{sys.exc_info()[0]}')
+            logging.exception(msg)
 
     def set_datalab_output_to_gui(self, datalab):
         """Map results from statistical analysis to the GUI."""
@@ -720,10 +763,147 @@ class ControlFileWorker(QtCore.QThread):
     signal_status = pyqtSignal(bool)
     runtime = pyqtSignal(str)
     signal_error = pyqtSignal(str)
+    signal_datalab = pyqtSignal(object)
+
+    def __init__(self, datalab, parent=None):
+        """Worker class to allow control file processing on a separate thread to the gui."""
+        super(ControlFileWorker, self).__init__(parent)
+
+        # self.id = QtCore.QThread.currentThreadId()
+        # print(self.id)
+        self.parent = parent
+
+        # DataLab processing object
+        self.datalab = datalab
+
+        # Initialise progress bar
+        self.pb = ControlFileProgressBar()
+        self.pb.quit_worker_signal.connect(self.quit_worker)
+        self.datalab.notify_progress.connect(self.pb.update_progress_bar)
+        self.runtime.connect(self.pb.report_runtime)
+
+    def run(self):
+        """Override of thread run method to process control file."""
+
+        try:
+            self.parent.setEnabled(False)
+            t0 = time()
+
+            # Run DataLab processing; compute and write requested logger statistics and spectrograms
+            self.datalab.process_control_file()
+
+            # # For each logger create stats dataset object containing data, logger id, list of channels and
+            # # pri/sec plot flags and add to stats plot class
+            # for logger, df in self.datalab.stats_dict.items():
+            #     dataset = StatsDataset(logger_id=logger, df=df)
+            #     self.parent.parent.statsTab.datasets.append(dataset)
+            #
+            # # Store dataset/logger names from dictionary keys
+            # dataset_ids = list(self.datalab.stats_dict.keys())
+            #
+            # # TODO: Weird QObject warning gets raised here - resolve
+            # self.parent.parent.statsTab.update_stats_datasets_list(dataset_ids)
+            #
+            # # Plot stats
+            # # self.parent.statsTab.set_plot_data(init=True)
+            # # self.parent.statsTab.filtered_ts = self.parent.statsTab.calc_filtered_data(self.df_plot)
+            # self.parent.parent.statsTab.update_plots()
+            #
+            # # TODO: Load and plot spectrograms data
+            # # Store spectrogram datasets and update plot tab
+            # # self.parent.spectrogramTab.datasets[logger] = df
+            # # self.parent.spectrogramTab.update_spect_datasets_list(logger)
+            #
+            # # Update variance plot tab - plot update is triggered upon setting dataset list index
+            # self.parent.parent.varianceTab.datasets = self.datalab.stats_dict
+            # self.parent.parent.varianceTab.update_variance_datasets_list(dataset_ids)
+            # self.parent.parent.varianceTab.datasetList.setCurrentRow(0)
+            # self.parent.parent.varianceTab.update_variance_plot(init_plot=True)
+            # self.parent.parent.view_stats_tab()
+
+            t = str(timedelta(seconds=round(time() - t0)))
+            self.runtime.emit(t)
+            self.signal_datalab.emit(self.datalab)
+        except Exception as e:
+            msg = 'Unexpected error on processing control file'
+            self.signal_error.emit(f'{msg}:\n{e}\n{sys.exc_info()[0]}')
+            logging.exception(msg)
+        finally:
+            self.parent.setEnabled(True)
+            # self.quit()
+            # self.wait()
+
+    def quit_worker(self):
+        """Quit thread on progress bar cancel button clicked."""
+
+        if self.isRunning():
+            # TODO: Should find a better way of doing this by setting an external flag
+            self.terminate()
+            self.wait()
+
+        self.pb.close()
+        self.parent.setEnabled(True)
+
+
+class ControlFileProgressBar(QtWidgets.QDialog):
+    """Progress bar window for processing control file."""
+
+    quit_worker_signal = pyqtSignal()
+
+    def __init__(self):
+        super().__init__()
+
+        # self.setFixedSize(400, 80)
+        self.setFixedWidth(400)
+        self.setWindowTitle('Processing Logger Statistics')
+        layout = QtWidgets.QVBoxLayout(self)
+        self.label = QtWidgets.QLabel(self)
+        self.progressBar = QtWidgets.QProgressBar(self)
+        self.msgProcessingComplete = QtWidgets.QLabel(self)
+        layout.addWidget(self.label)
+        layout.addWidget(self.progressBar)
+        layout.addWidget(self.msgProcessingComplete)
+
+        self.buttonBox = QtWidgets.QDialogButtonBox(
+            QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel)
+        self.buttonBox.accepted.connect(self.accept)
+        self.buttonBox.rejected.connect(self.cancel)
+        self.buttonBox.button(QtWidgets.QDialogButtonBox.Ok).setEnabled(False)
+        layout.addWidget(self.buttonBox)
+
+        self.show()
+
+    def cancel(self):
+        """Cancel progress bar."""
+
+        print('\nStop!!!')
+        self.quit_worker_signal.emit()
+
+    def update_progress_bar(self, i, n):
+        """Update progress bar window."""
+
+        self.label.setText('Processing logger file ' + str(i) + ' of ' + str(n))
+
+        p = (i / n) * 100
+        self.progressBar.setValue(p)
+        if int(p) == 100:
+            self.buttonBox.button(QtWidgets.QDialogButtonBox.Ok).setEnabled(True)
+        # self.close()
+
+    def report_runtime(self, t):
+        self.msgProcessingComplete.setText('Processing complete: elapsed time = ' + t)
+
+
+class ControlFileWorkerDat(QtCore.QThread):
+    """Worker class to process control file in separate thread."""
+
+    signal_status = pyqtSignal(bool)
+    runtime = pyqtSignal(str)
+    signal_error = pyqtSignal(str)
 
     def __init__(self, parent=None):
         """Worker class to allow control file processing on a separate thread to the gui."""
-        super(ControlFileWorker, self).__init__(parent)
+        super(ControlFileWorkerDat, self).__init__(parent)
 
         # self.id = QtCore.QThread.currentThreadId()
         # print(self.id)
@@ -802,55 +982,6 @@ class ControlFileWorker(QtCore.QThread):
 
         self.pb.close()
         self.parent.setEnabled(True)
-
-
-class ControlFileProgressBar(QtWidgets.QDialog):
-    """Progress bar window for processing control file."""
-
-    quit_worker_signal = pyqtSignal()
-
-    def __init__(self):
-        super().__init__()
-
-        # self.setFixedSize(400, 80)
-        self.setFixedWidth(400)
-        self.setWindowTitle('Processing Logger Statistics')
-        layout = QtWidgets.QVBoxLayout(self)
-        self.label = QtWidgets.QLabel(self)
-        self.progressBar = QtWidgets.QProgressBar(self)
-        self.msgProcessingComplete = QtWidgets.QLabel(self)
-        layout.addWidget(self.label)
-        layout.addWidget(self.progressBar)
-        layout.addWidget(self.msgProcessingComplete)
-
-        self.buttonBox = QtWidgets.QDialogButtonBox(
-            QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel)
-        self.buttonBox.accepted.connect(self.accept)
-        self.buttonBox.rejected.connect(self.cancel)
-        self.buttonBox.button(QtWidgets.QDialogButtonBox.Ok).setEnabled(False)
-        layout.addWidget(self.buttonBox)
-
-        self.show()
-
-    def cancel(self):
-        """Cancel progress bar."""
-
-        print('\nStop!!!')
-        self.quit_worker_signal.emit()
-
-    def update_progress_bar(self, i, n):
-        """Update progress bar window."""
-
-        self.label.setText('Processing logger file ' + str(i) + ' of ' + str(n))
-
-        p = (i / n) * 100
-        self.progressBar.setValue(p)
-        if int(p) == 100:
-            self.buttonBox.button(QtWidgets.QDialogButtonBox.Ok).setEnabled(True)
-        # self.close()
-
-    def report_runtime(self, t):
-        self.msgProcessingComplete.setText('Processing complete: elapsed time = ' + t)
 
 
 class QtDesignerGui(QtWidgets.QMainWindow, datalab_gui_layout.Ui_MainWindow):
