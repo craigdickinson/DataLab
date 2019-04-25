@@ -153,6 +153,7 @@ class ConfigModule(QtWidgets.QWidget):
         self.loggerPropsTab = LoggerPropertiesTab(self)
         self.statsTab = StatsSettingsTab(self)
         self.spectralTab = SpectralSettingsTab(self)
+
         self.tabsContainer.addTab(self.campaignTab, 'Campaign Info')
         self.tabsContainer.addTab(self.loggerPropsTab, 'Logger File Properties')
         self.tabsContainer.addTab(self.statsTab, 'Statistical Analysis')

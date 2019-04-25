@@ -221,7 +221,7 @@ if __name__ == '__main__':
     # f = 'example_control_files/controlfile.dat'
     # f = 'controlfile_21239_acc.dat'
     f = os.path.join(direc, f)
-    f = ''
+    # f = ''
     datalab = DataLab(datfile=f)
 
     try:

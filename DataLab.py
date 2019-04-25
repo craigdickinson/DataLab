@@ -1,6 +1,6 @@
 __author__ = 'Craig Dickinson'
 __program__ = 'DataLab'
-__version__ = '0.14'
+__version__ = '0.15'
 __date__ = '25 April 2019'
 
 import logging
@@ -67,10 +67,6 @@ class DataLabGui(QtWidgets.QMainWindow):
         self.projConfigModule = ConfigModule(self)
         self.projectConfigTab = self.projConfigModule.campaignTab
 
-        # self.projConfigModule = QtWidgets.QTabWidget()
-        # self.projectConfigTab = ProjectConfig(self)
-        # self.projConfigModule.addTab(self.projectConfigTab, 'Project Config')
-
         # Raw data inspection module
         self.rawDataModule = QtWidgets.QTabWidget()
         self.timeSeriesTab = TimeSeriesPlotWidget(self)
@@ -78,13 +74,11 @@ class DataLabGui(QtWidgets.QMainWindow):
 
         # Screening module container and tab widgets
         self.screeningModule = QtWidgets.QTabWidget()
-        self.controlTab = self.control_widget()
         self.statsTab = StatsWidget(self)
         self.vesselStatsTab = VesselStatsWidget(self)
         self.varianceTab = VarianceWidget()
         self.scatterTab = SeascatterDiagram(self)
         self.spectrogramTab = SpectrogramWidget(self)
-        self.screeningModule.addTab(self.controlTab, 'Input')
         self.screeningModule.addTab(self.statsTab, 'Statistics')
         self.screeningModule.addTab(self.vesselStatsTab, 'Vessel Statistics')
         self.screeningModule.addTab(self.scatterTab, 'Seascatter Diagram')
@@ -129,36 +123,19 @@ class DataLabGui(QtWidgets.QMainWindow):
         # File menu
         # Open submenu
         openMenu = menuFile.addMenu('&Open')
-        self.openControlFile = QtWidgets.QAction('Control File')
-        self.openControlFile.setShortcut('Ctrl+Shift+C')
-        self.openControlFile.setStatusTip('Open control file (*.dat)')
+        self.loadConfigFile = QtWidgets.QAction('Config File')
+        self.loadConfigFile.setShortcut('Ctrl+Shift+C')
+        self.loadConfigFile.setStatusTip('Load config file (*.json)')
         self.openLoggerFile = QtWidgets.QAction('Logger File')
         self.openLoggerFile.setShortcut('Ctrl+O')
         self.openLoggerStats = QtWidgets.QAction('Logger Stats')
         self.openLoggerStats.setShortcut('Ctrl+Shift+O')
         self.openSpectrograms = QtWidgets.QAction('Spectrograms')
         self.openSpectrograms.setShortcut('Ctrl+Shift+S')
-        openMenu.addAction(self.openControlFile)
+        openMenu.addAction(self.loadConfigFile)
         openMenu.addAction(self.openLoggerFile)
         openMenu.addAction(self.openLoggerStats)
         openMenu.addAction(self.openSpectrograms)
-
-        # Save control file
-        self.saveControlFile = QtWidgets.QAction('Save Control File')
-        # self.saveControlFile.setShortcut('Ctrl+Shift+S')
-        self.saveControlFile.setStatusTip('Save control file (*.dat)')
-        menuFile.addAction(self.saveControlFile)
-
-        # Logger paths submenu
-        loggerPathMenu = menuFile.addMenu('Set Logger File Paths')
-        self.BOPPrimary = QtWidgets.QAction('BOP Primary')
-        self.BOPBackup = QtWidgets.QAction('BOP Backup')
-        self.LMRPPrimary = QtWidgets.QAction('LMRP Primary')
-        self.LMRPBackup = QtWidgets.QAction('LMRP Backup')
-        loggerPathMenu.addAction(self.BOPPrimary)
-        loggerPathMenu.addAction(self.BOPBackup)
-        loggerPathMenu.addAction(self.LMRPPrimary)
-        loggerPathMenu.addAction(self.LMRPBackup)
 
         # View menu
         self.showControlScreen = QtWidgets.QAction('Control/Processing')
@@ -210,6 +187,7 @@ class DataLabGui(QtWidgets.QMainWindow):
         self.screeningButton = QtWidgets.QPushButton('Screening')
         self.transFuncsButton = QtWidgets.QPushButton('Transfer Functions')
         self.fatigueButton = QtWidgets.QPushButton('Fatigue Analysis')
+
         self.toolBar.addWidget(QtWidgets.QLabel('Modules:'))
         self.toolBar.addWidget(self.projConfigButton)
         self.toolBar.addWidget(self.rawDataButton)
@@ -220,52 +198,20 @@ class DataLabGui(QtWidgets.QMainWindow):
         self.update_tool_buttons('config')
         # self.toolBar.setStyleSheet('QToolBar{spacing:3px;}')
 
-    def control_widget(self):
-        """Control/input widget."""
-
-        controlScreen = QtWidgets.QWidget()
-        grid = QtWidgets.QGridLayout()
-        controlScreen.setLayout(grid)
-
-        self.controls = QtWidgets.QWidget()
-        vbox = QtWidgets.QVBoxLayout()
-        self.controls.setLayout(vbox)
-        self.controls.setFixedHeight(150)
-
-        # Widgets
-        self.controlFileEdit = QtWidgets.QTextEdit()
-        self.openControlFileButton = QtWidgets.QPushButton('Open Control File')
-        self.saveControlFileButton = QtWidgets.QPushButton('Save Control File')
-        self.checkControlFileButton = QtWidgets.QPushButton('Check Control File')
-        self.processControlFileButton = QtWidgets.QPushButton('Process')
-
-        vbox.addWidget(self.openControlFileButton)
-        vbox.addWidget(self.saveControlFileButton)
-        vbox.addWidget(self.checkControlFileButton)
-        vbox.addWidget(self.processControlFileButton)
-
-        grid.addWidget(self.controls, 0, 0, QtCore.Qt.AlignTop)
-        grid.addWidget(self.controlFileEdit, 0, 1)
-
-        return controlScreen
-
     def connect_signals(self):
         """Connect widget signals to methods/actions."""
 
         # File menu
+        self.loadConfigFile.triggered.connect(self.projConfigModule.load_config_file)
         self.openLoggerFile.triggered.connect(self.load_logger_file)
-        self.openControlFile.triggered.connect(self.open_control_file)
-        self.saveControlFile.triggered.connect(self.save_control_file)
         self.openLoggerStats.triggered.connect(self.load_stats_file_from_file_menu)
         self.openSpectrograms.triggered.connect(self.load_spectrograms_file)
-        self.BOPPrimary.triggered.connect(self.set_directory)
 
         # View menu
-        self.showControlScreen.triggered.connect(self.view_control_tab)
         self.showPlotScreen.triggered.connect(self.view_screening_mod)
 
         # Process menu
-        self.calcStats.triggered.connect(self.process_control_file)
+        # self.calcStats.triggered.connect(self.process_control_file)
         self.genScatterDiag.triggered.connect(self.gen_scatter_diag)
 
         # Plot menu
@@ -287,12 +233,6 @@ class DataLabGui(QtWidgets.QMainWindow):
         self.transFuncsButton.clicked.connect(self.view_transfer_funcs_mod)
         self.fatigueButton.clicked.connect(self.view_fatigue_mod)
 
-        # Control buttons
-        self.openControlFileButton.clicked.connect(self.open_control_file)
-        self.saveControlFileButton.clicked.connect(self.save_control_file)
-        self.checkControlFileButton.clicked.connect(self.analyse_control_file)
-        self.processControlFileButton.clicked.connect(self.process_control_file)
-
     def message_information(self, title, message, buttons=QtWidgets.QMessageBox.Ok):
         return QtWidgets.QMessageBox.information(self, title, message, buttons)
 
@@ -310,18 +250,6 @@ class DataLabGui(QtWidgets.QMainWindow):
     def warning(self, message):
         print(f'Warning: {message}')
         self.message_information('Warning', message)
-
-    def open_control_file(self):
-        """Open control file *.dat."""
-
-        self.datfile, _ = QtWidgets.QFileDialog.getOpenFileName(self, 'Open Control File',
-                                                                filter='Control Files (*.dat)')
-        if self.datfile:
-            self.view_control_tab()
-
-            with open(self.datfile, 'r') as f:
-                text = f.read()
-                self.controlFileEdit.setText(text)
 
     def load_logger_file(self):
         """Load raw logger time series file."""
@@ -478,20 +406,6 @@ class DataLabGui(QtWidgets.QMainWindow):
         else:
             self.plot_2h.remove_2H_icon()
 
-    def set_directory(self):
-        """Set root path for logger files."""
-
-        self.bop_p_path = QtWidgets.QFileDialog.getExistingDirectory(self, 'Select Directory')
-
-    def save_control_file(self):
-        """Save control file *.dat."""
-
-        fname, _ = QtWidgets.QFileDialog.getSaveFileName(self, 'Save Control File', filter='Control Files (*.dat)')
-        if fname:
-            with open(fname, 'w') as f:
-                text = self.controlFileEdit.toPlainText()
-                f.write(text)
-
     def show_about(self):
         """Show program version info message box."""
 
@@ -534,11 +448,6 @@ class DataLabGui(QtWidgets.QMainWindow):
     def view_fatigue_mod(self):
         self.update_tool_buttons('fatigue')
         self.modulesWidget.setCurrentWidget(self.fatigueModule)
-
-    def view_control_tab(self):
-        self.update_tool_buttons('screening')
-        self.modulesWidget.setCurrentWidget(self.screeningModule)
-        self.screeningModule.setCurrentWidget(self.controlTab)
 
     def view_stats_tab(self):
         self.update_tool_buttons('screening')
@@ -614,30 +523,6 @@ class DataLabGui(QtWidgets.QMainWindow):
                 msg = 'Unexpected error checking config file'
                 self.error(f'{msg}:\n{e}\n{sys.exc_info()[0]}')
                 logging.exception(str(e))
-
-    def process_control_file(self):
-        """Run control file *.dat."""
-
-        os.chdir(self.root)
-
-        # Inform user no dat file loaded
-        if not self.datfile:
-            self.statusBar().showMessage('Error: Load a control file (*.dat) first')
-        else:
-            try:
-                self.worker = ControlFileWorkerDat(self)
-            except InputError as e:
-                self.error(f'Reading control file error: {e}')
-            except LoggerError as e:
-                self.error(str(e))
-            except Exception as e:
-                msg = 'Unexpected error on processing control file'
-                self.error(f'{msg}:\n{e}\n{sys.exc_info()[0]}')
-                logging.exception(msg)
-            else:
-                self.setEnabled(False)
-                self.worker.start()
-                self.worker.signal_error.connect(self.error)
 
     def process_datalab_config(self, control):
         """Run statistical and spectral analysis in config setup."""
@@ -869,96 +754,6 @@ class ControlFileProgressBar(QtWidgets.QDialog):
     @pyqtSlot(str)
     def report_runtime(self, t):
         self.msgProcessingComplete.setText('Processing complete: elapsed time = ' + t)
-
-
-class ControlFileWorkerDat(QtCore.QThread):
-    """Worker class to process control file in separate thread."""
-
-    signal_status = pyqtSignal(bool)
-    runtime = pyqtSignal(str)
-    signal_error = pyqtSignal(str)
-
-    def __init__(self, parent=None):
-        """Worker class to allow control file processing on a separate thread to the gui."""
-        super(ControlFileWorkerDat, self).__init__(parent)
-
-        # self.id = QtCore.QThread.currentThreadId()
-        # print(self.id)
-        self.parent = parent
-
-        # DataLab processing object
-        self.datalab = DataLab(self.parent.datfile)
-        try:
-            self.datalab.analyse_control_file()
-        except Exception:
-            # Handle error in parent class
-            raise
-
-        # Initialise progress bar
-        self.pb = ControlFileProgressBar()
-        self.pb.signal_quit_worker.connect(self.quit_worker)
-        self.datalab.signal_notify_progress.connect(self.pb.update_progress_bar)
-        self.runtime.connect(self.pb.report_runtime)
-
-    def run(self):
-        """Override of thread run method to process control file."""
-
-        try:
-            t0 = time()
-            self.parent.statusBar().showMessage('')
-
-            # Run DataLab processing; compute and write requested logger statistics and spectrograms
-            self.datalab.process_control_file()
-
-            # For each logger create stats dataset object containing data, logger id, list of channels and
-            # pri/sec plot flags and add to stats plot class
-            for logger, df in self.datalab.stats_dict.items():
-                dataset = StatsDataset(logger_id=logger, df=df)
-                self.parent.statsTab.datasets.append(dataset)
-
-            # Store dataset/logger names from dictionary keys
-            dataset_ids = list(self.datalab.stats_dict.keys())
-
-            # TODO: Weird QObject warning gets raised here - resolve
-            self.parent.statsTab.update_stats_datasets_list(dataset_ids)
-
-            # Plot stats
-            # self.parent.statsTab.set_plot_data(init=True)
-            # self.parent.statsTab.filtered_ts = self.parent.statsTab.calc_filtered_data(self.df_plot)
-            self.parent.statsTab.update_plots()
-
-            # TODO: Load and plot spectrograms data
-            # Store spectrogram datasets and update plot tab
-            # self.parent.spectrogramTab.datasets[logger] = df
-            # self.parent.spectrogramTab.update_spect_datasets_list(logger)
-
-            # Update variance plot tab - plot update is triggered upon setting dataset list index
-            self.parent.varianceTab.datasets = self.datalab.stats_dict
-            self.parent.varianceTab.update_variance_datasets_list(dataset_ids)
-            self.parent.varianceTab.datasetList.setCurrentRow(0)
-            self.parent.varianceTab.update_variance_plot(init_plot=True)
-            self.parent.view_stats_tab()
-            t = str(timedelta(seconds=round(time() - t0)))
-            self.runtime.emit(t)
-        except Exception as e:
-            msg = 'Unexpected error on processing control file'
-            self.signal_error.emit(f'{msg}:\n{e}\n{sys.exc_info()[0]}')
-            logging.exception(msg)
-        finally:
-            self.parent.setEnabled(True)
-            # self.quit()
-            # self.wait()
-
-    def quit_worker(self):
-        """Quit thread on progress bar cancel button clicked."""
-
-        if self.isRunning():
-            # TODO: Should find a better way of doing this by setting an external flag
-            self.terminate()
-            self.wait()
-
-        self.pb.close()
-        self.parent.setEnabled(True)
 
 
 class QtDesignerGui(QtWidgets.QMainWindow, datalab_gui_layout.Ui_MainWindow):
