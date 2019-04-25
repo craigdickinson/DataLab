@@ -303,36 +303,30 @@ class ConfigModule(QtWidgets.QWidget):
 
             # Check all ids are unique
             self.control.check_logger_ids(self.control.logger_ids)
-
-            # Create datalab object, map control data and process
-            # self.datalab = DataLab(no_dat=True)
-            # self.datalab.control = self.control
-            # # TODO: Temp fix
-            # self.datalab.control.create_spectrograms = [False, False]
-            # self.datalab.process_control_file()
         except InputError as e:
-            self.parent.error(str(e))
+            return self.parent.error(str(e))
         except LoggerError as e:
-            self.parent.error(str(e))
+            return self.parent.error(str(e))
         except Exception as e:
             self.parent.error(str(e))
-            logging.exception(str(e))
+            return logging.exception(str(e))
 
         # QThread
         try:
-            self.worker = ControlFileWorker(self.control,parent=self)
-        except InputError as e:
-            self.parent.error(f'Reading control file error: {e}')
-        except LoggerError as e:
-            self.parent.error(str(e))
+            # Create datalab object, map control data and process
+            datalab = DataLab(no_dat=True)
+            datalab.control = self.control
+            datalab.control.create_spectrograms = [False, False]
+
+            # Create worker object
+            self.worker = ControlFileWorker(datalab, parent=self)
+            self.worker.signal_error.connect(self.parent.error)
+            self.worker.signal_datalab.connect(self.parent.set_datalab_output_to_gui)
+            self.worker.start()
         except Exception as e:
             msg = 'Unexpected error on processing control file'
             self.parent.error(f'{msg}:\n{e}\n{sys.exc_info()[0]}')
             logging.exception(msg)
-        else:
-            self.parent.setEnabled(False)
-            self.worker.start()
-            self.worker.signal_error.connect(self.parent.error)
 
     def get_key_value(self, id, data, key, attr=None):
         """Assign data from a JSON key to control object attribute."""
@@ -541,8 +535,9 @@ class ControlFileWorker(QtCore.QThread):
     signal_status = pyqtSignal(bool)
     runtime = pyqtSignal(str)
     signal_error = pyqtSignal(str)
+    signal_datalab = pyqtSignal(object)
 
-    def __init__(self, control, parent=None):
+    def __init__(self, datalab, parent=None):
         """Worker class to allow control file processing on a separate thread to the gui."""
         super(ControlFileWorker, self).__init__(parent)
 
@@ -551,9 +546,7 @@ class ControlFileWorker(QtCore.QThread):
         self.parent = parent
 
         # DataLab processing object
-        self.datalab = DataLab(no_dat=True)
-        self.datalab.control = control
-        self.datalab.control.create_spectrograms = [False, False]
+        self.datalab = datalab
 
         # Initialise progress bar
         self.pb = ControlFileProgressBar()
@@ -565,39 +558,41 @@ class ControlFileWorker(QtCore.QThread):
         """Override of thread run method to process control file."""
 
         try:
+            self.parent.parent.setEnabled(False)
             t0 = time()
 
             # Run DataLab processing; compute and write requested logger statistics and spectrograms
             self.datalab.process_control_file()
 
-            # For each logger create stats dataset object containing data, logger id, list of channels and
-            # pri/sec plot flags and add to stats plot class
-            for logger, df in self.datalab.stats_dict.items():
-                dataset = StatsDataset(logger_id=logger, df=df)
-                self.parent.parent.statsTab.datasets.append(dataset)
+            # # For each logger create stats dataset object containing data, logger id, list of channels and
+            # # pri/sec plot flags and add to stats plot class
+            # for logger, df in self.datalab.stats_dict.items():
+            #     dataset = StatsDataset(logger_id=logger, df=df)
+            #     self.parent.parent.statsTab.datasets.append(dataset)
+            #
+            # # Store dataset/logger names from dictionary keys
+            # dataset_ids = list(self.datalab.stats_dict.keys())
+            #
+            # # TODO: Weird QObject warning gets raised here - resolve
+            # self.parent.parent.statsTab.update_stats_datasets_list(dataset_ids)
+            #
+            # # Plot stats
+            # # self.parent.statsTab.set_plot_data(init=True)
+            # # self.parent.statsTab.filtered_ts = self.parent.statsTab.calc_filtered_data(self.df_plot)
+            # self.parent.parent.statsTab.update_plots()
+            #
+            # # TODO: Load and plot spectrograms data
+            # # Store spectrogram datasets and update plot tab
+            # # self.parent.spectrogramTab.datasets[logger] = df
+            # # self.parent.spectrogramTab.update_spect_datasets_list(logger)
+            #
+            # # Update variance plot tab - plot update is triggered upon setting dataset list index
+            # self.parent.parent.varianceTab.datasets = self.datalab.stats_dict
+            # self.parent.parent.varianceTab.update_variance_datasets_list(dataset_ids)
+            # self.parent.parent.varianceTab.datasetList.setCurrentRow(0)
+            # self.parent.parent.varianceTab.update_variance_plot(init_plot=True)
+            # self.parent.parent.view_stats_tab()
 
-            # Store dataset/logger names from dictionary keys
-            dataset_ids = list(self.datalab.stats_dict.keys())
-
-            # TODO: Weird QObject warning gets raised here - resolve
-            self.parent.parent.statsTab.update_stats_datasets_list(dataset_ids)
-
-            # Plot stats
-            # self.parent.statsTab.set_plot_data(init=True)
-            # self.parent.statsTab.filtered_ts = self.parent.statsTab.calc_filtered_data(self.df_plot)
-            self.parent.parent.statsTab.update_plots()
-
-            # TODO: Load and plot spectrograms data
-            # Store spectrogram datasets and update plot tab
-            # self.parent.spectrogramTab.datasets[logger] = df
-            # self.parent.spectrogramTab.update_spect_datasets_list(logger)
-
-            # Update variance plot tab - plot update is triggered upon setting dataset list index
-            self.parent.parent.varianceTab.datasets = self.datalab.stats_dict
-            self.parent.parent.varianceTab.update_variance_datasets_list(dataset_ids)
-            self.parent.parent.varianceTab.datasetList.setCurrentRow(0)
-            self.parent.parent.varianceTab.update_variance_plot(init_plot=True)
-            self.parent.parent.view_stats_tab()
             t = str(timedelta(seconds=round(time() - t0)))
             self.runtime.emit(t)
         except Exception as e:
@@ -605,6 +600,7 @@ class ControlFileWorker(QtCore.QThread):
             self.signal_error.emit(f'{msg}:\n{e}\n{sys.exc_info()[0]}')
             logging.exception(msg)
         finally:
+            self.signal_datalab.emit(self.datalab)
             self.parent.parent.setEnabled(True)
             # self.quit()
             # self.wait()

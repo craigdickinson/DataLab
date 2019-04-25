@@ -638,6 +638,39 @@ class DataLabGui(QtWidgets.QMainWindow):
                 self.worker.start()
                 self.worker.signal_error.connect(self.error)
 
+    def set_datalab_output_to_gui(self, datalab):
+        """Map results from statistical analysis to the GUI."""
+
+        # Clear any existing stats tab datasets
+        self.statsTab.clear_datasets()
+
+        # For each logger create stats dataset object containing data, logger id, list of channels and
+        # pri/sec plot flags and add to stats plot class
+        for logger, df in datalab.stats_dict.items():
+            dataset = StatsDataset(logger_id=logger, df=df)
+            self.statsTab.datasets.append(dataset)
+
+        # Store dataset/logger names from dictionary keys
+        dataset_ids = list(datalab.stats_dict.keys())
+        self.statsTab.update_stats_datasets_list(dataset_ids)
+
+        # Plot stats
+        # self.parent.statsTab.set_plot_data(init=True)
+        # self.parent.statsTab.filtered_ts = self.parent.statsTab.calc_filtered_data(self.df_plot)
+        self.statsTab.update_plots()
+
+        # TODO: Load and plot spectrograms data
+        # Store spectrogram datasets and update plot tab
+        # self.parent.spectrogramTab.datasets[logger] = df
+        # self.parent.spectrogramTab.update_spect_datasets_list(logger)
+
+        # Update variance plot tab - plot update is triggered upon setting dataset list index
+        self.varianceTab.datasets = datalab.stats_dict
+        self.varianceTab.update_variance_datasets_list(dataset_ids)
+        self.varianceTab.datasetList.setCurrentRow(0)
+        self.varianceTab.update_variance_plot(init_plot=True)
+        self.view_stats_tab()
+
     def gen_scatter_diag(self):
         """Create seascatter diagram if vessel stats data is loaded."""
 

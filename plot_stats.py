@@ -361,7 +361,7 @@ class StatsWidget(QtWidgets.QWidget):
         if i == -1:
             return
 
-        # Add channels to list and make unselectable since they are just an echo for reference
+        # Add channels to list and make non-selectable since they are just an echo for reference
         self.channelsList.clear()
         for channel in self.datasets[i].channels:
             item = QtWidgets.QListWidgetItem(channel)

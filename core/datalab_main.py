@@ -200,7 +200,7 @@ class DataLab(QThread):
         data_report.write_bad_files()
         data_report.save_workbook(self.control.output_folder, 'Data Screening Report.xlsx')
 
-        # Store logger stats dataframe for gui
+        # Store logger stats data frame for gui
         self.stats_dict = stats_out.stats_dict
 
         # Save stats workbook
