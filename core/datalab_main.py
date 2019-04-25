@@ -47,7 +47,7 @@ class DataLab(QThread):
     """Class for main DataLab program. Defined as a thread object for use with gui."""
 
     # Signal to report logger file processing progress
-    notify_progress = pyqtSignal(int, int)
+    signal_notify_progress = pyqtSignal(int, int)
 
     def __init__(self, datfile='', no_dat=False):
         super().__init__()
@@ -171,7 +171,7 @@ class DataLab(QThread):
                             sample_df = pd.DataFrame()
 
                 # Emit file number signal to gui
-                self.notify_progress.emit(j + 1, n)
+                self.signal_notify_progress.emit(j + 1, n)
 
             # Add any files containing errors to screening report
             data_report.add_files_with_bad_data(logger.logger_id, data_screen[i].bad_files_dict)
