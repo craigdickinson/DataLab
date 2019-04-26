@@ -10,7 +10,7 @@ from openpyxl import Workbook
 
 
 class DataScreenReport(object):
-    """Methods to write data screening results to excel."""
+    """Methods to write data screening results to Excel."""
 
     def __init__(self, project_name, campaign_name):
         """Constructor."""
@@ -18,33 +18,33 @@ class DataScreenReport(object):
         self.wb = Workbook()
         self.ws_summary = self.wb.active
         self.ws_summary.title = 'Summary'
-
         self.project_name = project_name
         self.campaign_name = campaign_name
         self.bad_filenames = []
         self.bad_files = []
 
-    def add_bad_filenames(self, logger, dict_bad_files):
+    def add_bad_filenames(self, logger_id, dict_bad_filenames):
         """Create list of logger filenames containing errors and add to summary list."""
 
-        compiled_bad_files = self.compile_bad_files(logger, dict_bad_files)
+        compiled_bad_files = self.compile_bad_files(logger_id, dict_bad_filenames)
         self.bad_filenames.extend(compiled_bad_files)
 
-    def add_bad_files(self, logger, dict_bad_files):
+    def add_files_with_bad_data(self, logger_id, dict_bad_files):
         """Create list of logger files containing data errors and add to summary list."""
 
-        compiled_bad_files = self.compile_bad_files(logger, dict_bad_files)
+        compiled_bad_files = self.compile_bad_files(logger_id, dict_bad_files)
         self.bad_files.extend(compiled_bad_files)
 
-    def compile_bad_files(self, logger, dict_bad_files):
+    def compile_bad_files(self, logger_id, dict_bad_files):
         """
-        Create list of errors encountered when processing logger filenames or screening files, in format to write to Excel.
-        :param logger: Logger id
+        Create list of errors encountered when processing logger filenames or screening files,
+        in format to write to Excel.
+        :param logger_id: Logger id
         :param dict_bad_files: Dictionary of filename-error pairs
         :return: Compiled list of [logger id, filename, error] for output to Excel
         """
 
-        bad_files = [[logger.logger_id] + [k, v]
+        bad_files = [[logger_id] + [k, v]
                      for k, v in zip(dict_bad_files.keys(), dict_bad_files.values())]
 
         return bad_files

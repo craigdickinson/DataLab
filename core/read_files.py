@@ -1,11 +1,13 @@
-from datetime import timedelta
+from datetime import datetime, timedelta
 from time import time
 
 import pandas as pd
+import csv
+import os
 
 
-def read_logger_csv(filename):
-    """Load logger file into pandas dataframe."""
+def read_fugro_csv(filename):
+    """Load logger file into pandas data frame."""
 
     try:
         df = pd.read_csv(filename, header=[1, 2], index_col=0, encoding='latin')
@@ -26,6 +28,72 @@ def read_logger_csv(filename):
     df.columns.rename(['channels', 'units'], inplace=True)
 
     return df
+
+
+def read_pulse_acc(filename):
+    """Read Pulse .acc raw data file into a Pandas data frame."""
+
+    data = []
+    with open(filename, 'r') as f:
+        accreader = csv.reader(f, delimiter=' ')
+
+        # Skip file info headers
+        for i in range(17):
+            next(accreader)
+
+        # Read columns
+        cols = next(accreader)
+        next(accreader)
+
+        # Read the start timestamp marker
+        ts_marker = next(accreader)[1:]
+        ts_marker = list(map(int, ts_marker))
+
+        for line in accreader:
+            line = line[:-1]
+            data.append(line)
+
+        # Convert column names list to be split by ":" not space
+        cols = ' '.join(cols).split(':')
+
+        # Lose the "%Data," in the first column
+        cols[0] = cols[0].split(',')[1]
+
+        # Create multiindex header of channel names and units
+        channels = []
+        units = []
+        for col in cols:
+            c = col.split('(')
+            channels.append(c[0].strip())
+            units.append(c[1][:-1])
+
+        header = list(zip(channels, units))
+        header.insert(0, ('Timestamp', ''))
+        header = pd.MultiIndex.from_tuples(header, names=['channels', 'units'])
+
+        # Create timestamp column
+        dt_start = datetime(ts_marker[5],
+                            ts_marker[4],
+                            ts_marker[3],
+                            ts_marker[2],
+                            ts_marker[1],
+                            ts_marker[0],
+                            )
+
+        # Create data frame
+        df = pd.DataFrame(data, dtype='float')
+        df = df.set_index(df.columns[0])
+        df.index.name = 'Time (s)'
+
+        # Create timestamp column
+        ts = df.index.values
+        timestamps = [dt_start + timedelta(seconds=t) for t in ts]
+        df.insert(loc=0, column='Timestamp', value=timestamps)
+
+        # Assign columns header
+        df.columns = header
+
+        return df
 
 
 def read_logger_hdf5(filename):
@@ -96,7 +164,7 @@ def read_stats_excel(filename):
     xl = pd.ExcelFile(filename)
 
     for sh in xl.sheet_names:
-        df = pd.read_excel(xl, sheet_name=sh, header=[0, 1, 2])
+        df = pd.read_excel(xl, sheet_name=sh, header=[0, 1, 2], index_col=0)
         df.drop(df.columns[0], axis=1, inplace=True)
         df.index = pd.to_datetime(df.index, format='%Y-%m-%d %H:%M:%S')
         df.index.name = 'Datetime'
@@ -149,6 +217,31 @@ def read_spectrograms_excel(filename):
     return logger, df
 
 
+def read_wcfat_results(filename, locations=['LPH Weld', 'HPH Weld', 'BOP Connector']):
+    """Read fatigue damage .dmg file output from 2HWCFAT."""
+
+    df = pd.read_csv(filename, skiprows=8, header=None, sep='\t')
+
+    # Drop the event length column and last column, which is just redundant ","
+    df = df.drop([1, 5], axis=1)
+    df.columns = ['Timestamp'] + locations
+    df['Timestamp'] = df['Timestamp'].str.strip()
+    df = df.set_index('Timestamp')
+    df.index = pd.to_datetime(df.index, format='%Y_%m_%d_%H_%M')
+
+    return df
+
+
+def read_fatlasa_results(filename):
+    """Read *_MAX_DAMAGE_history.csv file output from 2HFATLASA."""
+
+
 if __name__ == '__main__':
-    df = read_logger_csv(r'dd10_2017_0310_0140.csv')
+    folder = r'C:\Users\dickinsc\PycharmProjects\_2. DataLab Analysis Files\21239\5. Dat2Acc\POD001'
+    fname = 'MPOD001_2018_06_07_16_20.ACC'
+    fpath = os.path.join(folder, fname)
+
+    df = read_pulse_acc(fpath)
+    # df = read_logger_csv(r'dd10_2017_0310_0140.csv')
+    # df = read_wcfat_results(r'C:\Users\dickinsc\PycharmProjects\DataLab\Fatigue Test Data\damage_1.dmg')
     print(df.head())

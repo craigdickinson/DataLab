@@ -8,6 +8,7 @@ Program to perform signal processing on logger data
 __author__ = 'Craig Dickinson'
 
 import argparse
+import logging
 import os
 import sys
 from datetime import timedelta
@@ -29,7 +30,7 @@ prog_info = 'Program to perform signal processing on logger data'
 def parse_args(args):
     """Parse command line arguments."""
 
-    parser = argparse.ArgumentParser(prog='DSPLab', description=prog_info)
+    parser = argparse.ArgumentParser(prog='DataLab', description=prog_info)
     parser.add_argument('-V', '--version',
                         version='%(prog)s (version 0.1)',
                         action='version'
@@ -37,34 +38,34 @@ def parse_args(args):
     parser.add_argument('datfile',
                         action='store',
                         type=argparse.FileType('r'),
-                        help=('specify the controlling *.dat file'
-                              ' including extension'))
+                        help='specify the controlling *.dat file including extension')
 
     return parser.parse_args(args)
 
 
 class DataLab(QThread):
-    """
-    Class for main DataLab program. Defined as a thread object for use with gui.
-    """
+    """Class for main DataLab program. Defined as a thread object for use with gui."""
 
     # Signal to report logger file processing progress
-    notify_progress = pyqtSignal(int, int)
+    signal_notify_progress = pyqtSignal(int, int)
 
-    def __init__(self, datfile=''):
+    def __init__(self, datfile='', no_dat=False):
         super().__init__()
 
-        # Get dat file from command line if not already supplied
-        if not datfile:
-            parser = parse_args(sys.argv[1:])
-            datfile = parser.datfile.name
+        if no_dat is False:
+            # Get dat file from command line if not already supplied
+            if datfile == '':
+                parser = parse_args(sys.argv[1:])
+                datfile = parser.datfile.name
 
         self.datfile = datfile
-        self.stats_dict = {}
-        self.logger_path = None
+        self.control = ControlFile()
+        self.logger_path = ''
+        self.data_screen = []
         self.stats_file_type = 'csv'
         # self.stats_file_type = 'excel'
         # self.stats_file_type = 'hdf5'
+        self.stats_dict = {}
 
     def analyse_control_file(self):
         """Read control file (*.dat) and extract and check input settings."""
@@ -106,7 +107,7 @@ class DataLab(QThread):
             self.logger_path = logger.logger_path
 
             # Add any bad filenames to screening report
-            data_report.add_bad_filenames(logger, logger.bad_filenames)
+            data_report.add_bad_filenames(logger.logger_id, logger.dict_bad_filenames)
 
             # Create object to store stats and data screening results
             data_screen.append(DataScreen())
@@ -136,16 +137,16 @@ class DataLab(QThread):
                 # TODO: If expected file in sequence is missing, store results as nan
 
                 # Update console
-                fname = os.path.basename(f)
+                filename = os.path.basename(f)
                 progress = 'Processing ' + logger.logger_id
-                progress += ' file ' + str(j + 1) + ' of ' + str(n) + ' (' + fname + ')'
-                print('\r%s' % progress, end='')
+                progress += ' file ' + str(j + 1) + ' of ' + str(n) + ' (' + filename + ')'
+                print(f'\r{progress}', end='')
 
-                # Read the file into a pandas dataframe and parse dates and floats
+                # Read the file into a pandas data frame and parse dates and floats
                 df = data_screen[i].read_logger_file(f)
 
                 # Perform basic screening checks on file - check file has expected number of data points
-                data_screen[i].screen_data(file_num=j, data=df)
+                data_screen[i].screen_data(file_num=j, df=df)
 
                 # Ignore file if not of expected length
                 # TODO: Allowing short sample length (revisit)
@@ -171,12 +172,15 @@ class DataLab(QThread):
                             sample_df = pd.DataFrame()
 
                 # Emit file number signal to gui
-                self.notify_progress.emit(j + 1, n)
+                self.signal_notify_progress.emit(j + 1, n)
+
+            coverage = data_screen[i].calc_data_completeness()
+            print(f'\nData coverage for {logger.logger_id} logger = {coverage.min():.1f}%')
 
             # Add any files containing errors to screening report
-            data_report.add_bad_files(logger, data_screen[i].bad_files)
+            data_report.add_files_with_bad_data(logger.logger_id, data_screen[i].dict_bad_files)
 
-            # Create dataframe of logger stats and store
+            # Create data frame of logger stats and store
             stats_out.compile_stats_dataframe(logger, data_screen[i], logger_stats[i])
 
             if self.stats_file_type == 'csv':
@@ -200,28 +204,39 @@ class DataLab(QThread):
         data_report.write_bad_files()
         data_report.save_workbook(self.control.output_folder, 'Data Screening Report.xlsx')
 
-        # Store logger stats dataframe for gui
+        # Store data screen objects list for gui
+        # TODO: May revisit this since a lot of data is unnecessary so inefficient to store
+        self.data_screen = data_screen
+
+        # Store dictionary of logger stats data frames for gui
         self.stats_dict = stats_out.stats_dict
 
         # Save stats workbook
         if self.stats_file_type == 'excel':
             stats_out.save_workbook()
 
-        print('\n\nProcessing complete.')
+        print('\nProcessing complete')
 
         t1 = round(time() - t0)
         print('Screening runtime = {}'.format(str(timedelta(seconds=t1))))
 
 
 if __name__ == '__main__':
-    direc = r'C:\Users\dickinsc\PycharmProjects\_2. DataLab Analysis Files'
-    f = ''
-    f = 'controlfile.dat'
+    direc = r'C:\Users\dickinsc\PycharmProjects\_2. DataLab Analysis Files\21239\2. Control Files'
+    # direc = r'C:\Users\dickinsc\PycharmProjects\DataLab\Demo Data\2. Control Files'
+    direc = r'C:\Users\dickinsc\PycharmProjects\DataLab\Demo Data\21239 Project DAT'
+    f = 'controlfile_21239.dat'
+    # f = 'controlfile1_all_loggers.dat'
     # f = 'example_control_files/controlfile.dat'
-    # f = 'controlfile_err.dat'
-    # f = 'controlfile_21239.dat'
-    # f = '21239/2. DAT Files/controlfile_21239_spect.dat'
+    # f = 'controlfile_21239_acc.dat'
+    f = 'controlfile_fugro_slim.dat'
     f = os.path.join(direc, f)
+    # f = ''
     datalab = DataLab(datfile=f)
-    datalab.analyse_control_file()
-    datalab.process_control_file()
+
+    try:
+        datalab.analyse_control_file()
+        datalab.process_control_file()
+    except Exception as e:
+        print(str(e))
+        logging.exception(str(e))

@@ -36,7 +36,7 @@ class TestLogger(unittest.TestCase):
 
         logger = LoggerProperties('test_logger')
         logger.logger_path = self.test_dir
-        logger.file_extension = 'csv'
+        logger.file_ext = 'csv'
         logger.get_filenames()
         self.assertEqual(logger.raw_filenames, self.test_filenames)
 
@@ -46,7 +46,7 @@ class TestLogger(unittest.TestCase):
         logger = LoggerProperties('test_logger')
         logger.logger_path = self.test_dir
         logger.file_timestamp_format = self.test_format
-        logger.file_extension = 'csv'
+        logger.file_ext = 'csv'
         logger.get_filenames()
         logger.get_timestamp_span()
         logger.check_file_timestamps()
