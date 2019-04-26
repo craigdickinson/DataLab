@@ -23,10 +23,10 @@ class DataScreenReport(object):
         self.bad_filenames = []
         self.bad_files = []
 
-    def add_bad_filenames(self, logger_id, dict_bad_files):
+    def add_bad_filenames(self, logger_id, dict_bad_filenames):
         """Create list of logger filenames containing errors and add to summary list."""
 
-        compiled_bad_files = self.compile_bad_files(logger_id, dict_bad_files)
+        compiled_bad_files = self.compile_bad_files(logger_id, dict_bad_filenames)
         self.bad_filenames.extend(compiled_bad_files)
 
     def add_files_with_bad_data(self, logger_id, dict_bad_files):

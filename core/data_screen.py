@@ -18,23 +18,24 @@ class DataScreen(object):
     def __init__(self):
         """Instantiate with empty logger."""
 
-        self.logger = LoggerProperties('')
+        self.logger = LoggerProperties()
         self.files = []
 
         # Dictionary of files with errors for specified logger
-        self.bad_files_dict = {}
+        self.dict_bad_files = {}
 
-        # Number of points per file
+        # Number of points per file and channels across all files
         self.points_per_file = []
+        self.cum_pts_per_channel = np.array([])
 
         # Minimum resolution
         # TODO: Output this in data screen report
         self.res = []
 
-        self.header = []
-        self.units = []
+        # Data completeness
+        self.data_completeness = np.array([])
 
-        # Lists for sample beginning and end times
+        # Lists for sample start and end times
         self.sample_start = []
         self.sample_end = []
 
@@ -47,18 +48,16 @@ class DataScreen(object):
         self.use_cols = []
 
     def set_logger(self, logger):
-        """Pass in the logger filenames and properties to be assessed."""
+        """Pass in the logger filenames to be assessed and required read csv file properties."""
 
         self.logger = logger
 
         # Set full file path
-        self.files = [os.path.join(self.logger.logger_path, f)
-                      for f in self.logger.files]
+        self.files = [os.path.join(self.logger.logger_path, f) for f in self.logger.files]
 
         # Set csv read properties
         self.header_row = self.logger.channel_header_row - 1
-        self.skip_rows = [i for i in range(self.logger.num_headers)
-                          if i > self.header_row]
+        self.skip_rows = [i for i in range(self.logger.num_headers) if i > self.header_row]
         self.use_cols = [0] + [c - 1 for c in self.logger.stats_cols]
 
         # No header row specified
@@ -165,15 +164,23 @@ class DataScreen(object):
     def screen_data(self, file_num, df):
         """Perform basic data screening operations on data frame."""
 
-        # Number of points in file
-        # pts = min(data.count())
+        # Number of rows in file
         pts = len(df)
         self.points_per_file.append(pts)
+
+        # Number of points per channel - ignore timestamp column
+        pts_per_channel = df.count().values[1:]
+
+        # Cumulative total for all files
+        if self.cum_pts_per_channel.size == 0:
+            self.cum_pts_per_channel = pts_per_channel
+        else:
+            self.cum_pts_per_channel += pts_per_channel
 
         # Check number of points is valid
         if pts != self.logger.expected_data_points:
             filename = self.logger.files[file_num]
-            self.bad_files_dict[filename] = 'Unexpected number of points'
+            self.dict_bad_files[filename] = 'Unexpected number of points'
         else:
             # Calculate resolution for each channel
             self.res.append(self.resolution(df))
@@ -197,6 +204,19 @@ class DataScreen(object):
             res.append(y.diff().min())
 
         return res
+
+    def calc_data_completeness(self):
+        """Calculate the proportion of good data coverage."""
+
+        # Total data points in logger campaign
+        # i = sum(self.points_per_file)
+
+        # Total expected data points in logger campaign
+        n = len(self.files) * self.logger.expected_data_points
+
+        self.data_completeness = self.cum_pts_per_channel / n * 100
+
+        return self.data_completeness
 
     def sample_dataframe(self, sample_df, df):
         """

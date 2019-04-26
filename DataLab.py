@@ -1,7 +1,7 @@
 __author__ = 'Craig Dickinson'
 __program__ = 'DataLab'
-__version__ = '0.15'
-__date__ = '25 April 2019'
+__version__ = '0.16'
+__date__ = '26 April 2019'
 
 import logging
 import os
@@ -20,6 +20,7 @@ from core.read_files import (read_spectrograms_csv, read_spectrograms_excel, rea
                              read_stats_excel, read_stats_hdf5)
 from core.read_files import read_fatlasa_results, read_wcfat_results
 from project_config_screen import ConfigModule
+from data_quality_screening import DataQualityReport
 from plot_stats import PlotStyle2H, SpectrogramWidget, StatsDataset, StatsWidget, VarianceWidget, VesselStatsWidget
 from seascatter_diagram import SeascatterDiagram
 from plot_time_series import TimeSeriesPlotWidget
@@ -41,6 +42,7 @@ class DataLabGui(QtWidgets.QMainWindow):
         # Set root path because path is changed when using file tree
         self.root = os.getcwd()
         self.datfile = None
+        self.datalab = None
         self.init_ui()
         self.connect_signals()
         # self._centre()
@@ -72,18 +74,27 @@ class DataLabGui(QtWidgets.QMainWindow):
         self.timeSeriesTab = TimeSeriesPlotWidget(self)
         self.rawDataModule.addTab(self.timeSeriesTab, 'Time Series')
 
-        # Screening module container and tab widgets
-        self.screeningModule = QtWidgets.QTabWidget()
+        # Data quality screening report module
+        self.dataQualityModule = DataQualityReport(self)
+
+        # Stats screening module
+        self.statsScreeningModule = QtWidgets.QTabWidget()
         self.statsTab = StatsWidget(self)
         self.vesselStatsTab = VesselStatsWidget(self)
         self.varianceTab = VarianceWidget()
-        self.scatterTab = SeascatterDiagram(self)
+        self.statsScreeningModule.addTab(self.statsTab, 'Statistics')
+        self.statsScreeningModule.addTab(self.vesselStatsTab, 'Vessel Statistics')
+        self.statsScreeningModule.addTab(self.varianceTab, 'Variance')
+
+        # Spectral screening module
+        self.spectralScreeningModule = QtWidgets.QTabWidget()
         self.spectrogramTab = SpectrogramWidget(self)
-        self.screeningModule.addTab(self.statsTab, 'Statistics')
-        self.screeningModule.addTab(self.vesselStatsTab, 'Vessel Statistics')
-        self.screeningModule.addTab(self.scatterTab, 'Seascatter Diagram')
-        self.screeningModule.addTab(self.spectrogramTab, 'Spectrograms')
-        self.screeningModule.addTab(self.varianceTab, 'Variance')
+        self.spectralScreeningModule.addTab(self.spectrogramTab, 'Spectrograms')
+
+        # Seascatter diagram module
+        self.seascatterModule = QtWidgets.QTabWidget()
+        self.scatterTab = SeascatterDiagram(self)
+        self.seascatterModule.addTab(self.scatterTab, 'Seascatter Diagram')
 
         # Transfer functions module
         self.transFuncsModule = QtWidgets.QTabWidget()
@@ -98,7 +109,10 @@ class DataLabGui(QtWidgets.QMainWindow):
         # Add stacked widgets
         self.modulesWidget.addWidget(self.projConfigModule)
         self.modulesWidget.addWidget(self.rawDataModule)
-        self.modulesWidget.addWidget(self.screeningModule)
+        self.modulesWidget.addWidget(self.dataQualityModule)
+        self.modulesWidget.addWidget(self.statsScreeningModule)
+        self.modulesWidget.addWidget(self.spectralScreeningModule)
+        self.modulesWidget.addWidget(self.seascatterModule)
         self.modulesWidget.addWidget(self.transFuncsModule)
         self.modulesWidget.addWidget(self.fatigueModule)
 
@@ -182,21 +196,28 @@ class DataLabGui(QtWidgets.QMainWindow):
         """Create toolbar with button to show dashboards."""
 
         self.toolBar = self.addToolBar('Modules')
+        self.toolBar.setStyleSheet('QToolBar{spacing:5px}')
+
         self.projConfigButton = QtWidgets.QPushButton('Project Config')
         self.rawDataButton = QtWidgets.QPushButton('Raw Data')
-        self.screeningButton = QtWidgets.QPushButton('Screening')
+        self.dataQualityButton = QtWidgets.QPushButton('Data Quality Report')
+        self.statsScreeningButton = QtWidgets.QPushButton('Statistics Screening')
+        self.spectralScreeningButton = QtWidgets.QPushButton('Spectral Screening')
+        self.seascatterButton = QtWidgets.QPushButton('Seascatter Diagram')
         self.transFuncsButton = QtWidgets.QPushButton('Transfer Functions')
         self.fatigueButton = QtWidgets.QPushButton('Fatigue Analysis')
 
         self.toolBar.addWidget(QtWidgets.QLabel('Modules:'))
         self.toolBar.addWidget(self.projConfigButton)
         self.toolBar.addWidget(self.rawDataButton)
-        self.toolBar.addWidget(self.screeningButton)
+        self.toolBar.addWidget(self.dataQualityButton)
+        self.toolBar.addWidget(self.statsScreeningButton)
+        self.toolBar.addWidget(self.spectralScreeningButton)
+        self.toolBar.addWidget(self.seascatterButton)
         self.toolBar.addWidget(self.transFuncsButton)
         self.toolBar.addWidget(self.fatigueButton)
 
         self.update_tool_buttons('config')
-        # self.toolBar.setStyleSheet('QToolBar{spacing:3px;}')
 
     def connect_signals(self):
         """Connect widget signals to methods/actions."""
@@ -208,7 +229,7 @@ class DataLabGui(QtWidgets.QMainWindow):
         self.openSpectrograms.triggered.connect(self.load_spectrograms_file)
 
         # View menu
-        self.showPlotScreen.triggered.connect(self.view_screening_mod)
+        self.showPlotScreen.triggered.connect(self.view_mod_stats_screening)
 
         # Process menu
         # self.calcStats.triggered.connect(self.process_control_file)
@@ -228,10 +249,13 @@ class DataLabGui(QtWidgets.QMainWindow):
 
         # Toolbar dashboard buttons
         self.projConfigButton.clicked.connect(self.view_proj_config_mod)
-        self.rawDataButton.clicked.connect(self.view_raw_data_mod)
-        self.screeningButton.clicked.connect(self.view_screening_mod)
-        self.transFuncsButton.clicked.connect(self.view_transfer_funcs_mod)
-        self.fatigueButton.clicked.connect(self.view_fatigue_mod)
+        self.rawDataButton.clicked.connect(self.view_mod_raw_data)
+        self.dataQualityButton.clicked.connect(self.view_mod_data_quality)
+        self.statsScreeningButton.clicked.connect(self.view_mod_stats_screening)
+        self.spectralScreeningButton.clicked.connect(self.view_mod_spectral_screening)
+        self.seascatterButton.clicked.connect(self.view_mod_seascatter)
+        self.transFuncsButton.clicked.connect(self.view_mod_transfer_funcs)
+        self.fatigueButton.clicked.connect(self.view_mod_fatigue)
 
     def message_information(self, title, message, buttons=QtWidgets.QMessageBox.Ok):
         return QtWidgets.QMessageBox.information(self, title, message, buttons)
@@ -279,7 +303,7 @@ class DataLabGui(QtWidgets.QMainWindow):
                 self.error(f'{msg}:\n{e}\n{sys.exc_info()[0]}')
                 logging.exception(msg)
 
-            self.view_raw_data_mod()
+            self.view_mod_raw_data()
 
     def load_stats_file_from_file_menu(self):
         """Load stats file when actioned from file menu."""
@@ -340,7 +364,7 @@ class DataLabGui(QtWidgets.QMainWindow):
 
             # Show dashboard
             if src == 'logger_stats':
-                self.view_stats_tab()
+                self.view_tab_stats()
 
     def load_spectrograms_file(self):
         """Load spectrograms spreadsheet."""
@@ -368,7 +392,7 @@ class DataLabGui(QtWidgets.QMainWindow):
             self.spectrogramTab.update_spect_datasets_list(logger)
 
             # Show dashboard
-            self.view_spectrogram_tab()
+            self.view_tab_spectrogram()
 
     def load_wcfat_results_file(self):
         """Load 2HWCFAT .dmg file."""
@@ -433,43 +457,57 @@ class DataLabGui(QtWidgets.QMainWindow):
         self.update_tool_buttons('config')
         self.modulesWidget.setCurrentWidget(self.projConfigModule)
 
-    def view_raw_data_mod(self):
+    def view_mod_raw_data(self):
         self.update_tool_buttons('raw')
         self.modulesWidget.setCurrentWidget(self.rawDataModule)
 
-    def view_screening_mod(self):
-        self.update_tool_buttons('screening')
-        self.modulesWidget.setCurrentWidget(self.screeningModule)
+    def view_mod_data_quality(self):
+        self.update_tool_buttons('quality')
+        self.modulesWidget.setCurrentWidget(self.dataQualityModule)
 
-    def view_transfer_funcs_mod(self):
+    def view_mod_stats_screening(self):
+        self.update_tool_buttons('stats')
+        self.modulesWidget.setCurrentWidget(self.statsScreeningModule)
+
+    def view_mod_spectral_screening(self):
+        self.update_tool_buttons('spectral')
+        self.modulesWidget.setCurrentWidget(self.spectralScreeningModule)
+
+    def view_mod_seascatter(self):
+        self.update_tool_buttons('seascatter')
+        self.modulesWidget.setCurrentWidget(self.seascatterModule)
+
+    def view_mod_transfer_funcs(self):
         self.update_tool_buttons('tf')
         self.modulesWidget.setCurrentWidget(self.transFuncsModule)
 
-    def view_fatigue_mod(self):
+    def view_mod_fatigue(self):
         self.update_tool_buttons('fatigue')
         self.modulesWidget.setCurrentWidget(self.fatigueModule)
 
-    def view_stats_tab(self):
-        self.update_tool_buttons('screening')
-        self.modulesWidget.setCurrentWidget(self.screeningModule)
-        self.screeningModule.setCurrentWidget(self.statsTab)
+    def view_tab_stats(self):
+        self.update_tool_buttons('stats')
+        self.modulesWidget.setCurrentWidget(self.statsScreeningModule)
+        self.statsScreeningModule.setCurrentWidget(self.statsTab)
 
-    def view_vessel_stats_tab(self):
-        self.update_tool_buttons('screening')
-        self.modulesWidget.setCurrentWidget(self.screeningModule)
-        self.screeningModule.setCurrentWidget(self.vesselStatsTab)
+    def view_tab_vessel_stats(self):
+        self.update_tool_buttons('stats')
+        self.modulesWidget.setCurrentWidget(self.statsScreeningModule)
+        self.statsScreeningModule.setCurrentWidget(self.vesselStatsTab)
 
-    def view_spectrogram_tab(self):
-        self.update_tool_buttons('screening')
-        self.modulesWidget.setCurrentWidget(self.screeningModule)
-        self.screeningModule.setCurrentWidget(self.spectrogramTab)
+    def view_tab_spectrogram(self):
+        self.update_tool_buttons('spectral')
+        self.modulesWidget.setCurrentWidget(self.spectralScreeningModule)
+        self.statsScreeningModule.setCurrentWidget(self.spectrogramTab)
 
-    def view_seascatter_tab(self):
-        self.update_tool_buttons('screening')
-        self.modulesWidget.setCurrentWidget(self.screeningModule)
-        self.screeningModule.setCurrentWidget(self.scatterTab)
+    def view_tab_seascatter(self):
+        self.update_tool_buttons('seascatter')
+        self.modulesWidget.setCurrentWidget(self.seascatterModule)
+        self.statsScreeningModule.setCurrentWidget(self.scatterTab)
 
     def update_tool_buttons(self, active_button):
+        """Format selected module button."""
+
         # button_style = 'font-weight: bold'
         active_style = 'background-color: blue; color: white'
         inactive_style = 'background-color: none; color: none'
@@ -477,7 +515,10 @@ class DataLabGui(QtWidgets.QMainWindow):
         # Reset all button colours
         self.projConfigButton.setStyleSheet(inactive_style)
         self.rawDataButton.setStyleSheet(inactive_style)
-        self.screeningButton.setStyleSheet(inactive_style)
+        self.dataQualityButton.setStyleSheet(inactive_style)
+        self.statsScreeningButton.setStyleSheet(inactive_style)
+        self.spectralScreeningButton.setStyleSheet(inactive_style)
+        self.seascatterButton.setStyleSheet(inactive_style)
         self.transFuncsButton.setStyleSheet(inactive_style)
         self.fatigueButton.setStyleSheet(inactive_style)
 
@@ -486,8 +527,14 @@ class DataLabGui(QtWidgets.QMainWindow):
             self.projConfigButton.setStyleSheet(active_style)
         if active_button == 'raw':
             self.rawDataButton.setStyleSheet(active_style)
-        if active_button == 'screening':
-            self.screeningButton.setStyleSheet(active_style)
+        if active_button == 'quality':
+            self.dataQualityButton.setStyleSheet(active_style)
+        if active_button == 'stats':
+            self.statsScreeningButton.setStyleSheet(active_style)
+        if active_button == 'spectral':
+            self.spectralScreeningButton.setStyleSheet(active_style)
+        if active_button == 'seascatter':
+            self.seascatterButton.setStyleSheet(active_style)
         if active_button == 'tf':
             self.transFuncsButton.setStyleSheet(active_style)
         if active_button == 'fatigue':
@@ -570,6 +617,11 @@ class DataLabGui(QtWidgets.QMainWindow):
     def set_datalab_output_to_gui(self, datalab):
         """Map results from statistical analysis to the GUI."""
 
+        # Store datalab object and update data quality report module
+        self.datalab = datalab
+        self.dataQualityModule.datalab = datalab
+        self.dataQualityModule.set_data_quality_results()
+
         # Clear any existing stats tab datasets
         self.statsTab.clear_datasets()
 
@@ -598,7 +650,6 @@ class DataLabGui(QtWidgets.QMainWindow):
         self.varianceTab.update_variance_datasets_list(dataset_ids)
         self.varianceTab.datasetList.setCurrentRow(0)
         self.varianceTab.update_variance_plot(init_plot=True)
-        self.view_stats_tab()
 
     def gen_scatter_diag(self):
         """Create seascatter diagram if vessel stats data is loaded."""
@@ -617,7 +668,7 @@ class DataLabGui(QtWidgets.QMainWindow):
                 self.error(f'{msg}:\n{e}\n{sys.exc_info()[0]}')
                 logging.exception(msg)
 
-        self.view_seascatter_tab()
+        self.view_tab_seascatter()
 
     def check_vessel_dataset_loaded(self, datasets):
         """
@@ -777,7 +828,7 @@ if __name__ == '__main__':
         filename = 'dd10_2017_0310_0000.csv'
         gui.timeSeriesTab.update_files_list([filename], filename)
         gui.timeSeriesTab.load_file(filename)
-        gui.modulesWidget.setCurrentWidget(gui.screeningModule)
+        gui.modulesWidget.setCurrentWidget(gui.statsScreeningModule)
 
     gui.show()
     sys.exit(app.exec_())

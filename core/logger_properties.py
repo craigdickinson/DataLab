@@ -92,7 +92,7 @@ class LoggerProperties(object):
         self.dates = []
 
         # Dictionary of files with bad timestamps
-        self.bad_filenames_dict = {}
+        self.dict_bad_filenames = {}
 
         # Recording properties
         self.freq = 0  # *LOGGING_FREQUENCY
@@ -171,7 +171,7 @@ class LoggerProperties(object):
             try:
                 date = parse(datetime_str, yearfirst=True)
             except ValueError:
-                self.bad_filenames_dict[f] = 'Unable to parse datetime from filename'
+                self.dict_bad_filenames[f] = 'Unable to parse datetime from filename'
             else:
                 # Append if date is successfully parsed
                 self.files.append(f)

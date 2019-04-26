@@ -59,12 +59,13 @@ class DataLab(QThread):
                 datfile = parser.datfile.name
 
         self.datfile = datfile
-        self.control = None
-        self.stats_dict = {}
-        self.logger_path = None
+        self.control = ControlFile()
+        self.logger_path = ''
+        self.data_screen = []
         self.stats_file_type = 'csv'
         # self.stats_file_type = 'excel'
         # self.stats_file_type = 'hdf5'
+        self.stats_dict = {}
 
     def analyse_control_file(self):
         """Read control file (*.dat) and extract and check input settings."""
@@ -106,7 +107,7 @@ class DataLab(QThread):
             self.logger_path = logger.logger_path
 
             # Add any bad filenames to screening report
-            data_report.add_bad_filenames(logger.logger_id, logger.bad_filenames_dict)
+            data_report.add_bad_filenames(logger.logger_id, logger.dict_bad_filenames)
 
             # Create object to store stats and data screening results
             data_screen.append(DataScreen())
@@ -139,7 +140,7 @@ class DataLab(QThread):
                 filename = os.path.basename(f)
                 progress = 'Processing ' + logger.logger_id
                 progress += ' file ' + str(j + 1) + ' of ' + str(n) + ' (' + filename + ')'
-                print('\r%s' % progress, end='')
+                print(f'\r{progress}', end='')
 
                 # Read the file into a pandas data frame and parse dates and floats
                 df = data_screen[i].read_logger_file(f)
@@ -173,8 +174,11 @@ class DataLab(QThread):
                 # Emit file number signal to gui
                 self.signal_notify_progress.emit(j + 1, n)
 
+            coverage = data_screen[i].calc_data_completeness()
+            print(f'\nData coverage for {logger.logger_id} logger = {coverage.min():.1f}%')
+
             # Add any files containing errors to screening report
-            data_report.add_files_with_bad_data(logger.logger_id, data_screen[i].bad_files_dict)
+            data_report.add_files_with_bad_data(logger.logger_id, data_screen[i].dict_bad_files)
 
             # Create data frame of logger stats and store
             stats_out.compile_stats_dataframe(logger, data_screen[i], logger_stats[i])
@@ -200,14 +204,18 @@ class DataLab(QThread):
         data_report.write_bad_files()
         data_report.save_workbook(self.control.output_folder, 'Data Screening Report.xlsx')
 
-        # Store logger stats data frame for gui
+        # Store data screen objects list for gui
+        # TODO: May revisit this since a lot of data is unnecessary so inefficient to store
+        self.data_screen = data_screen
+
+        # Store dictionary of logger stats data frames for gui
         self.stats_dict = stats_out.stats_dict
 
         # Save stats workbook
         if self.stats_file_type == 'excel':
             stats_out.save_workbook()
 
-        print('\n\nProcessing complete.')
+        print('\nProcessing complete')
 
         t1 = round(time() - t0)
         print('Screening runtime = {}'.format(str(timedelta(seconds=t1))))
@@ -216,10 +224,12 @@ class DataLab(QThread):
 if __name__ == '__main__':
     direc = r'C:\Users\dickinsc\PycharmProjects\_2. DataLab Analysis Files\21239\2. Control Files'
     # direc = r'C:\Users\dickinsc\PycharmProjects\DataLab\Demo Data\2. Control Files'
+    direc = r'C:\Users\dickinsc\PycharmProjects\DataLab\Demo Data\21239 Project DAT'
     f = 'controlfile_21239.dat'
     # f = 'controlfile1_all_loggers.dat'
     # f = 'example_control_files/controlfile.dat'
     # f = 'controlfile_21239_acc.dat'
+    f = 'controlfile_fugro_slim.dat'
     f = os.path.join(direc, f)
     # f = ''
     datalab = DataLab(datfile=f)

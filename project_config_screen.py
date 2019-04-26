@@ -16,7 +16,7 @@ class ProjectConfigJSONFile:
         self.data = {}
         self.filename = ''
 
-    def load_config(self, file_name):
+    def load_config_data(self, file_name):
         """Load project config JSON file and return the dictionary data."""
 
         with open(file_name, encoding='utf-8') as f:
@@ -200,7 +200,7 @@ class ConfigModule(QtWidgets.QWidget):
         if filename:
             try:
                 # Read JSON file and store data in config object
-                data = self.config.load_config(filename)
+                data = self.config.load_config_data(filename)
 
                 # Create new control object to hold setup data
                 self.control = ControlFile()
