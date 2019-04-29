@@ -61,7 +61,9 @@ class LoggerProperties(object):
         self.channel_header_row = 0  # *CHANNEL_HEADER
         self.units_header_row = 0  # *UNITS_HEADER
 
-        # Statistics processing parameters:
+        # ==============================
+        # STATISTICS ANALYSIS PARAMETERS
+        # ==============================
         # Channel columns to process
         self.stats_cols = []  # *STATS_COLUMNS
 
@@ -80,13 +82,35 @@ class LoggerProperties(object):
         self.channel_units = []
 
         # Channel names and units
-        self.user_channel_names = []  # *CHANNEL_NAMES
-        self.user_channel_units = []  # *CHANNEL_UNITS
+        self.stats_user_channel_names = []  # *CHANNEL_NAMES
+        self.stats_user_channel_units = []  # *CHANNEL_UNITS
 
-        # list of raw filenames
+        # ============================
+        # SPECTRAL ANALYSIS PARAMETERS
+        # ============================
+        # Channel columns to process
+        self.spectral_cols = []
+
+        # Channel unit conversion factors
+        self.spectral_unit_conv_factors = []
+
+        # Interval (in seconds) to process stats over
+        self.spectral_interval = 0
+
+        # Date range to process stats over
+        self.spectral_start = None
+        self.spectral_end = None
+
+        # Channel names and units
+        self.spectral_channel_names = []
+        self.spectral_channel_units = []
+
+        # Channel names and units
+        self.spectral_user_channel_names = []
+        self.spectral_user_channel_units = []
+
+        # List of raw filenames and of accepted file timestamps for each filename
         self.raw_filenames = []
-
-        # List of accepted file timestamps for each filename
         self.files = []
         self.file_timestamps = []
         self.dates = []

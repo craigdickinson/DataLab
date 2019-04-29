@@ -424,8 +424,8 @@ class ControlFile(object):
                  'units_header_row',
                  'channel_names',
                  'channel_units',
-                 'user_channel_names',
-                 'user_channel_units',
+                 'stats_user_channel_names',
+                 'stats_user_channel_units',
                  ]
 
         # Copy attributes from reference logger
@@ -439,24 +439,24 @@ class ControlFile(object):
         key = '*CHANNEL_NAMES'
         i, chan_names_str = self.get_key_data(key, data)
         if i > -1:
-            logger.user_channel_names = chan_names_str.split()
+            logger.stats_user_channel_names = chan_names_str.split()
 
         # Get user defined units
         key = '*CHANNEL_UNITS'
         i, units_str = self.get_key_data(key, data)
         if i > -1:
-            logger.user_channel_units = units_str.split()
+            logger.stats_user_channel_units = units_str.split()
 
     def check_header_specification(self, logger):
         """Check channel names and units have been specified in control file."""
 
         # Check something has been entered for channel names
-        if logger.channel_header_row == 0 and len(logger.user_channel_names) == 0:
+        if logger.channel_header_row == 0 and len(logger.stats_user_channel_names) == 0:
             msg = 'Channel names not specified for logger ' + logger.logger_id
             raise InputError(msg)
 
         # Check something has been entered for units
-        if logger.units_header_row == 0 and len(logger.user_channel_units) == 0:
+        if logger.units_header_row == 0 and len(logger.stats_user_channel_units) == 0:
             msg = 'Units not specified for logger ' + logger.logger_id
             raise InputError(msg)
 
@@ -589,11 +589,11 @@ class ControlFile(object):
     def user_header_override(self, logger):
         """Override detected units and headers with user defined values."""
 
-        if len(logger.user_channel_names) > 0:
-            logger.channel_names = logger.user_channel_names
+        if len(logger.stats_user_channel_names) > 0:
+            logger.channel_names = logger.stats_user_channel_names
 
-        if len(logger.user_channel_units) > 0:
-            logger.channel_units = logger.user_channel_units
+        if len(logger.stats_user_channel_units) > 0:
+            logger.channel_units = logger.stats_user_channel_units
 
     def check_headers(self, logger):
         """

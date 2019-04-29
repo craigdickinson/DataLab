@@ -1,7 +1,7 @@
 __author__ = 'Craig Dickinson'
 __program__ = 'DataLab'
-__version__ = '0.16'
-__date__ = '26 April 2019'
+__version__ = '0.17'
+__date__ = '29 April 2019'
 
 import logging
 import os
@@ -581,8 +581,8 @@ class DataLabGui(QtWidgets.QMainWindow):
                 logger.process_filenames()
                 logger.select_files_in_datetime_range(logger.stats_start, logger.stats_end)
                 logger.expected_data_points = logger.freq * logger.duration
-                logger.channel_names = logger.user_channel_names
-                logger.channel_units = logger.user_channel_units
+                logger.channel_names = logger.stats_user_channel_names
+                logger.channel_units = logger.stats_user_channel_units
 
             # Create output folder if necessary
             control.ensure_dir_exists(control.output_folder)

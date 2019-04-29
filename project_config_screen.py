@@ -3,7 +3,7 @@ import logging
 import os
 import sys
 
-from PyQt5 import QtCore, QtWidgets
+from PyQt5 import QtCore, QtGui, QtWidgets
 from dateutil.parser import parse
 from core.control_file import ControlFile, InputError
 from core.fugro_csv import set_fugro_file_format
@@ -59,47 +59,90 @@ class ProjectConfigJSONFile:
             dict_props = dict()
 
             # Add logger properties
-            dict_props['file_format'] = logger.file_format
-            dict_props['logger_path'] = logger.logger_path
-            dict_props['file_timestamp_format'] = logger.file_timestamp_format
-            dict_props['data_timestamp_format'] = logger.timestamp_format
-            dict_props['data_datetime_format'] = logger.datetime_format
-            dict_props['file_ext'] = logger.file_ext
-            dict_props['file_delimiter'] = logger.file_delimiter
-            dict_props['num_header_rows'] = logger.num_headers
-            dict_props['num_columns'] = logger.num_columns
-            dict_props['channel_header_row'] = logger.channel_header_row
-            dict_props['units_header_row'] = logger.units_header_row
-            dict_props['logging_freq'] = logger.freq
-            dict_props['logging_duration'] = logger.duration
-            dict_props['channel_names'] = logger.channel_names
-            dict_props['channel_units'] = logger.channel_units
+            dict_props = self.add_logger_props(logger, dict_props)
 
             # Add logger stats settings
-            dict_props['stats_columns'] = logger.stats_cols
-            dict_props['stats_unit_convs'] = logger.stats_unit_conv_factors
-            dict_props['stats_interval'] = logger.stats_interval
+            dict_props = self.add_logger_stats_settings(logger, dict_props)
 
-            # Need to convert start and end datetimes to strings to write to JSON format
-            # Stats start
-            if logger.stats_start is None:
-                dict_props['stats_start'] = None
-            else:
-                dict_props['stats_start'] = logger.stats_start.strftime('%Y-%m-%d %H:%M')
+            # Add logger spectral settings
+            dict_props = self.add_logger_spectral_settings(logger, dict_props)
 
-            # Stats end
-            if logger.stats_end is None:
-                dict_props['stats_end'] = None
-            else:
-                dict_props['stats_end'] = logger.stats_end.strftime('%Y-%m-%d %H:%M')
-
-            dict_props['user_channel_names'] = logger.user_channel_names
-            dict_props['user_channel_units'] = logger.user_channel_units
-
+            # Add logger props dictionary to loggers dictionary
             self.data['loggers'][logger.logger_id] = dict_props
 
+    def add_logger_props(self, logger, dict_props):
+        """Add control object logger properties to JSON dictionary."""
+
+        dict_props['file_format'] = logger.file_format
+        dict_props['logger_path'] = logger.logger_path
+        dict_props['file_timestamp_format'] = logger.file_timestamp_format
+        dict_props['data_timestamp_format'] = logger.timestamp_format
+        dict_props['data_datetime_format'] = logger.datetime_format
+        dict_props['file_ext'] = logger.file_ext
+        dict_props['file_delimiter'] = logger.file_delimiter
+        dict_props['num_header_rows'] = logger.num_headers
+        dict_props['num_columns'] = logger.num_columns
+        dict_props['channel_header_row'] = logger.channel_header_row
+        dict_props['units_header_row'] = logger.units_header_row
+        dict_props['logging_freq'] = logger.freq
+        dict_props['logging_duration'] = logger.duration
+        dict_props['channel_names'] = logger.channel_names
+        dict_props['channel_units'] = logger.channel_units
+
+        return dict_props
+
+    def add_logger_stats_settings(self, logger, dict_props):
+        """Add control object logger stats settings to JSON dictionary."""
+
+        dict_props['stats_columns'] = logger.stats_cols
+        dict_props['stats_unit_convs'] = logger.stats_unit_conv_factors
+        dict_props['stats_interval'] = logger.stats_interval
+
+        # Need to convert start and end datetimes to strings to write to JSON format
+        # Stats start
+        if logger.stats_start is None:
+            dict_props['stats_start'] = None
+        else:
+            dict_props['stats_start'] = logger.stats_start.strftime('%Y-%m-%d %H:%M')
+
+        # Stats end
+        if logger.stats_end is None:
+            dict_props['stats_end'] = None
+        else:
+            dict_props['stats_end'] = logger.stats_end.strftime('%Y-%m-%d %H:%M')
+
+        dict_props['stats_user_channel_names'] = logger.stats_user_channel_names
+        dict_props['stats_user_channel_units'] = logger.stats_user_channel_units
+
+        return dict_props
+
+    def add_logger_spectral_settings(self, logger, dict_props):
+        """Add control object logger spectral settings to JSON dictionary."""
+
+        dict_props['spectral_columns'] = logger.spectral_cols
+        dict_props['spectral_unit_convs'] = logger.spectral_unit_conv_factors
+        dict_props['spectral_interval'] = logger.spectral_interval
+
+        # Need to convert start and end datetimes to strings to write to JSON format
+        # Stats start
+        if logger.spectral_start is None:
+            dict_props['spectral_start'] = None
+        else:
+            dict_props['spectral_start'] = logger.spectral_start.strftime('%Y-%m-%d %H:%M')
+
+        # Stats end
+        if logger.spectral_end is None:
+            dict_props['spectral_end'] = None
+        else:
+            dict_props['spectral_end'] = logger.spectral_end.strftime('%Y-%m-%d %H:%M')
+
+        dict_props['spectral_user_channel_names'] = logger.spectral_user_channel_names
+        dict_props['spectral_user_channel_units'] = logger.spectral_user_channel_units
+
+        return dict_props
+
     def export_config(self, proj_num, proj_name):
-        """Export project configuration data as json file."""
+        """Export project configuration data as JSON file."""
 
         proj_name = '_'.join(proj_name.split())
         self.filename = '_'.join((proj_num, proj_name, 'Config.json'))
@@ -259,10 +302,12 @@ class ConfigModule(QtWidgets.QWidget):
             logger = self.control.loggers[logger_idx]
             self.loggerPropsTab.set_logger_dashboard(logger)
             self.statsTab.set_stats_dashboard(logger)
+            self.spectralTab.set_spectral_dashboard(logger)
         # Clear values from dashboard
         else:
             self.loggerPropsTab.clear_dashboard()
             self.statsTab.clear_dashboard()
+            self.spectralTab.clear_dashboard()
 
     def new_project(self):
         """Clear project control object and all config dashboard values."""
@@ -336,129 +381,201 @@ class ConfigModule(QtWidgets.QWidget):
             self.parent.warning(msg)
             logging.exception(str(e))
         else:
-            for logger_id, logger_dict in data.items():
+            for logger_id, dict_logger in data.items():
                 # Create new logger properties object and assign attributes from JSON dictionary
                 logger = LoggerProperties()
-                logger.logger_id = logger_id
 
                 # Logger properties
-                logger.file_format = self.get_key_value(id=logger_id,
-                                                        data=logger_dict,
-                                                        key='file_format',
-                                                        attr=logger.file_format)
-                logger.logger_path = self.get_key_value(id=logger_id,
-                                                        data=logger_dict,
-                                                        key='logger_path',
-                                                        attr=logger.logger_path)
-                logger.file_timestamp_format = self.get_key_value(id=logger_id,
-                                                                  data=logger_dict,
-                                                                  key='file_timestamp_format',
-                                                                  attr=logger.file_timestamp_format)
-                logger.timestamp_format = self.get_key_value(id=logger_id,
-                                                             data=logger_dict,
-                                                             key='data_timestamp_format',
-                                                             attr=logger.timestamp_format)
-                logger.datetime_format = self.get_key_value(id=logger_id,
-                                                            data=logger_dict,
-                                                            key='data_datetime_format',
-                                                            attr=logger.datetime_format)
-                logger.file_ext = self.get_key_value(id=logger_id,
-                                                     data=logger_dict,
-                                                     key='file_ext',
-                                                     attr=logger.file_ext)
-                logger.file_delimiter = self.get_key_value(id=logger_id,
-                                                           data=logger_dict,
-                                                           key='file_delimiter',
-                                                           attr=logger.file_delimiter)
-                logger.num_headers = self.get_key_value(id=logger_id,
-                                                        data=logger_dict,
-                                                        key='num_header_rows',
-                                                        attr=logger.num_headers)
-                logger.num_columns = self.get_key_value(id=logger_id,
-                                                        data=logger_dict,
-                                                        key='num_columns',
-                                                        attr=logger.num_columns)
-                logger.channel_header_row = self.get_key_value(id=logger_id,
-                                                               data=logger_dict,
-                                                               key='channel_header_row',
-                                                               attr=logger.channel_header_row)
-                logger.units_header_row = self.get_key_value(id=logger_id,
-                                                             data=logger_dict,
-                                                             key='units_header_row',
-                                                             attr=logger.units_header_row)
-                logger.freq = self.get_key_value(id=logger_id,
-                                                 data=logger_dict,
-                                                 key='logging_freq',
-                                                 attr=logger.freq)
-                logger.duration = self.get_key_value(id=logger_id,
-                                                     data=logger_dict,
-                                                     key='logging_duration',
-                                                     attr=logger.duration)
-                logger.channel_names = self.get_key_value(id=logger_id,
-                                                          data=logger_dict,
-                                                          key='channel_names',
-                                                          attr=logger.channel_names)
-                logger.channel_units = self.get_key_value(id=logger_id,
-                                                          data=logger_dict,
-                                                          key='channel_units',
-                                                          attr=logger.channel_units)
+                logger = self.map_logger_props(logger, dict_logger)
 
                 # Logger stats settings
-                logger.stats_cols = self.get_key_value(id=logger_id,
-                                                       data=logger_dict,
-                                                       key='stats_columns',
-                                                       attr=logger.stats_cols)
-                logger.stats_unit_conv_factors = self.get_key_value(id=logger_id,
-                                                                    data=logger_dict,
-                                                                    key='stats_unit_convs',
-                                                                    attr=logger.stats_unit_conv_factors)
-                logger.stats_interval = self.get_key_value(id=logger_id,
-                                                           data=logger_dict,
-                                                           key='stats_interval',
-                                                           attr=logger.stats_interval)
+                logger = self.map_logger_stats_settings(logger, dict_logger)
 
-                stats_start = self.get_key_value(id=logger_id,
-                                                 data=logger_dict,
-                                                 key='stats_start',
-                                                 attr=logger.stats_start)
-                try:
-                    # Need to convert stats start to datetime
-                    logger.stats_start = parse(stats_start, yearfirst=True)
-                except ValueError:
-                    self.parent.warning(f'stats_start datetime format not recognised {logger_id}')
+                # Logger spectral settings
+                logger = self.map_logger_spectral_settings(logger, dict_logger)
 
-                stats_end = self.get_key_value(id=logger_id,
-                                               data=logger_dict,
-                                               key='stats_end',
-                                               attr=logger.stats_end)
-                try:
-                    # Need to convert stats end to datetime
-                    logger.stats_end = parse(stats_end, yearfirst=True)
-                except ValueError:
-                    self.parent.warning(f'stats_end datetime format not recognised {logger_id}')
-
-                logger.user_channel_names = self.get_key_value(id=logger_id,
-                                                               data=logger_dict,
-                                                               key='user_channel_names',
-                                                               attr=logger.user_channel_names)
-                logger.user_channel_units = self.get_key_value(id=logger_id,
-                                                               data=logger_dict,
-                                                               key='user_channel_units',
-                                                               attr=logger.user_channel_units)
-
-                # Finally assign logger to control object
+                # Finally, assign logger to control object
                 self.control.logger_ids.append(logger_id)
                 self.control.logger_ids_upper.append(logger_id.upper())
                 self.control.loggers.append(logger)
 
+    def map_logger_props(self, logger, dict_logger):
+        """Retrieve logger properties from JSON dictionary and map to logger object."""
+
+        logger.file_format = self.get_key_value(id=logger.logger_id,
+                                                data=dict_logger,
+                                                key='file_format',
+                                                attr=logger.file_format)
+        logger.logger_path = self.get_key_value(id=logger.logger_id,
+                                                data=dict_logger,
+                                                key='logger_path',
+                                                attr=logger.logger_path)
+        logger.file_timestamp_format = self.get_key_value(id=logger.logger_id,
+                                                          data=dict_logger,
+                                                          key='file_timestamp_format',
+                                                          attr=logger.file_timestamp_format)
+        logger.timestamp_format = self.get_key_value(id=logger.logger_id,
+                                                     data=dict_logger,
+                                                     key='data_timestamp_format',
+                                                     attr=logger.timestamp_format)
+        logger.datetime_format = self.get_key_value(id=logger.logger_id,
+                                                    data=dict_logger,
+                                                    key='data_datetime_format',
+                                                    attr=logger.datetime_format)
+        logger.file_ext = self.get_key_value(id=logger.logger_id,
+                                             data=dict_logger,
+                                             key='file_ext',
+                                             attr=logger.file_ext)
+        logger.file_delimiter = self.get_key_value(id=logger.logger_id,
+                                                   data=dict_logger,
+                                                   key='file_delimiter',
+                                                   attr=logger.file_delimiter)
+        logger.num_headers = self.get_key_value(id=logger.logger_id,
+                                                data=dict_logger,
+                                                key='num_header_rows',
+                                                attr=logger.num_headers)
+        logger.num_columns = self.get_key_value(id=logger.logger_id,
+                                                data=dict_logger,
+                                                key='num_columns',
+                                                attr=logger.num_columns)
+        logger.channel_header_row = self.get_key_value(id=logger.logger_id,
+                                                       data=dict_logger,
+                                                       key='channel_header_row',
+                                                       attr=logger.channel_header_row)
+        logger.units_header_row = self.get_key_value(id=logger.logger_id,
+                                                     data=dict_logger,
+                                                     key='units_header_row',
+                                                     attr=logger.units_header_row)
+        logger.freq = self.get_key_value(id=logger.logger_id,
+                                         data=dict_logger,
+                                         key='logging_freq',
+                                         attr=logger.freq)
+        logger.duration = self.get_key_value(id=logger.logger_id,
+                                             data=dict_logger,
+                                             key='logging_duration',
+                                             attr=logger.duration)
+        logger.channel_names = self.get_key_value(id=logger.logger_id,
+                                                  data=dict_logger,
+                                                  key='channel_names',
+                                                  attr=logger.channel_names)
+        logger.channel_units = self.get_key_value(id=logger.logger_id,
+                                                  data=dict_logger,
+                                                  key='channel_units',
+                                                  attr=logger.channel_units)
+        return logger
+
+    def map_logger_stats_settings(self, logger, dict_logger):
+        """Retrieve logger stats settings from JSON dictionary and map to logger object."""
+
+        logger.stats_cols = self.get_key_value(id=logger.logger_id,
+                                               data=dict_logger,
+                                               key='stats_columns',
+                                               attr=logger.stats_cols)
+        logger.stats_unit_conv_factors = self.get_key_value(id=logger.logger_id,
+                                                            data=dict_logger,
+                                                            key='stats_unit_convs',
+                                                            attr=logger.stats_unit_conv_factors)
+        logger.stats_interval = self.get_key_value(id=logger.logger_id,
+                                                   data=dict_logger,
+                                                   key='stats_interval',
+                                                   attr=logger.stats_interval)
+
+        stats_start = self.get_key_value(id=logger.logger_id,
+                                         data=dict_logger,
+                                         key='stats_start',
+                                         attr=logger.stats_start)
+        if stats_start is None:
+            logger.stats_start = None
+        else:
+            try:
+                # Need to convert stats start to datetime
+                logger.stats_start = parse(stats_start, yearfirst=True)
+            except ValueError:
+                self.parent.warning(f'stats_start datetime format not recognised for logger {logger.logger_id}')
+
+        stats_end = self.get_key_value(id=logger.logger_id,
+                                       data=dict_logger,
+                                       key='stats_end',
+                                       attr=logger.stats_end)
+        if stats_end is None:
+            logger.stats_end = None
+        else:
+            try:
+                # Need to convert stats end to datetime
+                logger.stats_end = parse(stats_end, yearfirst=True)
+            except ValueError:
+                self.parent.warning(f'stats_end datetime format not recognised for logger {logger.logger_id}')
+
+        logger.stats_user_channel_names = self.get_key_value(id=logger.logger_id,
+                                                             data=dict_logger,
+                                                             key='stats_user_channel_names',
+                                                             attr=logger.stats_user_channel_names)
+        logger.stats_user_channel_units = self.get_key_value(id=logger.logger_id,
+                                                             data=dict_logger,
+                                                             key='stats_user_channel_units',
+                                                             attr=logger.stats_user_channel_units)
+        return logger
+
+    def map_logger_spectral_settings(self, logger, dict_logger):
+        """Retrieve logger spectral settings from JSON dictionary and map to logger object."""
+
+        logger.spectral_cols = self.get_key_value(id=logger.logger_id,
+                                                  data=dict_logger,
+                                                  key='spectral_columns',
+                                                  attr=logger.spectral_cols)
+        logger.spectral_unit_conv_factors = self.get_key_value(id=logger.logger_id,
+                                                               data=dict_logger,
+                                                               key='spectral_unit_convs',
+                                                               attr=logger.spectral_unit_conv_factors)
+        logger.spectral_interval = self.get_key_value(id=logger.logger_id,
+                                                      data=dict_logger,
+                                                      key='spectral_interval',
+                                                      attr=logger.spectral_interval)
+
+        spectral_start = self.get_key_value(id=logger.logger_id,
+                                            data=dict_logger,
+                                            key='spectral_start',
+                                            attr=logger.spectral_start)
+        if spectral_start is None:
+            logger.spectral_start = None
+        else:
+            try:
+                # Need to convert spectral start to datetime
+                logger.spectral_start = parse(spectral_start, yearfirst=True)
+            except ValueError:
+                self.parent.warning(f'spectral_start datetime format not recognised for logger {logger.logger_id}')
+
+        spectral_end = self.get_key_value(id=logger.logger_id,
+                                          data=dict_logger,
+                                          key='spectral_end',
+                                          attr=logger.spectral_end)
+        if spectral_end is None:
+            logger.spectral_end = None
+        else:
+            try:
+                # Need to convert spectral end to datetime
+                logger.spectral_end = parse(spectral_end, yearfirst=True)
+            except ValueError:
+                self.parent.warning(f'spectral_end datetime format not recognised for {logger.logger_id}')
+
+        logger.spectral_user_channel_names = self.get_key_value(id=logger.logger_id,
+                                                                data=dict_logger,
+                                                                key='spectral_user_channel_names',
+                                                                attr=logger.spectral_user_channel_names)
+        logger.spectral_user_channel_units = self.get_key_value(id=logger.logger_id,
+                                                                data=dict_logger,
+                                                                key='spectral_user_channel_units',
+                                                                attr=logger.spectral_user_channel_units)
+        return logger
+
     def set_dashboards(self):
-        """Set dashboard values with data in control object."""
+        """Set dashboard values with data in control object after loading JSON file."""
 
         # First need to map the newly loaded control object to campaignTab and loggerTab
         self.campaignTab.control = self.control
         self.loggerPropsTab.control = self.control
         self.statsTab.control = self.control
-        # self.spectralTab.control = self.control
+        self.spectralTab.control = self.control
 
         # Set campaign data to dashboard
         self.campaignTab.set_campaign_dashboard()
@@ -828,13 +945,6 @@ class StatsSettingsTab(QtWidgets.QWidget):
 
         self.parent = parent
         self.control = self.parent.control
-
-        self.stats_columns = ''
-        self.stats_unit_convs = ''
-        self.stats_interval = ''
-        self.stats_start = ''
-        self.stats_end = ''
-
         self.init_ui()
         self.connect_signals()
 
@@ -860,7 +970,7 @@ class StatsSettingsTab(QtWidgets.QWidget):
         self.form.addRow(self.editButton, QtWidgets.QLabel(''))
         self.form.addRow(QtWidgets.QLabel('Stats columns:'), self.statsColumns)
         self.form.addRow(QtWidgets.QLabel('Stats unit conversion factors:'), self.statsUnitConvs)
-        self.form.addRow(QtWidgets.QLabel('Stats interval:'), self.statsInterval)
+        self.form.addRow(QtWidgets.QLabel('Stats interval (s):'), self.statsInterval)
         self.form.addRow(QtWidgets.QLabel('Stats start timestamp:'), self.statsStart)
         self.form.addRow(QtWidgets.QLabel('Stats end timestamp:'), self.statsEnd)
         self.form.addRow(QtWidgets.QLabel('Channel names:'), self.statsChannelNames)
@@ -876,29 +986,29 @@ class StatsSettingsTab(QtWidgets.QWidget):
 
         if self.parent.loggerCombo.currentText() == '-':
             msg = f'No loggers exist to edit. Add a logger first.'
-            return QtWidgets.QMessageBox.information(self, 'Edit Logger Statisitcs', msg)
+            return QtWidgets.QMessageBox.information(self, 'Edit Logger Statistics Settings', msg)
 
         # Retrieve selected logger object
         logger_idx = self.parent.loggerCombo.currentIndex()
         logger = self.control.loggers[logger_idx]
 
         # Edit stats dialog class
-        editStatsProps = LoggerStatsDialog(self, logger, logger_idx)
-        editStatsProps.set_dialog_data()
-        editStatsProps.show()
+        editStatsSettings = LoggerStatsDialog(self, logger, logger_idx)
+        editStatsSettings.set_dialog_data()
+        editStatsSettings.show()
 
     def set_stats_dashboard(self, logger):
         """Set dashboard with logger stats from logger object."""
 
         # Stats columns
         if logger.stats_cols is not None:
-            stats_cols_str = ' '.join([str(i) for i in logger.stats_cols])
-            self.statsColumns.setText(stats_cols_str)
+            cols_str = ' '.join([str(i) for i in logger.stats_cols])
+            self.statsColumns.setText(cols_str)
 
         # Unit conversion factors
         if logger.stats_unit_conv_factors is not None:
-            stats_unit_conv_factors_str = ' '.join([str(i) for i in logger.stats_unit_conv_factors])
-            self.statsUnitConvs.setText(stats_unit_conv_factors_str)
+            unit_conv_factors_str = ' '.join([str(i) for i in logger.stats_unit_conv_factors])
+            self.statsUnitConvs.setText(unit_conv_factors_str)
 
             # Stats interval
             self.statsInterval.setText(str(logger.stats_interval))
@@ -918,13 +1028,13 @@ class StatsSettingsTab(QtWidgets.QWidget):
             self.statsEnd.setText(stats_end)
 
             # Stats channel names
-            if logger.user_channel_names is not None:
-                channel_items_str = ' '.join([i for i in logger.user_channel_names])
+            if logger.stats_user_channel_names is not None:
+                channel_items_str = ' '.join([i for i in logger.stats_user_channel_names])
             self.statsChannelNames.setText(channel_items_str)
 
             # Stats units names
-            if logger.user_channel_units is not None:
-                units_items_str = ' '.join([i for i in logger.user_channel_units])
+            if logger.stats_user_channel_units is not None:
+                units_items_str = ' '.join([i for i in logger.stats_user_channel_units])
             self.statsChannelUnits.setText(units_items_str)
 
     def clear_dashboard(self):
@@ -947,14 +1057,7 @@ class SpectralSettingsTab(QtWidgets.QWidget):
         super(SpectralSettingsTab, self).__init__(parent)
 
         self.parent = parent
-
-        self.stats_columns = ''
-        self.stats_unit_convs = ''
-        self.stats_interval = ''
-        self.stats_start = ''
-        self.stats_end = ''
-
-        # Edit logger properties dialog class
+        self.control = self.parent.control
         self.init_ui()
         self.connect_signals()
 
@@ -965,7 +1068,8 @@ class SpectralSettingsTab(QtWidgets.QWidget):
         self.group = QtWidgets.QGroupBox('Spectral Analysis Settings')
         self.form = QtWidgets.QFormLayout(self.group)
 
-        # Spectral settings form
+        self.editButton = QtWidgets.QPushButton('Edit Data')
+        self.editButton.setShortcut('Ctrl+E')
         self.spectralColumns = QtWidgets.QLabel('-')
         self.spectralUnitConvs = QtWidgets.QLabel('-')
         self.spectralInterval = QtWidgets.QLabel('-')
@@ -974,18 +1078,87 @@ class SpectralSettingsTab(QtWidgets.QWidget):
         self.spectralChannelNames = QtWidgets.QLabel('-')
         self.spectralChannelUnits = QtWidgets.QLabel('-')
 
-        self.form.addRow(QtWidgets.QLabel('Stats columns:'), self.spectralColumns)
-        self.form.addRow(QtWidgets.QLabel('Stats unit conversion factors:'), self.spectralUnitConvs)
-        self.form.addRow(QtWidgets.QLabel('Stats interval (s):'), self.spectralInterval)
-        self.form.addRow(QtWidgets.QLabel('Stats start timestamp:'), self.spectralStart)
-        self.form.addRow(QtWidgets.QLabel('Stats end timestamp:'), self.spectralEnd)
+        self.form.addRow(self.editButton, QtWidgets.QLabel(''))
+        self.form.addRow(QtWidgets.QLabel('Spectral columns:'), self.spectralColumns)
+        self.form.addRow(QtWidgets.QLabel('Spectral unit conversion factors:'), self.spectralUnitConvs)
+        self.form.addRow(QtWidgets.QLabel('Spectral interval (s):'), self.spectralInterval)
+        self.form.addRow(QtWidgets.QLabel('Spectral start timestamp:'), self.spectralStart)
+        self.form.addRow(QtWidgets.QLabel('Spectral end timestamp:'), self.spectralEnd)
         self.form.addRow(QtWidgets.QLabel('Channel names:'), self.spectralChannelNames)
         self.form.addRow(QtWidgets.QLabel('Channel units:'), self.spectralChannelUnits)
 
         self.layout.addWidget(self.group)
 
     def connect_signals(self):
-        pass
+        self.editButton.clicked.connect(self.show_edit_dialog)
+
+    def show_edit_dialog(self):
+        """Open logger spectral settings edit form."""
+
+        if self.parent.loggerCombo.currentText() == '-':
+            msg = f'No loggers exist to edit. Add a logger first.'
+            return QtWidgets.QMessageBox.information(self, 'Edit Logger Spectral Settings', msg)
+
+        # Retrieve selected logger object
+        logger_idx = self.parent.loggerCombo.currentIndex()
+        logger = self.control.loggers[logger_idx]
+
+        # Edit stats dialog class
+        editSpectralSettings = LoggerSpectralDialog(self, logger, logger_idx)
+        editSpectralSettings.set_dialog_data()
+        editSpectralSettings.show()
+
+    def set_spectral_dashboard(self, logger):
+        """Set dashboard with logger spectral settings from logger object."""
+
+        # Stats columns
+        if logger.spectral_cols is not None:
+            cols_str = ' '.join([str(i) for i in logger.spectral_cols])
+            self.spectralColumns.setText(cols_str)
+
+        # Unit conversion factors
+        if logger.spectral_unit_conv_factors is not None:
+            unit_conv_factors_str = ' '.join([str(i) for i in logger.spectral_unit_conv_factors])
+            self.spectralUnitConvs.setText(unit_conv_factors_str)
+
+            # Stats interval
+            self.spectralInterval.setText(str(logger.spectral_interval))
+
+            # Stats start
+            if logger.spectral_start is None:
+                spectral_start = 'Not used'
+            else:
+                spectral_start = logger.spectral_start.strftime('%Y-%m-%d %H:%M')
+            self.spectralStart.setText(spectral_start)
+
+            # Stats end
+            if logger.spectral_end is None:
+                spectral_end = 'Not used'
+            else:
+                spectral_end = logger.spectral_end.strftime('%Y-%m-%d %H:%M')
+            self.spectralEnd.setText(spectral_end)
+
+            # Stats channel names
+            if logger.stats_user_channel_names is not None:
+                channel_items_str = ' '.join([i for i in logger.stats_user_channel_names])
+            self.spectralChannelNames.setText(channel_items_str)
+
+            # Stats units names
+            if logger.stats_user_channel_units is not None:
+                units_items_str = ' '.join([i for i in logger.stats_user_channel_units])
+            self.spectralChannelUnits.setText(units_items_str)
+
+    def clear_dashboard(self):
+        """Initialise all values in spectral dashboard."""
+
+        # Clear logger stats settings
+        self.spectralColumns.setText('-')
+        self.spectralUnitConvs.setText('-')
+        self.spectralInterval.setText('-')
+        self.spectralStart.setText('-')
+        self.spectralEnd.setText('-')
+        self.spectralChannelNames.setText('-')
+        self.spectralChannelUnits.setText('-')
 
 
 class CampaignInfoDialog(QtWidgets.QDialog):
@@ -1143,6 +1316,19 @@ class LoggerPropertiesDialog(QtWidgets.QDialog):
         self.loggingDuration = QtWidgets.QLineEdit()
         self.loggingDuration.setFixedWidth(50)
 
+        # Define input validators
+        int_validator = QtGui.QIntValidator()
+        int_validator.setBottom(1)
+        dbl_validator = QtGui.QDoubleValidator()
+
+        # Apply int validators
+        self.numHeaderRows.setValidator(int_validator)
+        self.numColumns.setValidator(int_validator)
+        self.channelHeaderRow.setValidator(int_validator)
+        self.unitsHeaderRow.setValidator(int_validator)
+        self.loggingFreq.setValidator(int_validator)
+        self.loggingDuration.setValidator(int_validator)
+
         self.typeForm.addRow(QtWidgets.QLabel('Logger ID:'), self.loggerID)
         self.typeForm.addRow(QtWidgets.QLabel('Logger path:'), self.loggerPath)
         self.typeForm.addRow(QtWidgets.QLabel(''), self.browseButton)
@@ -1175,7 +1361,6 @@ class LoggerPropertiesDialog(QtWidgets.QDialog):
         self.buttonBox.accepted.connect(self.on_ok_clicked)
         self.buttonBox.accepted.connect(self.accept)
         self.buttonBox.rejected.connect(self.reject)
-        # self.fileFormat.currentIndexChanged.connect(self.on_file_format_change)
         self.browseButton.clicked.connect(self.set_logger_path)
         self.detectButton.clicked.connect(self.detect_properties)
 
@@ -1233,7 +1418,7 @@ class LoggerPropertiesDialog(QtWidgets.QDialog):
         logger.channel_header_row = int(self.channelHeaderRow.text())
         logger.units_header_row = int(self.unitsHeaderRow.text())
         logger.freq = int(self.loggingFreq.text())
-        logger.duration = float(self.loggingDuration.text())
+        logger.duration = int(self.loggingDuration.text())
 
     def set_logger_path(self):
         """Set location of project root directory."""
@@ -1323,7 +1508,7 @@ class LoggerStatsDialog(QtWidgets.QDialog):
         self.connect_signals()
 
     def init_ui(self):
-        self.setWindowTitle('Edit Logger File Properties')
+        self.setWindowTitle('Edit Logger Statistics Analysis Settings')
         self.setMinimumWidth(500)
 
         self.layout = QtWidgets.QVBoxLayout(self)
@@ -1334,10 +1519,21 @@ class LoggerStatsDialog(QtWidgets.QDialog):
         self.statsColumns = QtWidgets.QLineEdit()
         self.statsUnitConvs = QtWidgets.QLineEdit()
         self.statsInterval = QtWidgets.QLineEdit()
+        self.statsInterval.setFixedWidth(40)
         self.statsStart = QtWidgets.QLineEdit()
+        self.statsStart.setFixedWidth(100)
         self.statsEnd = QtWidgets.QLineEdit()
+        self.statsEnd.setFixedWidth(100)
         self.statsChannelNames = QtWidgets.QLineEdit()
         self.statsChannelUnits = QtWidgets.QLineEdit()
+
+        # Define input validators
+        int_validator = QtGui.QIntValidator()
+        int_validator.setBottom(1)
+        dbl_validator = QtGui.QDoubleValidator()
+
+        # Apply float validators
+        self.statsInterval.setValidator(int_validator)
 
         self.form.addRow(QtWidgets.QLabel('Stats columns:'), self.statsColumns)
         self.form.addRow(QtWidgets.QLabel('Stats unit conversion factors:'), self.statsUnitConvs)
@@ -1365,12 +1561,12 @@ class LoggerStatsDialog(QtWidgets.QDialog):
         logger = self.logger
 
         # Stats columns
-        stats_cols_str = ' '.join([str(i) for i in logger.stats_cols])
-        self.statsColumns.setText(stats_cols_str)
+        cols_str = ' '.join([str(i) for i in logger.stats_cols])
+        self.statsColumns.setText(cols_str)
 
         # Unit conversion factors
-        stats_unit_conv_factors_str = ' '.join([str(i) for i in logger.stats_unit_conv_factors])
-        self.statsUnitConvs.setText(stats_unit_conv_factors_str)
+        unit_conv_factors_str = ' '.join([str(i) for i in logger.stats_unit_conv_factors])
+        self.statsUnitConvs.setText(unit_conv_factors_str)
 
         # Stats interval
         self.statsInterval.setText(str(logger.stats_interval))
@@ -1390,13 +1586,13 @@ class LoggerStatsDialog(QtWidgets.QDialog):
         self.statsEnd.setText(stats_end)
 
         # Channel and units names
-        channel_items_str = ' '.join([i for i in logger.user_channel_names])
+        channel_items_str = ' '.join([i for i in logger.stats_user_channel_names])
         self.statsChannelNames.setText(channel_items_str)
-        units_items_str = ' '.join([i for i in logger.user_channel_units])
+        units_items_str = ' '.join([i for i in logger.stats_user_channel_units])
         self.statsChannelUnits.setText(units_items_str)
 
     def on_ok_clicked(self):
-        """Assign logger properties to the control object and update the dashboard."""
+        """Assign logger stats settings to the control object and update the dashboard."""
 
         self.set_control_data()
         self.parent.set_stats_dashboard(self.logger)
@@ -1412,34 +1608,179 @@ class LoggerStatsDialog(QtWidgets.QDialog):
         logger.stats_interval = int(self.statsInterval.text())
 
         stats_start = self.statsStart.text()
-        if stats_start == 'Not used':
+        curr_start = logger.stats_start
+        if stats_start == '' or stats_start == 'Not used':
             logger.stats_start = None
         else:
             try:
                 logger.stats_start = parse(stats_start, yearfirst=True)
             except ValueError:
-                logger.stats_start = None
-                msg = 'Stats start datetime format not recognised; no timestamp set'
+                logger.stats_start = curr_start
+                msg = 'Stats start datetime format not recognised; timestamp unchanged'
                 QtWidgets.QMessageBox.information(self, 'Stats Start Input', msg)
 
         stats_end = self.statsEnd.text()
-        if stats_end == 'Not used':
+        curr_end = logger.stats_end
+        if stats_end == '' or stats_end == 'Not used':
             logger.stats_end = None
         else:
             try:
                 logger.stats_end = parse(stats_end, yearfirst=True)
             except ValueError:
-                logger.stats_end = None
-                msg = 'Stats end datetime format not recognised, no timestamp set'
+                logger.stats_end = curr_end
+                msg = 'Stats end datetime format not recognised; timestamp unchanged'
                 QtWidgets.QMessageBox.information(self, 'Stats End Input', msg)
 
-        logger.user_channel_names = self.statsChannelNames.text().split()
-        logger.user_channel_units = self.statsChannelUnits.text().split()
+        logger.stats_user_channel_names = self.statsChannelNames.text().split()
+        logger.stats_user_channel_units = self.statsChannelUnits.text().split()
+
+
+class LoggerSpectralDialog(QtWidgets.QDialog):
+    def __init__(self, parent=None, logger=None, logger_idx=0):
+        super(LoggerSpectralDialog, self).__init__(parent)
+
+        self.parent = parent
+
+        # Logger properties object and index of selected logger in combo
+        self.logger = logger
+        self.logger_idx = logger_idx
+
+        self.init_ui()
+        self.connect_signals()
+
+    def init_ui(self):
+        self.setWindowTitle('Edit Logger Spectral Analysis Settings')
+        self.setMinimumWidth(500)
+
+        self.layout = QtWidgets.QVBoxLayout(self)
+
+        # Logger stats group
+        self.loggerSpectral = QtWidgets.QGroupBox('Logger Spectral Settings')
+        self.form = QtWidgets.QFormLayout(self.loggerSpectral)
+        self.spectralColumns = QtWidgets.QLineEdit()
+        self.spectralUnitConvs = QtWidgets.QLineEdit()
+        self.spectralInterval = QtWidgets.QLineEdit()
+        self.spectralInterval.setFixedWidth(40)
+        self.spectralStart = QtWidgets.QLineEdit()
+        self.spectralStart.setFixedWidth(100)
+        self.spectralEnd = QtWidgets.QLineEdit()
+        self.spectralEnd.setFixedWidth(100)
+        self.spectralChannelNames = QtWidgets.QLineEdit()
+        self.spectralChannelUnits = QtWidgets.QLineEdit()
+
+        # Define input validators
+        int_validator = QtGui.QIntValidator()
+        int_validator.setBottom(1)
+        dbl_validator = QtGui.QDoubleValidator()
+
+        # Apply float validators
+        self.spectralInterval.setValidator(int_validator)
+
+        self.form.addRow(QtWidgets.QLabel('Columns:'), self.spectralColumns)
+        self.form.addRow(QtWidgets.QLabel('Unit conversion factors:'), self.spectralUnitConvs)
+        self.form.addRow(QtWidgets.QLabel('Interval (s):'), self.spectralInterval)
+        self.form.addRow(QtWidgets.QLabel('Start timestamp:'), self.spectralStart)
+        self.form.addRow(QtWidgets.QLabel('End timestamp:'), self.spectralEnd)
+        self.form.addRow(QtWidgets.QLabel('Channel names:'), self.spectralChannelNames)
+        self.form.addRow(QtWidgets.QLabel('Channel units:'), self.spectralChannelUnits)
+
+        # Button box
+        self.buttonBox = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Ok |
+                                                    QtWidgets.QDialogButtonBox.Cancel)
+
+        self.layout.addWidget(self.loggerSpectral)
+        self.layout.addWidget(self.buttonBox, stretch=0, alignment=QtCore.Qt.AlignRight)
+
+    def connect_signals(self):
+        self.buttonBox.accepted.connect(self.on_ok_clicked)
+        self.buttonBox.accepted.connect(self.accept)
+        self.buttonBox.rejected.connect(self.reject)
+
+    def set_dialog_data(self):
+        """Set dialog data with logger spectral settings from control object."""
+
+        logger = self.logger
+
+        # Stats columns
+        cols_str = ' '.join([str(i) for i in logger.spectral_cols])
+        self.spectralColumns.setText(cols_str)
+
+        # Unit conversion factors
+        unit_conv_factors_str = ' '.join([str(i) for i in logger.spectral_unit_conv_factors])
+        self.spectralUnitConvs.setText(unit_conv_factors_str)
+
+        # Stats interval
+        self.spectralInterval.setText(str(logger.spectral_interval))
+
+        # Stats start
+        if logger.spectral_start is None:
+            spectral_start = 'Not used'
+        else:
+            spectral_start = logger.spectral_start.strftime('%Y-%m-%d %H:%M')
+        self.spectralStart.setText(spectral_start)
+
+        # Stats end
+        if logger.spectral_end is None:
+            spectral_end = 'Not used'
+        else:
+            spectral_end = logger.spectral_end.strftime('%Y-%m-%d %H:%M')
+        self.spectralEnd.setText(spectral_end)
+
+        # Channel and units names
+        channel_items_str = ' '.join([i for i in logger.stats_user_channel_names])
+        self.spectralChannelNames.setText(channel_items_str)
+        units_items_str = ' '.join([i for i in logger.stats_user_channel_units])
+        self.spectralChannelUnits.setText(units_items_str)
+
+    def on_ok_clicked(self):
+        """Assign logger spectral settings to the control object and update the dashboard."""
+
+        self.set_control_data()
+        self.parent.set_spectral_dashboard(self.logger)
+
+    def set_control_data(self):
+        """Assign values to the control object."""
+
+        logger = self.logger
+
+        # Assign form values to control logger object - convert strings to appropriate data type
+        logger.spectral_cols = list(map(int, self.spectralColumns.text().split()))
+        logger.spectral_unit_conv_factors = list(map(float, self.spectralUnitConvs.text().split()))
+        logger.spectral_interval = int(self.spectralInterval.text())
+
+        spectral_start = self.spectralStart.text()
+        curr_start = logger.spectral_start
+        if spectral_start == '' or spectral_start == 'Not used':
+            logger.spectral_start = None
+        else:
+            try:
+                logger.spectral_start = parse(spectral_start, yearfirst=True)
+            except ValueError:
+                logger.spectral_start = curr_start
+                msg = 'Spectral start datetime format not recognised; timestamp unchanged'
+                QtWidgets.QMessageBox.information(self, 'Spectral Start Input', msg)
+
+        spectral_end = self.spectralEnd.text()
+        curr_end = logger.spectral_end
+        if spectral_end == '' or spectral_end == 'Not used':
+            logger.spectral_end = None
+        else:
+            try:
+                logger.spectral_end = parse(spectral_end, yearfirst=True)
+            except ValueError:
+                logger.spectral_end = curr_end
+                msg = 'Spectral end datetime format not recognised; timestamp unchanged'
+                QtWidgets.QMessageBox.information(self, 'Spectral End Input', msg)
+
+        logger.stats_user_channel_names = self.spectralChannelNames.text().split()
+        logger.stats_user_channel_units = self.spectralChannelUnits.text().split()
 
 
 if __name__ == '__main__':
     app = QtWidgets.QApplication(sys.argv)
     # win = ProjectConfigModule()
     win = LoggerPropertiesDialog()
+    # win = LoggerStatsDialog()
+    # win = LoggerSpectralDialog()
     win.show()
     app.exit(app.exec_())
