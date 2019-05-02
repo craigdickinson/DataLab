@@ -13,8 +13,8 @@ import pandas as pd
 from scipy import signal
 
 
-class Spectrogram(object):
-    """Routines to read pandas dataframes and construct spectrograms."""
+class Spectrogram:
+    """Routines to read pandas data frames and construct spectrograms."""
 
     def __init__(self, logger_id, num_chan, output_dir):
         self.logger_id = logger_id
@@ -38,7 +38,7 @@ class Spectrogram(object):
         self.freq = np.fft.rfftfreq(n, d)
 
     def add_data(self, df):
-        """Calculate amplitude spectrum for each channel in sample dataframe and store result in dictionary."""
+        """Calculate amplitude spectrum for each channel in sample data frame and store result in dictionary."""
 
         # Drop timestamp column
         channels = df.columns[1:]
@@ -97,14 +97,14 @@ class Spectrogram(object):
 
         for channel, spect in self.spectrograms.items():
             print('Writing spectrogram file for ' + self.logger_id + ' ' + channel)
-            fname = '_'.join(('Spectrograms_Data', self.logger_id, channel + '.h5'))
-            fpath = os.path.join(self.output_dir, fname)
+            filename = '_'.join(('Spectrograms_Data', self.logger_id, channel + '.h5'))
+            file_path = os.path.join(self.output_dir, filename)
             store_name = self.logger_id + '_' + channel
             f = self.freq
             t = self.datetimes
 
             df = pd.DataFrame(data=spect, index=t, columns=f)
-            df.to_hdf(fpath, store_name)
+            df.to_hdf(file_path, store_name)
 
         t1 = round(time() - t0)
         print('Write hdf5 time = {}'.format(str(timedelta(seconds=t1))))

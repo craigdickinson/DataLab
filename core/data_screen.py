@@ -12,7 +12,7 @@ import pandas as pd
 from core.logger_properties import LoggerProperties
 
 
-class DataScreen(object):
+class DataScreen:
     """Screen data from a list of filenames and store stats."""
 
     def __init__(self):
@@ -36,11 +36,14 @@ class DataScreen(object):
         self.data_completeness = np.array([])
 
         # Lists for sample start and end times
-        self.sample_start = []
-        self.sample_end = []
+        self.stats_sample_start = []
+        self.stats_sample_end = []
+        self.spectral_sample_start = []
+        self.spectral_sample_end = []
 
         # Interval to calculate stats over
-        self.sample_length = 0
+        self.stats_sample_length = 0
+        self.spectral_sample_length = 0
 
         # csv read properties
         self.header_row = 0
@@ -64,32 +67,37 @@ class DataScreen(object):
         if self.header_row < 0:
             self.header_row = None
 
-    def set_sample_length(self):
+    def set_stats_sample_length(self):
         """Convert sample length from seconds to number of data points."""
 
-        self.sample_length = int(self.logger.stats_interval * self.logger.freq)
+        self.stats_sample_length = int(self.logger.stats_interval * self.logger.freq)
+
+    def set_spectral_sample_length(self):
+        """Convert sample length from seconds to number of data points."""
+
+        self.spectral_sample_length = int(self.logger.spectral_interval * self.logger.freq)
 
     def read_logger_file(self, f):
         """Process requested actions for all files."""
 
         # Read data in to Pandas data frame
-        data = self.read_data(f,
-                              self.logger.file_delimiter,
-                              self.header_row,
-                              self.skip_rows,
-                              self.use_cols)
+        df = self.read_data(f,
+                            self.logger.file_delimiter,
+                            self.header_row,
+                            self.skip_rows,
+                            self.use_cols)
 
         # Column names
-        columns = data.columns
+        columns = df.columns
 
         # Process first column - should be time
-        data[columns[0]] = self.parse_timestamp(data[columns[0]],
-                                                self.logger.datetime_format)
+        df[columns[0]] = self.parse_timestamp(df[columns[0]],
+                                              self.logger.datetime_format)
 
         # Convert any non numeric to NaN
-        data[columns[1:]] = self.parse_numeric(data[columns[1:]])
+        df[columns[1:]] = self.parse_numeric(df[columns[1:]])
 
-        return data
+        return df
 
     def read_data(self, fname, delim, header, skip_rows, use_cols):
         """Read logger file data into Pandas data frame."""
@@ -218,7 +226,7 @@ class DataScreen(object):
 
         return self.data_completeness
 
-    def sample_dataframe(self, sample_df, df):
+    def sample_data(self, sample_df, df, sample_length, type):
         """
         Extract data sample from file.
         Move the required rows from data to sample to make len(sample) = sample_length.
@@ -236,18 +244,22 @@ class DataScreen(object):
         nd = len(df)
 
         # Number of points to append to sample - sample_length is the target number of sample points
-        cutoff = min(self.sample_length - ns, nd)
+        cutoff = min(sample_length - ns, nd)
 
-        if ns < self.sample_length and nd > 0:
+        if ns < sample_length and nd > 0:
             # Append data to sample data frame and drop sample from main data frame
             sample_df = sample_df.append(df[:cutoff].copy(), ignore_index=True)
             df.drop(df.index[:cutoff], inplace=True)
 
             # TODO: Allowing short sample length (revisit)
             # Store start and end times of sample data if data frame contains target length
-            # if len(sample_df) == self.sample_length:
-            if len(sample_df) <= self.sample_length:
-                self.sample_start.append(sample_df.iloc[0, 0])
-                self.sample_end.append(sample_df.iloc[-1, 0])
+            # if len(sample_df) == sample_length:
+            if len(sample_df) <= sample_length:
+                if type == 'stats':
+                    self.stats_sample_start.append(sample_df.iloc[0, 0])
+                    self.stats_sample_end.append(sample_df.iloc[-1, 0])
+                elif type == 'spectral':
+                    self.spectral_sample_start.append(sample_df.iloc[0, 0])
+                    self.spectral_sample_end.append(sample_df.iloc[-1, 0])
 
         return sample_df, df

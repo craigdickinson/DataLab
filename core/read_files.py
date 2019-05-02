@@ -198,6 +198,10 @@ def read_spectrograms_csv(filename):
     logger = filename.split('Spectrograms_Data_')[-1].split('.')[0]
     df = pd.read_csv(filename, index_col=0)
     df.index = pd.to_datetime(df.index, format='%Y-%m-%d %H:%M:%S')
+
+    # Need to convert frequencies (the column headers) to float
+    df.columns = df.columns.astype(float)
+
     t1 = round(time() - t0)
     print('Read csv file time = {}'.format(str(timedelta(seconds=t1))))
 

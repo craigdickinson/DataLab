@@ -296,18 +296,18 @@ class TimeSeriesPlotWidget(QtWidgets.QWidget):
     def set_plot_data(self, df):
         """
         Create plot dataset.
-        :return: df_plot - dataframe containing all series to be plotted with labels as column names
+        :return: df_plot - data frame containing all series to be plotted with labels as column names
         """
 
         self.plot_units = []
         self.plot_pri = False
         self.plot_sec = False
 
-        # Store timestamp column and rename column since original dataframe is a multiindex header
+        # Store timestamp column and rename column since original data frame is a multiindex header
         df_plot = df.iloc[:, 0].to_frame()
         df_plot.columns = ['Timestamp']
 
-        # Append data columns to plot to dataframe
+        # Append data columns to plot to data frame
         i = self.pri_ix
         if i > 0:
             self.plot_pri = True

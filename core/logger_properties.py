@@ -28,7 +28,7 @@ class LoggerError(Error):
         self.message = message
 
 
-class LoggerProperties(object):
+class LoggerProperties:
     """Holds properties of a logger."""
 
     def __init__(self, logger_id=''):
@@ -64,6 +64,9 @@ class LoggerProperties(object):
         # ==============================
         # STATISTICS ANALYSIS PARAMETERS
         # ==============================
+        # Include in processing flag
+        self.process_stats = True
+
         # Channel columns to process
         self.stats_cols = []  # *STATS_COLUMNS
 
@@ -88,6 +91,9 @@ class LoggerProperties(object):
         # ============================
         # SPECTRAL ANALYSIS PARAMETERS
         # ============================
+        # Include in processing flag
+        self.process_spectral = True
+
         # Channel columns to process
         self.spectral_cols = []
 

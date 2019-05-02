@@ -1,7 +1,7 @@
 __author__ = 'Craig Dickinson'
 __program__ = 'DataLab'
-__version__ = '0.17'
-__date__ = '29 April 2019'
+__version__ = '0.18'
+__date__ = '2 May 2019'
 
 import logging
 import os
@@ -295,9 +295,9 @@ class DataLabGui(QtWidgets.QMainWindow):
                 self.timeSeriesTab.update_files_list(files_list, filename)
                 self.timeSeriesTab.load_file(filename)
             except FileNotFoundError as e:
-                self.error(f'Error: {e}')
+                self.error(str(e))
             except ValueError as e:
-                self.error(f'Error: {e}')
+                self.error(str(e))
             except Exception as e:
                 msg = 'Unexpected error processing loggers'
                 self.error(f'{msg}:\n{e}\n{sys.exc_info()[0]}')
@@ -326,11 +326,11 @@ class DataLabGui(QtWidgets.QMainWindow):
             # Read spreadsheet to data frame
             # TODO: Check that file read is valid
             if ext == 'h5':
-                stats_dict = read_stats_hdf5(stats_file)
+                dict_stats = read_stats_hdf5(stats_file)
             elif ext == 'csv':
-                stats_dict = read_stats_csv(stats_file)
+                dict_stats = read_stats_csv(stats_file)
             elif ext == 'xlsx':
-                stats_dict = read_stats_excel(stats_file)
+                dict_stats = read_stats_excel(stats_file)
 
             # Set update plot flag so that plot is not updated if datasets dictionary already contains data
             # (i.e. a plot already exists)
@@ -341,13 +341,13 @@ class DataLabGui(QtWidgets.QMainWindow):
 
             # For each logger create a stats dataset object containing data, logger id, list of channels and
             # pri/sec plot flags and add to stats plot class
-            for logger, df in stats_dict.items():
+            for logger, df in dict_stats.items():
                 dataset = StatsDataset(logger_id=logger, df=df)
                 self.statsTab.datasets.append(dataset)
                 self.vesselStatsTab.datasets.append(dataset)
 
             # Store dataset/logger names from dictionary keys
-            dataset_ids = list(stats_dict.keys())
+            dataset_ids = list(dict_stats.keys())
             self.statsTab.update_stats_datasets_list(dataset_ids)
             self.vesselStatsTab.update_stats_datasets_list(dataset_ids)
 
@@ -359,7 +359,7 @@ class DataLabGui(QtWidgets.QMainWindow):
                 self.vesselStatsTab.update_plots()
 
             # Update variance plot tab - plot update is triggered upon setting dataset list index
-            self.varianceTab.datasets = stats_dict
+            self.varianceTab.datasets = dict_stats
             self.varianceTab.update_variance_datasets_list(dataset_ids)
 
             # Show dashboard
@@ -378,7 +378,7 @@ class DataLabGui(QtWidgets.QMainWindow):
             # Get file extension
             ext = spect_file.split('.')[-1]
 
-            # Read spreadsheet to dataframe
+            # Read spreadsheet to data frame
             # TODO: Check that file read is valid
             if ext == 'h5':
                 logger, df = read_spectrograms_hdf5(spect_file)
@@ -569,7 +569,7 @@ class DataLabGui(QtWidgets.QMainWindow):
             except Exception as e:
                 msg = 'Unexpected error checking config file'
                 self.error(f'{msg}:\n{e}\n{sys.exc_info()[0]}')
-                logging.exception(str(e))
+                logging.exception(e)
 
     def process_datalab_config(self, control):
         """Run statistical and spectral analysis in config setup."""
@@ -595,7 +595,7 @@ class DataLabGui(QtWidgets.QMainWindow):
             return self.error(str(e))
         except Exception as e:
             self.error(str(e))
-            return logging.exception(str(e))
+            return logging.exception(e)
 
         # Run processing on QThread worker - prevents GUI lock up
         try:
@@ -627,12 +627,12 @@ class DataLabGui(QtWidgets.QMainWindow):
 
         # For each logger create stats dataset object containing data, logger id, list of channels and
         # pri/sec plot flags and add to stats plot class
-        for logger, df in datalab.stats_dict.items():
+        for logger, df in datalab.dict_stats.items():
             dataset = StatsDataset(logger_id=logger, df=df)
             self.statsTab.datasets.append(dataset)
 
         # Store dataset/logger names from dictionary keys
-        dataset_ids = list(datalab.stats_dict.keys())
+        dataset_ids = list(datalab.dict_stats.keys())
         self.statsTab.update_stats_datasets_list(dataset_ids)
 
         # Plot stats
@@ -646,7 +646,7 @@ class DataLabGui(QtWidgets.QMainWindow):
         # self.parent.spectrogramTab.update_spect_datasets_list(logger)
 
         # Update variance plot tab - plot update is triggered upon setting dataset list index
-        self.varianceTab.datasets = datalab.stats_dict
+        self.varianceTab.datasets = datalab.dict_stats
         self.varianceTab.update_variance_datasets_list(dataset_ids)
         self.varianceTab.datasetList.setCurrentRow(0)
         self.varianceTab.update_variance_plot(init_plot=True)

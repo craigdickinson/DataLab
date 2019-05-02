@@ -11,7 +11,7 @@ from openpyxl.utils import get_column_letter
 from openpyxl.workbook import Workbook
 
 
-class StatsOutput(object):
+class StatsOutput:
     """
     Methods to write statistics from LoggerStats to Excel.
     """
@@ -22,10 +22,10 @@ class StatsOutput(object):
         # Path to save output
         self.output_dir = output_dir
 
-        # Dictionary to hold statistics dataframes
-        self.stats_dict = {}
+        # Dictionary to hold statistics data frames
+        self.dict_stats = {}
 
-        # Stats dataframe for file export
+        # Stats data frame for file export
         self.logger_id = ''
         self.stats = []
         self.start = []
@@ -37,11 +37,12 @@ class StatsOutput(object):
         ws = self.wb[sheet_name]
         self.wb.remove(ws)
 
-    def compile_stats_dataframe(self, logger, data_screen, logger_stats):
+    def compile_stats_dataframe(self, logger, sample_start, sample_end, logger_stats):
         """
-        Compile statistics into dataframe for exporting and for use by gui.
+        Compile statistics into data frame for exporting and for use by gui.
         :param logger: object
-        :param data_screen: object - note contains copy of current logger object
+        :param sample_start
+        :param sample_end
         :param logger_stats: object
         :return: None
         """
@@ -79,8 +80,8 @@ class StatsOutput(object):
         # Logic: Loop each data point, create list, loop each channel in zip, loop each stat in channel, add to list
         self.stats = [[stat for channel in zip(mn[k], mx[k], ave[k], std[k]) for stat in channel]
                       for k in range(num_pts)]
-        self.start = [datetime.strftime(dt, '%Y-%m-%d %H:%M:%S') for dt in data_screen.sample_start]
-        self.end = [datetime.strftime(dt, '%Y-%m-%d %H:%M:%S') for dt in data_screen.sample_end]
+        self.start = [datetime.strftime(dt, '%Y-%m-%d %H:%M:%S') for dt in sample_start]
+        self.end = [datetime.strftime(dt, '%Y-%m-%d %H:%M:%S') for dt in sample_end]
 
         # CD: The above is equivalent to
         # ss = []
@@ -99,10 +100,10 @@ class StatsOutput(object):
         # Create statistics data frame
         cols = pd.MultiIndex.from_arrays([channel_header, stats_header, units_header],
                                          names=['channels', 'stats', 'units'])
-        df = pd.DataFrame(self.stats, index=data_screen.sample_start, columns=cols)
+        df = pd.DataFrame(self.stats, index=sample_start, columns=cols)
 
-        # Add stats data frame to logger dict for use by gui
-        self.stats_dict[logger.logger_id] = df
+        # Add stats data frame to logger dict for gui access
+        self.dict_stats[logger.logger_id] = df
 
         # Now create a new data frame to write to file (csv/xlsx/hdf5)
         # Add end time columns, reset index and rename first column to Start

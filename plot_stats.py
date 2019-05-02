@@ -1,4 +1,7 @@
+import sys
+import logging
 from datetime import datetime
+import math
 
 import PIL
 import matplotlib.dates as mdates
@@ -34,7 +37,7 @@ variance_channels_combo = ['Acceleration X',
                            ]
 
 # Dictionary of stats combo items and stats file column name pairs
-stats_dict = {'Minimum': 'min',
+dict_stats = {'Minimum': 'min',
               'Maximum': 'max',
               'Mean': 'mean',
               'Std. Dev.': 'std',
@@ -115,9 +118,9 @@ class StatsWidget(QtWidgets.QWidget):
         self.canvas.draw()
 
         # Add stats options and initialise to stdev - don't do this in layout creation to keep it separate
-        self.axis1StatsCombo.addItems(stats_dict.keys())
+        self.axis1StatsCombo.addItems(dict_stats.keys())
         self.axis1StatsCombo.setCurrentIndex(3)
-        self.axis2StatsCombo.addItems(stats_dict.keys())
+        self.axis2StatsCombo.addItems(dict_stats.keys())
         self.axis2StatsCombo.setCurrentIndex(3)
 
         # Store logger and channel drop-down widgets in lists for convenience in later use
@@ -407,8 +410,8 @@ class StatsWidget(QtWidgets.QWidget):
         # Selected statistic info
         self.stat1 = self.axis1StatsCombo.currentText()
         self.stat2 = self.axis2StatsCombo.currentText()
-        stat1_col = stats_dict[self.stat1]
-        stat2_col = stats_dict[self.stat2]
+        stat1_col = dict_stats[self.stat1]
+        stat2_col = dict_stats[self.stat2]
 
         self.plot_data_1a = self.get_axes_plot_data(logger_combo=self.log1a,
                                                     channel_combo=self.ch1a,
@@ -432,7 +435,7 @@ class StatsWidget(QtWidgets.QWidget):
         :return: Dataframe of plot data for a given axis
         """
 
-        # Dictionary to hold plot dataframe, label and units
+        # Dictionary to hold plot data frame, label and units
         plot_data = {}
 
         # Selected logger info
@@ -446,11 +449,11 @@ class StatsWidget(QtWidgets.QWidget):
 
         # If selected logger is not "None"
         if logger_i > -1 and channel != 'None':
-            # Retrieve dataframe from dataset objects list
+            # Retrieve data frame from dataset objects list
             df = self.datasets[logger_i].df
             logger_id = self.datasets[logger_i].logger_id
 
-            # Slice dataframe for the selected statistic and then on channel
+            # Slice data frame for the selected statistic and then on channel
             df = df.xs(key=stat_col, axis=1, level=1)
             df = df[channel]
             units = df.columns[0]
@@ -626,9 +629,9 @@ class VesselStatsWidget(QtWidgets.QWidget):
         # Populate fixed combo boxes - don't do this in init_ui to restrict its purpose to layout design
         self.vesselMotionsCombo.addItems(motion_types)
         self.vesselMotionsCombo.setCurrentIndex(0)
-        self.stats1Combo.addItems(stats_dict.keys())
+        self.stats1Combo.addItems(dict_stats.keys())
         self.stats1Combo.setCurrentIndex(3)
-        self.stats2Combo.addItems(stats_dict.keys())
+        self.stats2Combo.addItems(dict_stats.keys())
         self.stats2Combo.setCurrentIndex(3)
 
         self.skip_plot = True
@@ -857,8 +860,8 @@ class VesselStatsWidget(QtWidgets.QWidget):
 
         self.stat1 = self.stats1Combo.currentText()
         self.stat2 = self.stats2Combo.currentText()
-        stat1_col = stats_dict[self.stat1]
-        stat2_col = stats_dict[self.stat2]
+        stat1_col = dict_stats[self.stat1]
+        stat2_col = dict_stats[self.stat2]
 
         # Plot title
         if self.stat1 == 'Std. Dev.':
@@ -868,11 +871,11 @@ class VesselStatsWidget(QtWidgets.QWidget):
 
         self.title = f'{self.project}\n{stat} Vessel Accelerations'
 
-        # Dictionary to hold plot vessel motions dataframe and axis 2 channel dataframe, label and units
+        # Dictionary to hold plot vessel motions data frame and axis 2 channel data frame, label and units
         plot_data = {}
 
         # Get axis 1 plot data
-        # Get vessel motions data from vessel dataframe - it is required that the vessel dataset is called "VESSEL"
+        # Get vessel motions data from vessel data frame - it is required that the vessel dataset is called "VESSEL"
         for i in range(len(self.datasets)):
             if self.datasets[i].logger_id == 'VESSEL':
                 df_vessel = self.datasets[i].df
@@ -890,11 +893,11 @@ class VesselStatsWidget(QtWidgets.QWidget):
 
         # Get axis 2 plot data
         if logger_i > -1 and channel != 'None':
-            # Retrieve dataframe from dataset objects list
+            # Retrieve data frame from dataset objects list
             df_axis2 = self.datasets[logger_i].df
             logger_id = self.datasets[logger_i].logger_id
 
-            # Slice dataframe for the selected statistic and then select channel
+            # Slice data frame for the selected statistic and then select channel
             df_axis2 = df_axis2.xs(key=stat2_col, axis=1, level=1)
             df_axis2 = df_axis2[channel]
             units = df_axis2.columns[0]
@@ -1084,7 +1087,10 @@ class VarianceWidget(QtWidgets.QWidget):
         # For some reason when processing stats, update of variance plot is not triggered by change in dataset list item
         # Therefore force plotting of first dataset in list
         if init_plot:
-            logger = self.datasetList.item(0).text()
+            if self.datasetList.count() > 0:
+                logger = self.datasetList.item(0).text()
+            else:
+                return
         # Get dataset list index; quit routine if list is empty
         else:
             logger_i = self.datasetList.currentRow()
@@ -1208,7 +1214,7 @@ class SpectrogramWidget(QtWidgets.QWidget):
         self.event_line = None
         self.psd_line = None
         self.label = None
-        self.skip = False
+        self.skip_on_slider_change_event = False
 
         self.init_ui()
         self.connect_signals()
@@ -1228,6 +1234,7 @@ class SpectrogramWidget(QtWidgets.QWidget):
         selection = QtWidgets.QWidget()
         selection.setFixedWidth(170)
         grid = QtWidgets.QGridLayout(selection)
+
         self.loadDataset = QtWidgets.QPushButton('Load Dataset')
         lbl = QtWidgets.QLabel('Loaded Datasets')
         self.datasetList = QtWidgets.QListWidget()
@@ -1235,12 +1242,15 @@ class SpectrogramWidget(QtWidgets.QWidget):
         self.datetimeEdit = QtWidgets.QDateTimeEdit()
         lbl2 = QtWidgets.QLabel('Timestamps (reversed)')
         self.timestampList = QtWidgets.QListWidget()
+
         self.slider = QtWidgets.QSlider()
         self.slider.setOrientation(QtCore.Qt.Vertical)
         self.slider.setValue(50)
+
         self.openPlotSettings = QtWidgets.QPushButton('Plot Settings')
         self.calcNatFreq = QtWidgets.QPushButton('Estimate Nat. Freq.')
         self.clearDatasets = QtWidgets.QPushButton('Clear Datasets')
+
         grid.addWidget(self.loadDataset, 0, 0)
         grid.addWidget(self.clearDatasets, 1, 0)
         grid.addWidget(lbl, 2, 0)
@@ -1324,10 +1334,15 @@ class SpectrogramWidget(QtWidgets.QWidget):
         self.datasetList.setCurrentRow(n - 1)
 
         # Get and plot data
-        self.set_plot_data()
-        self.draw_axes()
-        self.plot_spectrogram()
-        self.plot_event_psd()
+        try:
+            self.set_plot_data()
+            self.draw_axes()
+            self.plot_spectrogram()
+            self.plot_event_psd()
+        except Exception as e:
+            logging.exception(e)
+            msg = 'Unexpected error loading plotting spectrogram'
+            self.parent.error(f'{msg}:\n{e}\n{sys.exc_info()[0]}')
 
     def on_dataset_double_clicked(self):
         """Plot spectrogram."""
@@ -1349,7 +1364,7 @@ class SpectrogramWidget(QtWidgets.QWidget):
         """Update event PSD plot."""
 
         # Ignore if initial spectrogram is being plotted
-        if self.skip is True:
+        if self.skip_on_slider_change_event is True:
             return
 
         i = self.slider.value()
@@ -1374,7 +1389,7 @@ class SpectrogramWidget(QtWidgets.QWidget):
         # Timestamp list is in reverse order so index needs to be inverted
         i = self.timestampList.currentRow()
         n = self.timestampList.count()
-        self.slider.setValue(n - i)
+        self.slider.setValue(n - i - 1)
 
     def set_datetime_edit(self, t):
         yr = t.year
@@ -1402,8 +1417,8 @@ class SpectrogramWidget(QtWidgets.QWidget):
             self.z = df.values
 
         # Min/max amplitudes
-        self.zmin = round(self.z.min())
-        self.zmax = round(self.z.max())
+        self.zmin = math.floor(self.z.min())
+        self.zmax = math.ceil(self.z.max())
 
         # Populate timestamps list
         self.timestampList.clear()
@@ -1415,13 +1430,15 @@ class SpectrogramWidget(QtWidgets.QWidget):
         i = n // 2 - 1
         j = n - i - 1
         self.ts_i = i
-        self.slider.setMaximum(n - 1)
-        self.skip = True
-        self.slider.setValue(i)
-        self.skip = False
-        self.timestampList.setCurrentRow(j)
 
-        # Set datetime edit widget
+        # Update slider parameters but disable it's event change first while setting up plot
+        self.skip_on_slider_change_event = True
+        self.slider.setMaximum(n - 1)
+        self.slider.setValue(i)
+        self.skip_on_slider_change_event = False
+
+        # Set timestamp list and datetime edit widget
+        self.timestampList.setCurrentRow(j)
         self.t = self.timestamps[i]
         self.set_datetime_edit(self.t)
 
@@ -1511,7 +1528,7 @@ class SpectrogramWidget(QtWidgets.QWidget):
         timestamp2 = timestamp1 + timedelta(minutes=20)
         msg_d1 = timestamp1.strftime('%d %b %Y %H:%M').lstrip('0')
         msg_d2 = timestamp2.strftime('%d %b %Y %H:%M')[-5:]
-        label = ' '.join((msg_d1, 'to', msg_d2))
+        label = f'{msg_d1} to {msg_d2}'
 
         self.ax2.cla()
         # self.ax2.patch.set_facecolor('none')
@@ -1534,7 +1551,7 @@ class SpectrogramWidget(QtWidgets.QWidget):
     def update_psd_plot(self, i):
         """Update PSD plot data for selected timestamp slice of spectrogram."""
 
-        # Slice spectrogram dataframe for timestamp index i
+        # Slice spectrogram data frame for timestamp index i
         zi = self.z[i, :]
 
         # Create new legend label

@@ -6,7 +6,7 @@ Created on 22 Sep 2016
 import numpy as np
 
 
-class LoggerStats(object):
+class LoggerStats:
     """Screen data from a list of filenames and store stats."""
 
     def __init__(self):

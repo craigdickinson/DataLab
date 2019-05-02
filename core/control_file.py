@@ -65,9 +65,6 @@ class ControlFile(object):
         # Each logger object will contain the majority of input parameters
         self.loggers = []
 
-        # Spectrogram option - array of boolean
-        self.create_spectrograms = []
-
     def set_filename(self, filename):
         """Set control file to read from """
 
@@ -619,10 +616,10 @@ class ControlFile(object):
         key = '*SPECTROGRAMS'
         i, _ = self.get_key_data(key, data)
 
-        if i < 0:
-            self.create_spectrograms.append(False)
-        else:
+        if i > -1:
             self.create_spectrograms.append(True)
+        else:
+            self.create_spectrograms.append(False)
 
     def get_file_timestamp(self, data):
         """Extract logger file timestamp from control file data."""
