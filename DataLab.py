@@ -19,13 +19,14 @@ from core.logger_properties import LoggerError
 from core.read_files import (read_spectrograms_csv, read_spectrograms_excel, read_spectrograms_hdf5, read_stats_csv,
                              read_stats_excel, read_stats_hdf5)
 from core.read_files import read_fatlasa_results, read_wcfat_results
-from project_config_screen import ConfigModule
+from project_config_dashboard import ConfigModule
 from data_quality_screening import DataQualityReport
-from plot_stats import PlotStyle2H, SpectrogramWidget, StatsDataset, StatsWidget, VarianceWidget, VesselStatsWidget
-from seascatter_diagram import SeascatterDiagram
-from plot_time_series import TimeSeriesPlotWidget
-from transfer_functions import TransferFunctionsWidget
-from fatigue_processing import FatigueProcessingWidget
+from stats_dashboard import PlotStyle2H, StatsDataset, StatsWidget, VarianceWidget, VesselStatsWidget
+from spectral_dashboard import SpectrogramWidget
+from seascatter_dashboard import SeascatterDiagram
+from raw_data_dashboard import TimeSeriesPlotWidget
+from transfer_functions_dashboard import TransferFunctionsWidget
+from fatigue_dashboard import FatigueProcessingWidget
 import datalab_gui_layout
 
 
