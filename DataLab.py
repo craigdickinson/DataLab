@@ -13,21 +13,21 @@ from time import time
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtCore import pyqtSignal, pyqtSlot
 
+import datalab_gui_layout
 from core.control_file import InputError
 from core.datalab_main import DataLab
 from core.logger_properties import LoggerError
+from core.read_files import read_fatlasa_results, read_wcfat_results
 from core.read_files import (read_spectrograms_csv, read_spectrograms_excel, read_spectrograms_hdf5, read_stats_csv,
                              read_stats_excel, read_stats_hdf5)
-from core.read_files import read_fatlasa_results, read_wcfat_results
-from project_config_dashboard import ConfigModule
-from data_quality_screening import DataQualityReport
-from stats_dashboard import PlotStyle2H, StatsDataset, StatsWidget, VarianceWidget, VesselStatsWidget
-from spectral_dashboard import SpectrogramWidget
-from seascatter_dashboard import SeascatterDiagram
-from raw_data_dashboard import TimeSeriesPlotWidget
-from transfer_functions_dashboard import TransferFunctionsWidget
+from data_screening_dashboard import DataQualityReport
 from fatigue_dashboard import FatigueProcessingWidget
-import datalab_gui_layout
+from project_config_dashboard import ConfigModule
+from raw_data_dashboard import TimeSeriesPlotWidget
+from seascatter_dashboard import SeascatterDiagram
+from spectral_dashboard import SpectrogramWidget
+from stats_dashboard import PlotStyle2H, StatsDataset, StatsWidget, VarianceWidget, VesselStatsWidget
+from transfer_functions_dashboard import TransferFunctionsWidget
 
 
 class DataLabGui(QtWidgets.QMainWindow):
