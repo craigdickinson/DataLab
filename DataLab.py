@@ -93,9 +93,10 @@ class DataLabGui(QtWidgets.QMainWindow):
         self.spectralScreeningModule.addTab(self.spectrogramTab, 'Spectrograms')
 
         # Seascatter diagram module
-        self.seascatterModule = QtWidgets.QTabWidget()
-        self.scatterTab = SeascatterDiagram(self)
-        self.seascatterModule.addTab(self.scatterTab, 'Seascatter Diagram')
+        self.seascatterModule = SeascatterDiagram(self)
+        # self.seascatterModule = QtWidgets.QTabWidget()
+        # self.scatterTab = SeascatterDiagram(self)
+        # self.seascatterModule.addTab(self.scatterTab, 'Seascatter Diagram')
 
         # Transfer functions module
         self.transFuncsModule = QtWidgets.QTabWidget()
@@ -504,7 +505,7 @@ class DataLabGui(QtWidgets.QMainWindow):
     def view_tab_seascatter(self):
         self.update_tool_buttons('seascatter')
         self.modulesWidget.setCurrentWidget(self.seascatterModule)
-        self.statsScreeningModule.setCurrentWidget(self.scatterTab)
+        # self.statsScreeningModule.setCurrentWidget(self.scatterTab)
 
     def update_tool_buttons(self, active_button):
         """Format selected module button."""
@@ -663,7 +664,8 @@ class DataLabGui(QtWidgets.QMainWindow):
             self.warning(msg)
         else:
             try:
-                self.scatterTab.generate_scatter_diag(df_vessel)
+                self.seascatterModule.generate_scatter_diag(df_vessel)
+                # self.scatterTab.generate_scatter_diag(df_vessel)
             except Exception as e:
                 msg = 'Unexpected error generating seascatter diagram'
                 self.error(f'{msg}:\n{e}\n{sys.exc_info()[0]}')
@@ -686,13 +688,15 @@ class DataLabGui(QtWidgets.QMainWindow):
     def save_scatter_diagram(self):
         """Export seascatter diagram to Excel."""
 
-        if self.scatterTab.df_scatter.empty is True:
+        if self.seascatterModule.df_scatter.empty is True:
+        # if self.scatterTab.df_scatter.empty is True:
             self.warning('No seascatter diagram generated. Nothing to export!')
         else:
             fname, _ = QtWidgets.QFileDialog.getSaveFileName(self, 'Save Seascatter Diagram',
                                                              filter='Excel Files (*.xlsx)')
             if fname:
-                self.scatterTab.export_scatter_diagram(fname)
+                self.seascatterModule.export_scatter_diagram(fname)
+                # self.scatterTab.export_scatter_diagram(fname)
 
 
 class ControlFileWorker(QtCore.QThread):
@@ -791,15 +795,16 @@ class ControlFileProgressBar(QtWidgets.QDialog):
         print('\nStop!!!')
         self.signal_quit_worker.emit()
 
-    @pyqtSlot(int, int)
-    def update_progress_bar(self, i, n):
+    @pyqtSlot(str, int, int, int, int, int)
+    def update_progress_bar(self, logger, logger_i, file_i, n, file_num, total_num_files):
         """Update progress bar window."""
 
-        self.label.setText('Processing logger file ' + str(i) + ' of ' + str(n))
+        self.label.setText(f'Processing logger {logger}: file {file_i} of {total_num_files}')
 
-        p = (i / n) * 100
-        self.progressBar.setValue(p)
-        if int(p) == 100:
+        perc = file_num / total_num_files * 100
+        print(f'{file_num} {perc:.3f}%')
+        self.progressBar.setValue(perc)
+        if int(perc) == 100:
             self.buttonBox.button(QtWidgets.QDialogButtonBox.Ok).setEnabled(True)
         # self.close()
 

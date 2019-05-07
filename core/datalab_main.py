@@ -47,7 +47,7 @@ class DataLab(QThread):
     """Class for main DataLab program. Defined as a thread object for use with gui."""
 
     # Signal to report logger file processing progress
-    signal_notify_progress = pyqtSignal(int, int)
+    signal_notify_progress = pyqtSignal(str, int, int, int, int, int)
 
     def __init__(self, datfile='', no_dat=False):
         super().__init__()
@@ -99,9 +99,14 @@ class DataLab(QThread):
         # Create output stats to workbook object
         stats_out = StatsOutput(output_dir=self.control.output_folder)
 
-        print('Processing loggers...')
+        # Get total number of files to process
+        total_files = 0
+        for logger in loggers:
+            total_files += len(logger.files)
 
         # Process each logger file
+        print('Processing loggers...')
+        file_count = 0
         for i, logger in enumerate(loggers):
             print()
             if logger.process_stats is True:
@@ -139,14 +144,14 @@ class DataLab(QThread):
 
             # Expose each sample here; that way it can be sent to different processing modules
             for j, f in enumerate(data_screen[i].files):
+                file_count += 1
                 # TODO: Consider adding multiprocessing pool here
                 # TODO: If expected file in sequence is missing, store results as nan
 
                 # Update console
                 filename = os.path.basename(f)
-                progress = 'Processing ' + logger.logger_id
-                progress += ' file ' + str(j + 1) + ' of ' + str(n) + ' (' + filename + ')'
-                print(f'\r{progress}', end='')
+                progress = f'Processing {logger.logger_id} file {j + 1} of {n} ({filename})'
+                # print(f'\r{progress}', end='')
 
                 # Read the file into a pandas data frame and parse dates and floats
                 df = data_screen[i].read_logger_file(f)
@@ -198,7 +203,7 @@ class DataLab(QThread):
                                 df_spectral_sample = pd.DataFrame()
 
                 # Emit file number signal to gui
-                self.signal_notify_progress.emit(j + 1, n)
+                self.signal_notify_progress.emit(logger.logger_id, i + 1, j + 1, n, file_count, total_files)
 
             coverage = data_screen[i].calc_data_completeness()
             print(f'\nData coverage for {logger.logger_id} logger = {coverage.min():.1f}%')

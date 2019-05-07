@@ -1,5 +1,4 @@
 import pandas as pd
-import numpy as np
 
 
 def calc_seascatter_diagram(df, hs_bins, tp_bins):

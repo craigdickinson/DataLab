@@ -96,7 +96,7 @@ class Spectrogram:
         t0 = time()
 
         for channel, spect in self.spectrograms.items():
-            print('Writing spectrogram file for ' + self.logger_id + ' ' + channel)
+            # print('Writing spectrogram file for ' + self.logger_id + ' ' + channel)
             filename = '_'.join(('Spectrograms_Data', self.logger_id, channel + '.h5'))
             file_path = os.path.join(self.output_dir, filename)
             store_name = self.logger_id + '_' + channel
@@ -107,7 +107,7 @@ class Spectrogram:
             df.to_hdf(file_path, store_name)
 
         t1 = round(time() - t0)
-        print('Write hdf5 time = {}'.format(str(timedelta(seconds=t1))))
+        # print('Write hdf5 time = {}'.format(str(timedelta(seconds=t1))))
 
     def write_spectrogram_to_csv(self):
         """Write spectrogram data to csv file."""
@@ -115,7 +115,7 @@ class Spectrogram:
         t0 = time()
 
         for channel, spect in self.spectrograms.items():
-            print('Writing spectrogram csv file for ' + self.logger_id + ' ' + channel)
+            # print('Writing spectrogram csv file for ' + self.logger_id + ' ' + channel)
             fname = '_'.join(('Spectrograms_Data', self.logger_id, channel + '.csv'))
             fpath = os.path.join(self.output_dir, fname)
             f = self.freq
@@ -125,7 +125,7 @@ class Spectrogram:
             df.to_csv(fpath)
 
         t1 = round(time() - t0)
-        print('Write csv time = {}'.format(str(timedelta(seconds=t1))))
+        # print('Write csv time = {}'.format(str(timedelta(seconds=t1))))
 
     def write_spectrogram_to_excel(self):
         """Write spectrogram data to Excel file."""

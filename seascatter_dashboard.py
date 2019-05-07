@@ -27,20 +27,57 @@ class SeascatterDiagram(QtWidgets.QWidget):
         # self.set_scatter_table_data(self.scatter)
 
     def init_ui(self):
-        self.scatterTable = QtWidgets.QTableWidget(self)
+        # Bin controls
+        self.hsBin = QtWidgets.QLineEdit('0.5')
+        self.hsBin.setFixedWidth(30)
+        self.tpBin = QtWidgets.QLineEdit('1.0')
+        self.tpBin.setFixedWidth(30)
 
-        # Plot figure and canvas to display figure
+        self.container1 = QtWidgets.QWidget()
+        self.controlsLayout = QtWidgets.QHBoxLayout(self.container1)
+        self.controlsLayout.addWidget(QtWidgets.QLabel('Hs bin size:'))
+        self.controlsLayout.addWidget(self.hsBin)
+        self.controlsLayout.addWidget(QtWidgets.QLabel('Tp bin size:'))
+        self.controlsLayout.addWidget(self.tpBin)
+
+        # Seascatter table widget
+        self.scatterTable = QtWidgets.QTableWidget(self)
+        # fnt = self.scatterTable.font()
+        # fnt.setPointSize(7)
+        # self.scatterTable.setFont(fnt)
+
+        # Hs, Tp plot widgets
         self.fig, (self.ax1, self.ax2) = plt.subplots(2)
         self.canvas = FigureCanvas(self.fig)
 
-        layout = QtWidgets.QHBoxLayout(self)
-        layout.addWidget(self.scatterTable, stretch=76)
-        layout.addWidget(self.canvas, stretch=24)
+        self.container2 = QtWidgets.QWidget()
+        self.scatterLayout = QtWidgets.QHBoxLayout(self.container2)
+        self.scatterLayout.addWidget(self.scatterTable, stretch=76)
+        self.scatterLayout.addWidget(self.canvas, stretch=24)
+
+        self.layout = QtWidgets.QVBoxLayout(self)
+        self.layout.addWidget(self.container1, alignment=QtCore.Qt.AlignLeft)
+        self.layout.addWidget(self.container2)
+
+    def connect_signals(self):
+        self.hsBin.returnPressed.connect(self.update_scatter_diag)
+        self.tpBin.returnPressed.connect(self.update_scatter_diag)
 
     def generate_scatter_diag(self, df_vessel):
+        """Generate seascatter diagram from a load stats dataset containing Hs and Tp."""
 
         self.df_ss = df_vessel.xs('mean', axis=1, level=1)
         self.df_ss = self.df_ss[['SigWaveHeight', 'SigWavePeriod']]
+        self.df_scatter = calc_seascatter_diagram(df=self.df_ss,
+                                                  hs_bins=self.hs_bins,
+                                                  tp_bins=self.tp_bins,
+                                                  )
+        self.set_scatter_table(self.df_scatter)
+        self.plot_hs_tp_distribution()
+
+    def update_scatter_diag(self):
+        self.hs_bins = float(self.hsBin.text())
+
         self.df_scatter = calc_seascatter_diagram(df=self.df_ss,
                                                   hs_bins=self.hs_bins,
                                                   tp_bins=self.tp_bins,
