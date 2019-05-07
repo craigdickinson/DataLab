@@ -1,7 +1,7 @@
 __author__ = 'Craig Dickinson'
 __program__ = 'DataLab'
-__version__ = '0.18'
-__date__ = '2 May 2019'
+__version__ = '0.19'
+__date__ = '7 May 2019'
 
 import logging
 import os
@@ -664,7 +664,7 @@ class DataLabGui(QtWidgets.QMainWindow):
             self.warning(msg)
         else:
             try:
-                self.seascatterModule.generate_scatter_diag(df_vessel)
+                self.seascatterModule.get_seascatter_dataset(df_vessel)
                 # self.scatterTab.generate_scatter_diag(df_vessel)
             except Exception as e:
                 msg = 'Unexpected error generating seascatter diagram'

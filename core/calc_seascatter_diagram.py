@@ -14,13 +14,12 @@ def calc_seascatter_diagram(df, hs_bins, tp_bins):
     a = pd.cut(df['Hs'], hs_bins)
     b = pd.cut(df['Tp'], tp_bins)
 
-    # Need to convert bins to object type
+    # Need to convert bins to object type to prevent type error with crosstab
     a = a.astype('object')
     b = b.astype('object')
 
     scatter = pd.crosstab(index=a, columns=b, normalize=True) * 100
     scatter = scatter.apply(pd.to_numeric)
-    # pd.options.display.float_format = '{:.2f}'.format
 
     # Need to convert index and column axes from categorical to object type to allow summation
     scatter.index = scatter.index.astype('object')
