@@ -10,16 +10,16 @@ from datetime import timedelta
 from glob import glob
 from time import time
 
-from PyQt5 import QtCore, QtGui, QtWidgets
+from PyQt5 import QtCore, QtWidgets
 from PyQt5.QtCore import pyqtSignal, pyqtSlot
 
 import datalab_gui_layout
 from core.control_file import InputError
 from core.datalab_main import DataLab
 from core.logger_properties import LoggerError
-from core.read_files import read_fatlasa_results, read_wcfat_results
 from core.read_files import (read_spectrograms_csv, read_spectrograms_excel, read_spectrograms_hdf5, read_stats_csv,
                              read_stats_excel, read_stats_hdf5)
+from core.read_files import read_wcfat_results
 from data_screening_dashboard import DataQualityReport
 from fatigue_dashboard import FatigueProcessingWidget
 from project_config_dashboard import ConfigModule
@@ -576,6 +576,11 @@ class DataLabGui(QtWidgets.QMainWindow):
     def process_datalab_config(self, control):
         """Run statistical and spectral analysis in config setup."""
 
+        # Check at least one logger exists
+        if not control.loggers:
+            self.warning('No loggers exist in setup')
+            return
+
         # First get all raw data filenames for all loggers to be processed and perform some screening checks
         try:
             # Get raw filenames, check timestamps and select files in processing datetime range
@@ -604,7 +609,6 @@ class DataLabGui(QtWidgets.QMainWindow):
             # Create datalab object, map control data and process
             datalab = DataLab(no_dat=True)
             datalab.control = control
-            datalab.control.create_spectrograms = [False, False]
 
             # Create worker thread, connect signals to methods in this class and start, which this calls worker.run()
             self.worker = ControlFileWorker(datalab, parent=self)
@@ -689,7 +693,7 @@ class DataLabGui(QtWidgets.QMainWindow):
         """Export seascatter diagram to Excel."""
 
         if self.seascatterModule.df_scatter.empty is True:
-        # if self.scatterTab.df_scatter.empty is True:
+            # if self.scatterTab.df_scatter.empty is True:
             self.warning('No seascatter diagram generated. Nothing to export!')
         else:
             fname, _ = QtWidgets.QFileDialog.getSaveFileName(self, 'Save Seascatter Diagram',

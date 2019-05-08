@@ -5,10 +5,11 @@ import sys
 
 from PyQt5 import QtCore, QtGui, QtWidgets
 from dateutil.parser import parse
+
 from core.control_file import ControlFile, InputError
-from core.fugro_csv import set_fugro_file_format
-from core.logger_properties import LoggerProperties, LoggerError
 from core.fugro_csv import read_fugro_timestamp_format
+from core.fugro_csv import set_fugro_file_format
+from core.logger_properties import LoggerError, LoggerProperties
 
 
 class ProjectConfigJSONFile:
@@ -206,11 +207,11 @@ class ConfigModule(QtWidgets.QWidget):
         # policy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed)
         # runGroup.setSizePolicy(policy)
         vbox2 = QtWidgets.QVBoxLayout(runGroup)
-        self.statsChkbox = QtWidgets.QCheckBox('Statistical Analysis')
-        self.spectralChkbox = QtWidgets.QCheckBox('Spectral Analysis')
-        vbox2.addWidget(self.statsChkbox)
-        vbox2.addWidget(self.spectralChkbox)
-        self.processButton = QtWidgets.QPushButton('Process')
+        self.statsChkBox = QtWidgets.QCheckBox('Statistical Analysis')
+        self.spectralChkBox = QtWidgets.QCheckBox('Spectral Analysis')
+        vbox2.addWidget(self.statsChkBox)
+        vbox2.addWidget(self.spectralChkBox)
+        self.processButton = QtWidgets.QPushButton('&Process')
         vbox1.addWidget(runGroup)
         vbox1.addWidget(self.processButton)
 
@@ -255,7 +256,6 @@ class ConfigModule(QtWidgets.QWidget):
                 logging.exception(e)
                 msg = 'Unexpected error loading config file'
                 self.parent.error(f'{msg}:\n{e}\n{sys.exc_info()[0]}')
-
 
     def save_config_file(self):
         """Save project configuration settings as a dictionary to a JSON file."""
@@ -993,7 +993,7 @@ class StatsSettingsTab(QtWidgets.QWidget):
 
     def connect_signals(self):
         self.editButton.clicked.connect(self.show_edit_dialog)
-        self.processChkBox.toggled.connect(self.set_process_state)
+        self.processChkBox.toggled.connect(self.set_process_check_state)
 
     def show_edit_dialog(self):
         """Open logger stats edit form."""
@@ -1011,8 +1011,11 @@ class StatsSettingsTab(QtWidgets.QWidget):
         editStatsSettings.set_dialog_data()
         editStatsSettings.show()
 
-    def set_process_state(self):
+    def set_process_check_state(self):
         """Set include in processing state in control object."""
+
+        if self.parent.loggerCombo.currentText() == '-':
+            return
 
         logger_idx = self.parent.loggerCombo.currentIndex()
         logger = self.control.loggers[logger_idx]
@@ -1119,7 +1122,7 @@ class SpectralSettingsTab(QtWidgets.QWidget):
 
     def connect_signals(self):
         self.editButton.clicked.connect(self.show_edit_dialog)
-        self.processChkBox.toggled.connect(self.set_process_state)
+        self.processChkBox.toggled.connect(self.set_process_check_state)
 
     def show_edit_dialog(self):
         """Open logger spectral settings edit form."""
@@ -1137,8 +1140,11 @@ class SpectralSettingsTab(QtWidgets.QWidget):
         editSpectralSettings.set_dialog_data()
         editSpectralSettings.show()
 
-    def set_process_state(self):
+    def set_process_check_state(self):
         """Set include in processing state in control object."""
+
+        if self.parent.loggerCombo.currentText() == '-':
+            return
 
         logger_idx = self.parent.loggerCombo.currentIndex()
         logger = self.control.loggers[logger_idx]
