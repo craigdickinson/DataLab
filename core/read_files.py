@@ -1,13 +1,13 @@
+import csv
+import os
 from datetime import datetime, timedelta
 from time import time
 
 import pandas as pd
-import csv
-import os
 
 
 def read_fugro_csv(filename):
-    """Load logger file into pandas data frame."""
+    """Read Fugro-csv file into pandas data frame."""
 
     try:
         df = pd.read_csv(filename, header=[1, 2], index_col=0, encoding='latin')
@@ -31,7 +31,11 @@ def read_fugro_csv(filename):
 
 
 def read_pulse_acc(filename):
-    """Read Pulse .acc raw data file into a Pandas data frame."""
+    """
+    Read Pulse-acc file into pandas data in a format used for the raw data module.
+    Header is channel names and units as a multi-index header.
+    Index is time steps.
+    """
 
     data = []
     with open(filename, 'r') as f:
@@ -41,59 +45,110 @@ def read_pulse_acc(filename):
         for i in range(17):
             next(accreader)
 
-        # Read columns
-        cols = next(accreader)
+        # Read columns header
+        header = next(accreader)
         next(accreader)
 
         # Read the start timestamp marker
         ts_marker = next(accreader)[1:]
         ts_marker = list(map(int, ts_marker))
 
+        # Read main data
         for line in accreader:
             line = line[:-1]
             data.append(line)
 
-        # Convert column names list to be split by ":" not space
-        cols = ' '.join(cols).split(':')
+    # Convert column names list to be split by ":" not space
+    header = ' '.join(header).split(':')
 
-        # Lose the "%Data," in the first column
-        cols[0] = cols[0].split(',')[1]
+    # Drop "%Data," from the first column
+    header[0] = header[0].split(',')[1]
 
-        # Create multiindex header of channel names and units
-        channels = []
-        units = []
-        for col in cols:
-            c = col.split('(')
-            channels.append(c[0].strip())
-            units.append(c[1][:-1])
+    # Create multi-index header of channel names and units
+    channels = [col.split('(')[0].strip() for col in header]
+    units = [col.split('(')[1][:-1] for col in header]
+    header = list(zip(channels, units))
+    header.insert(0, ('Timestamp', ''))
+    header = pd.MultiIndex.from_tuples(header, names=['channels', 'units'])
 
-        header = list(zip(channels, units))
-        header.insert(0, ('Timestamp', ''))
-        header = pd.MultiIndex.from_tuples(header, names=['channels', 'units'])
+    # Create data frame
+    df = pd.DataFrame(data, dtype='float')
+    df = df.set_index(df.columns[0])
+    df.index.name = 'Time (s)'
 
-        # Create timestamp column
-        dt_start = datetime(ts_marker[5],
-                            ts_marker[4],
-                            ts_marker[3],
-                            ts_marker[2],
-                            ts_marker[1],
-                            ts_marker[0],
-                            )
+    # Create timestamp column using start timestamp marker and time steps column
+    ts = df.index.values
+    dt_start = datetime(ts_marker[5],
+                        ts_marker[4],
+                        ts_marker[3],
+                        ts_marker[2],
+                        ts_marker[1],
+                        ts_marker[0],
+                        )
+    timestamps = [dt_start + timedelta(seconds=t) for t in ts]
+    df.insert(loc=0, column='Timestamp', value=timestamps)
 
-        # Create data frame
-        df = pd.DataFrame(data, dtype='float')
-        df = df.set_index(df.columns[0])
-        df.index.name = 'Time (s)'
+    # Assign columns header
+    df.columns = header
 
-        # Create timestamp column
-        ts = df.index.values
-        timestamps = [dt_start + timedelta(seconds=t) for t in ts]
-        df.insert(loc=0, column='Timestamp', value=timestamps)
+    return df
 
-        # Assign columns header
-        df.columns = header
 
-        return df
+def read_pulse_acc_single_header_format(filename):
+    """
+    Read Pulse-acc file into pandas data in a format used for stats and spectral processing.
+    Header is channel names and units combined.
+    Index is standard integer indexing (note time steps columns is not included).
+    """
+
+    data = []
+    with open(filename, 'r') as f:
+        accreader = csv.reader(f, delimiter=' ')
+
+        # Skip file info headers
+        for i in range(17):
+            next(accreader)
+
+        # Read columns header
+        header = next(accreader)
+        next(accreader)
+
+        # Read the start timestamp marker
+        ts_marker = next(accreader)[1:]
+        ts_marker = list(map(int, ts_marker))
+
+        # Read main data
+        for line in accreader:
+            line = line[:-1]
+            data.append(line)
+
+    # Convert column names list to be split by ":" not space
+    header = ' '.join(header).split(':')
+
+    # Drop "%Data," from the first column and create columns header
+    header[0] = header[0].split(',')[1]
+
+    # Create header of only channel names (i.e. strip out the units)
+    header = ['Timestamp'] + [col.split('(')[0].strip() for col in header]
+
+    # Create data frame
+    df = pd.DataFrame(data, columns=header, dtype='float')
+
+    # Create timestamp column using start timestamp marker and time steps column
+    ts = df.iloc[:, 0].values
+    dt_start = datetime(ts_marker[5],
+                        ts_marker[4],
+                        ts_marker[3],
+                        ts_marker[2],
+                        ts_marker[1],
+                        ts_marker[0],
+                        )
+    timestamps = [dt_start + timedelta(seconds=t) for t in ts]
+
+    # Replace time steps column with timestamps
+    df.iloc[:, 0] = timestamps
+
+    return df
 
 
 def read_logger_hdf5(filename):
@@ -239,13 +294,16 @@ def read_wcfat_results(filename, locations=['LPH Weld', 'HPH Weld', 'BOP Connect
 def read_fatlasa_results(filename):
     """Read *_MAX_DAMAGE_history.csv file output from 2HFATLASA."""
 
+    pass
+
 
 if __name__ == '__main__':
-    folder = r'C:\Users\dickinsc\PycharmProjects\_2. DataLab Analysis Files\21239\5. Dat2Acc\POD001'
+    folder = r'C:\Users\dickinsc\PycharmProjects\_2. DataLab Analysis Files\21239\4. Dat2Acc\POD001'
     fname = 'MPOD001_2018_06_07_16_20.ACC'
     fpath = os.path.join(folder, fname)
 
-    df = read_pulse_acc(fpath)
+    # df = read_pulse_acc(fpath)
+    df = read_pulse_acc_single_header_format(fpath)
     # df = read_logger_csv(r'dd10_2017_0310_0140.csv')
     # df = read_wcfat_results(r'C:\Users\dickinsc\PycharmProjects\DataLab\Fatigue Test Data\damage_1.dmg')
     print(df.head())

@@ -1,15 +1,13 @@
 """
-Created on 5 Aug 2016
-
-@author: bowdenc
+Class to hold logger properties.
 """
+
 import os
 from glob import glob
 
 from dateutil.parser import parse
 
 from core.custom_date import get_date_code_span, make_time_str
-from core.fugro_csv import read_fugro_sample_header, read_fugro_timestamp_format, read_headers
 
 
 class Error(Exception):
@@ -61,6 +59,10 @@ class LoggerProperties:
         self.channel_header_row = 0  # *CHANNEL_HEADER
         self.units_header_row = 0  # *UNITS_HEADER
 
+        # Channel names and units lists
+        self.all_channel_names = []
+        self.all_units = []
+
         # ==============================
         # STATISTICS ANALYSIS PARAMETERS
         # ==============================
@@ -81,8 +83,8 @@ class LoggerProperties:
         self.stats_end = None  # *STATS_END
 
         # Channel names and units
-        self.channel_names = []
-        self.channel_units = []
+        self.stats_channel_names = []
+        self.stats_channel_units = []
 
         # Channel names and units
         self.stats_user_channel_names = []  # *CHANNEL_NAMES
@@ -239,47 +241,213 @@ class LoggerProperties:
                 f'Check date range and file timestamp inputs.'
             raise LoggerError(msg)
 
-    def detect_fugro_logger_properties(self, logger):
-        """
-        For Fugro logger file detect:
-            sample frequency
-            timestamp format (user style format string)
-            datetime format (datetime/pandas format string)
-            expected number of columns
-            expected logging duration
-        """
+    def get_all_channels_and_units(self):
+        """Store in logger object lists of all channel and units header in test file."""
 
         # TODO: Need to check file is of expected filename first!
-        raw_files = glob(logger.logger_path + '/*.' + logger.file_ext)
+        raw_files = glob(self.logger_path + '/*.' + self.file_ext)
+
+        if len(raw_files) == 0:
+            msg = f'No files with the extension {self.file_ext} found in {self.logger_path}'
+            raise FileNotFoundError(msg)
+
         test_file = raw_files[0]
-        test_filename = os.path.basename(test_file)
+        file_format = self.file_format
+        delim = self.file_delimiter
+        c = self.channel_header_row
+        u = self.units_header_row
+        channels = []
+        units = []
 
-        # Read sample interval
-        sample_interval = read_fugro_sample_header(test_file)
+        # Get headers and first line of data
+        if file_format == 'Fugro-csv' or file_format == 'General-csv':
+            with open(test_file) as f:
+                header_lines = [f.readline().strip().split(delim) for _ in range(self.num_headers)]
 
-        # Convert to sample frequency
-        if sample_interval > 0:
-            logger.freq = int(1 / sample_interval)
+            # Extract list of channel names and units (drop the first item - expected to be timestamp)
+            if c > 0:
+                channels = header_lines[c - 1][1:]
+            if u > 0:
+                units = header_lines[u - 1][1:]
+        elif file_format == 'Pulse-acc':
+            with open(test_file, 'r') as f:
+                # Read columns header
+                [next(f) for _ in range(c - 1)]
+                header = next(f).strip().split(':')
+
+            # Drop "%Data," from the first column
+            header[0] = header[0].split(',')[1]
+
+            # Extract lists of channel names and units
+            channels = [col.split('(')[0].strip() for col in header]
+            units = [col.split('(')[1][:-1] for col in header]
+
+        # Assign channels and units list to logger
+        self.all_channel_names = channels
+        self.all_units = units
+
+    def check_requested_columns_exist(self, analysis_type):
+        """
+        Check requested stats or spectral columns exist in detected header and assign column names and units.
+        :param analysis_type: "stats" or "spectral" string
+        :param logger: Logger properties object
+        :return: Lists of requested channel names and units
+        """
+
+        if analysis_type == 'stats':
+            requested_cols = self.stats_cols
         else:
-            msg = f'Could not read sample interval for logger {logger.logger_id}\nFile: {test_filename}'
+            requested_cols = self.spectral_cols
+
+        last_col = max(requested_cols)
+        c = self.channel_header_row
+        u = self.units_header_row
+        channels = self.all_channel_names
+        units = self.all_units
+
+        test_file = self.files[0]
+        file_path = os.path.join(self.logger_path, test_file)
+
+        # Initialise requested columns header lists
+        channel_names = []
+        channel_units = []
+
+        # Read first data row
+        with open(file_path) as f:
+            [next(f) for _ in range(self.num_headers)]
+            first_row = f.readline().strip().split(self.file_delimiter)
+
+        # Check requested columns make sense
+        # Error message to raise if requested columns doesn't make sense
+        msg = f'Number of columns in first file for logger {self.logger_id} is less than {last_col}' \
+            f'\nFile: {test_file}'
+
+        # TODO: Sort this out for topside data where not all columns are present
+        # Check we have at least one full row of data
+        if last_col > len(first_row):
             raise LoggerError(msg)
 
-        # Read headers
-        header, units = read_headers(test_file)
+        # Get headers for the columns to be processed
+        if c > 0:
+            # TODO: Sort this out for topside data where not all columns are present
+            # Check number of columns in header row is sufficient (note timestamp column is not included in channels list)
+            if last_col > len(channels) + 1:
+                raise LoggerError(msg)
 
-        # Determine timestamp format from first units header
-        logger.timestamp_format = units[0]
-        logger.datetime_format = read_fugro_timestamp_format(logger.timestamp_format)
+            # TODO: Issue here if first file doesn't have all columns
+            # Keep headers requested
+            channel_names = [channels[i - 2] for i in requested_cols]
 
-        # Get expected number of columns
-        logger.num_columns = len(header) - 1
+        # Get units for the columns to be processed
+        if u > 0:
+            # TODO: Sort this out for topside data where not all columns are present
+            # Check number of columns in units row is sufficient (note timestamp column is not included in units list)
+            if last_col > len(units) + 1:
+                raise LoggerError(msg)
 
-        # Get expected logging duration
-        # Read number of data points
-        with open(test_file) as f:
-            data = f.readlines()
+            # TODO: Issue here if first file doesn't have all columns
+            # Keep headers requested
+            channel_units = [units[i - 2] for i in requested_cols]
 
-        n = len(data) - 3
-        logger.duration = n / logger.freq
+        return channel_names, channel_units
 
-        return logger
+    def detect_requested_channels_and_units(self, test_file):
+        """Detect number of columns and channel names/units from headers of logger file."""
+
+        file_path = os.path.join(self.logger_path, test_file)
+        delim = self.file_delimiter
+
+        # Get headers and first line of data
+        with open(file_path) as f:
+            header_lines = [f.readline().strip().split(delim) for _ in range(self.num_headers)]
+            first_row = f.readline().strip().split(delim)
+
+        # Rows/cols to process
+        last_stats_col = max(self.stats_cols)
+        c = self.channel_header_row
+        u = self.units_header_row
+
+        # Check stats columns make sense
+        # Error message to raise if *STATS_COLUMNS doesn't make sense
+        msg = 'Error in *STATS_COLUMNS for logger ' + self.logger_id
+        msg += '\n Number of columns in first file is less than ' + str(last_stats_col)
+        msg += '\n File: ' + test_file
+
+        # TODO: Sort this out for topside data where not all columns are present
+        # Check we have at least one full row of data
+        if last_stats_col > len(first_row):
+            raise LoggerError(msg)
+
+        # Get headers for the columns to be processed
+        if c > 0:
+            header = header_lines[c - 1]
+
+            # TODO: Sort this out for topside data where not all columns are present
+            # Check number of columns in header row is sufficient
+            if last_stats_col > len(header):
+                raise LoggerError(msg)
+
+            # TODO: Issue here if first file doesn't have all columns
+            # Keep headers requested
+            self.stats_channel_names = [header[i - 1] for i in self.stats_cols]
+
+        # Get units for the columns to be processed
+        if u > 0:
+            units = header_lines[u - 1]
+
+            # TODO: Sort this out for topside data where not all columns are present
+            # Check number of columns in units row is sufficient
+            if last_stats_col > len(units):
+                raise LoggerError(msg)
+
+            # TODO: Issue here if first file doesn't have all columns
+            # Keep headers requested
+            self.stats_channel_units = [units[i - 1] for i in self.stats_cols]
+
+    def user_header_override(self):
+        """Override detected channel names and units with user defined values."""
+
+        # Check for stats analysis user defined header
+        if self.process_stats is True:
+            if len(self.stats_user_channel_names) > 0:
+                self.stats_channel_names = self.stats_user_channel_names
+            if len(self.stats_user_channel_units) > 0:
+                self.stats_channel_units = self.stats_user_channel_units
+
+        # Check for spectral analysis user defined header
+        if self.process_spectral is True:
+            if len(self.spectral_user_channel_names) > 0:
+                self.spectral_channel_names = self.spectral_user_channel_names
+            if len(self.spectral_user_channel_units) > 0:
+                self.spectral_channel_units = self.spectral_user_channel_units
+
+    def check_headers(self):
+        """If names for headers and units have been supplied check that there is one per requested channel."""
+
+        # Check number of stats analysis headers is correct
+        if self.process_stats is True:
+            # Check length of channel header
+            if len(self.stats_user_channel_names) > 0 \
+                    and len(self.stats_channel_names) != len(self.stats_cols):
+                msg = f'Number of headers specified does not equal number of channels for logger {self.logger_id}'
+                raise LoggerError(msg)
+
+            # Check length of units header
+            if len(self.stats_user_channel_units) > 0 \
+                    and len(self.stats_channel_units) != len(self.stats_cols):
+                msg = f'Number of units specified does not equal number of channels for logger {self.logger_id}'
+                raise LoggerError(msg)
+
+        # Check number of spectral analysis headers is correct
+        if self.process_spectral is True:
+            # Check length of channel header
+            if len(self.spectral_user_channel_names) > 0 \
+                    and len(self.spectral_channel_names) != len(self.spectral_cols):
+                msg = f'Number of headers specified does not equal number of channels for logger {self.logger_id}'
+                raise LoggerError(msg)
+
+            # Check length of units header
+            if len(self.spectral_user_channel_units) > 0 \
+                    and len(self.spectral_channel_units) != len(self.spectral_cols):
+                msg = f'Number of units specified does not equal number of channels for logger {self.logger_id}'
+                raise LoggerError(msg)

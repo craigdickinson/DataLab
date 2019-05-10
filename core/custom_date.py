@@ -1,9 +1,5 @@
 """
-Created on 15 Sep 2016
-
-@author: bowdenc
-
-Collection of functions for processing custom date formats
+Collection of functions for processing custom date formats.
 """
 import re
 
@@ -12,18 +8,19 @@ import re
 replacements = {
     r'dd': '%d',
     r'd': '%d',
-    r'mm': '%mm',
+    r'mm': '%m',
     r'm': '%m',
-    r'MMM': '%b',
     r'mmm': '%b',
+    r'MMM': '%b',
     r'yyyy': '%Y',
+    r'YYYY': '%Y',
     r'yy': '%y',
     r'YY': '%y',
-    r'HH': '%H',
     r'hh': '%H',
+    r'HH': '%H',
     r'MM': '%M',
-    r'SS': '%S',
     r'ss': '%S',
+    r'SS': '%S',
     r'f': '%f',
     r'ff': '%f',
     r'fff': '%f',
@@ -71,6 +68,23 @@ def make_time_str(h, m, s, f):
                 time_str += '.' + f
 
     return time_str
+
+
+def get_datetime_format(timestamp_format_str):
+    """
+    Convert a timestamp format string (as input by the user in the Fugro style) to datetime format string for parsing
+    dates to datetime objects in pandas.
+    Example 1: Timestamp format: dd-mmm-yyyy HH:MM:SS.FFF
+               Datetime format:  %d-%b-%Y %H:%M:%S.%f
+    Example 2: Timestamp format: dd/mm/yyyy HH:MM:SS.FFF
+               Datetime format:  %d/%m/%Y %H:%M:%S.%f
+    :param timestamp_format_str: Fugro-style timestamps form at string
+    :return: Datetime format string
+    """
+
+    # Get the datetime format string to parse dates to datetimes
+    datetime_format_str = user_date_to_date_format(timestamp_format_str)
+    return datetime_format_str
 
 
 def user_date_to_date_format(timestamp_fmt_str, rep=replacements):

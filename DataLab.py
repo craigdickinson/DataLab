@@ -1,7 +1,7 @@
 __author__ = 'Craig Dickinson'
 __program__ = 'DataLab'
-__version__ = '0.19'
-__date__ = '7 May 2019'
+__version__ = '0.20'
+__date__ = '10 May 2019'
 
 import logging
 import os
@@ -550,30 +550,7 @@ class DataLabGui(QtWidgets.QMainWindow):
         qr.moveCenter(cp)
         self.move(qr.topLeft())
 
-    def analyse_control_file(self):
-        """Read control file *.dat and check inputs."""
-
-        os.chdir(self.root)
-
-        # Inform user no dat file loaded
-        if not self.datfile:
-            self.statusBar().showMessage('Error: Load a control file (*.dat) first')
-        else:
-            try:
-                # Create DataLab processing instance
-                self.datalab = DataLab(self.datfile)
-                self.datalab.analyse_control_file()
-                self.statusBar().showMessage('Control file check - good')
-            except InputError as e:
-                self.error(str(e))
-            except LoggerError as e:
-                self.error(str(e))
-            except Exception as e:
-                msg = 'Unexpected error checking config file'
-                self.error(f'{msg}:\n{e}\n{sys.exc_info()[0]}')
-                logging.exception(e)
-
-    def process_datalab_config(self, control):
+    def analyse_config_setup(self, control):
         """Run statistical and spectral analysis in config setup."""
 
         # Check at least one logger exists
@@ -583,26 +560,52 @@ class DataLabGui(QtWidgets.QMainWindow):
 
         # First get all raw data filenames for all loggers to be processed and perform some screening checks
         try:
+            # Check all ids are unique
+            control.check_logger_ids(control.logger_ids)
+
+            # Create output folder if necessary
+            control.ensure_dir_exists(control.output_folder)
+
             # Get raw filenames, check timestamps and select files in processing datetime range
             for logger in control.loggers:
                 logger.process_filenames()
                 logger.select_files_in_datetime_range(logger.stats_start, logger.stats_end)
                 logger.expected_data_points = logger.freq * logger.duration
-                logger.channel_names = logger.stats_user_channel_names
-                logger.channel_units = logger.stats_user_channel_units
 
-            # Create output folder if necessary
-            control.ensure_dir_exists(control.output_folder)
+                # Get all channel names and units if not already stored in logger object
+                if len(logger.all_channel_names) == 0 and len(logger.all_units) == 0:
+                    logger.get_all_channels_and_units()
 
-            # Check all ids are unique
-            control.check_logger_ids(control.logger_ids)
+                # Check stats channels exist
+                if logger.process_stats is True:
+                    channels, units = logger.check_requested_columns_exist('stats')
+                    logger.stats_channel_names = channels
+                    logger.stats_channel_units = units
+
+                # Check spectral channels exist
+                if logger.process_spectral is True:
+                    channels, units = logger.check_requested_columns_exist('spectral')
+                    logger.spectral_channel_names = channels
+                    logger.spectral_channel_units = units
+
+                # Make any user defined units and channels override any detected
+                logger.user_header_override()
+
+                # Check headers length match number of columns
+                logger.check_headers()
         except InputError as e:
             return self.error(str(e))
         except LoggerError as e:
             return self.error(str(e))
         except Exception as e:
-            self.error(str(e))
-            return logging.exception(e)
+            msg = 'Unexpected error on preparing config setup'
+            self.error(f'{msg}:\n{e}\n{sys.exc_info()[0]}')
+            return logging.exception(msg)
+
+        self.run_analysis(control)
+
+    def run_analysis(self, control):
+        """Run statistical and spectral analysis in config setup."""
 
         # Run processing on QThread worker - prevents GUI lock up
         try:
@@ -616,7 +619,7 @@ class DataLabGui(QtWidgets.QMainWindow):
             self.worker.signal_error.connect(self.error)
             self.worker.start()
         except Exception as e:
-            msg = 'Unexpected error on processing control file'
+            msg = 'Unexpected error on processing config setup'
             self.error(f'{msg}:\n{e}\n{sys.exc_info()[0]}')
             logging.exception(msg)
 
@@ -744,14 +747,15 @@ class ControlFileWorker(QtCore.QThread):
             t = str(timedelta(seconds=round(time() - t0)))
             self.signal_runtime.emit(t)
             self.signal_datalab.emit(self.datalab)
+        except ZeroDivisionError as e:
+            self.signal_error.emit(str(e))
+            logging.exception(e)
         except Exception as e:
             msg = 'Unexpected error on processing control file'
             self.signal_error.emit(f'{msg}:\n{e}\n{sys.exc_info()[0]}')
             logging.exception(msg)
         finally:
             self.parent.setEnabled(True)
-            # self.quit()
-            # self.wait()
 
     @pyqtSlot()
     def quit_worker(self):
@@ -796,7 +800,7 @@ class ControlFileProgressBar(QtWidgets.QDialog):
     def cancel(self):
         """Cancel progress bar."""
 
-        print('\nStop!!!')
+        print('\nRun cancelled')
         self.signal_quit_worker.emit()
 
     @pyqtSlot(str, int, int, int, int, int)
@@ -810,7 +814,6 @@ class ControlFileProgressBar(QtWidgets.QDialog):
         self.progressBar.setValue(perc)
         if int(perc) == 100:
             self.buttonBox.button(QtWidgets.QDialogButtonBox.Ok).setEnabled(True)
-        # self.close()
 
     @pyqtSlot(str)
     def report_runtime(self, t):

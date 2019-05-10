@@ -34,6 +34,9 @@ class Spectrogram:
         :return: Array of FFT sample frequencies, where d is the sample spacing.
         """
 
+        if n == 0:
+            raise ZeroDivisionError('Error calculating spectrogram frequencies. Sample length is zero.')
+
         d = T / n
         self.freq = np.fft.rfftfreq(n, d)
 
@@ -56,6 +59,7 @@ class Spectrogram:
         # TODO: Create spectrograms with welch method with user settings
         self.freq, psd = signal.welch(df.iloc[:, 1:], fs=10, axis=0)
 
+        # TODO: We are not using any user defined headers here - replace channel names with user header when create df?
         # Add 2d arrays to dictionary
         for i, channel in enumerate(channels):
             if channel not in self.spectrograms:

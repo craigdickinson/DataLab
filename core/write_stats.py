@@ -54,13 +54,13 @@ class StatsOutput:
         num_pts = len(logger_stats.min)
 
         # Create headers
-        channels = logger.channel_names
+        channels = logger.stats_channel_names
         # channel_header = [x for chan in channels for x in [chan] + ['', '', '']]
         channel_header = [x for chan in channels for x in [chan] * 4]
 
         stats_header = ['min', 'max', 'mean', 'std'] * len(channels)
 
-        units = logger.channel_units
+        units = logger.stats_channel_units
         units_header = [x for unit in units for x in [unit] * 4]
         # CD: The above is equivalent to
         # units_header = []
@@ -106,7 +106,7 @@ class StatsOutput:
         self.dict_stats[logger.logger_id] = df
 
         # Now create a new data frame to write to file (csv/xlsx/hdf5)
-        # Add end time columns, reset index and rename first column to Start
+        # Add End time column, reset index and rename first column to Start
         self.df_stats = pd.DataFrame(self.stats, index=self.start, columns=cols)
         self.df_stats.insert(loc=0, column='End', value=self.end)
         self.df_stats.reset_index(inplace=True)
@@ -137,13 +137,13 @@ class StatsOutput:
         # stats = self.stats_df.values.tolist()
 
         # Create headers
-        channels = logger.channel_names
+        channels = logger.stats_channel_names
         channel_header = [x for chan in channels
                           for x in [chan] + ['', '', '']]
 
         stats_header = ['min', 'max', 'mean', 'std'] * len(channels)
 
-        units = logger.channel_units
+        units = logger.stats_channel_units
         units_header = [x for unit in units
                         for x in [unit] * 4]
 
