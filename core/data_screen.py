@@ -1,8 +1,7 @@
 """
-Created on 9 Aug 2016
-
-@author: bowdenc
+Class to carry out screening checks on logger data.
 """
+__author__ = 'Craig Dickinson'
 
 import os.path
 
@@ -10,6 +9,7 @@ import numpy as np
 import pandas as pd
 
 from core.logger_properties import LoggerProperties
+from core.read_files import read_pulse_acc_single_header_format
 
 
 class DataScreen:
@@ -51,7 +51,7 @@ class DataScreen:
         self.use_cols = []
 
     def set_logger(self, logger):
-        """Pass in the logger filenames to be assessed and required read csv file properties."""
+        """Set the logger filenames to be assessed and required read csv file properties."""
 
         self.logger = logger
 
@@ -61,6 +61,8 @@ class DataScreen:
         # Set csv read properties
         self.header_row = self.logger.channel_header_row - 1
         self.skip_rows = [i for i in range(self.logger.num_headers) if i > self.header_row]
+
+        # Set requested columns to process
         self.use_cols = [0] + [c - 1 for c in self.logger.stats_cols]
 
         # No header row specified
@@ -77,96 +79,46 @@ class DataScreen:
 
         self.spectral_sample_length = int(self.logger.spectral_interval * self.logger.freq)
 
-    def read_logger_file(self, f):
-        """Process requested actions for all files."""
+    def read_logger_file(self, filename):
+        """Read logger file into pandas data frame."""
 
-        # Read data in to Pandas data frame
-        df = self.read_data(f,
-                            self.logger.file_delimiter,
-                            self.header_row,
-                            self.skip_rows,
-                            self.use_cols)
+        df = pd.DataFrame()
 
-        # Column names
-        columns = df.columns
-
-        # Process first column - should be time
-        df[columns[0]] = self.parse_timestamp(df[columns[0]],
-                                              self.logger.datetime_format)
-
-        # Convert any non numeric to NaN
-        df[columns[1:]] = self.parse_numeric(df[columns[1:]])
+        # Read data into pandas data frame
+        if self.logger.file_format == 'Fugro-csv' or self.logger.file_format == 'General-csv':
+            df = pd.read_csv(filename,
+                             sep=self.logger.file_delimiter,
+                             header=self.header_row,
+                             skiprows=self.skip_rows,
+                             encoding='latin',
+                             )
+        elif self.logger.file_format == 'Pulse-acc':
+            df = read_pulse_acc_single_header_format(filename)
 
         return df
 
-    def read_data(self, fname, delim, header, skip_rows, use_cols):
-        """Read logger file data into Pandas data frame."""
+    def munge_data(self, df):
+        """Format the logger raw data so it is suitable for processing."""
 
-        df = pd.read_csv(fname,
-                         sep=delim,
-                         header=header,
-                         skiprows=skip_rows,
-                         engine='c',
-                         encoding='utf-8')
-
-        # Check stats columns exist in file
+        # Check all requested columns exist in file
         n = len(df.columns)
-        missing_cols = [x for x in use_cols if x >= n]
-        valid_cols = [x for x in use_cols if x < n]
+        missing_cols = [x for x in self.use_cols if x >= n]
+        valid_cols = [x for x in self.use_cols if x < n]
 
-        # Slice valid columns
-        df = df.iloc[:, valid_cols]
+        # Slice valid columns (copy to prevent SettingWithCopyWarning)
+        df = df.iloc[:, valid_cols].copy()
 
         # Create dummy data for missing columns
         for i in missing_cols:
             df['Dummy' + str(i + 1)] = np.nan
 
-        # try:
-        #     df2 = df[df.columns[use_cols]]
-        # except ValueError as e:
-        #     print(str(e))
+        # Convert first column (should be timestamps string) to datetimes (not required for Pulse-acc format)
+        if self.logger.file_format != 'Pulse-acc':
+            df.iloc[:, 0] = pd.to_datetime(df.iloc[:, 0], format=self.logger.datetime_format, errors='coerce')
 
-        return df
+        # Convert any non-numeric data to NaN
+        df.iloc[:, 1:] = df.iloc[:, 1:].apply(pd.to_numeric, errors='coerce')
 
-        # df = pd.read_csv(fname,
-        #                  sep=delim,
-        #                  header=header,
-        #                  usecols=use_cols,
-        #                  skiprows=skip_rows,
-        #                  engine='c',
-        #                  encoding='utf-8')
-        # return df
-        # try:
-        #     df = pd.read_csv(fname,
-        #                      sep=delim,
-        #                      header=header,
-        #                      usecols=use_cols,
-        #                      skiprows=skip_rows,
-        #                      engine='c',
-        #                      encoding='utf-8')
-        #     return df
-        # except ValueError as e:
-        #     raise ValueError(str(e))
-
-    def parse_timestamp(self, df, fmt):
-        """Convert DataFrame column of text to datetime data must be a column of a data frame."""
-
-        if fmt == 'DETECT':
-            # This is very slow
-            df = pd.to_datetime(df,
-                                infer_datetime_format=True,
-                                errors='coerce')
-        else:
-            # Much faster
-            df = pd.to_datetime(df,
-                                format=fmt,
-                                errors='coerce')
-        return df
-
-    def parse_numeric(self, df):
-        """Convert data from string to numeric."""
-
-        df = df.apply(pd.to_numeric, errors='coerce')
         return df
 
     def screen_data(self, file_num, df):

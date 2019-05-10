@@ -1,13 +1,12 @@
 """
-Created on 31 Jul 2016
-
-@author: bowdenc
+Class to setup project control.
 """
 import os.path
 
 from dateutil.parser import parse
 
-from core.fugro_csv import read_fugro_sample_header, read_fugro_timestamp_format, read_headers, set_fugro_file_format
+from core.custom_date import get_datetime_format
+from core.fugro_csv_properties import read_fugro_headers, read_fugro_sample_interval, set_fugro_csv_file_format
 from core.logger_properties import LoggerProperties
 
 # Used in get_delimiter() method
@@ -253,16 +252,16 @@ class ControlFile(object):
                 self.detect_fugro_file_properties(logger, test_file)
 
             # Detect number of columns and read headers from the first file
-            self.detect_file_properties(logger, test_file)
+            logger.detect_requested_channels_and_units(test_file)
 
             # Set expected number of points
             logger.expected_data_points = logger.freq * logger.duration
 
             # Make any user defined units and channels override any detected
-            self.user_header_override(logger)
+            logger.user_header_override()
 
             # Check header lengths match number of columns
-            self.check_headers(logger)
+            logger.check_headers()
 
             # Check if spectrograms are to be generated
             self.get_spectrograms(logger_data)
@@ -311,7 +310,7 @@ class ControlFile(object):
         """
 
         logger_id = logger.logger_id
-        logger.file_format = 'General-csv'
+        logger.file_format = 'general-csv'
 
         # Get file extension - *EXTENSION
         logger.file_ext = self.get_extension(data)
@@ -375,7 +374,7 @@ class ControlFile(object):
         """
 
         logger_id = logger.logger_id
-        logger = set_fugro_file_format(logger)
+        logger = set_fugro_csv_file_format(logger)
 
         # TODO CD note: num_columns is never used in code! Question if required?
         # Also get total number of columns
@@ -419,8 +418,8 @@ class ControlFile(object):
                  'expected_data_points',
                  'channel_header_row',
                  'units_header_row',
-                 'channel_names',
-                 'channel_units',
+                 'stats_channel_names',
+                 'stats_channel_units',
                  'stats_user_channel_names',
                  'stats_user_channel_units',
                  ]
@@ -478,10 +477,10 @@ class ControlFile(object):
         """
 
         # Use first file
-        file_path = os.path.join(logger.logger_path, file)
+        test_path = os.path.join(logger.logger_path, file)
 
         # Read sample interval
-        sample_interval = read_fugro_sample_header(file_path)
+        sample_interval = read_fugro_sample_interval(test_path)
 
         # Convert to sample frequency
         if sample_interval > 0:
@@ -493,7 +492,7 @@ class ControlFile(object):
             raise InputError(msg)
 
         # Read headers
-        header, units = read_headers(file_path)
+        header, units = read_fugro_headers(test_path)
 
         # Check header lengths make sense
         if len(header) != len(units) or len(units) == 0:
@@ -504,16 +503,16 @@ class ControlFile(object):
 
         # TODO: Sort this out for topside data where not all columns are present
         #  Check stats columns make sense
-        # m = max(logger.stats_cols)
-        # if m > len(header):
-        #     msg = 'Error in *STATS_COLUMNS for logger ' + logger.logger_id
-        #     msg += '\n Number of columns detected is less than ' + str(m)
-        #     msg += '\n File: ' + file
-        #     raise InputError(msg)
+        m = max(logger.stats_cols)
+        if m > len(header):
+            msg = 'Error in *STATS_COLUMNS for logger ' + logger.logger_id
+            msg += '\n Number of columns detected is less than ' + str(m)
+            msg += '\n File: ' + file
+            raise InputError(msg)
 
         # Determine timestamp format from first units header
         timestamp_format = units[0]
-        logger.datetime_format = read_fugro_timestamp_format(timestamp_format)
+        logger.datetime_format = get_datetime_format(timestamp_format)
 
     def get_logging_duration(self, logger, data):
         """Get expected logging duration from control file."""
@@ -528,87 +527,6 @@ class ControlFile(object):
             raise InputError(msg)
         duration = self.get_float_key_data(key, dur_str)
         logger.duration = duration
-
-    def detect_file_properties(self, logger, file):
-        """Detect number of columns and channel names/units from headers of logger file."""
-
-        file_path = os.path.join(logger.logger_path, file)
-        delim = logger.file_delimiter
-
-        # Get headers and first line of data
-        with open(file_path) as f:
-            header_lines = [f.readline().strip().split(delim) for _ in range(logger.num_headers)]
-            first_row = f.readline()
-
-        # Rows/cols to process
-        c = logger.channel_header_row
-        u = logger.units_header_row
-        last_stats_col = max(logger.stats_cols)
-        first_row = first_row.split(delim)
-
-        # Check stats columns make sense
-        # Error message to raise if *STATS_COLUMNS doesn't make sense
-        msg = 'Error in *STATS_COLUMNS for logger ' + logger.logger_id
-        msg += '\n Number of columns in first file is less than ' + str(last_stats_col)
-        msg += '\n File: ' + file
-
-        # TODO: Sort this out for topside data where not all columns are present
-        # Check we have at least one full row of data
-        # if last_stats_col > len(first_row):
-        #     raise InputError(msg)
-
-        # Get headers for the columns to be processed
-        if c > 0:
-            header = header_lines[c - 1]
-
-            # TODO: Sort this out for topside data where not all columns are present
-            # Check number of columns in header row is sufficient
-            # if last_stats_col > len(header):
-            #     raise InputError(msg)
-
-            # TODO: Issue here if first file doesn't have all columns
-            # Keep headers requested
-            # logger.channel_names = [header[i - 1] for i in logger.stats_cols]
-
-        # Get units for the columns to be processed
-        if u > 0:
-            units = header_lines[u - 1]
-
-            # TODO: Sort this out for topside data where not all columns are present
-            # Check number of columns in units row is sufficient
-            # if last_stats_col > len(units):
-            #     raise InputError(msg)
-
-            # TODO: Issue here if first file doesn't have all columns
-            # Keep headers requested
-            # logger.channel_units = [units[i - 1] for i in logger.stats_cols]
-
-    def user_header_override(self, logger):
-        """Override detected units and headers with user defined values."""
-
-        if len(logger.stats_user_channel_names) > 0:
-            logger.channel_names = logger.stats_user_channel_names
-
-        if len(logger.stats_user_channel_units) > 0:
-            logger.channel_units = logger.stats_user_channel_units
-
-    def check_headers(self, logger):
-        """
-        If names for headers and units have been supplied check
-        that there is one per requested channel.
-        """
-
-        # Check length of channel header
-        if len(logger.channel_names) > 0 and len(logger.channel_names) != len(logger.stats_cols):
-            msg = 'Number of headers specified does not equal number of'
-            msg += ' channels for logger ' + logger.logger_id
-            raise InputError(msg)
-
-        # Check length of units header
-        if len(logger.channel_units) > 0 and len(logger.channel_units) != len(logger.stats_cols):
-            msg = 'Number of units specified does not equal number of channels'
-            msg += ' for logger ' + logger.logger_id
-            raise InputError(msg)
 
     def get_spectrograms(self, data):
         """Set flag to create spectrograms."""

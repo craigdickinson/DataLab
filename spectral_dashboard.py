@@ -181,9 +181,9 @@ class SpectrogramWidget(QtWidgets.QWidget):
             self.plot_spectrogram()
             self.plot_event_psd()
         except Exception as e:
-            logging.exception(e)
             msg = 'Unexpected error loading plotting spectrogram'
             self.parent.error(f'{msg}:\n{e}\n{sys.exc_info()[0]}')
+            logging.exception(msg)
 
     def on_dataset_double_clicked(self):
         """Plot spectrogram."""

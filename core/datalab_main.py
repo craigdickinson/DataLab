@@ -1,9 +1,5 @@
 """
-Created on 4 Aug 2016
-
-@author: bowdenc
-
-Program to perform signal processing on logger data
+Main class to perform signal processing on logger data.
 """
 __author__ = 'Craig Dickinson'
 
@@ -90,7 +86,6 @@ class DataLab(QThread):
         data_screen = []
         logger_stats = []
         stats_processed = False
-        spectral_processed = False
 
         # Structure to amalgamate data screening results
         data_report = DataScreenReport(self.control.project_name,
@@ -143,18 +138,21 @@ class DataLab(QThread):
             n = len(data_screen[i].files)
 
             # Expose each sample here; that way it can be sent to different processing modules
-            for j, f in enumerate(data_screen[i].files):
+            for j, file in enumerate(data_screen[i].files):
                 file_count += 1
                 # TODO: Consider adding multiprocessing pool here
                 # TODO: If expected file in sequence is missing, store results as nan
 
                 # Update console
-                filename = os.path.basename(f)
+                filename = os.path.basename(file)
                 progress = f'Processing {logger.logger_id} file {j + 1} of {n} ({filename})'
                 # print(f'\r{progress}', end='')
 
-                # Read the file into a pandas data frame and parse dates and floats
-                df = data_screen[i].read_logger_file(f)
+                # Read the file into a pandas data frame
+                df = data_screen[i].read_logger_file(file)
+
+                # Data munging/wrangling to prepare dataset for processing
+                df = data_screen[i].munge_data(df)
 
                 # Data Screening module
                 # Perform basic screening checks on file - check file has expected number of data points
@@ -165,7 +163,7 @@ class DataLab(QThread):
                 # if data_screen[i].points_per_file[j] == logger.expected_data_points:
                 if data_screen[i].points_per_file[j] <= logger.expected_data_points:
                     # Initialise with stats and spectral data frames both pointing to the same source data frame
-                    # (this does not create a copy of df)
+                    # (note this does not create an actual copy of the data in memory)
                     df_stats = df.copy()
                     df_spectral = df.copy()
 
@@ -223,7 +221,7 @@ class DataLab(QThread):
                 # Export stats in selected file format
                 if self.stats_file_type == 'csv':
                     stats_out.stats_to_csv()
-                    stats_out.stats_to_hdf5()
+                    # stats_out.stats_to_hdf5()
                 elif self.stats_file_type == 'excel':
                     stats_out.stats_to_excel(logger)
                 else:
@@ -261,13 +259,7 @@ class DataLab(QThread):
 
 
 if __name__ == '__main__':
-    direc = r'C:\Users\dickinsc\PycharmProjects\_2. DataLab Analysis Files\21239\2. Control Files'
-    # direc = r'C:\Users\dickinsc\PycharmProjects\DataLab\Demo Data\2. Control Files'
     direc = r'C:\Users\dickinsc\PycharmProjects\DataLab\Demo Data\21239 Project DAT'
-    f = 'controlfile_21239.dat'
-    # f = 'controlfile1_all_loggers.dat'
-    # f = 'example_control_files/controlfile.dat'
-    # f = 'controlfile_21239_acc.dat'
     f = 'controlfile_fugro_slim.dat'
     f = os.path.join(direc, f)
     # f = ''

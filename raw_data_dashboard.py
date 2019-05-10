@@ -303,7 +303,7 @@ class TimeSeriesPlotWidget(QtWidgets.QWidget):
         self.plot_pri = False
         self.plot_sec = False
 
-        # Store timestamp column and rename column since original data frame is a multiindex header
+        # Store timestamp column and rename column since original data frame is a multi-index header
         df_plot = df.iloc[:, 0].to_frame()
         df_plot.columns = ['Timestamp']
 
