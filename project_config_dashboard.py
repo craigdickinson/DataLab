@@ -163,11 +163,11 @@ class ConfigModule(QtWidgets.QWidget):
         super(ConfigModule, self).__init__(parent)
 
         self.parent = parent
+        self.skip_on_logger_item_edited = False
 
         # JSON config class - hold config data dictionary
         self.config = ProjectConfigJSONFile()
         self.control = ControlFile()
-
         self.init_ui()
         self.connect_signals()
 
@@ -193,17 +193,34 @@ class ConfigModule(QtWidgets.QWidget):
         hbox.addWidget(self.label)
         hbox.addWidget(self.loggerCombo)
 
+        # Loggers list group
+        self.loggersGroup = QtWidgets.QGroupBox('Campaign Loggers')
+        self.loggersGroup.setFixedWidth(150)
+        self.vbox = QtWidgets.QVBoxLayout(self.loggersGroup)
+
+        self.addLoggerButton = QtWidgets.QPushButton('Add Logger')
+        self.remLoggerButton = QtWidgets.QPushButton('Remove Logger')
+        self.loggersList = QtWidgets.QListWidget()
+
+        self.vbox.addWidget(self.addLoggerButton)
+        self.vbox.addWidget(self.remLoggerButton)
+        self.vbox.addWidget(QtWidgets.QLabel('Loggers'))
+        self.vbox.addWidget(self.loggersList)
+
         # Config tab widgets
-        self.tabsContainer = QtWidgets.QTabWidget()
+        self.setupTabs = QtWidgets.QTabWidget()
         self.campaignTab = CampaignInfoTab(self)
         self.loggerPropsTab = LoggerPropertiesTab(self)
         self.statsTab = StatsSettingsTab(self)
         self.spectralTab = SpectralSettingsTab(self)
 
-        self.tabsContainer.addTab(self.campaignTab, 'Campaign Info')
-        self.tabsContainer.addTab(self.loggerPropsTab, 'Logger File Properties')
-        self.tabsContainer.addTab(self.statsTab, 'Statistical Analysis')
-        self.tabsContainer.addTab(self.spectralTab, 'Spectral Analysis')
+        self.setupTabs.addTab(self.campaignTab, 'Campaign Info')
+        self.setupTabs.addTab(self.loggerPropsTab, 'Logger File Properties')
+        self.setupTabs.addTab(self.statsTab, 'Statistical Analysis')
+        self.setupTabs.addTab(self.spectralTab, 'Spectral Analysis')
+
+        # Combine loggers list and config tabs
+        # self.hbox2 = QtWidgets.QHBoxLayout()
 
         self.newProjButton = QtWidgets.QPushButton('&New Project')
 
@@ -223,15 +240,19 @@ class ConfigModule(QtWidgets.QWidget):
         vbox1.addWidget(self.processButton)
 
         # Main layout
-        self.layout.addWidget(self.configButtonsWidget, 0, 0, QtCore.Qt.AlignLeft)
-        self.layout.addWidget(self.tabsContainer, 1, 0)
+        self.layout.addWidget(self.configButtonsWidget, 0, 0, 1, 2, QtCore.Qt.AlignLeft)
+        self.layout.addWidget(self.loggersGroup, 1, 0)
+        self.layout.addWidget(self.setupTabs, 1, 1)
         self.layout.addWidget(self.newProjButton, 2, 0, QtCore.Qt.AlignLeft)
-        self.layout.addWidget(self.runWidget, 1, 1, 1, 1, QtCore.Qt.AlignTop)
+        self.layout.addWidget(self.runWidget, 1, 2, QtCore.Qt.AlignTop)
 
     def connect_signals(self):
         self.loadConfigButton.clicked.connect(self.load_config_file)
         self.saveConfigButton.clicked.connect(self.save_config_file)
         self.loggerCombo.currentIndexChanged.connect(self.on_logger_combo_changed)
+        self.addLoggerButton.clicked.connect(self.add_logger)
+        self.remLoggerButton.clicked.connect(self.remove_logger)
+        self.loggersList.itemChanged.connect(self.on_logger_item_edited)
         self.newProjButton.clicked.connect(self.new_project)
         self.processButton.clicked.connect(self.run_analysis)
 
@@ -304,9 +325,98 @@ class ConfigModule(QtWidgets.QWidget):
             self.spectralTab.set_spectral_dashboard(logger)
         # Clear values from dashboard
         else:
+            self.loggersList.clear()
             self.loggerPropsTab.clear_dashboard()
             self.statsTab.clear_dashboard()
             self.spectralTab.clear_dashboard()
+
+    def add_logger(self):
+        """Add new logger to list. Initial logger name format is 'Logger n'."""
+
+        n = self.loggersList.count()
+        logger_id = f'Logger {n + 1}'
+
+        # Create logger properties object and append to loggers list in control object
+        logger = LoggerProperties(logger_id)
+        self.control.loggers.append(logger)
+
+        # Initialise logger file format properties as that of a Fugro logger
+        set_fugro_csv_file_format(logger)
+
+        item = QtWidgets.QListWidgetItem(logger_id)
+        item.setFlags(item.flags() | QtCore.Qt.ItemIsEditable)
+        self.loggersList.addItem(item)
+
+        # Add logger to combo box
+        if self.loggerCombo.currentText() == '-':
+            self.loggerCombo.clear()
+
+        # TODO: Address that adding item triggers combo box change which sets dashboards values before confirmed by user
+        self.loggerCombo.addItem(logger_id)
+        self.loggerCombo.setCurrentText(logger_id)
+
+        # Open logger properties edit widget
+        self.setupTabs.setCurrentWidget(self.loggerPropsTab)
+        self.loggerPropsTab.show_edit_dialog()
+
+    def remove_logger(self):
+        """Remove selected logger."""
+
+        if self.loggersList.count() == 0:
+            return
+
+        # If a logger isn't selected in the list, remove the last item
+        if self.loggersList.currentItem() is None:
+            i = self.loggersList.count() - 1
+            logger = self.loggersList.item(i).text()
+        else:
+            i = self.loggersList.currentRow()
+            logger = self.loggersList.currentItem().text()
+
+        # Confirm with user
+        msg = f'Are you sure you want to remove the logger named {logger}?'
+        response = QtWidgets.QMessageBox.question(self, 'Remove Logger', msg)
+
+        if response == QtWidgets.QMessageBox.Yes:
+            # Remove logger from control object
+            logger = self.control.loggers[i]
+            self.control.loggers.remove(logger)
+
+            # Remove logger from loggers list and combo box
+            self.loggersList.takeItem(i)
+            self.loggerCombo.removeItem(i)
+
+            if self.loggerCombo.count() == 0:
+                self.loggerCombo.addItem('-')
+
+    def on_logger_item_edited(self):
+        """Update logger combo box to match logger names of list widget."""
+
+        if self.skip_on_logger_item_edited is True:
+            return
+
+        # Retrieve new logger id from list and apply to combo box
+        i = self.loggersList.currentRow()
+        new_logger_id = self.loggersList.currentItem().text()
+        self.loggerCombo.setItemText(i, new_logger_id)
+
+        # Update logger id in control object
+        logger = self.control.loggers[i]
+        logger.logger_id = new_logger_id
+
+        # Update dashboard logger id if selected logger is the same as the one edited in the list
+        combo_idx = self.loggerCombo.currentIndex()
+        if combo_idx == i:
+            self.loggerID.setText(new_logger_id)
+
+    def update_logger_id_list(self, logger_id, logger_idx):
+        """Update logger name in the loggers list and combo box if logger id in form is changed."""
+
+        # Set flag to skip logger list item edited action when triggered
+        self.skip_on_logger_item_edited = True
+        self.loggersList.item(logger_idx).setText(logger_id)
+        self.loggerCombo.setItemText(logger_idx, logger_id)
+        self.skip_on_logger_item_edited = False
 
     def new_project(self):
         """Clear project control object and all config dashboard values."""
@@ -594,13 +704,13 @@ class ConfigModule(QtWidgets.QWidget):
 
         # Add loggers to dashboard list and combo boxes if loggers have been loaded and exist in control object
         if self.control.loggers:
-            self.loggerPropsTab.loggersList.clear()
+            self.loggersList.clear()
 
             # Populate logger list
             for logger_id in self.control.logger_ids:
                 item = QtWidgets.QListWidgetItem(logger_id)
                 item.setFlags(item.flags() | QtCore.Qt.ItemIsEditable)
-                self.loggerPropsTab.loggersList.addItem(item)
+                self.loggersList.addItem(item)
 
             # Populate logger combo box
             # Note: This will trigger the setting of the logger properties, stats and spectral dashboards
@@ -728,30 +838,13 @@ class LoggerPropertiesTab(QtWidgets.QWidget):
 
         # Map control object containing all setup data
         self.control = self.parent.control
-
-        self.skip_on_logger_item_edited = False
-
         self.init_ui()
         self.connect_signals()
 
     def init_ui(self):
         """Create widget layout."""
 
-        self.layout = QtWidgets.QGridLayout(self)
-
-        # Loggers list group
-        self.loggersGroup = QtWidgets.QGroupBox('Campaign Loggers')
-        self.loggersGroup.setFixedWidth(150)
-        self.vbox = QtWidgets.QVBoxLayout(self.loggersGroup)
-
-        self.addLoggerButton = QtWidgets.QPushButton('Add Logger')
-        self.remLoggerButton = QtWidgets.QPushButton('Remove Logger')
-        self.loggersList = QtWidgets.QListWidget()
-
-        self.vbox.addWidget(self.addLoggerButton)
-        self.vbox.addWidget(self.remLoggerButton)
-        self.vbox.addWidget(QtWidgets.QLabel('Loggers'))
-        self.vbox.addWidget(self.loggersList)
+        self.layout = QtWidgets.QVBoxLayout(self)
 
         # Logger properties group
         self.loggerPropsGroup = QtWidgets.QGroupBox('Logger Properties')
@@ -790,8 +883,7 @@ class LoggerPropertiesTab(QtWidgets.QWidget):
         self.form.addRow(QtWidgets.QLabel('Logging duration (s):'), self.loggingDuration)
 
         # Assemble group boxes
-        self.layout.addWidget(self.loggersGroup, 0, 0)
-        self.layout.addWidget(self.loggerPropsGroup, 0, 1)
+        self.layout.addWidget(self.loggerPropsGroup)
 
         # self.parent.label.setHidden(True)
         # self.parent.loggerCombo.setHidden(True)
@@ -802,15 +894,12 @@ class LoggerPropertiesTab(QtWidgets.QWidget):
         # self.buttonBox.addButton('Run Data Quality Checks', QtWidgets.QDialogButtonBox.AcceptRole)
 
     def connect_signals(self):
-        self.addLoggerButton.clicked.connect(self.add_logger)
-        self.remLoggerButton.clicked.connect(self.remove_logger)
-        self.loggersList.itemChanged.connect(self.on_logger_item_edited)
         self.editButton.clicked.connect(self.show_edit_dialog)
 
     def show_edit_dialog(self):
         """Open logger properties edit form."""
 
-        if self.loggersList.count() == 0:
+        if self.parent.loggersList.count() == 0:
             msg = f'No loggers exist to edit. Add a logger first.'
             return QtWidgets.QMessageBox.information(self, 'Edit Logger Properties', msg)
 
@@ -843,8 +932,7 @@ class LoggerPropertiesTab(QtWidgets.QWidget):
     def clear_dashboard(self):
         """Initialise all values in logger dashboard."""
 
-        # Clear loggers list and properties
-        self.loggersList.clear()
+        # Clear logger properties
         self.loggerID.setText('-')
         self.fileFormat.setText('-')
         self.loggerPath.setText('-')
@@ -858,93 +946,6 @@ class LoggerPropertiesTab(QtWidgets.QWidget):
         self.unitsHeaderRow.setText('-')
         self.loggingFreq.setText('-')
         self.loggingDuration.setText('-')
-
-    def add_logger(self):
-        """Add new logger to list. Initial logger name format is 'Logger n'."""
-
-        n = self.loggersList.count()
-        logger_id = f'Logger {n + 1}'
-
-        # Create logger properties object and append to loggers list in control object
-        logger = LoggerProperties(logger_id)
-        self.control.loggers.append(logger)
-
-        # Initialise logger with Fugro standard logger properties as default
-        set_fugro_csv_file_format(logger)
-
-        item = QtWidgets.QListWidgetItem(logger_id)
-        item.setFlags(item.flags() | QtCore.Qt.ItemIsEditable)
-        self.loggersList.addItem(item)
-
-        # Add logger to combo box
-        if self.parent.loggerCombo.currentText() == '-':
-            self.parent.loggerCombo.clear()
-
-        # TODO: Adding item triggers combo box change which sets dashboards values before confirmed by user
-        self.parent.loggerCombo.addItem(logger_id)
-        self.parent.loggerCombo.setCurrentText(logger_id)
-
-        # Open logger properties edit widget
-        self.show_edit_dialog()
-
-    def remove_logger(self):
-        """Remove selected logger."""
-
-        if self.loggersList.count() == 0:
-            return
-
-        # If a logger isn't selected in the list, remove the last item
-        if self.loggersList.currentItem() is None:
-            i = self.loggersList.count() - 1
-            logger = self.loggersList.item(i).text()
-        else:
-            i = self.loggersList.currentRow()
-            logger = self.loggersList.currentItem().text()
-
-        # Confirm with user
-        msg = f'Are you sure you want to remove the logger named {logger}?'
-        response = QtWidgets.QMessageBox.question(self, 'Remove Logger', msg)
-
-        if response == QtWidgets.QMessageBox.Yes:
-            # Remove logger from control object
-            logger = self.control.loggers[i]
-            self.control.loggers.remove(logger)
-
-            # Remove logger from loggers list and combo box
-            self.loggersList.takeItem(i)
-            self.parent.loggerCombo.removeItem(i)
-
-            if self.parent.loggerCombo.count() == 0:
-                self.parent.loggerCombo.addItem('-')
-
-    def on_logger_item_edited(self):
-        """Update logger combo box to match logger names of list widget."""
-
-        if self.skip_on_logger_item_edited is True:
-            return
-
-        # Retrieve new logger id from list and apply to combo box
-        i = self.loggersList.currentRow()
-        new_logger_id = self.loggersList.currentItem().text()
-        self.parent.loggerCombo.setItemText(i, new_logger_id)
-
-        # Update logger id in control object
-        logger = self.control.loggers[i]
-        logger.logger_id = new_logger_id
-
-        # Update dashboard logger id if selected logger is the same as the one edited in the list
-        combo_idx = self.parent.loggerCombo.currentIndex()
-        if combo_idx == i:
-            self.loggerID.setText(new_logger_id)
-
-    def update_logger_id_list(self, logger_id, logger_idx):
-        """Update logger name in the loggers list and combo box if logger id in form is changed."""
-
-        # Set flag to skip logger list edit action when triggered
-        self.skip_on_logger_item_edited = True
-        self.loggersList.item(logger_idx).setText(logger_id)
-        self.parent.loggerCombo.setItemText(logger_idx, logger_id)
-        self.skip_on_logger_item_edited = False
 
 
 class StatsSettingsTab(QtWidgets.QWidget):
@@ -1596,7 +1597,7 @@ class LoggerPropertiesDialog(QtWidgets.QDialog):
         try:
             self.set_control_data()
             self.parent.set_logger_dashboard(self.logger)
-            self.parent.update_logger_id_list(self.logger.logger_id, self.logger_idx)
+            self.parent.parent.update_logger_id_list(self.logger.logger_id, self.logger_idx)
         except Exception as e:
             logging.exception(e)
             msg = 'Unexpected error assigning logger properties'
