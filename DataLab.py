@@ -1,6 +1,6 @@
 __author__ = 'Craig Dickinson'
 __program__ = 'DataLab'
-__version__ = '0.22'
+__version__ = '0.23'
 __date__ = '14 May 2019'
 
 import logging
@@ -573,7 +573,7 @@ class DataLabGui(QtWidgets.QMainWindow):
                 logger.expected_data_points = logger.freq * logger.duration
 
                 # Get all channel names and units if not already stored in logger object
-                if len(logger.all_channel_names) == 0 and len(logger.all_units) == 0:
+                if len(logger.all_channel_names) == 0 and len(logger.all_channel_units) == 0:
                     logger.get_all_channel_and_unit_names()
 
                 # Check requested channels exist

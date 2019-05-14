@@ -61,7 +61,7 @@ class LoggerProperties:
 
         # Channel names and units lists
         self.all_channel_names = []
-        self.all_units = []
+        self.all_channel_units = []
 
         # Channel columns to process
         self.requested_cols = []
@@ -259,7 +259,7 @@ class LoggerProperties:
                 units = header_lines[u - 1][1:]
             # If no units header exists, create a dummy list
             else:
-                units = ['N/A' for _ in range(len(channels))]
+                units = ['-' for _ in range(len(channels))]
         elif file_format == 'Pulse-acc':
             with open(test_file, 'r') as f:
                 # Read columns header
@@ -275,7 +275,7 @@ class LoggerProperties:
 
         # Assign channels and units list to logger
         self.all_channel_names = channels
-        self.all_units = units
+        self.all_channel_units = units
 
     def check_requested_columns_exist(self):
         """
@@ -289,7 +289,7 @@ class LoggerProperties:
         c = self.channel_header_row
         u = self.units_header_row
         channels = self.all_channel_names
-        units = self.all_units
+        units = self.all_channel_units
 
         test_file = self.files[0]
         file_path = os.path.join(self.logger_path, test_file)
@@ -337,7 +337,7 @@ class LoggerProperties:
             channel_units = [units[i - 2] for i in self.requested_cols]
         # If no units header exists, create a dummy list
         else:
-            channel_units = ['N/A' for _ in range(len(channel_names))]
+            channel_units = ['-' for _ in range(len(channel_names))]
 
         return channel_names, channel_units
 
