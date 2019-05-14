@@ -232,6 +232,9 @@ class LoggerProperties:
     def get_all_channel_and_unit_names(self):
         """Store in logger object lists of all channel and units header in test file."""
 
+        if self.logger_path == '':
+            return
+
         # TODO: Need to check file is of expected filename first!
         raw_files = glob(self.logger_path + '/*.' + self.file_ext)
 
