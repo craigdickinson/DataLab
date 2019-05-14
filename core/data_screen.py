@@ -63,21 +63,11 @@ class DataScreen:
         self.skip_rows = [i for i in range(self.logger.num_headers) if i > self.header_row]
 
         # Set requested columns to process
-        self.use_cols = [0] + [c - 1 for c in self.logger.stats_cols]
+        self.use_cols = [0] + [c - 1 for c in self.logger.requested_cols]
 
         # No header row specified
         if self.header_row < 0:
             self.header_row = None
-
-    def set_stats_sample_length(self):
-        """Convert sample length from seconds to number of data points."""
-
-        self.stats_sample_length = int(self.logger.stats_interval * self.logger.freq)
-
-    def set_spectral_sample_length(self):
-        """Convert sample length from seconds to number of data points."""
-
-        self.spectral_sample_length = int(self.logger.spectral_interval * self.logger.freq)
 
     def read_logger_file(self, filename):
         """Read logger file into pandas data frame."""

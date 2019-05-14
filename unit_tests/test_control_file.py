@@ -199,7 +199,7 @@ class TestControlFile(unittest.TestCase):
         # self.assertEqual(logger0.num_columns, 5)
         self.assertEqual(logger0.channel_header_row, 2)
         self.assertEqual(logger0.units_header_row, 3)
-        self.assertEqual(logger0.stats_cols, [1, 2, 3, 4])
+        self.assertEqual(logger0.requested_cols, [1, 2, 3, 4])
         self.assertEqual(logger0.stats_start, dt.datetime(2015, 7, 1, 0, 0))
         self.assertEqual(logger0.stats_end, dt.datetime(2016, 7, 1, 0, 0))
 
@@ -211,7 +211,7 @@ class TestControlFile(unittest.TestCase):
         # self.assertEqual(logger1.num_columns, 5)
         self.assertEqual(logger1.channel_header_row, 2)
         self.assertEqual(logger1.units_header_row, 3)
-        self.assertEqual(logger1.stats_cols, [1, 2, 3, 4])
+        self.assertEqual(logger1.requested_cols, [1, 2, 3, 4])
 
         self.assertEqual(logger2.channel_header_row, 2)
 

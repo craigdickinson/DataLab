@@ -54,13 +54,13 @@ class StatsOutput:
         num_pts = len(logger_stats.min)
 
         # Create headers
-        channels = logger.stats_channel_names
+        channels = logger.channel_names
         # channel_header = [x for chan in channels for x in [chan] + ['', '', '']]
         channel_header = [x for chan in channels for x in [chan] * 4]
 
         stats_header = ['min', 'max', 'mean', 'std'] * len(channels)
 
-        units = logger.stats_channel_units
+        units = logger.channel_units
         units_header = [x for unit in units for x in [unit] * 4]
         # CD: The above is equivalent to
         # units_header = []
@@ -137,13 +137,13 @@ class StatsOutput:
         # stats = self.stats_df.values.tolist()
 
         # Create headers
-        channels = logger.stats_channel_names
+        channels = logger.channel_names
         channel_header = [x for chan in channels
                           for x in [chan] + ['', '', '']]
 
         stats_header = ['min', 'max', 'mean', 'std'] * len(channels)
 
-        units = logger.stats_channel_units
+        units = logger.channel_units
         units_header = [x for unit in units
                         for x in [unit] * 4]
 

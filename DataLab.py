@@ -1,7 +1,7 @@
 __author__ = 'Craig Dickinson'
 __program__ = 'DataLab'
-__version__ = '0.20'
-__date__ = '10 May 2019'
+__version__ = '0.22'
+__date__ = '14 May 2019'
 
 import logging
 import os
@@ -574,19 +574,13 @@ class DataLabGui(QtWidgets.QMainWindow):
 
                 # Get all channel names and units if not already stored in logger object
                 if len(logger.all_channel_names) == 0 and len(logger.all_units) == 0:
-                    logger.get_all_channels_and_units()
+                    logger.get_all_channel_and_unit_names()
 
-                # Check stats channels exist
-                if logger.process_stats is True:
-                    channels, units = logger.check_requested_columns_exist('stats')
-                    logger.stats_channel_names = channels
-                    logger.stats_channel_units = units
-
-                # Check spectral channels exist
-                if logger.process_spectral is True:
-                    channels, units = logger.check_requested_columns_exist('spectral')
-                    logger.spectral_channel_names = channels
-                    logger.spectral_channel_units = units
+                # Check requested channels exist
+                if logger.process_stats is True or logger.process_spectral is True:
+                    channels, units = logger.check_requested_columns_exist()
+                    logger.channel_names = channels
+                    logger.channel_units = units
 
                 # Make any user defined units and channels override any detected
                 logger.user_header_override()
