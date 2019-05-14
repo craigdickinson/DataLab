@@ -418,10 +418,10 @@ class ControlFile(object):
                  'expected_data_points',
                  'channel_header_row',
                  'units_header_row',
-                 'stats_channel_names',
-                 'stats_channel_units',
-                 'stats_user_channel_names',
-                 'stats_user_channel_units',
+                 'channel_names',
+                 'channel_units',
+                 'user_channel_names',
+                 'user_channel_units',
                  ]
 
         # Copy attributes from reference logger
@@ -435,24 +435,24 @@ class ControlFile(object):
         key = '*CHANNEL_NAMES'
         i, chan_names_str = self.get_key_data(key, data)
         if i > -1:
-            logger.stats_user_channel_names = chan_names_str.split()
+            logger.user_channel_names = chan_names_str.split()
 
         # Get user defined units
         key = '*CHANNEL_UNITS'
         i, units_str = self.get_key_data(key, data)
         if i > -1:
-            logger.stats_user_channel_units = units_str.split()
+            logger.user_channel_units = units_str.split()
 
     def check_header_specification(self, logger):
         """Check channel names and units have been specified in control file."""
 
         # Check something has been entered for channel names
-        if logger.channel_header_row == 0 and len(logger.stats_user_channel_names) == 0:
+        if logger.channel_header_row == 0 and len(logger.user_channel_names) == 0:
             msg = 'Channel names not specified for logger ' + logger.logger_id
             raise InputError(msg)
 
         # Check something has been entered for units
-        if logger.units_header_row == 0 and len(logger.stats_user_channel_units) == 0:
+        if logger.units_header_row == 0 and len(logger.user_channel_units) == 0:
             msg = 'Units not specified for logger ' + logger.logger_id
             raise InputError(msg)
 
@@ -503,7 +503,7 @@ class ControlFile(object):
 
         # TODO: Sort this out for topside data where not all columns are present
         #  Check stats columns make sense
-        m = max(logger.stats_cols)
+        m = max(logger.requested_cols)
         if m > len(header):
             msg = 'Error in *STATS_COLUMNS for logger ' + logger.logger_id
             msg += '\n Number of columns detected is less than ' + str(m)
@@ -649,7 +649,7 @@ class ControlFile(object):
             msg = key + ' data not found for ' + logger.logger_id
             raise InputError(msg)
 
-        logger.stats_cols = list(map(int, stats_col_str.split()))
+        logger.requested_cols = list(map(int, stats_col_str.split()))
 
         # Get unit conversion factors (optional)
         key = '*STATS_UNIT_CONV_FACTORS'
@@ -658,7 +658,7 @@ class ControlFile(object):
             try:
                 # Extract and store unit conversion factors
                 unit_conv_factors = list(map(float, unit_conv_factors_str.split()))
-                logger.stats_unit_conv_factors = unit_conv_factors
+                logger.unit_conv_factors = unit_conv_factors
             except ValueError:
                 msg = key + ' each unit conversion factor must be a number'
                 raise InputError(msg)
@@ -712,8 +712,8 @@ class ControlFile(object):
             raise InputError(msg)
 
         # Attributes to copy
-        names = ['stats_cols',
-                 'stats_unit_conv_factors',
+        names = ['requested_cols',
+                 'unit_conv_factors',
                  'stats_interval',
                  'stats_start',
                  'stats_end']

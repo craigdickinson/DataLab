@@ -121,8 +121,6 @@ class DataLab(QThread):
             data_screen[i].set_logger(logger)
             stats_sample_length = int(logger.stats_interval * logger.freq)
             spectral_sample_length = int(logger.spectral_interval * logger.freq)
-            # data_screen[i].set_stats_sample_length()
-            # data_screen[i].set_spectral_sample_length()
 
             # Spectrograms object
             if logger.process_spectral is True:
@@ -182,7 +180,7 @@ class DataLab(QThread):
                             # if len(sample_df) == data_screen[i].sample_length:
                             if len(df_stats_sample) <= stats_sample_length:
                                 # Calculate statistics if logger is to be processed
-                                logger_stats[i].calc_stats(df_stats_sample, logger.stats_unit_conv_factors)
+                                logger_stats[i].calc_stats(df_stats_sample, logger.unit_conv_factors)
                                 df_stats_sample = pd.DataFrame()
 
                     # Spectrograms processing module
