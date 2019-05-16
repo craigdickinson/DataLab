@@ -1,8 +1,8 @@
 """
-Created on 23 Sep 2016
-
-@author: bowdenc
+Class to create spectrograms.
 """
+__author__ = 'Craig Dickinson'
+
 import os
 from datetime import timedelta
 from time import time

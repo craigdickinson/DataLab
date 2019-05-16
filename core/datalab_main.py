@@ -267,5 +267,4 @@ if __name__ == '__main__':
         datalab.analyse_control_file()
         datalab.process_control_file()
     except Exception as e:
-        print(str(e))
         logging.exception(e)
