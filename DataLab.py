@@ -46,6 +46,7 @@ class DataLabGui(QtWidgets.QMainWindow):
         self.datalab = None
         self.init_ui()
         self.connect_signals()
+        self.connect_child_signals()
         # self._centre()
 
         # self.output_folder = r'C:\Users\dickinsc\PycharmProjects\DSPLab\output\Glenlivet G1G2'
@@ -258,6 +259,10 @@ class DataLabGui(QtWidgets.QMainWindow):
         self.seascatterButton.clicked.connect(self.view_mod_seascatter)
         self.transFuncsButton.clicked.connect(self.view_mod_transfer_funcs)
         self.fatigueButton.clicked.connect(self.view_mod_fatigue)
+
+    def connect_child_signals(self):
+        self.statsTab.loadStats.clicked.connect(self.load_stats_file)
+        self.vesselStatsTab.loadStats.clicked.connect(self.load_stats_file)
 
     def message_information(self, title, message, buttons=QtWidgets.QMessageBox.Ok):
         return QtWidgets.QMessageBox.information(self, title, message, buttons)

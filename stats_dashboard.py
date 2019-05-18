@@ -126,13 +126,13 @@ class StatsWidget(QtWidgets.QWidget):
         # Store logger and channel drop-down widgets in lists for convenience in later use
         self.logger_combos = [self.log1a,
                               self.log1b,
-                              self.log2a,
-                              self.log2b,
+                              # self.log2a,
+                              # self.log2b,
                               ]
         self.channel_combos = [self.ch1a,
                                self.ch1b,
-                               self.ch2a,
-                               self.ch2b,
+                               # self.ch2a,
+                               # self.ch2b,
                                ]
 
         self.skip_plot = True
@@ -145,8 +145,8 @@ class StatsWidget(QtWidgets.QWidget):
 
         # Selection layout
         selection = QtWidgets.QWidget()
-        selection.setFixedWidth(250)
-        vbox = QtWidgets.QGridLayout(selection)
+        selection.setFixedWidth(200)
+
         # policy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed)
         # selection.setSizePolicy(policy)
 
@@ -161,58 +161,73 @@ class StatsWidget(QtWidgets.QWidget):
         self.plotSettings = QtWidgets.QPushButton('Plot Settings')
         self.replotButton = QtWidgets.QPushButton('Replot')
 
+        self.addPlot = QtWidgets.QPushButton('Add Plot')
+        self.remPlot = QtWidgets.QPushButton('Remove Plot')
+        self.numPlots=QtWidgets.QSpinBox()
+        self.numPlots.setMinimum(1)
+        self.selectPlot = QtWidgets.QComboBox()
+
         # Plot drop-downs
         self.log1a = QtWidgets.QComboBox()
         self.log1b = QtWidgets.QComboBox()
-        self.log2a = QtWidgets.QComboBox()
-        self.log2b = QtWidgets.QComboBox()
+        # self.log2a = QtWidgets.QComboBox()
+        # self.log2b = QtWidgets.QComboBox()
         self.ch1a = QtWidgets.QComboBox()
         self.ch1b = QtWidgets.QComboBox()
-        self.ch2a = QtWidgets.QComboBox()
-        self.ch2b = QtWidgets.QComboBox()
+        # self.ch2a = QtWidgets.QComboBox()
+        # self.ch2b = QtWidgets.QComboBox()
 
-        plotGroup1 = QtWidgets.QGroupBox('Plot 1')
-        grid = QtWidgets.QGridLayout(plotGroup1)
-        grid.addWidget(QtWidgets.QLabel('Logger (Axis 1):'), 0, 0)
-        grid.addWidget(self.log1a, 1, 0)
-        grid.addWidget(QtWidgets.QLabel('Channel (Axis1):'), 0, 1)
-        grid.addWidget(self.ch1a, 1, 1)
-        grid.addWidget(QtWidgets.QLabel('Logger (Axis 2):'), 2, 0)
-        grid.addWidget(self.log1b, 3, 0)
-        grid.addWidget(QtWidgets.QLabel('Channel (Axis 2):'), 2, 1)
-        grid.addWidget(self.ch1b, 3, 1)
+        self.ax1Group = QtWidgets.QGroupBox('Axis 1')
+        self.vbox1 = QtWidgets.QVBoxLayout(self.ax1Group)
+        self.vbox1.addWidget(QtWidgets.QLabel('Logger:'))
+        self.vbox1.addWidget(self.log1a)
+        self.vbox1.addWidget(QtWidgets.QLabel('Channel:'))
+        self.vbox1.addWidget(self.ch1a)
+        self.vbox1.addWidget(QtWidgets.QLabel('Statistic:'))
+        self.vbox1.addWidget(self.axis1StatsCombo)
 
-        plotGroup2 = QtWidgets.QGroupBox('Plot 2')
-        grid = QtWidgets.QGridLayout(plotGroup2)
-        grid.addWidget(QtWidgets.QLabel('Logger (Axis 1):'), 0, 0)
-        grid.addWidget(self.log2a, 1, 0)
-        grid.addWidget(QtWidgets.QLabel('Channel (Axis 1):'), 0, 1)
-        grid.addWidget(self.ch2a, 1, 1)
-        grid.addWidget(QtWidgets.QLabel('Logger (Axis 2):'), 2, 0)
-        grid.addWidget(self.log2b, 3, 0)
-        grid.addWidget(QtWidgets.QLabel('Channel (Axis 2):'), 2, 1)
-        grid.addWidget(self.ch2b, 3, 1)
+        self.ax2Group = QtWidgets.QGroupBox('Axis 2')
+        self.vbox2 = QtWidgets.QVBoxLayout(self.ax2Group)
+        self.vbox2.addWidget(QtWidgets.QLabel('Logger:'))
+        self.vbox2.addWidget(self.log1b)
+        self.vbox2.addWidget(QtWidgets.QLabel('Channel:'))
+        self.vbox2.addWidget(self.ch1b)
+        self.vbox2.addWidget(QtWidgets.QLabel('Statistic:'))
+        self.vbox2.addWidget(self.axis2StatsCombo)
+
+        # plotGroup2 = QtWidgets.QGroupBox('Plot 2')
+        # grid = QtWidgets.QGridLayout(plotGroup2)
+        # grid.addWidget(QtWidgets.QLabel('Logger (Axis 1):'), 0, 0)
+        # grid.addWidget(self.log2a, 1, 0)
+        # grid.addWidget(QtWidgets.QLabel('Channel (Axis 1):'), 0, 1)
+        # grid.addWidget(self.ch2a, 1, 1)
+        # grid.addWidget(QtWidgets.QLabel('Logger (Axis 2):'), 2, 0)
+        # grid.addWidget(self.log2b, 3, 0)
+        # grid.addWidget(QtWidgets.QLabel('Channel (Axis 2):'), 2, 1)
+        # grid.addWidget(self.ch2b, 3, 1)
 
         # Stats combo layout - place in a dummy widget for better alignment
-        statsWidget = QtWidgets.QGroupBox('Statistic')
-        grid = QtWidgets.QGridLayout(statsWidget)
-        grid.addWidget(QtWidgets.QLabel('Primary Axis:'), 0, 0)
-        grid.addWidget(self.axis1StatsCombo, 1, 0)
-        grid.addWidget(QtWidgets.QLabel('Secondary Axis:'), 0, 1)
-        grid.addWidget(self.axis2StatsCombo, 1, 1)
+        # statsWidget = QtWidgets.QGroupBox('Statistic')
+        # grid = QtWidgets.QGridLayout(statsWidget)
+        # grid.addWidget(QtWidgets.QLabel('Secondary Axis:'), 0, 1)
+        # grid.addWidget(self.axis2StatsCombo, 1, 1)
 
         # Combine selection widgets
-        vbox.addWidget(self.loadStats, 0, 0)
-        vbox.addWidget(self.clearDatasets, 0, 1)
-        vbox.addWidget(lbl1, 1, 0)
-        vbox.addWidget(lbl2, 1, 1)
-        vbox.addWidget(self.datasetList, 2, 0)
-        vbox.addWidget(self.channelsList, 2, 1)
-        vbox.addWidget(plotGroup1, 3, 0, 1, 2)
-        vbox.addWidget(plotGroup2, 4, 0, 1, 2)
-        vbox.addWidget(statsWidget, 5, 0, 1, 2)
-        vbox.addWidget(self.plotSettings, 6, 0)
-        vbox.addWidget(self.replotButton, 6, 1)
+        vbox = QtWidgets.QVBoxLayout(selection)
+        vbox.addWidget(self.loadStats)
+        vbox.addWidget(self.clearDatasets)
+        vbox.addWidget(lbl1)
+        vbox.addWidget(self.datasetList)
+        vbox.addWidget(lbl2)
+        vbox.addWidget(self.channelsList)
+        # vbox.addWidget(self.addPlot)
+        # vbox.addWidget(self.remPlot)
+        vbox.addWidget(self.numPlots)
+        vbox.addWidget(self.selectPlot)
+        vbox.addWidget(self.ax1Group)
+        vbox.addWidget(self.ax2Group)
+        vbox.addWidget(self.plotSettings)
+        vbox.addWidget(self.replotButton)
 
         # # Toolbutton version testing
         # self.ch2Sec = QtWidgets.QToolButton()
@@ -251,13 +266,13 @@ class StatsWidget(QtWidgets.QWidget):
         layout.addWidget(plot)
 
     def connect_signals(self):
-        self.loadStats.clicked.connect(self.parent.load_stats_file)
+        # self.loadStats.clicked.connect(self.parent.load_stats_file)
         self.clearDatasets.clicked.connect(self.clear_datasets)
         self.datasetList.currentItemChanged.connect(self.on_datasetList_change)
         self.log1a.currentIndexChanged.connect(self.on_logger1a_combo_change)
         self.log1b.currentIndexChanged.connect(self.on_logger1b_combo_change)
-        self.log2a.currentIndexChanged.connect(self.on_logger2a_combo_change)
-        self.log2b.currentIndexChanged.connect(self.on_logger2b_combo_change)
+        # self.log2a.currentIndexChanged.connect(self.on_logger2a_combo_change)
+        # self.log2b.currentIndexChanged.connect(self.on_logger2b_combo_change)
         self.axis1StatsCombo.currentIndexChanged.connect(self.on_stats1_combo_change)
         self.axis2StatsCombo.currentIndexChanged.connect(self.on_stats2_combo_change)
         self.replotButton.clicked.connect(self.replot)
@@ -710,7 +725,7 @@ class VesselStatsWidget(QtWidgets.QWidget):
         layout.addWidget(plot)
 
     def connect_signals(self):
-        self.loadStats.clicked.connect(self.parent.load_stats_file)
+        # self.loadStats.clicked.connect(self.parent.load_stats_file)
         self.clearDatasets.clicked.connect(self.clear_datasets)
         self.datasetList.currentItemChanged.connect(self.on_datasetList_change)
         self.vesselMotionsCombo.currentIndexChanged.connect(self.on_motions_combo_change)
