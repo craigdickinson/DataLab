@@ -13,7 +13,7 @@ from time import time
 from PyQt5 import QtCore, QtWidgets
 from PyQt5.QtCore import pyqtSignal, pyqtSlot
 
-import datalab_gui_layout
+# import datalab_gui_layout
 from core.control_file import InputError
 from core.datalab_main import DataLab
 from core.logger_properties import LoggerError
@@ -814,11 +814,11 @@ class ControlFileProgressBar(QtWidgets.QDialog):
         self.msgProcessingComplete.setText('Processing complete: elapsed time = ' + t)
 
 
-class QtDesignerGui(QtWidgets.QMainWindow, datalab_gui_layout.Ui_MainWindow):
-    def __init__(self):
-        super().__init__()
-
-        self.setupUi(self)
+# class QtDesignerGui(QtWidgets.QMainWindow, datalab_gui_layout.Ui_MainWindow):
+#     def __init__(self):
+#         super().__init__()
+#
+#         self.setupUi(self)
 
 
 if __name__ == '__main__':
