@@ -261,7 +261,7 @@ class DataLabGui(QtWidgets.QMainWindow):
         self.fatigueButton.clicked.connect(self.view_mod_fatigue)
 
     def connect_child_signals(self):
-        self.statsTab.loadStats.clicked.connect(self.load_stats_file)
+        self.statsTab.loadStatsButton.clicked.connect(self.load_stats_file)
         self.vesselStatsTab.loadStats.clicked.connect(self.load_stats_file)
 
     def message_information(self, title, message, buttons=QtWidgets.QMessageBox.Ok):
@@ -355,7 +355,7 @@ class DataLabGui(QtWidgets.QMainWindow):
 
             # Store dataset/logger names from dictionary keys
             dataset_ids = list(dict_stats.keys())
-            self.statsTab.update_stats_datasets_list(dataset_ids)
+            self.statsTab.update_datasets_list(dataset_ids)
             self.vesselStatsTab.update_stats_datasets_list(dataset_ids)
 
             # Plot stats
@@ -641,7 +641,7 @@ class DataLabGui(QtWidgets.QMainWindow):
 
         # Store dataset/logger names from dictionary keys
         dataset_ids = list(datalab.dict_stats.keys())
-        self.statsTab.update_stats_datasets_list(dataset_ids)
+        self.statsTab.update_datasets_list(dataset_ids)
 
         # Plot stats
         # self.parent.statsTab.set_plot_data(init=True)
