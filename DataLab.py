@@ -360,10 +360,15 @@ class DataLabGui(QtWidgets.QMainWindow):
 
             # Plot stats
             if plot_flag:
-                self.statsTab.set_plot_data(init=True)
-                self.statsTab.update_plots()
-                self.vesselStatsTab.set_plot_data(init=True)
-                self.vesselStatsTab.update_plots()
+                try:
+                    self.statsTab.set_plot_data(init=True)
+                    self.statsTab.update_plots()
+                    self.vesselStatsTab.set_plot_data(init=True)
+                    self.vesselStatsTab.update_plots()
+                except Exception as e:
+                    msg = 'Unexpected error loading config file'
+                    self.error(f'{msg}:\n{e}\n{sys.exc_info()[0]}')
+                    logging.exception(e)
 
             # Update variance plot tab - plot update is triggered upon setting dataset list index
             self.varianceTab.datasets = dict_stats
