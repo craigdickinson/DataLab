@@ -319,64 +319,66 @@ class DataLabGui(QtWidgets.QMainWindow):
 
     def load_stats_file(self, src=None):
         """Load summary stats file."""
+        try:
+            # Prompt user to select file with open file dialog
+            stats_file, _ = QtWidgets.QFileDialog.getOpenFileName(self,
+                                                                  caption='Open Logger Statistics File',
+                                                                  filter='Logger Statistics Files (*.h5 *.csv *.xlsx)',
+                                                                  )
 
-        # Prompt user to select file with open file dialog
-        stats_file, _ = QtWidgets.QFileDialog.getOpenFileName(self,
-                                                              caption='Open Logger Statistics File',
-                                                              filter='Logger Statistics Files (*.h5 *.csv *.xlsx)',
-                                                              )
+            if stats_file:
+                # Get file extension
+                ext = stats_file.split('.')[-1]
 
-        if stats_file:
-            # Get file extension
-            ext = stats_file.split('.')[-1]
+                # Read spreadsheet to data frame
+                # TODO: Check that file read is valid
+                if ext == 'h5':
+                    dict_stats = read_stats_hdf5(stats_file)
+                elif ext == 'csv':
+                    dict_stats = read_stats_csv(stats_file)
+                elif ext == 'xlsx':
+                    dict_stats = read_stats_excel(stats_file)
 
-            # Read spreadsheet to data frame
-            # TODO: Check that file read is valid
-            if ext == 'h5':
-                dict_stats = read_stats_hdf5(stats_file)
-            elif ext == 'csv':
-                dict_stats = read_stats_csv(stats_file)
-            elif ext == 'xlsx':
-                dict_stats = read_stats_excel(stats_file)
+                # Set update plot flag so that plot is not updated if datasets dictionary already contains data
+                # (i.e. a plot already exists)
+                if self.statsTab.datasets:
+                    plot_flag = False
+                else:
+                    plot_flag = True
 
-            # Set update plot flag so that plot is not updated if datasets dictionary already contains data
-            # (i.e. a plot already exists)
-            if self.statsTab.datasets:
-                plot_flag = False
-            else:
-                plot_flag = True
+                # For each logger create a stats dataset object containing data, logger id, list of channels and
+                # pri/sec plot flags and add to stats plot class
+                for logger, df in dict_stats.items():
+                    dataset = StatsDataset(logger_id=logger, df=df)
+                    self.statsTab.datasets.append(dataset)
+                    self.vesselStatsTab.datasets.append(dataset)
 
-            # For each logger create a stats dataset object containing data, logger id, list of channels and
-            # pri/sec plot flags and add to stats plot class
-            for logger, df in dict_stats.items():
-                dataset = StatsDataset(logger_id=logger, df=df)
-                self.statsTab.datasets.append(dataset)
-                self.vesselStatsTab.datasets.append(dataset)
+                # Store dataset/logger names from dictionary keys
+                dataset_ids = list(dict_stats.keys())
+                self.statsTab.update_datasets_list(dataset_ids)
+                self.vesselStatsTab.update_stats_datasets_list(dataset_ids)
 
-            # Store dataset/logger names from dictionary keys
-            dataset_ids = list(dict_stats.keys())
-            self.statsTab.update_datasets_list(dataset_ids)
-            self.vesselStatsTab.update_stats_datasets_list(dataset_ids)
-
-            # Plot stats
-            if plot_flag:
-                try:
-                    self.statsTab.set_plot_data(init=True)
-                    self.statsTab.update_plots()
+                # Plot stats
+                if plot_flag:
+                    # self.statsTab.set_plot_data(init=True)
+                    self.statsTab.block_events=True
+                    self.statsTab.select_presets()
+                    self.statsTab.block_events = False
+                    self.statsTab.update_plot()
                     self.vesselStatsTab.set_plot_data(init=True)
                     self.vesselStatsTab.update_plots()
-                except Exception as e:
-                    msg = 'Unexpected error loading config file'
-                    self.error(f'{msg}:\n{e}\n{sys.exc_info()[0]}')
-                    logging.exception(e)
 
-            # Update variance plot tab - plot update is triggered upon setting dataset list index
-            self.varianceTab.datasets = dict_stats
-            self.varianceTab.update_variance_datasets_list(dataset_ids)
+                # Update variance plot tab - plot update is triggered upon setting dataset list index
+                self.varianceTab.datasets = dict_stats
+                self.varianceTab.update_variance_datasets_list(dataset_ids)
 
-            # Show dashboard
-            if src == 'logger_stats':
-                self.view_tab_stats()
+                # Show dashboard
+                if src == 'logger_stats':
+                    self.view_tab_stats()
+        except Exception as e:
+            msg = 'Unexpected error loading stats file'
+            self.error(f'{msg}:\n{e}\n{sys.exc_info()[0]}')
+            logging.exception(e)
 
     def load_spectrograms_file(self):
         """Load spectrograms spreadsheet."""
@@ -651,7 +653,7 @@ class DataLabGui(QtWidgets.QMainWindow):
         # Plot stats
         # self.parent.statsTab.set_plot_data(init=True)
         # self.parent.statsTab.filtered_ts = self.parent.statsTab.calc_filtered_data(self.df_plot)
-        self.statsTab.update_plots()
+        self.statsTab.update_plot()
 
         # TODO: Load and plot spectrograms data
         # Store spectrogram datasets and update plot tab
