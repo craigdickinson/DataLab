@@ -1,7 +1,7 @@
 __author__ = 'Craig Dickinson'
 __program__ = 'DataLab'
-__version__ = '0.24'
-__date__ = '14 May 2019'
+__version__ = '0.25'
+__date__ = '21 May 2019'
 
 import logging
 import os
@@ -360,11 +360,11 @@ class DataLabGui(QtWidgets.QMainWindow):
 
                 # Plot stats
                 if plot_flag:
-                    # self.statsTab.set_plot_data(init=True)
-                    self.statsTab.block_events=True
+                    self.statsTab.block_events = True
                     self.statsTab.select_presets()
                     self.statsTab.block_events = False
                     self.statsTab.update_plot()
+
                     self.vesselStatsTab.set_plot_data(init=True)
                     self.vesselStatsTab.update_plots()
 

@@ -96,6 +96,7 @@ class PlotData:
         self.channel_1 = ''
         self.label_1 = ''
         self.units_1 = ''
+        self.color_1 = 'b'
 
         # Secondary axis data
         self.ax2 = None
@@ -103,6 +104,7 @@ class PlotData:
         self.channel_2 = ''
         self.label_2 = ''
         self.units_2 = ''
+        self.color_2 = 'r'
 
         # Flags to identify if axes are plotted
         self.ax1_is_plotted = False
@@ -174,7 +176,7 @@ class PlotData:
                       label=self.label_1,
                       channel=self.channel_1,
                       units=self.units_1,
-                      color='dodgerblue',
+                      color=self.color_1,
                       )
         self._plot_data(**kwargs)
         self.ax1_is_plotted = True
@@ -187,7 +189,7 @@ class PlotData:
                       label=self.label_2,
                       channel=self.channel_2,
                       units=self.units_2,
-                      color='dodgerblue',
+                      color=self.color_2,
                       )
         self._plot_data(**kwargs)
         self.ax2_is_plotted = True
@@ -196,7 +198,7 @@ class PlotData:
     def _plot_data(ax, df, label, channel, units, color, linewidth=1):
         """Plot data on a given axes."""
 
-        ax.clear()
+        ax.cla()
         if df.empty is False:
             ax.plot(df, c=color, lw=linewidth, label=label)
             ax.set_ylabel(f'{channel} ($\mathregular{{{units}}}$)')
@@ -204,6 +206,18 @@ class PlotData:
 
 class StatsWidget(QtWidgets.QWidget):
     """Summary stats plot widget class."""
+
+    # List of plot colours for each subplot (limited to 4 plots)
+    ax1_colors = ['dodgerblue',
+                  'red',
+                  'blue',
+                  'green',
+                  ]
+    ax2_colors = ['deepskyblue',
+                  'orange',
+                  'yellow',
+                  'purple',
+                  ]
 
     def __init__(self, parent=None):
         super(StatsWidget, self).__init__(parent)
@@ -368,12 +382,13 @@ class StatsWidget(QtWidgets.QWidget):
 
     def on_spin_box_value_changed(self):
         self.num_plots = self.numPlotsSpinBox.value()
-        self._update_plot_combo()
-        self._update_plot_containers()
-        self._create_subplots()
+        self._update_plot_num_combo()
+        self._update_plot_data_containers()
 
         try:
+            self._create_subplots()
             self._plot_all_stored_data()
+            self._set_xaxis()
             self.canvas.draw()
         except Exception as e:
             msg = 'Unexpected error plotting stats'
@@ -382,11 +397,11 @@ class StatsWidget(QtWidgets.QWidget):
 
     def on_plot_num_combo_changed(self):
         self.plot_i = self.plotNumCombo.currentIndex()
-
-        # Select drop-downs pertaining to current plot
+        # self.update_plot()
 
     def on_axis_combo_changed(self):
         self.axis_i = self.axisCombo.currentIndex()
+        # self.update_plot()
 
     def on_logger_combo_changed(self):
         self.logger_i = self.loggerCombo.currentIndex()
@@ -437,7 +452,7 @@ class StatsWidget(QtWidgets.QWidget):
 
         self.skip_logger_combo_change = False
 
-    def _update_plot_combo(self):
+    def _update_plot_num_combo(self):
         """Update select plot drop-down."""
 
         self.plotNumCombo.clear()
@@ -450,7 +465,7 @@ class StatsWidget(QtWidgets.QWidget):
         else:
             self.plotNumCombo.setCurrentIndex(0)
 
-    def _update_plot_containers(self):
+    def _update_plot_data_containers(self):
         """Add or remove PlotData objects from plot data list to equal number of subplots."""
 
         # Number of subplots
@@ -459,9 +474,11 @@ class StatsWidget(QtWidgets.QWidget):
         # Number of current subplot data containers
         m = len(self.subplots)
 
+        # Create required additional subplot objects
         if n > m:
             for i in range(n - m):
                 self.subplots.append(PlotData())
+        # Delete excess subplot objects
         elif n < m:
             for i in range(m - n):
                 del self.subplots[-1]
@@ -489,6 +506,14 @@ class StatsWidget(QtWidgets.QWidget):
             subplot.ax1 = pri_axes[i]
             subplot.ax2 = sec_axes[i]
 
+            # Set plot axes colours
+            subplot.color_1 = self.ax1_colors[i]
+            subplot.color_2 = self.ax2_colors[i]
+
+            # Set axes margins
+            subplot.ax1.margins(x=0, y=0)
+            subplot.ax2.margins(x=0, y=0)
+
     def _plot_all_stored_data(self):
         """Plot all axes that have stored plot data."""
 
@@ -498,6 +523,8 @@ class StatsWidget(QtWidgets.QWidget):
                 subplot.plot_on_pri_axes()
             if subplot.ax2_is_plotted is True:
                 subplot.plot_on_sec_axes()
+
+        self._set_legend()
 
     def update_datasets_list(self, dataset_ids):
         """Populate loaded datasets list."""
@@ -555,8 +582,6 @@ class StatsWidget(QtWidgets.QWidget):
         # Set plot data for selected subplot axes
         self._set_axes_data()
 
-        # Get axes to plot on
-        # ax = self._get_plot_axis(self.plot_i, self.axis_i)
         i = self.plot_i
 
         # Plot on the primary axis
@@ -566,15 +591,14 @@ class StatsWidget(QtWidgets.QWidget):
         else:
             self.subplots[i].plot_on_sec_axes()
 
+        # Format plots
+
+        # Format x-axis
+        self._set_xaxis()
+
+        self._set_legend()
+
         self.canvas.draw()
-
-    def _get_plot_axis(self, plot_i, axis_i):
-        """Return either primary or secondary axes handle for selected subplot and axes."""
-
-        if axis_i == 0:
-            return self.subplots[plot_i].ax1
-        else:
-            return self.subplots[plot_i].ax2
 
     def _set_axes_data(self):
         """Assign plot data for selected axes of selected subplot."""
@@ -605,46 +629,47 @@ class StatsWidget(QtWidgets.QWidget):
 
         self.fig.suptitle(title)
 
-    # def update_gridlines(self):
-    #     # Modify gridlines shown
-    #     if plot_on_ax1 is False and plot_on_ax2 is True:
-    #         self.ax1.grid(False, axis='y')
-    #         self.ax1b.grid(True)
-    #
-    # def set_xaxis(self, ax):
-    #
-    #     days = mdates.DayLocator(interval=7)
-    #     fmt = mdates.DateFormatter('%d-%b-%y')
-    #     # fmt = mdates.DateFormatter('%Y-%b-%d %H:%M')
-    #     ax.xaxis.set_major_locator(days)
-    #     ax.xaxis.set_major_formatter(fmt)
-    #
-    #     self.fig.autofmt_xdate()
-    #
-    # def plot_unlatched_period(self):
-    #     # TODO: Finish this properly!
-    #     # Unlatched period
-    #     # d1 = mdates.date2num(datetime(2018, 7, 13, 19, 40))
-    #     # d2 = mdates.date2num(datetime(2018, 7, 14, 15, 40))
-    #     # ymin, ymax = self.ax.get_ylim()
-    #     # w = d2 - d1
-    #     # h = 1.1 * (ymax - ymin)
-    #     # rect = Rectangle(xy=(d1, ymin), width=w, height=h, edgecolor=None, facecolor='yellow', alpha=0.2)
-    #     # self.ax.add_patch(rect)
-    #
-    #     pass
-    #
-    # def format_plot(self):
-    #
-    #     self.ax1.margins(x=0, y=0)
-    #     self.ax1b.margins(x=0, y=0)
-    #
-    #     self.fig.legend(loc='lower center',
-    #                     ncol=4,
-    #                     fontsize=11,
-    #                     )
-    #     # Ensure plots don't overlap suptitle and legend
-    #     self.fig.tight_layout(rect=[0, .05, 1, .9])  # (rect=[left, bottom, right, top])
+    def _update_gridlines(self):
+        # Modify gridlines shown
+        if plot_on_ax1 is False and plot_on_ax2 is True:
+            self.ax1.grid(False, axis='y')
+            self.ax1b.grid(True)
+
+    def _set_xaxis(self):
+        """Set x-axis format."""
+
+        ax = self.subplots[-1].ax1
+        days = mdates.DayLocator(interval=7)
+        fmt = mdates.DateFormatter('%d-%b-%y')
+        # fmt = mdates.DateFormatter('%Y-%b-%d %H:%M')
+        ax.xaxis.set_major_locator(days)
+        ax.xaxis.set_major_formatter(fmt)
+
+        self.fig.autofmt_xdate()
+
+    def _plot_unlatched_period(self):
+        # TODO: Finish this properly!
+        # Unlatched period
+        # d1 = mdates.date2num(datetime(2018, 7, 13, 19, 40))
+        # d2 = mdates.date2num(datetime(2018, 7, 14, 15, 40))
+        # ymin, ymax = self.ax.get_ylim()
+        # w = d2 - d1
+        # h = 1.1 * (ymax - ymin)
+        # rect = Rectangle(xy=(d1, ymin), width=w, height=h, edgecolor=None, facecolor='yellow', alpha=0.2)
+        # self.ax.add_patch(rect)
+
+        pass
+
+    def _set_legend(self):
+        """Add legend."""
+
+        self.fig.legends = []
+        self.fig.legend(loc='lower center',
+                        ncol=8,
+                        fontsize=11,
+                        )
+        # Ensure plots don't overlap suptitle and legend
+        self.fig.tight_layout(rect=[0, .05, 1, .9])  # (rect=[left, bottom, right, top])
 
 
 class VesselStatsWidget(QtWidgets.QWidget):
