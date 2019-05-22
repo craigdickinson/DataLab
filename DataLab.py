@@ -360,9 +360,8 @@ class DataLabGui(QtWidgets.QMainWindow):
 
                 # Plot stats
                 if plot_flag:
-                    self.statsTab.skip_plotting = True
-                    self.statsTab.select_presets()
-                    self.statsTab.skip_plotting = False
+                    # Select preset logger and channel index if no dataset previously exist and plot stats
+                    self.statsTab.set_preset_logger_and_channel()
                     self.statsTab.update_plot()
 
                     self.vesselStatsTab.set_plot_data(init=True)
@@ -638,7 +637,7 @@ class DataLabGui(QtWidgets.QMainWindow):
         self.dataQualityModule.set_data_quality_results()
 
         # Clear any existing stats tab datasets
-        self.statsTab.clear_datasets()
+        self.statsTab.reset_dashboard()
 
         # For each logger create stats dataset object containing data, logger id, list of channels and
         # pri/sec plot flags and add to stats plot class

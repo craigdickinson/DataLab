@@ -115,11 +115,10 @@ class PlotData:
         self.color_2 = 'r'
 
         # Flags to identify if axes are plotted
-        self.ax1_contains_data = False
-        self.ax2_contains_data = False
+        self.ax1_in_use = False
+        self.ax2_in_use = False
 
     def set_pri_plot_data(self, datasets, logger_i, channel_name, stat):
-        self.ax1_contains_data = False
         self.df_1 = pd.DataFrame()
         self.channel_1 = ''
         self.label_1 = ''
@@ -155,7 +154,6 @@ class PlotData:
         self.stat_1 = stat
 
     def set_sec_plot_data(self, datasets, logger_i, channel_name, stat):
-        self.ax2_contains_data = False
         self.df_2 = pd.DataFrame()
         self.channel_2 = ''
         self.label_2 = ''
@@ -200,8 +198,7 @@ class PlotData:
                       units=self.units_1,
                       color=self.color_1,
                       )
-        self._plot_data(**kwargs)
-        self.ax1_contains_data = True
+        self.ax1_in_use = self._plot_data(**kwargs)
 
     def plot_on_sec_axes(self):
         """Plot on secondary axes of subplot."""
@@ -213,8 +210,7 @@ class PlotData:
                       units=self.units_2,
                       color=self.color_2,
                       )
-        self._plot_data(**kwargs)
-        self.ax2_contains_data = True
+        self.ax2_in_use = self._plot_data(**kwargs)
 
     @staticmethod
     def _plot_data(ax, df, label, channel, units, color, linewidth=1):
@@ -229,6 +225,9 @@ class PlotData:
             # subplot.ax1.margins(x=0, y=0)
             # subplot.ax2.margins(x=0, y=0)
             ax.margins(x=0, y=0)
+            return True
+        else:
+            return False
 
 
 class StatsWidget(QtWidgets.QWidget):
@@ -254,7 +253,7 @@ class StatsWidget(QtWidgets.QWidget):
         plt.style.use('seaborn')
 
         # Skip routine flags; used to prevent unnecessary multiple calls to update plot routines
-        self.skip_logger_combo_change = False
+        self.resetting_dashboard = False
         self.skip_set_radios = False
         self.skip_radio_changed = False
         self.skip_update_plot = False
@@ -316,13 +315,16 @@ class StatsWidget(QtWidgets.QWidget):
         self.channelsList = QtWidgets.QListWidget()
 
         # Number of plots
-        self.numPlotsSpinBox = QtWidgets.QSpinBox()
-        self.numPlotsSpinBox.setFixedWidth(40)
-        self.numPlotsSpinBox.setMinimum(1)
-        self.numPlotsSpinBox.setMaximum(4)
+        # self.numPlotsSpinBox = QtWidgets.QSpinBox()
+        # self.numPlotsSpinBox.setFixedWidth(40)
+        # self.numPlotsSpinBox.setMinimum(1)
+        # self.numPlotsSpinBox.setMaximum(4)
+
+        self.numPlotsCombo = QtWidgets.QComboBox()
         self.numPlotsContainer = QtWidgets.QWidget()
         self.numPlotsForm = QtWidgets.QFormLayout(self.numPlotsContainer)
-        self.numPlotsForm.addRow(QtWidgets.QLabel('Number of plots:'), self.numPlotsSpinBox)
+        # self.numPlotsForm.addRow(QtWidgets.QLabel('Number of plots:'), self.numPlotsSpinBox)
+        self.numPlotsForm.addRow(QtWidgets.QLabel('Number of plots:'), self.numPlotsCombo)
 
         # Plot data selection
         self.plotNumCombo = QtWidgets.QComboBox()
@@ -373,6 +375,7 @@ class StatsWidget(QtWidgets.QWidget):
     def _init_combos(self):
         """Populate combo boxes and store initial selections."""
 
+        self.numPlotsCombo.addItems(['1', '2', '3', '4'])
         plot_nums = self._get_plot_numbers_list(self.num_plots)
         self.plotNumCombo.addItems(plot_nums)
 
@@ -388,7 +391,8 @@ class StatsWidget(QtWidgets.QWidget):
     def _connect_signals(self):
         self.clearDatasetsButton.clicked.connect(self.on_clear_datasets_clicked)
         self.datasetList.currentItemChanged.connect(self.on_dataset_list_item_changed)
-        self.numPlotsSpinBox.valueChanged.connect(self.on_spin_box_value_changed)
+        # self.numPlotsSpinBox.valueChanged.connect(self.on_spin_box_value_changed)
+        self.numPlotsCombo.currentIndexChanged.connect(self.on_num_plots_combo_changed)
         self.plotNumCombo.currentIndexChanged.connect(self.on_plot_num_combo_changed)
         self.axisCombo.currentIndexChanged.connect(self.on_axis_combo_changed)
         self.loggerCombo.currentIndexChanged.connect(self.on_logger_combo_changed)
@@ -400,27 +404,44 @@ class StatsWidget(QtWidgets.QWidget):
         return list(map(str, range(1, n + 1)))
 
     def on_clear_datasets_clicked(self):
-        self.clear_datasets()
+        self.reset_dashboard()
 
     def on_dataset_list_item_changed(self):
         self._update_channels_list()
 
-    def on_spin_box_value_changed(self):
-        self.num_plots = self.numPlotsSpinBox.value()
-        print(f'A: {self.numPlotsSpinBox.value()}')
+    def on_num_plots_combo_changed(self):
+        self.num_plots = self.numPlotsCombo.currentIndex() + 1
+        self._set_subplot_containers()
 
-        self._update_plot_data_containers()
+        # Update plot number combo box - set flag to prevent setting of plot selections
+        # self.skip_on_plot_num_changed = True
         self._update_plot_num_combo()
+        # self.skip_on_plot_num_changed = False
 
         try:
             self._create_subplots()
             self._plot_all_stored_data()
-            self._set_xaxis()
-            self.canvas.draw()
         except Exception as e:
             msg = 'Unexpected error plotting stats'
             self.parent.error(f'{msg}:\n{e}\n{sys.exc_info()[0]}')
             logging.exception(e)
+
+    # def on_spin_box_value_changed(self):
+    #     self.num_plots = self.numPlotsSpinBox.value()
+    #     print(f'A: {self.numPlotsSpinBox.value()}')
+    #
+    #     self._update_plot_data_containers()
+    #     self._update_plot_num_combo()
+    #
+    #     try:
+    #         self._create_subplots()
+    #         self._plot_all_stored_data()
+    #         self._set_xaxis()
+    #         self.canvas.draw()
+    #     except Exception as e:
+    #         msg = 'Unexpected error plotting stats'
+    #         self.parent.error(f'{msg}:\n{e}\n{sys.exc_info()[0]}')
+    #         logging.exception(e)
 
     def on_plot_num_combo_changed(self):
         self.plot_i = self.plotNumCombo.currentIndex()
@@ -443,34 +464,33 @@ class StatsWidget(QtWidgets.QWidget):
 
     def on_logger_combo_changed(self):
         self.logger_i = self.loggerCombo.currentIndex()
-        if self.logger_i == -1:
-            return
-
         self.logger_id = self.loggerCombo.currentText()
 
-        self.skip_plotting = True
-        self._update_channel_combo()
+        if self.resetting_dashboard is True:
+            return
 
-        # If no logger selected, update plot
-        if self.logger_i == 0:
-            try:
-                self.update_plot()
-            except Exception as e:
-                msg = 'Unexpected error plotting stats'
-                self.parent.error(f'{msg}:\n{e}\n{sys.exc_info()[0]}')
-                logging.exception(e)
+        try:
+            # self.skip_plotting = True
+            self._update_channel_combo()
+            # self.skip_plotting = False
 
-        self.skip_plotting = False
+            # If no logger selected, update
+            # if self.logger_i == 0:
+            #     self.update_plot()
+        except Exception as e:
+            msg = 'Unexpected error plotting stats'
+            self.parent.error(f'{msg}:\n{e}\n{sys.exc_info()[0]}')
+            logging.exception(e)
 
     def on_channel_combo_changed(self):
         self.channel_i = self.channelCombo.currentIndex()
-        if self.channel_i == -1:
-            return
-
         self.channel_name = self.channelCombo.currentText()
 
-        if self.skip_plotting is True:
+        if self.resetting_dashboard is True:
             return
+
+        # if self.skip_plotting is True:
+        #     return
 
         try:
             self.update_plot()
@@ -485,8 +505,8 @@ class StatsWidget(QtWidgets.QWidget):
         # Set stat selection details
         self.stat = self.statCombo.currentText()
 
-        if self.skip_plotting is True:
-            return
+        # if self.skip_plotting is True:
+        #     return
 
         if self.datasets:
             try:
@@ -495,6 +515,38 @@ class StatsWidget(QtWidgets.QWidget):
                 msg = 'Unexpected error plotting stats'
                 self.parent.error(f'{msg}:\n{e}\n{sys.exc_info()[0]}')
                 logging.exception(e)
+
+    def reset_dashboard(self):
+        """Clear all stored datasets and reset layout."""
+
+        self.resetting_dashboard = True
+
+        self.datasets = []
+        self.datasetList.clear()
+        self.channelsList.clear()
+
+        # Remove all but the first item in each combo box
+        [self.loggerCombo.removeItem(i) for i in range(self.loggerCombo.count(), 0, -1)]
+        [self.channelCombo.removeItem(i) for i in range(self.channelCombo.count(), 0, -1)]
+
+        self.logger_i = 0
+        self.channel_i = 0
+        self.subplots = [PlotData() for _ in range(self.num_plots)]
+        self._create_subplots()
+
+        self.resetting_dashboard = False
+
+    def set_preset_logger_and_channel(self):
+        # When no datasets previously loaded, set drop-downs to presets to create an initial plot
+
+        self.skip_plotting = True
+
+        if self.loggerCombo.count() > 1:
+            self.loggerCombo.setCurrentIndex(1)
+        if self.channelCombo.count() > 1:
+            self.channelCombo.setCurrentIndex(1)
+
+        self.skip_plotting = False
 
     def _set_plot_selections(self):
         """Set plot drop-downs selections."""
@@ -515,23 +567,7 @@ class StatsWidget(QtWidgets.QWidget):
         self.channelCombo.setCurrentText(channel)
         self.statCombo.setCurrentText(stat)
 
-    def clear_datasets(self):
-        """Clear all stored spectrogram datasets and reset layout."""
-
-        # Set flag to prevent channel combos repopulating when clear the dataset combos
-        self.skip_logger_combo_change = True
-
-        self.datasets = []
-        self.datasetList.clear()
-        self.channelsList.clear()
-        self.loggerCombo.clear()
-        self.loggerCombo.addItem('None')
-        self.channelCombo.clear()
-        self.channelCombo.addItem('None')
-
-        self.skip_logger_combo_change = False
-
-    def _update_plot_data_containers(self):
+    def _set_subplot_containers(self):
         """Add or remove PlotData objects from plot data list to equal number of subplots."""
 
         # Number of subplots
@@ -576,30 +612,12 @@ class StatsWidget(QtWidgets.QWidget):
             subplot.color_1 = self.ax1_colors[i]
             subplot.color_2 = self.ax2_colors[i]
 
-    def _plot_all_stored_data(self):
-        """Plot all axes that have stored plot data."""
-
-        data_plotted = False
-
-        for subplot in self.subplots:
-            # Check data exists
-            if subplot.ax1_contains_data is True:
-                subplot.plot_on_pri_axes()
-                data_plotted = True
-            if subplot.ax2_contains_data is True:
-                subplot.plot_on_sec_axes()
-                data_plotted = True
-
-        if data_plotted is True:
-            self._set_legend()
-
     def update_datasets_list(self, dataset_ids):
         """Populate loaded datasets list."""
 
         # Create dataset list and select first item (this will trigger an update of update_channels_list)
         self.datasetList.addItems(dataset_ids)
         self.datasetList.setCurrentRow(0)
-
         self._update_logger_combo(dataset_ids)
 
     def _update_channels_list(self):
@@ -630,58 +648,74 @@ class StatsWidget(QtWidgets.QWidget):
             self.plotNumCombo.setCurrentIndex(0)
 
     def _update_logger_combo(self, logger_ids):
-        """Populate logger combo with logger ids."""
+        """Add logger ids to logger combo box."""
 
-        self.loggerCombo.clear()
-        self.loggerCombo.addItems(['-'] + logger_ids)
+        self.loggerCombo.addItems(logger_ids)
 
     def _update_channel_combo(self):
-        """Update channel drop-down to pertain to the selected logger."""
+        """Repopulate channel combo box with channels that pertain to selected logger."""
 
-        if self.skip_logger_combo_change is True:
-            return
+        # Remove all but first item
+        [self.channelCombo.removeItem(i) for i in range(self.channelCombo.count(), 0, -1)]
 
-        # If no logger is selected
-        i = self.logger_i
-        if i == 0:
-            channels = []
-        # Retrieve channel names for selected logger
-        else:
+        # Don't add any channels if no logger selected;
+        # otherwise retrieve channel names for selected logger and add to combo box
+        i = self.logger_i - 1
+        if i > -1:
             channels = self.datasets[i].channels
-
-        # Add channels to channel combo
-        self.channelCombo.clear()
-        self.channelCombo.addItems(['-'] + channels)
-
-    def select_presets(self):
-        # When no datasets previously loaded, set drop-downs to presets to create an initial plot
-
-        self.loggerCombo.setCurrentIndex(1)
-        self.channelCombo.setCurrentIndex(1)
+            self.channelCombo.addItems(channels)
 
     def update_plot(self):
         """Update selected subplot."""
+
+        if self.skip_plotting is True:
+            return
+        print('Updating plot!')
 
         # Set plot data for selected subplot axes
         self._set_axes_data()
 
         i = self.plot_i
 
-        # Plot on the primary axis
+        # Plot on the primary axes
         if self.axis_i == 0:
             self.subplots[i].plot_on_pri_axes()
-        # Plot on the secondary axis
+
+            # Format x-axis
+            ax = self.subplots[i].ax1
+            self._set_xaxis(ax)
+
+        # Plot on the secondary axes
         else:
             self.subplots[i].plot_on_sec_axes()
 
+            # Format x-axis
+            ax = self.subplots[i].ax2
+            self._set_xaxis(ax)
+
         # Format plots
-
-        # Format x-axis
-        self._set_xaxis()
-
         self._set_legend()
-
         self.canvas.draw()
+
+    def _plot_all_stored_data(self):
+        """Plot all axes that have stored plot data."""
+
+        data_plotted = False
+
+        for subplot in self.subplots:
+            # Check data exists
+            if subplot.ax1_in_use is True:
+                subplot.plot_on_pri_axes()
+                data_plotted = True
+            if subplot.ax2_in_use is True:
+                subplot.plot_on_sec_axes()
+                data_plotted = True
+
+        if data_plotted is True:
+            self._set_legend()
+            ax = self.subplots[0].ax1
+            self._set_xaxis(ax)
+            self.canvas.draw()
 
     def _set_axes_data(self):
         """Assign plot data for selected axes of selected subplot."""
@@ -718,10 +752,9 @@ class StatsWidget(QtWidgets.QWidget):
             self.ax1.grid(False, axis='y')
             self.ax1b.grid(True)
 
-    def _set_xaxis(self):
+    def _set_xaxis(self, ax):
         """Set x-axis format."""
 
-        ax = self.subplots[-1].ax1
         days = mdates.DayLocator(interval=7)
         fmt = mdates.DateFormatter('%d-%b-%y')
         # fmt = mdates.DateFormatter('%Y-%b-%d %H:%M')
