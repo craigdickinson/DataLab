@@ -360,9 +360,9 @@ class DataLabGui(QtWidgets.QMainWindow):
 
                 # Plot stats
                 if plot_flag:
-                    self.statsTab.block_events = True
+                    self.statsTab.skip_plotting = True
                     self.statsTab.select_presets()
-                    self.statsTab.block_events = False
+                    self.statsTab.skip_plotting = False
                     self.statsTab.update_plot()
 
                     self.vesselStatsTab.set_plot_data(init=True)
