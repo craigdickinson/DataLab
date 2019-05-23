@@ -261,12 +261,12 @@ class ConfigModule(QtWidgets.QWidget):
                 self.set_dashboards()
                 self.set_window_title(filename)
             except InputError as e:
-                logging.exception(e)
                 self.parent.error(str(e))
-            except Exception as e:
                 logging.exception(e)
+            except Exception as e:
                 msg = 'Unexpected error loading config file'
                 self.parent.error(f'{msg}:\n{e}\n{sys.exc_info()[0]}')
+                logging.exception(e)
 
     def save_config_file(self):
         """Save project configuration settings as a dictionary to a JSON file."""

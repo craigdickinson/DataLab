@@ -111,7 +111,7 @@ class FFTWidget(QWidget):
             if i == 0:
                 psd = psdi
             else:
-                psd = np.add(psd, psdi)
+                psd += psdi
 
         # Average PSD
         psd = psd / int(n)

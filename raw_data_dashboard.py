@@ -563,6 +563,7 @@ class TimeSeriesPlotWidget(QtWidgets.QWidget):
         try:
             # Note the default Welch parameters are equivalent to running
             # f, pxx = signal.welch(df.T, fs=fs)
+            # TODO: Make PSD calc a core script
             f, pxx = signal.welch(df.T, fs=fs, window=window, nperseg=nperseg, noverlap=noverlap)
         except Exception as e:
             raise ValueError(f'Could not calculate PSD\n{e}')

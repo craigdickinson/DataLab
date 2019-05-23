@@ -38,13 +38,18 @@ class DataQualityReport(QtWidgets.QWidget):
         self.numFiles = QtWidgets.QLabel('-')
         self.numBadFilenames = QtWidgets.QLabel('-')
         self.percCompleteData = QtWidgets.QLabel('-')
+        self.minResTable = QtWidgets.QTableWidget()
+        self.minResTable.setColumnCount(2)
+        self.minResTable.setRowCount(4)
 
         self.form.addRow(QtWidgets.QLabel('Number of files:'), self.numFiles)
         self.form.addRow(QtWidgets.QLabel('Number of bad file names:'), self.numBadFilenames)
         self.form.addRow(QtWidgets.QLabel('Percentage of complete data:'), self.percCompleteData)
+        # self.form.addRow(QtWidgets.QLabel('Percentage of complete data:'), self.minResTable)
 
         self.layout.addWidget(self.selectedLoggerWidget, 0, 0)
         self.layout.addWidget(self.qualityGroup, 1, 0)
+        # self.layout.addWidget(self.minResTable, 2, 0)
 
     def connect_signals(self):
         self.loggerCombo.currentIndexChanged.connect(self.on_logger_combo_changed)
