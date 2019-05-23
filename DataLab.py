@@ -33,8 +33,6 @@ from transfer_functions_dashboard import TransferFunctionsWidget
 class DataLabGui(QtWidgets.QMainWindow):
     """Class to create main gui."""
 
-    # thread_status = pyqtSignal(bool)
-
     def __init__(self):
         super().__init__()
 
