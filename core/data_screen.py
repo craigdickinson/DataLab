@@ -8,8 +8,8 @@ import os.path
 import numpy as np
 import pandas as pd
 
-from core.logger_properties import LoggerProperties
-from core.read_files import read_pulse_acc_single_header_format
+from logger_properties import LoggerProperties
+from read_files import read_pulse_acc_single_header_format
 
 
 class DataScreen:

@@ -79,7 +79,6 @@ def detect_pulse_logger_properties(logger):
     # Store expected logging duration
     logger.duration = duration
 
-
     return logger
 
 
