@@ -1,19 +1,15 @@
 import sys
 import logging
 from datetime import datetime
-import math
 
 import PIL
 import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from PyQt5 import QtCore, QtGui, QtWidgets
-from matplotlib import cm
+from PyQt5 import QtCore, QtWidgets
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
-from matplotlib import gridspec
-from datetime import timedelta
 
 # To resolve a pandas warning in using timestamps with matplotlib - to investigate
 from pandas.plotting import register_matplotlib_converters
@@ -111,13 +107,7 @@ class StatsDataset:
 
 class PlotData:
     def __init__(self):
-        """
-        Get plot data for a given logger and channel
-        :param logger_combo: Logger drop-down widget
-        :param channel_combo: Channel drop-down widget
-        :param stat_col: statistic column name to slice on
-        :return: DataFrame of plot data for a given axis
-        """
+        """Class to hold data and related info for a primary and secondary axes and to plot it."""
 
         # Primary axes combo selections
         self.logger_1 = '-'
@@ -1583,8 +1573,6 @@ class PlotStyle2H:
 
 # For testing layout
 if __name__ == '__main__':
-    import sys
-
     np.random.seed(0)
     app = QtWidgets.QApplication(sys.argv)
 
