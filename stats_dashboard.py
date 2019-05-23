@@ -90,6 +90,8 @@ title_args = dict(
     weight='bold',
 )
 
+plt.style.use('seaborn')
+# plt.style.use('default')
 
 class StatsDataset:
     """Class to hold stats datasets and associated properties."""
@@ -262,9 +264,8 @@ class PlotData:
                 channel = dict_ylabels[channel]
 
             ax.set_ylabel(f'{channel} ($\mathregular{{{units}}}$)')
-
-            # Set axes margins
             ax.margins(x=0, y=0)
+
             return True
         else:
             return False
@@ -290,7 +291,6 @@ class StatsWidget(QtWidgets.QWidget):
 
         # So can access parent class
         self.parent = parent
-        plt.style.use('seaborn')
 
         # Skip routine flags; used to prevent unnecessary multiple calls to update plot routines
         self.resetting_dashboard = False
@@ -522,6 +522,51 @@ class StatsWidget(QtWidgets.QWidget):
                 self.parent.error(f'{msg}:\n{e}\n{sys.exc_info()[0]}')
                 logging.exception(e)
 
+    def _create_subplots(self):
+        """Create figure with required number of subplots."""
+
+        # TODO: Make as user settings
+        share_pri_y_axes = True
+        share_sec_y_axes = True
+
+        self.fig.clf()
+
+        # Create first subplot
+        ax1 = self.fig.add_subplot(self.num_plots, 1, 1)
+
+        # Create remaining subplots with a shared x-axis to ax1 then prepend ax1 to axes list
+        if share_pri_y_axes is True:
+            sharey_ax = ax1
+        else:
+            sharey_ax = None
+
+        pri_axes = [self.fig.add_subplot(self.num_plots, 1, i + 1, sharex=ax1, sharey=sharey_ax) for i in
+                    range(1, self.num_plots)]
+        pri_axes.insert(0, ax1)
+
+        # Create secondary axes list and set properties
+        sec_axes = [ax.twinx() for ax in pri_axes]
+        ax0 = sec_axes[0]
+
+        for ax in sec_axes:
+            # Share secondary axes with first subplot
+            if share_sec_y_axes is True:
+                if ax != ax0:
+                    ax0.get_shared_y_axes().join(ax0, ax)
+
+            # Initially hide secondary y-axis and gridlines
+            ax.yaxis.set_visible(False)
+            ax.grid(False)
+
+        # Assign axes to subplots objects
+        for i, subplot in enumerate(self.subplots):
+            subplot.ax1 = pri_axes[i]
+            subplot.ax2 = sec_axes[i]
+
+            # Set plot axes colours
+            # subplot.color_1 = self.ax1_colors[i]
+            # subplot.color_2 = self.ax2_colors[i]
+
     def reset_dashboard(self):
         """Clear all stored datasets and reset layout."""
 
@@ -591,33 +636,6 @@ class StatsWidget(QtWidgets.QWidget):
         elif n < m:
             for i in range(m - n):
                 del self.subplots[-1]
-
-    def _create_subplots(self):
-        """Create figure with required number of subplots."""
-
-        self.fig.clf()
-
-        # Create first subplot
-        ax1 = self.fig.add_subplot(self.num_plots, 1, 1)
-
-        # Create remaining subplots with a shared x-axis to ax1 then prepend ax1 to axes list
-        pri_axes = [self.fig.add_subplot(self.num_plots, 1, i + 1, sharex=ax1) for i in range(1, self.num_plots)]
-        pri_axes.insert(0, ax1)
-
-        # Create secondary axes list and set properties
-        sec_axes = [ax.twinx() for ax in pri_axes]
-        for ax in sec_axes:
-            ax.yaxis.set_visible(False)
-            ax.grid(False)
-
-        # Assign axes to subplots objects
-        for i, subplot in enumerate(self.subplots):
-            subplot.ax1 = pri_axes[i]
-            subplot.ax2 = sec_axes[i]
-
-            # Set plot axes colours
-            subplot.color_1 = self.ax1_colors[i]
-            subplot.color_2 = self.ax2_colors[i]
 
     def update_datasets_list(self, dataset_ids):
         """Populate loaded datasets list."""
@@ -716,6 +734,7 @@ class StatsWidget(QtWidgets.QWidget):
         # Format plot
         self._format_plot()
         self._set_yaxes_and_gridlines(subplot)
+        self._add_subplot_legend(subplot)
         self._adjust_fig_layout()
         self.canvas.draw()
 
@@ -738,6 +757,7 @@ class StatsWidget(QtWidgets.QWidget):
 
             for subplot in self.subplots:
                 self._set_yaxes_and_gridlines(subplot)
+                self._add_subplot_legend(subplot)
 
             self._adjust_fig_layout()
         else:
@@ -748,7 +768,7 @@ class StatsWidget(QtWidgets.QWidget):
     def _format_plot(self):
         """Format plot routines."""
 
-        self._set_legend()
+        # self._add_figure_legend()
         self._set_xaxis()
         self._set_title()
 
@@ -813,8 +833,8 @@ class StatsWidget(QtWidgets.QWidget):
 
         pass
 
-    def _set_legend(self):
-        """Add legend."""
+    def _add_figure_legend(self):
+        """Add legend to bottom of figure."""
 
         if self.fig.legends:
             self.fig.legends = []
@@ -823,6 +843,22 @@ class StatsWidget(QtWidgets.QWidget):
             loc='lower center',
             ncol=4,
             fontsize=11,
+        )
+
+    def _add_subplot_legend(self, subplot):
+        """
+        Add legend to subplot.
+        Creates list of line objects contained in both axes, then gets label for each line and creates legend.
+        """
+
+        lines = subplot.ax1.lines + subplot.ax2.lines
+        labels = [l.get_label() for l in lines]
+        subplot.ax1.legend(
+            lines,
+            labels,
+            loc='upper right',
+            ncol=2,
+            fontsize=9,
         )
 
     def _adjust_fig_layout(self):
@@ -839,7 +875,6 @@ class VesselStatsWidget(QtWidgets.QWidget):
 
         # So can access parent class
         self.parent = parent
-        plt.style.use('seaborn')
 
         # Skip routine flags; used to prevent unnecessary multiple calls to update plot routines
         self.skip_logger_combo_change = False
