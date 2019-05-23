@@ -1,7 +1,7 @@
 __author__ = 'Craig Dickinson'
 __program__ = 'DataLab'
-__version__ = '0.22'
-__date__ = '14 May 2019'
+__version__ = '0.25'
+__date__ = '23 May 2019'
 
 import logging
 import os
@@ -13,7 +13,7 @@ from time import time
 from PyQt5 import QtCore, QtWidgets
 from PyQt5.QtCore import pyqtSignal, pyqtSlot
 
-import datalab_gui_layout
+# import datalab_gui_layout
 from core.control_file import InputError
 from core.datalab_main import DataLab
 from core.logger_properties import LoggerError
@@ -33,8 +33,6 @@ from transfer_functions_dashboard import TransferFunctionsWidget
 class DataLabGui(QtWidgets.QMainWindow):
     """Class to create main gui."""
 
-    # thread_status = pyqtSignal(bool)
-
     def __init__(self):
         super().__init__()
 
@@ -46,6 +44,7 @@ class DataLabGui(QtWidgets.QMainWindow):
         self.datalab = None
         self.init_ui()
         self.connect_signals()
+        self.connect_child_signals()
         # self._centre()
 
         # self.output_folder = r'C:\Users\dickinsc\PycharmProjects\DSPLab\output\Glenlivet G1G2'
@@ -68,7 +67,6 @@ class DataLabGui(QtWidgets.QMainWindow):
 
         # Project config module
         self.projConfigModule = ConfigModule(self)
-        self.projectConfigTab = self.projConfigModule.campaignTab
 
         # Raw data inspection module
         self.rawDataModule = QtWidgets.QTabWidget()
@@ -259,6 +257,10 @@ class DataLabGui(QtWidgets.QMainWindow):
         self.transFuncsButton.clicked.connect(self.view_mod_transfer_funcs)
         self.fatigueButton.clicked.connect(self.view_mod_fatigue)
 
+    def connect_child_signals(self):
+        self.statsTab.loadStatsButton.clicked.connect(self.load_stats_file)
+        self.vesselStatsTab.loadStats.clicked.connect(self.load_stats_file)
+
     def message_information(self, title, message, buttons=QtWidgets.QMessageBox.Ok):
         return QtWidgets.QMessageBox.information(self, title, message, buttons)
 
@@ -314,59 +316,65 @@ class DataLabGui(QtWidgets.QMainWindow):
 
     def load_stats_file(self, src=None):
         """Load summary stats file."""
+        try:
+            # Prompt user to select file with open file dialog
+            stats_file, _ = QtWidgets.QFileDialog.getOpenFileName(self,
+                                                                  caption='Open Logger Statistics File',
+                                                                  filter='Logger Statistics Files (*.h5 *.csv *.xlsx)',
+                                                                  )
 
-        # Prompt user to select file with open file dialog
-        stats_file, _ = QtWidgets.QFileDialog.getOpenFileName(self,
-                                                              caption='Open Logger Statistics File',
-                                                              filter='Logger Statistics Files (*.h5 *.csv *.xlsx)',
-                                                              )
+            if stats_file:
+                # Get file extension
+                ext = stats_file.split('.')[-1]
 
-        if stats_file:
-            # Get file extension
-            ext = stats_file.split('.')[-1]
+                # Read spreadsheet to data frame
+                # TODO: Check that file read is valid
+                if ext == 'h5':
+                    dict_stats = read_stats_hdf5(stats_file)
+                elif ext == 'csv':
+                    dict_stats = read_stats_csv(stats_file)
+                elif ext == 'xlsx':
+                    dict_stats = read_stats_excel(stats_file)
 
-            # Read spreadsheet to data frame
-            # TODO: Check that file read is valid
-            if ext == 'h5':
-                dict_stats = read_stats_hdf5(stats_file)
-            elif ext == 'csv':
-                dict_stats = read_stats_csv(stats_file)
-            elif ext == 'xlsx':
-                dict_stats = read_stats_excel(stats_file)
+                # Set update plot flag so that plot is not updated if datasets dictionary already contains data
+                # (i.e. a plot already exists)
+                if self.statsTab.datasets:
+                    plot_flag = False
+                else:
+                    plot_flag = True
 
-            # Set update plot flag so that plot is not updated if datasets dictionary already contains data
-            # (i.e. a plot already exists)
-            if self.statsTab.datasets:
-                plot_flag = False
-            else:
-                plot_flag = True
+                # For each logger create a stats dataset object containing data, logger id, list of channels and
+                # pri/sec plot flags and add to stats plot class
+                for logger, df in dict_stats.items():
+                    dataset = StatsDataset(logger_id=logger, df=df)
+                    self.statsTab.datasets.append(dataset)
+                    self.vesselStatsTab.datasets.append(dataset)
 
-            # For each logger create a stats dataset object containing data, logger id, list of channels and
-            # pri/sec plot flags and add to stats plot class
-            for logger, df in dict_stats.items():
-                dataset = StatsDataset(logger_id=logger, df=df)
-                self.statsTab.datasets.append(dataset)
-                self.vesselStatsTab.datasets.append(dataset)
+                # Store dataset/logger names from dictionary keys
+                dataset_ids = list(dict_stats.keys())
+                self.statsTab.update_datasets_list(dataset_ids)
+                self.vesselStatsTab.update_stats_datasets_list(dataset_ids)
 
-            # Store dataset/logger names from dictionary keys
-            dataset_ids = list(dict_stats.keys())
-            self.statsTab.update_stats_datasets_list(dataset_ids)
-            self.vesselStatsTab.update_stats_datasets_list(dataset_ids)
+                # Plot stats
+                if plot_flag:
+                    # Select preset logger and channel index if no dataset previously exist and plot stats
+                    self.statsTab.set_preset_logger_and_channel()
+                    self.statsTab.update_plot()
 
-            # Plot stats
-            if plot_flag:
-                self.statsTab.set_plot_data(init=True)
-                self.statsTab.update_plots()
-                self.vesselStatsTab.set_plot_data(init=True)
-                self.vesselStatsTab.update_plots()
+                    self.vesselStatsTab.set_plot_data(init=True)
+                    self.vesselStatsTab.update_plots()
 
-            # Update variance plot tab - plot update is triggered upon setting dataset list index
-            self.varianceTab.datasets = dict_stats
-            self.varianceTab.update_variance_datasets_list(dataset_ids)
+                # Update variance plot tab - plot update is triggered upon setting dataset list index
+                self.varianceTab.datasets = dict_stats
+                self.varianceTab.update_variance_datasets_list(dataset_ids)
 
-            # Show dashboard
-            if src == 'logger_stats':
-                self.view_tab_stats()
+                # Show dashboard
+                if src == 'logger_stats':
+                    self.view_tab_stats()
+        except Exception as e:
+            msg = 'Unexpected error loading stats file'
+            self.error(f'{msg}:\n{e}\n{sys.exc_info()[0]}')
+            logging.exception(e)
 
     def load_spectrograms_file(self):
         """Load spectrograms spreadsheet."""
@@ -573,7 +581,7 @@ class DataLabGui(QtWidgets.QMainWindow):
                 logger.expected_data_points = logger.freq * logger.duration
 
                 # Get all channel names and units if not already stored in logger object
-                if len(logger.all_channel_names) == 0 and len(logger.all_units) == 0:
+                if len(logger.all_channel_names) == 0 and len(logger.all_channel_units) == 0:
                     logger.get_all_channel_and_unit_names()
 
                 # Check requested channels exist
@@ -626,7 +634,7 @@ class DataLabGui(QtWidgets.QMainWindow):
         self.dataQualityModule.set_data_quality_results()
 
         # Clear any existing stats tab datasets
-        self.statsTab.clear_datasets()
+        self.statsTab.reset_dashboard()
 
         # For each logger create stats dataset object containing data, logger id, list of channels and
         # pri/sec plot flags and add to stats plot class
@@ -636,12 +644,12 @@ class DataLabGui(QtWidgets.QMainWindow):
 
         # Store dataset/logger names from dictionary keys
         dataset_ids = list(datalab.dict_stats.keys())
-        self.statsTab.update_stats_datasets_list(dataset_ids)
+        self.statsTab.update_datasets_list(dataset_ids)
 
         # Plot stats
         # self.parent.statsTab.set_plot_data(init=True)
         # self.parent.statsTab.filtered_ts = self.parent.statsTab.calc_filtered_data(self.df_plot)
-        self.statsTab.update_plots()
+        self.statsTab.update_plot()
 
         # TODO: Load and plot spectrograms data
         # Store spectrogram datasets and update plot tab
@@ -814,11 +822,11 @@ class ControlFileProgressBar(QtWidgets.QDialog):
         self.msgProcessingComplete.setText('Processing complete: elapsed time = ' + t)
 
 
-class QtDesignerGui(QtWidgets.QMainWindow, datalab_gui_layout.Ui_MainWindow):
-    def __init__(self):
-        super().__init__()
-
-        self.setupUi(self)
+# class QtDesignerGui(QtWidgets.QMainWindow, datalab_gui_layout.Ui_MainWindow):
+#     def __init__(self):
+#         super().__init__()
+#
+#         self.setupUi(self)
 
 
 if __name__ == '__main__':
