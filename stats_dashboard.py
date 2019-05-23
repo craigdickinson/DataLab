@@ -91,6 +91,8 @@ title_args = dict(
 )
 
 plt.style.use('seaborn')
+
+
 # plt.style.use('default')
 
 class StatsDataset:
@@ -127,7 +129,7 @@ class PlotData:
         self.df_1 = pd.DataFrame()
         self.label_1 = ''
         self.units_1 = ''
-        self.color_1 = 'b'
+        self.color_1 = 'dodgerblue'
 
         # Secondary axes combo selections
         self.logger_2 = '-'
@@ -139,7 +141,7 @@ class PlotData:
         self.df_2 = pd.DataFrame()
         self.label_2 = ''
         self.units_2 = ''
-        self.color_2 = 'r'
+        self.color_2 = 'orange'
 
         # Flags to identify if axes are plotted
         self.ax1_in_use = False
@@ -227,7 +229,7 @@ class PlotData:
         self.channel_2 = channel_name
         self.stat_2 = stat
 
-    def plot_on_pri_axes(self):
+    def plot_on_pri_axes(self, num_plots=1):
         """Plot on primary axes of subplot."""
 
         kwargs = dict(ax=self.ax1,
@@ -237,9 +239,9 @@ class PlotData:
                       units=self.units_1,
                       color=self.color_1,
                       )
-        self.ax1_in_use = self._plot_data(**kwargs)
+        self.ax1_in_use = self._plot_data(num_plots, **kwargs)
 
-    def plot_on_sec_axes(self):
+    def plot_on_sec_axes(self, num_plots=1):
         """Plot on secondary axes of subplot."""
 
         kwargs = dict(ax=self.ax2,
@@ -249,11 +251,17 @@ class PlotData:
                       units=self.units_2,
                       color=self.color_2,
                       )
-        self.ax2_in_use = self._plot_data(**kwargs)
+        self.ax2_in_use = self._plot_data(num_plots, **kwargs)
 
     @staticmethod
-    def _plot_data(ax, df, label, channel, units, color, linewidth=1):
+    def _plot_data(num_plots, ax, df, label, channel, units, color, linewidth=1):
         """Plot data on a given axes."""
+
+        # Set y-axis font size depending on number of plots
+        if num_plots > 2:
+            ylabel_size = 10
+        else:
+            ylabel_size = 11
 
         ax.cla()
         if df.empty is False:
@@ -263,7 +271,7 @@ class PlotData:
             if channel in dict_ylabels:
                 channel = dict_ylabels[channel]
 
-            ax.set_ylabel(f'{channel} ($\mathregular{{{units}}}$)')
+            ax.set_ylabel(f'{channel}\n($\mathregular{{{units}}}$)', size=ylabel_size)
             ax.margins(x=0, y=0)
 
             return True
@@ -713,13 +721,13 @@ class StatsWidget(QtWidgets.QWidget):
                                       stat=self.stat)
 
             # Plot the data
-            subplot.plot_on_pri_axes()
+            subplot.plot_on_pri_axes(self.num_plots)
 
             # Check if no data was plotted on primary axes but the secondary axes is use.
             # If so then need to replot the secondary axes data due to
             # ax2 being twinned to ax1 but ax1 was cleared, thus screwing up ax2
             if subplot.ax1_in_use is False and subplot.ax2_in_use is True:
-                subplot.plot_on_sec_axes()
+                subplot.plot_on_sec_axes(self.num_plots)
         # Plot on the secondary axes
         else:
             # Set plot data for selected subplot secondary axes
@@ -746,10 +754,10 @@ class StatsWidget(QtWidgets.QWidget):
         for subplot in self.subplots:
             # Check data exists
             if subplot.ax1_in_use is True:
-                subplot.plot_on_pri_axes()
+                subplot.plot_on_pri_axes(self.num_plots)
                 data_plotted = True
             if subplot.ax2_in_use is True:
-                subplot.plot_on_sec_axes()
+                subplot.plot_on_sec_axes(self.num_plots)
                 data_plotted = True
 
         if data_plotted is True:
@@ -865,6 +873,7 @@ class StatsWidget(QtWidgets.QWidget):
         """Size plots so that it doesn't overlap suptitle and legend."""
 
         self.fig.tight_layout(rect=[0, .05, 1, .92])  # (rect=[left, bottom, right, top])
+        self.fig.subplots_adjust(hspace=0.05)
 
 
 class VesselStatsWidget(QtWidgets.QWidget):
