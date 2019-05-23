@@ -26,44 +26,69 @@ register_matplotlib_converters()
 # from matplotlib.font_manager import findfont, FontProperties
 # import colormap as cmaps
 
-stat_ylabels = ['Acceleration ($\mathregular{m/s^2}$)',
-                'Angular Rate ($\mathregular{deg/s}$)',
-                ]
+stat_ylabels = [
+    'Acceleration ($\mathregular{m/s^2}$)',
+    'Angular Rate ($\mathregular{deg/s}$)',
+]
 
-variance_channels_combo = ['Acceleration X',
-                           'Acceleration Y',
-                           'Angular Rate X',
-                           'Angular Rate Y',
-                           ]
+variance_channels_combo = [
+    'Acceleration X',
+    'Acceleration Y',
+    'Angular Rate X',
+    'Angular Rate Y',
+]
+
+motion_types = [
+    'Surge/Sway/Heave',
+    'Roll/Pitch/Yaw',
+]
+
+vessel_trans = [
+    'AccSurge',
+    'AccSway',
+    'AccHeave',
+]
+
+vessel_rots = [
+    'AccRoll',
+    'AccPitch',
+    'AccYaw',
+]
 
 # Dictionary of stats combo items and stats file column name pairs
-dict_stats = {'Minimum': 'min',
-              'Maximum': 'max',
-              'Mean': 'mean',
-              'Std. Dev.': 'std',
-              }
+dict_stats = {
+    'Minimum': 'min',
+    'Maximum': 'max',
+    'Mean': 'mean',
+    'Std. Dev.': 'std',
+}
 
-motion_types = ['Surge/Sway/Heave',
-                'Roll/Pitch/Yaw',
-                ]
+dict_stats_abbrev = {
+    'Minimum': 'Min',
+    'Maximum': 'Max',
+    'Std. Dev.': 'SD',
+}
 
-vessel_trans = ['AccSurge',
-                'AccSway',
-                'AccHeave',
-                ]
+dict_labels = {
+    'SigWaveHeight': 'Sig. Wave Height',
+    'SigWavePeriod': 'Sig. Wave Period',
+}
 
-vessel_rots = ['AccRoll',
-               'AccPitch',
-               'AccYaw',
-               ]
+dict_ylabels = {
+    'SigWaveHeight': 'Hs',
+    'SigWavePeriod': 'Tp',
+}
 
-labels_dict = {'SigWaveHeight': 'Significant Wave Height',
-               'SigWavePeriod': 'Significant Wave Period',
-               }
+# 2H blue colour font
+color_2H = np.array([0, 49, 80]) / 255
 
-ylabels_dict = {'SigWaveHeight': 'Hs',
-                'SigWavePeriod': 'Tp',
-                }
+# Title style args
+title_args = dict(
+    size=14,
+    fontname='tahoma',
+    color=color_2H,
+    weight='bold',
+)
 
 
 class StatsDataset:
@@ -124,9 +149,6 @@ class PlotData:
         self.label_1 = ''
         self.units_1 = ''
 
-        # Column name in stats dataset
-        stat_col = dict_stats[stat]
-
         # Logger index and default id
         i = logger_i - 1
         logger_id = '-'
@@ -137,11 +159,20 @@ class PlotData:
             df = datasets[i].df
             logger_id = datasets[i].logger_id
 
+            # Column name in stats dataset
+            stat_col = dict_stats[stat]
+
+            # Check for preferred stat label for legend
+            if stat in dict_stats_abbrev:
+                stat_lbl = dict_stats_abbrev[stat]
+            else:
+                stat_lbl = stat
+
             # Slice data frame for the selected statistic and then on channel
             df = df.xs(key=stat_col, axis=1, level=1)
             df = df[channel_name]
             units = df.columns[0]
-            label = ' '.join((logger_id, channel_name))
+            label = ' '.join((stat_lbl, logger_id, channel_name))
 
             # Store plot data
             self.df_1 = df
@@ -159,9 +190,6 @@ class PlotData:
         self.label_2 = ''
         self.units_2 = ''
 
-        # Column name in stats datasets
-        stat_col = dict_stats[stat]
-
         # Logger index and default id
         i = logger_i - 1
         logger_id = '-'
@@ -172,11 +200,20 @@ class PlotData:
             df = datasets[i].df
             logger_id = datasets[i].logger_id
 
+            # Column name in stats datasets
+            stat_col = dict_stats[stat]
+
+            # Check for preferred stat label for legend
+            if stat in dict_stats_abbrev:
+                stat_lbl = dict_stats_abbrev[stat]
+            else:
+                stat_lbl = stat
+
             # Slice data frame for the selected statistic and then on channel
             df = df.xs(key=stat_col, axis=1, level=1)
             df = df[channel_name]
             units = df.columns[0]
-            label = ' '.join((logger_id, channel_name))
+            label = ' '.join((stat_lbl, logger_id, channel_name))
 
             # Store plot data
             self.df_2 = df
@@ -219,11 +256,14 @@ class PlotData:
         ax.cla()
         if df.empty is False:
             ax.plot(df, c=color, lw=linewidth, label=label)
+
+            # Check for a preferred channel name to use
+            if channel in dict_ylabels:
+                channel = dict_ylabels[channel]
+
             ax.set_ylabel(f'{channel} ($\mathregular{{{units}}}$)')
 
             # Set axes margins
-            # subplot.ax1.margins(x=0, y=0)
-            # subplot.ax2.margins(x=0, y=0)
             ax.margins(x=0, y=0)
             return True
         else:
@@ -676,9 +716,7 @@ class StatsWidget(QtWidgets.QWidget):
         # Format plot
         self._format_plot()
         self._set_yaxes_and_gridlines(subplot)
-
-        # Ensure plots don't overlap suptitle and legend
-        self.fig.tight_layout(rect=[0, .05, 1, .9])  # (rect=[left, bottom, right, top])
+        self._adjust_fig_layout()
         self.canvas.draw()
 
     def _plot_all_stored_data(self):
@@ -701,8 +739,7 @@ class StatsWidget(QtWidgets.QWidget):
             for subplot in self.subplots:
                 self._set_yaxes_and_gridlines(subplot)
 
-            # Ensure plots don't overlap suptitle and legend
-            self.fig.tight_layout(rect=[0, .05, 1, .9])  # (rect=[left, bottom, right, top])
+            self._adjust_fig_layout()
         else:
             self.fig.tight_layout()
 
@@ -713,16 +750,22 @@ class StatsWidget(QtWidgets.QWidget):
 
         self._set_legend()
         self._set_xaxis()
+        self._set_title()
 
-    def _set_plot_title(self):
+    def _set_title(self):
         """Set main plot title."""
 
-        if self.stat == 'Std. Dev.':
-            title = f'{self.project}\nStandard Deviation'
-        else:
-            title = f'{self.project}\n{self.stat}'
+        # Attempt to retrieve title from project setup dashboard
+        project_name = self.parent.projConfigModule.control.project_name
+        campaign_name = self.parent.projConfigModule.control.campaign_name
 
-        self.fig.suptitle(title)
+        if project_name == '':
+            project_name = 'Project Title'
+        if campaign_name == '':
+            campaign_name = 'Campaign Title'
+
+        title = f'{project_name}\n{campaign_name}'
+        self.fig.suptitle(title, **title_args)
 
     def _set_yaxes_and_gridlines(self, subplot):
         """Modify y-axes and gridlines shown."""
@@ -776,10 +819,16 @@ class StatsWidget(QtWidgets.QWidget):
         if self.fig.legends:
             self.fig.legends = []
 
-        self.fig.legend(loc='lower center',
-                        ncol=8,
-                        fontsize=11,
-                        )
+        self.fig.legend(
+            loc='lower center',
+            ncol=4,
+            fontsize=11,
+        )
+
+    def _adjust_fig_layout(self):
+        """Size plots so that it doesn't overlap suptitle and legend."""
+
+        self.fig.tight_layout(rect=[0, .05, 1, .92])  # (rect=[left, bottom, right, top])
 
 
 class VesselStatsWidget(QtWidgets.QWidget):
@@ -1107,8 +1156,8 @@ class VesselStatsWidget(QtWidgets.QWidget):
         """Construct legend label based on plotted stat, logger id and channel."""
 
         # Check for a preferred channel name to use
-        if channel in labels_dict:
-            channel = labels_dict[channel]
+        if channel in dict_labels:
+            channel = dict_labels[channel]
 
         # # Construct label - prepend logger name unless channel source is the vessel (which would be superfluous)
         if logger_id != 'VESSEL':
@@ -1122,8 +1171,8 @@ class VesselStatsWidget(QtWidgets.QWidget):
         """Construct y axis label based on plotted channel and units."""
 
         # Check for a preferred channel name to use
-        if channel in ylabels_dict:
-            channel = ylabels_dict[channel]
+        if channel in dict_ylabels:
+            channel = dict_ylabels[channel]
 
         # Construct label
         ylabel = f'{channel} ($\mathregular{{{units}}}$)'

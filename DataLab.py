@@ -1,7 +1,7 @@
 __author__ = 'Craig Dickinson'
 __program__ = 'DataLab'
 __version__ = '0.25'
-__date__ = '22 May 2019'
+__date__ = '23 May 2019'
 
 import logging
 import os
@@ -69,7 +69,6 @@ class DataLabGui(QtWidgets.QMainWindow):
 
         # Project config module
         self.projConfigModule = ConfigModule(self)
-        self.projectConfigTab = self.projConfigModule.campaignTab
 
         # Raw data inspection module
         self.rawDataModule = QtWidgets.QTabWidget()
