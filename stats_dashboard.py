@@ -565,6 +565,10 @@ class StatsWidget(QtWidgets.QWidget):
 
         try:
             self._update_channel_combo()
+
+            # Clear plot axes if no channel selected
+            if self.channel_name == '-':
+                self.update_plot()
         except Exception as e:
             msg = 'Unexpected error plotting stats'
             self.parent.error(f'{msg}:\n{e}\n{sys.exc_info()[0]}')
@@ -761,7 +765,9 @@ class StatsWidget(QtWidgets.QWidget):
         """Repopulate channel combo box with channels that pertain to selected logger."""
 
         # Remove all but first item
+        self.skip_plotting = True
         [self.channelCombo.removeItem(i) for i in range(self.channelCombo.count(), 0, -1)]
+        self.skip_plotting = False
 
         # Don't add any channels if no logger selected;
         # otherwise retrieve channel names for selected logger and add to combo box
