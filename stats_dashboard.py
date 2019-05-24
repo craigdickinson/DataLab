@@ -57,12 +57,13 @@ dict_stats = {
     'Maximum': 'max',
     'Mean': 'mean',
     'Std. Dev.': 'std',
+    'Combined': 'combined',
 }
 
 dict_stats_abbrev = {
     'Minimum': 'Min',
     'Maximum': 'Max',
-    'Std. Dev.': 'SD',
+    'Std. Dev.': 'Std. Dev.',
 }
 
 dict_labels = {
@@ -116,6 +117,7 @@ class PlotData:
 
         # Primary axes plot data
         self.ax1 = None
+        self.handles_1 = []
         self.df_1 = pd.DataFrame()
         self.label_1 = ''
         self.units_1 = ''
@@ -128,6 +130,7 @@ class PlotData:
 
         # Secondary axes plot data
         self.ax2 = None
+        self.handles_2 = []
         self.df_2 = pd.DataFrame()
         self.label_2 = ''
         self.units_2 = ''
@@ -149,9 +152,9 @@ class PlotData:
 
         # If a channel is selected
         if i > -1 and channel_name != '-':
-            # Retrieve data frame from dataset objects list
-            df = datasets[i].df
+            # Retrieve logger stats data
             logger_id = datasets[i].logger_id
+            df = datasets[i].df
 
             # Column name in stats dataset
             stat_col = dict_stats[stat]
@@ -163,10 +166,14 @@ class PlotData:
                 stat_lbl = stat
 
             # Slice data frame for the selected statistic and then on channel
-            df = df.xs(key=stat_col, axis=1, level=1)
-            df = df[channel_name]
-            units = df.columns[0]
-            label = ' '.join((stat_lbl, logger_id, channel_name))
+            if stat != 'Combined':
+                df = df.loc[:, (channel_name, stat_col)]
+                units = df.columns[0]
+                label = ' '.join((stat_lbl, logger_id, channel_name))
+            else:
+                df = datasets[i].df[channel_name]
+                units = df.columns[0][1]
+                label = ' '.join((logger_id, channel_name))
 
             # Store plot data
             self.df_1 = df
@@ -190,9 +197,9 @@ class PlotData:
 
         # If a channel is selected
         if i > -1 and channel_name != '-':
-            # Retrieve data frame from dataset objects list
-            df = datasets[i].df
+            # Retrieve logger stats data
             logger_id = datasets[i].logger_id
+            df = datasets[i].df
 
             # Column name in stats datasets
             stat_col = dict_stats[stat]
@@ -204,10 +211,15 @@ class PlotData:
                 stat_lbl = stat
 
             # Slice data frame for the selected statistic and then on channel
-            df = df.xs(key=stat_col, axis=1, level=1)
-            df = df[channel_name]
-            units = df.columns[0]
-            label = ' '.join((stat_lbl, logger_id, channel_name))
+            if stat != 'Combined':
+                df = df.loc[:, (channel_name, stat_col)]
+                units = df.columns[0]
+                label = ' '.join((stat_lbl, logger_id, channel_name))
+            # Slice data frame on channel
+            else:
+                df = datasets[i].df[channel_name]
+                units = df.columns[0][1]
+                label = ' '.join((logger_id, channel_name))
 
             # Store plot data
             self.df_2 = df
@@ -219,33 +231,31 @@ class PlotData:
         self.channel_2 = channel_name
         self.stat_2 = stat
 
-    def plot_on_pri_axes(self, num_plots=1):
-        """Plot on primary axes of subplot."""
+    def plot_on_axes(self, axes=0, num_plots=1):
+        """Plot on selected subplot axes."""
 
-        kwargs = dict(ax=self.ax1,
-                      df=self.df_1,
-                      label=self.label_1,
-                      channel=self.channel_1,
-                      units=self.units_1,
-                      color=self.color_1,
-                      )
-        self.ax1_in_use = self._plot_data(num_plots, **kwargs)
-
-    def plot_on_sec_axes(self, num_plots=1):
-        """Plot on secondary axes of subplot."""
-
-        kwargs = dict(ax=self.ax2,
-                      df=self.df_2,
-                      label=self.label_2,
-                      channel=self.channel_2,
-                      units=self.units_2,
-                      color=self.color_2,
-                      )
-        self.ax2_in_use = self._plot_data(num_plots, **kwargs)
+        if axes == 0:
+            kwargs = dict(ax=self.ax1,
+                          df=self.df_1,
+                          label=self.label_1,
+                          channel=self.channel_1,
+                          units=self.units_1,
+                          color=self.color_1,
+                          )
+            self.ax1_in_use, self.handles_1 = self._plot_data(num_plots, **kwargs)
+        else:
+            kwargs = dict(ax=self.ax2,
+                          df=self.df_2,
+                          label=self.label_2,
+                          channel=self.channel_2,
+                          units=self.units_2,
+                          color=self.color_2,
+                          )
+            self.ax2_in_use, self.handles_2 = self._plot_data(num_plots, **kwargs)
 
     @staticmethod
     def _plot_data(num_plots, ax, df, label, channel, units, color, linewidth=1):
-        """Plot data on a given axes."""
+        """Plot data on the specified axes."""
 
         # Set y-axis font size depending on number of plots
         if num_plots > 2:
@@ -254,8 +264,49 @@ class PlotData:
             ylabel_size = 11
 
         ax.cla()
+        handles = []
+        ax_in_use = False
         if df.empty is False:
-            ax.plot(df, c=color, lw=linewidth, label=label)
+            line = ax.plot(df, c=color, lw=linewidth, label=label)
+            handles.append(line[0])
+
+            # Check for a preferred channel name to use
+            if channel in dict_ylabels:
+                channel = dict_ylabels[channel]
+
+            ax.set_ylabel(f'{channel}\n($\mathregular{{{units}}}$)', size=ylabel_size)
+            ax.margins(x=0, y=0)
+            ax_in_use = True
+
+        return ax_in_use, handles
+
+    def create_compound_plot(self, num_plots=1):
+        """Create plot of all stats on the specified axes."""
+
+        ax = self.ax1
+        df = self.df_1
+        channel = self.channel_1
+        units = self.units_1
+
+        # Set y-axis font size depending on number of plots
+        if num_plots > 2:
+            ylabel_size = 10
+        else:
+            ylabel_size = 11
+
+        ax.cla()
+        self.handles_1 = []
+        if df.empty is False:
+            t = df.index.values
+            mn = df['min'].values.flatten()
+            mx = df['max'].values.flatten()
+            ave = df['mean'].values.flatten()
+            std = df['std'].values.flatten()
+
+            line1 = ax.plot(t, ave, label='Mean')
+            line2 = ax.fill_between(t, mn, mx, alpha=0.2, label='Range')
+            line3 = ax.fill_between(t, ave - std, ave + std, alpha=0.2, facecolor='r', label='SD')
+            self.handles_1 = [line1[0], line2, line3]
 
             # Check for a preferred channel name to use
             if channel in dict_ylabels:
@@ -264,9 +315,48 @@ class PlotData:
             ax.set_ylabel(f'{channel}\n($\mathregular{{{units}}}$)', size=ylabel_size)
             ax.margins(x=0, y=0)
 
-            return True
+            self.ax1_in_use = True
         else:
-            return False
+            self.ax1_in_use = False
+
+    def create_compound_plot2(self, num_plots=1):
+        """Create plot of all stats on the specified axes."""
+
+        ax = self.ax2
+        df = self.df_2
+        channel = self.channel_2
+        units = self.units_2
+
+        # Set y-axis font size depending on number of plots
+        if num_plots > 2:
+            ylabel_size = 10
+        else:
+            ylabel_size = 11
+
+        ax.cla()
+        self.handles_1 = []
+        if df.empty is False:
+            t = df.index.values
+            mn = df['min'].values.flatten()
+            mx = df['max'].values.flatten()
+            ave = df['mean'].values.flatten()
+            std = df['std'].values.flatten()
+
+            line1 = ax.plot(t, ave, label='Mean')
+            line2 = ax.fill_between(t, mn, mx, alpha=0.2, label='Range')
+            line3 = ax.fill_between(t, ave - std, ave + std, alpha=0.2, facecolor='r', label='SD')
+            self.handles_2 = [line1[0], line2, line3]
+
+            # Check for a preferred channel name to use
+            if channel in dict_ylabels:
+                channel = dict_ylabels[channel]
+
+            ax.set_ylabel(f'{channel}\n($\mathregular{{{units}}}$)', size=ylabel_size)
+            ax.margins(x=0, y=0)
+
+            self.ax2_in_use = True
+        else:
+            self.ax2_in_use = False
 
 
 class StatsWidget(QtWidgets.QWidget):
@@ -474,13 +564,7 @@ class StatsWidget(QtWidgets.QWidget):
             return
 
         try:
-            # self.skip_plotting = True
             self._update_channel_combo()
-            # self.skip_plotting = False
-
-            # If no logger selected, update
-            # if self.logger_i == 0:
-            #     self.update_plot()
         except Exception as e:
             msg = 'Unexpected error plotting stats'
             self.parent.error(f'{msg}:\n{e}\n{sys.exc_info()[0]}')
@@ -492,9 +576,6 @@ class StatsWidget(QtWidgets.QWidget):
 
         if self.resetting_dashboard is True:
             return
-
-        # if self.skip_plotting is True:
-        #     return
 
         try:
             self.update_plot()
@@ -508,9 +589,6 @@ class StatsWidget(QtWidgets.QWidget):
 
         # Set stat selection details
         self.stat = self.statCombo.currentText()
-
-        # if self.skip_plotting is True:
-        #     return
 
         if self.datasets:
             try:
@@ -710,14 +788,18 @@ class StatsWidget(QtWidgets.QWidget):
                                       channel_name=self.channel_name,
                                       stat=self.stat)
 
-            # Plot the data
-            subplot.plot_on_pri_axes(self.num_plots)
+            # Create combined stats plot
+            if self.stat == 'Combined':
+                subplot.create_compound_plot(self.num_plots)
+            else:
+                # Plot the data
+                subplot.plot_on_axes(axes=0, num_plots=self.num_plots)
 
-            # Check if no data was plotted on primary axes but the secondary axes is use.
-            # If so then need to replot the secondary axes data due to
-            # ax2 being twinned to ax1 but ax1 was cleared, thus screwing up ax2
+            # Check if no data was plotted on primary axes but the secondary axes is in use.
+            # If so then need to replot the secondary axes data due to ax2 being twinned to ax1 but ax1 was cleared,
+            # screwing up ax2
             if subplot.ax1_in_use is False and subplot.ax2_in_use is True:
-                subplot.plot_on_sec_axes(self.num_plots)
+                subplot.plot_on_axes(axes=0, num_plots=self.num_plots)
         # Plot on the secondary axes
         else:
             # Set plot data for selected subplot secondary axes
@@ -726,8 +808,12 @@ class StatsWidget(QtWidgets.QWidget):
                                       channel_name=self.channel_name,
                                       stat=self.stat)
 
-            # Plot the data
-            subplot.plot_on_sec_axes()
+            # Create combined stats plot
+            if self.stat == 'Combined':
+                subplot.create_compound_plot2(self.num_plots)
+            else:
+                # Plot the data
+                subplot.plot_on_axes(axes=1, num_plots=self.num_plots)
 
         # Format plot
         self._format_plot()
@@ -744,10 +830,10 @@ class StatsWidget(QtWidgets.QWidget):
         for subplot in self.subplots:
             # Check data exists
             if subplot.ax1_in_use is True:
-                subplot.plot_on_pri_axes(self.num_plots)
+                subplot.plot_on_axes(axes=0, num_plots=self.num_plots)
                 data_plotted = True
             if subplot.ax2_in_use is True:
-                subplot.plot_on_sec_axes(self.num_plots)
+                subplot.plot_on_axes(axes=1, num_plots=self.num_plots)
                 data_plotted = True
 
         if data_plotted is True:
@@ -849,20 +935,20 @@ class StatsWidget(QtWidgets.QWidget):
         Creates list of line objects contained in both axes, then gets label for each line and creates legend.
         """
 
-        lines = subplot.ax1.lines + subplot.ax2.lines
+        lines = subplot.handles_1 + subplot.handles_2
         labels = [l.get_label() for l in lines]
         subplot.ax1.legend(
             lines,
             labels,
             loc='upper right',
-            ncol=2,
+            ncol=4,
             fontsize=9,
         )
 
     def _adjust_fig_layout(self):
         """Size plots so that it doesn't overlap suptitle and legend."""
 
-        self.fig.tight_layout(rect=[0, .05, 1, .92])  # (rect=[left, bottom, right, top])
+        self.fig.tight_layout(rect=[0, 0, 1, .92])  # (rect=[left, bottom, right, top])
         self.fig.subplots_adjust(hspace=0.05)
 
 
@@ -1407,49 +1493,6 @@ class VarianceWidget(QtWidgets.QWidget):
 
         self.canvas.draw()
 
-    def update_variance_plot_upon_processing(self):
-        """
-        For some reason when processing stats, update of variance plot is not triggered by list connection.
-        So execute this routine instead.
-        Plot stats mean, range and std variability.
-        NOT USED - DELETE...
-        """
-
-        self.ax.cla()
-
-        channel_i = self.channelsCombo.currentIndex()
-        channel = self.channelsCombo.currentText()
-        logger = self.datasetList.item(0).text()
-        title = '21148 Total Glenlivet G1 Well Monitoring Campaign\n' + logger + ' ' + channel
-        df = self.datasets[logger]
-        cols = [4 * channel_i + i for i in range(4)]
-
-        # More complex plot if stat field equals first drop-down entry
-        min = df.iloc[:, cols[0]]
-        max = df.iloc[:, cols[1]]
-        mean = df.iloc[:, cols[2]]
-        std = df.iloc[:, cols[3]]
-        self.ax.plot(mean)
-        self.ax.fill_between(df.index, min, max, alpha=0.2)
-        self.ax.fill_between(df.index, mean - std, mean + std, alpha=0.2, facecolor='r')
-        self.ax.legend(['Mean', 'Range', 'Standard deviation'])
-
-        # Determine y label
-        if channel_i < 2:
-            ylabel = stat_ylabels[0]
-        else:
-            ylabel = stat_ylabels[1]
-
-        self.ax.set_xlabel('Timestamp')
-        self.ax.set_ylabel(ylabel)
-        self.ax.set_title(title)
-        self.ax.margins(x=0, y=0)
-        self.ax.xaxis.set_major_formatter(mdates.DateFormatter('%d-%b-%y %H:%M'))
-        self.fig.autofmt_xdate()
-        self.fig.tight_layout()
-
-        self.canvas.draw()
-
 
 class PlotStyle2H:
     def __init__(self, canvas, fig):
@@ -1593,7 +1636,7 @@ if __name__ == '__main__':
     w.show()
     # w.datasets.append(dataset)
     # w.update_stats_datasets_list(dataset_names)
-    w.update_plot()
+    # w.update_plot()
 
     # p = PlotStyle2H(w.canvas, w.fig)
     # p.add_2H_icon()
