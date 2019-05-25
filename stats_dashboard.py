@@ -374,6 +374,11 @@ class StatsWidget(QtWidgets.QWidget):
         self.resetting_dashboard = False
         self.presets_set = False
 
+        # X-axis datetime interval settings
+        self.date_locator = 'days'
+        self.date_fmt = '%d-%b-%y'
+        self.day_interval = 7
+
         # Set layout and initialise combo boxes
         self._init_ui()
         self._init_combos()
@@ -408,7 +413,8 @@ class StatsWidget(QtWidgets.QWidget):
         self.numPlotsForm = QtWidgets.QFormLayout(self.numPlotsContainer)
         self.numPlotsForm.addRow(QtWidgets.QLabel('Number of plots:'), self.numPlotsCombo)
 
-        # Plot data selection
+        # Plot selection group
+        self.plotGroup = QtWidgets.QGroupBox('Select Plot Data')
         self.plotNumCombo = QtWidgets.QComboBox()
         self.plotNumCombo.setFixedWidth(40)
         self.axisCombo = QtWidgets.QComboBox()
@@ -417,7 +423,6 @@ class StatsWidget(QtWidgets.QWidget):
         self.channelCombo = QtWidgets.QComboBox()
         self.statCombo = QtWidgets.QComboBox()
 
-        self.plotGroup = QtWidgets.QGroupBox('Select Plot Data')
         self.form = QtWidgets.QFormLayout(self.plotGroup)
         self.form.addRow(QtWidgets.QLabel('Plot:'), self.plotNumCombo)
         self.form.addRow(QtWidgets.QLabel('Axis:'), self.axisCombo)
@@ -425,8 +430,17 @@ class StatsWidget(QtWidgets.QWidget):
         self.form.addRow(QtWidgets.QLabel('Channel:'), self.channelCombo)
         self.form.addRow(QtWidgets.QLabel('Stat:'), self.statCombo)
 
+        # X axis datetime interval options
+        self.plotSettingsGroup = QtWidgets.QGroupBox('Plot Settings')
+        self.dateIntervals = QtWidgets.QComboBox()
+
         # Plot settings button
         self.settingsButton = QtWidgets.QPushButton('Plot Settings')
+
+        self.grid = QtWidgets.QGridLayout(self.plotSettingsGroup)
+        self.grid.addWidget(QtWidgets.QLabel('X-axis interval:'), 0, 0)
+        self.grid.addWidget(self.dateIntervals, 0, 1)
+        self.grid.addWidget(self.settingsButton, 1, 0, 1, 2)
 
         # Combine selection widgets
         self.vbox = QtWidgets.QVBoxLayout(self.selectionContainer)
@@ -438,7 +452,7 @@ class StatsWidget(QtWidgets.QWidget):
         self.vbox.addWidget(self.channelsList)
         self.vbox.addWidget(self.numPlotsContainer)
         self.vbox.addWidget(self.plotGroup)
-        self.vbox.addWidget(self.settingsButton)
+        self.vbox.addWidget(self.plotSettingsGroup)
 
         # Create plot figure, canvas widget to display figure and navbar
         self.plotWidget = QtWidgets.QWidget()
@@ -468,6 +482,12 @@ class StatsWidget(QtWidgets.QWidget):
         self.loggerCombo.addItem('-')
         self.channelCombo.addItem('-')
 
+        date_intervals = ['7 days',
+                          '1 day',
+                          '12 hours',
+                          ]
+        self.dateIntervals.addItems(date_intervals)
+
     def _connect_signals(self):
         self.clearDatasetsButton.clicked.connect(self.on_clear_datasets_clicked)
         self.datasetList.currentItemChanged.connect(self.on_dataset_list_item_changed)
@@ -477,6 +497,7 @@ class StatsWidget(QtWidgets.QWidget):
         self.loggerCombo.currentIndexChanged.connect(self.on_logger_combo_changed)
         self.channelCombo.currentIndexChanged.connect(self.on_channel_combo_changed)
         self.statCombo.currentIndexChanged.connect(self.on_stat_combo_changed)
+        self.dateIntervals.currentIndexChanged.connect(self.on_date_interval_changed)
 
     @staticmethod
     def _get_plot_numbers_list(n):
@@ -574,6 +595,27 @@ class StatsWidget(QtWidgets.QWidget):
                 msg = 'Unexpected error plotting stats'
                 self.parent.error(f'{msg}:\n{e}\n{sys.exc_info()[0]}')
                 logging.exception(e)
+
+    def on_date_interval_changed(self):
+        """Set x-axis datetime interval."""
+
+        date_interval = self.dateIntervals.currentText()
+
+        if date_interval == '7 days':
+            self.date_locator = 'days'
+            self.date_fmt = '%d-%b-%y'
+            self.day_interval = 7
+        if date_interval == '1 day':
+            self.date_locator = 'days'
+            self.date_fmt = '%d-%b-%y'
+            self.day_interval = 1
+        elif date_interval == '12 hours':
+            self.date_locator = 'hours'
+            self.date_fmt = '%d-%b-%y %H:%M'
+            self.hour_interval = 12
+
+        self._set_xaxis()
+        self.canvas.draw()
 
     def _create_subplots(self):
         """Create figure with required number of subplots."""
@@ -883,14 +925,18 @@ class StatsWidget(QtWidgets.QWidget):
             ax1.grid(True)
             ax2.grid(False)
 
-    def _set_xaxis(self, date_fmt='%d-%b-%y', day_interval=7):
+    def _set_xaxis(self):
         """Set x-axis format."""
 
         ax = self.subplots[0].ax1
-        days = mdates.DayLocator(interval=day_interval)
-        fmt = mdates.DateFormatter(date_fmt)
-        # fmt = mdates.DateFormatter('%Y-%b-%d %H:%M')
-        ax.xaxis.set_major_locator(days)
+
+        if self.date_locator == 'days':
+            interval = mdates.DayLocator(interval=self.day_interval)
+        elif self.date_locator == 'hours':
+            interval = mdates.HourLocator(interval=self.hour_interval)
+
+        fmt = mdates.DateFormatter(self.date_fmt)
+        ax.xaxis.set_major_locator(interval)
         ax.xaxis.set_major_formatter(fmt)
         self.fig.autofmt_xdate()
 
