@@ -96,14 +96,30 @@ class StatsDataset:
     """Class to hold stats datasets and associated properties."""
 
     def __init__(self, logger_id='', df=pd.DataFrame()):
+        try:
+            # Get unique channels list and filter out None/False entries
+            self.channels = list(filter(None, df.columns.unique(level='channels')))
+        except:
+            self.channels = ['N/A']
+
+        df = self._insert_seconds_column(df)
         self.logger_id = logger_id
         self.df = df
 
-        try:
-            # Get unique channels list and filter out None/False entries
-            self.channels = list(filter(None, self.df.columns.unique(level='channels')))
-        except:
-            self.channels = ['N/A']
+    @staticmethod
+    def _insert_seconds_column(df):
+        """Calculate time delta from t0 and convert to seconds (float)."""
+
+        t = (df.index - df.index[0]).total_seconds().values.round(3)
+        df.insert(loc=0, column='Time (s)', value=t)
+
+        return df
+
+    def set_column_to_index(self, col='Datetime'):
+        """Set index to column name provided."""
+
+        self.df.reset_index(inplace=True)
+        self.df.set_index(col, inplace=True)
 
 
 class PlotAxesData:
@@ -181,7 +197,7 @@ class PlotAxesData:
                 units = df.columns[0]
                 label = ' '.join((stat_lbl, logger_id, channel_name))
             else:
-                df = datasets[i].df[channel_name]
+                df = df[channel_name]
                 units = df.columns[0][1]
                 label = ' '.join((logger_id, channel_name))
 
@@ -229,6 +245,10 @@ class PlotAxesData:
 
         linewidth = 1
 
+        # Check for a preferred channel name to use
+        if channel in dict_ylabels:
+            channel = dict_ylabels[channel]
+
         # Set y-axis font size depending on number of plots
         if num_plots > 2:
             ylabel = f'{channel}\n($\mathregular{{{units}}}$)'
@@ -243,10 +263,6 @@ class PlotAxesData:
         if df.empty is False:
             line = ax.plot(df, label=label, c=color, lw=linewidth)
             handles.append(line[0])
-
-            # Check for a preferred channel name to use
-            if channel in dict_ylabels:
-                channel = dict_ylabels[channel]
 
             ax.set_ylabel(ylabel, size=ylabel_size)
             ax.margins(x=0, y=0)
@@ -379,6 +395,9 @@ class StatsWidget(QtWidgets.QWidget):
         self.date_fmt = '%d-%b-%y'
         self.day_interval = 7
 
+        # X-axis values type
+        self.xaxis_type = 'timestamps'
+
         # Set layout and initialise combo boxes
         self._init_ui()
         self._init_combos()
@@ -432,15 +451,18 @@ class StatsWidget(QtWidgets.QWidget):
 
         # X axis datetime interval options
         self.plotSettingsGroup = QtWidgets.QGroupBox('Plot Settings')
-        self.dateIntervals = QtWidgets.QComboBox()
+        self.xaxisIntervals = QtWidgets.QComboBox()
+        self.xaxisType = QtWidgets.QComboBox()
 
         # Plot settings button
         self.settingsButton = QtWidgets.QPushButton('Plot Settings')
 
         self.grid = QtWidgets.QGridLayout(self.plotSettingsGroup)
-        self.grid.addWidget(QtWidgets.QLabel('X-axis interval:'), 0, 0)
-        self.grid.addWidget(self.dateIntervals, 0, 1)
-        self.grid.addWidget(self.settingsButton, 1, 0, 1, 2)
+        self.grid.addWidget(QtWidgets.QLabel('X-axis type:'), 0, 0)
+        self.grid.addWidget(self.xaxisType, 0, 1)
+        self.grid.addWidget(QtWidgets.QLabel('X-axis interval:'), 1, 0)
+        self.grid.addWidget(self.xaxisIntervals, 1, 1)
+        self.grid.addWidget(self.settingsButton, 2, 0, 1, 2)
 
         # Combine selection widgets
         self.vbox = QtWidgets.QVBoxLayout(self.selectionContainer)
@@ -482,11 +504,13 @@ class StatsWidget(QtWidgets.QWidget):
         self.loggerCombo.addItem('-')
         self.channelCombo.addItem('-')
 
+        self.xaxisType.addItems(['Timestamps', 'Seconds'])
+
         date_intervals = ['7 days',
                           '1 day',
                           '12 hours',
                           ]
-        self.dateIntervals.addItems(date_intervals)
+        self.xaxisIntervals.addItems(date_intervals)
 
     def _connect_signals(self):
         self.clearDatasetsButton.clicked.connect(self.on_clear_datasets_clicked)
@@ -497,7 +521,8 @@ class StatsWidget(QtWidgets.QWidget):
         self.loggerCombo.currentIndexChanged.connect(self.on_logger_combo_changed)
         self.channelCombo.currentIndexChanged.connect(self.on_channel_combo_changed)
         self.statCombo.currentIndexChanged.connect(self.on_stat_combo_changed)
-        self.dateIntervals.currentIndexChanged.connect(self.on_date_interval_changed)
+        self.xaxisType.currentIndexChanged.connect(self.on_xaxis_type_changed)
+        self.xaxisIntervals.currentIndexChanged.connect(self.on_xaxis_interval_changed)
 
     @staticmethod
     def _get_plot_numbers_list(n):
@@ -596,10 +621,67 @@ class StatsWidget(QtWidgets.QWidget):
                 self.parent.error(f'{msg}:\n{e}\n{sys.exc_info()[0]}')
                 logging.exception(e)
 
-    def on_date_interval_changed(self):
+    def on_xaxis_type_changed(self):
+        """Set x-axis type: timestamps or seconds."""
+
+        xaxis_type = self.xaxisType.currentText()
+
+        for dataset in self.datasets:
+            if xaxis_type == 'Timestamps':
+                dataset.set_column_to_index('Datetime')
+            else:
+                dataset.set_column_to_index('Time (s)')
+
+        # Update subplots stored data and replot
+        for subplot in self.subplots:
+            # Check data exists
+            if subplot.ax1_in_use is True:
+                subplot.set_axes_plot_data(axis=0,
+                                           datasets=self.datasets,
+                                           logger_i=self.logger_i,
+                                           channel_name=self.channel_name,
+                                           stat=self.stat)
+
+                # Replot
+                if subplot.stat_1 != 'Combined':
+                    subplot.plot_on_axes(axis=0, num_plots=self.num_plots)
+                else:
+                    subplot.plot_combined_stats(axis=0, num_plots=self.num_plots)
+
+            if subplot.ax2_in_use is True:
+                subplot.set_axes_plot_data(axis=1,
+                                           datasets=self.datasets,
+                                           logger_i=self.logger_i,
+                                           channel_name=self.channel_name,
+                                           stat=self.stat)
+
+                if subplot.stat_2 != 'Combined':
+                    subplot.plot_on_axes(axis=1, num_plots=self.num_plots)
+                else:
+                    subplot.plot_combined_stats(axis=1, num_plots=self.num_plots)
+
+            self._add_subplot_legend(subplot, num_plots=self.num_plots)
+
+        # Format plot
+        if self.num_plots > 2:
+            xlabel_size = 10
+        else:
+            xlabel_size = 11
+
+        if xaxis_type == 'Timestamps':
+            self._set_xaxis()
+            self.subplots[-1].ax1.set_xlabel('', size=xlabel_size)
+        else:
+            self.subplots[-1].ax1.set_xlabel('Time (s)', size=xlabel_size)
+
+        self._set_title()
+        self._adjust_fig_layout()
+        self.canvas.draw()
+
+    def on_xaxis_interval_changed(self):
         """Set x-axis datetime interval."""
 
-        date_interval = self.dateIntervals.currentText()
+        date_interval = self.xaxisIntervals.currentText()
 
         if date_interval == '7 days':
             self.date_locator = 'days'
@@ -822,7 +904,7 @@ class StatsWidget(QtWidgets.QWidget):
             # If so then need to replot the secondary axes data due to ax2 being twinned to ax1 but ax1 was cleared,
             # screwing up ax2
             if subplot.ax1_in_use is False and subplot.ax2_in_use is True:
-                subplot.plot_on_axes(axis=0, num_plots=self.num_plots)
+                subplot.plot_on_axes(axis=1, num_plots=self.num_plots)
         # Plot on the secondary axes
         else:
             # Set plot data for selected subplot secondary axes
@@ -840,7 +922,8 @@ class StatsWidget(QtWidgets.QWidget):
                 subplot.plot_on_axes(axis=1, num_plots=self.num_plots)
 
         # Format plot
-        self._format_plot()
+        self._set_xaxis()
+        self._set_title()
         self._set_yaxes_and_gridlines(subplot)
         self._add_subplot_legend(subplot, num_plots=self.num_plots)
         self._adjust_fig_layout()
@@ -869,7 +952,8 @@ class StatsWidget(QtWidgets.QWidget):
                 data_plotted = True
 
         if data_plotted is True:
-            self._format_plot()
+            self._set_xaxis()
+            self._set_title()
 
             for subplot in self.subplots:
                 self._set_yaxes_and_gridlines(subplot)
@@ -880,13 +964,6 @@ class StatsWidget(QtWidgets.QWidget):
             self.fig.tight_layout()
 
         self.canvas.draw()
-
-    def _format_plot(self):
-        """Format plot routines."""
-
-        # self._add_fig_legend()
-        self._set_xaxis()
-        self._set_title()
 
     def _set_title(self):
         """Set main plot title."""
@@ -928,7 +1005,7 @@ class StatsWidget(QtWidgets.QWidget):
     def _set_xaxis(self):
         """Set x-axis format."""
 
-        ax = self.subplots[0].ax1
+        ax = self.subplots[-1].ax1
 
         if self.date_locator == 'days':
             interval = mdates.DayLocator(interval=self.day_interval)
