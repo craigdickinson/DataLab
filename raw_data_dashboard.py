@@ -1145,8 +1145,7 @@ class LoggerPlotSettings(QtWidgets.QDialog):
             self.optPSDXmax.setText(str(round(self.parent.psd_xlim[1], 1)))
         except ValueError as e:
             # Notify error in main DataLab class
-            val = str(e).split("'")[-2]
-            self.parent.parent.error(f'Non-numeric input entered: "{val}" - {e}')
+            self.parent.parent.error(f'Non-numeric input entered: {e}')
         else:
             # Store custom PSD parameters
             if self.radioCustom.isChecked():
