@@ -26,7 +26,7 @@ from project_config_dashboard import ConfigModule
 from raw_data_dashboard import TimeSeriesPlotWidget
 from seascatter_dashboard import SeascatterDiagram
 from spectral_dashboard import SpectrogramWidget
-from stats_dashboard import PlotStyle2H, StatsDataset, StatsWidget, VarianceWidget, VesselStatsWidget
+from stats_dashboard import PlotStyle2H, StatsDataset, StatsWidget, VesselStatsWidget
 from transfer_functions_dashboard import TransferFunctionsWidget
 
 
@@ -80,10 +80,8 @@ class DataLabGui(QtWidgets.QMainWindow):
         self.statsScreeningModule = QtWidgets.QTabWidget()
         self.statsTab = StatsWidget(self)
         self.vesselStatsTab = VesselStatsWidget(self)
-        self.varianceTab = VarianceWidget()
         self.statsScreeningModule.addTab(self.statsTab, 'Statistics')
         self.statsScreeningModule.addTab(self.vesselStatsTab, 'Vessel Statistics')
-        self.statsScreeningModule.addTab(self.varianceTab, 'Variance')
 
         # Spectral screening module
         self.spectralScreeningModule = QtWidgets.QTabWidget()
@@ -363,10 +361,6 @@ class DataLabGui(QtWidgets.QMainWindow):
 
                     self.vesselStatsTab.set_plot_data(init=True)
                     self.vesselStatsTab.update_plots()
-
-                # Update variance plot tab - plot update is triggered upon setting dataset list index
-                self.varianceTab.datasets = dict_stats
-                self.varianceTab.update_variance_datasets_list(dataset_ids)
 
                 # Show dashboard
                 if src == 'logger_stats':
@@ -655,12 +649,6 @@ class DataLabGui(QtWidgets.QMainWindow):
         # Store spectrogram datasets and update plot tab
         # self.parent.spectrogramTab.datasets[logger] = df
         # self.parent.spectrogramTab.update_spect_datasets_list(logger)
-
-        # Update variance plot tab - plot update is triggered upon setting dataset list index
-        self.varianceTab.datasets = datalab.dict_stats
-        self.varianceTab.update_variance_datasets_list(dataset_ids)
-        self.varianceTab.datasetList.setCurrentRow(0)
-        self.varianceTab.update_variance_plot(init_plot=True)
 
     def gen_scatter_diag(self):
         """Create seascatter diagram if vessel stats data is loaded."""
