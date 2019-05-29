@@ -617,6 +617,12 @@ class StatsWidget(QtWidgets.QWidget):
 
         self.xaxis_type = self.xaxisType.currentText()
 
+        # Disable the x-axis interval combo box if x-axis type is not set to Timestamps
+        if self.xaxis_type == 'Timestamps':
+            self.xaxisIntervals.setEnabled(True)
+        else:
+            self.xaxisIntervals.setEnabled(False)
+
         # Update subplots stored data and replot
         for subplot in self.subplots:
             # Check data exists
