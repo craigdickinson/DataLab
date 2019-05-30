@@ -11,8 +11,8 @@ def filter_signal(df, low_cutoff=None, high_cutoff=None, retain_mean=True):
 
     # Perform filtering on all channels
     fs = 1 / (df.index[1] - df.index[0])
-    fft = np.fft.rfft(df, axis=0)
-    f = np.fft.rfftfreq(len(df), 1 / fs)
+    fft = np.fft.fft(df, axis=0)
+    f = abs(np.fft.fftfreq(len(df), 1 / fs))
     cut_fft = fft.copy()
 
     # Apply freq cut-offs (bandpass filter)
@@ -27,7 +27,7 @@ def filter_signal(df, low_cutoff=None, high_cutoff=None, retain_mean=True):
         cut_fft[f > high_cutoff] = 0
 
     # ifft
-    filtered = np.fft.irfft(cut_fft, axis=0)
+    filtered = np.fft.ifft(cut_fft, axis=0).real
     df_filtered = pd.DataFrame(filtered, index=df.index, columns=df.columns)
 
     return df_filtered
