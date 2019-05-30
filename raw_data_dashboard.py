@@ -86,7 +86,7 @@ class TimeSeriesPlotWidget(QtWidgets.QWidget):
 
         # To hold file data
         self.df = pd.DataFrame()
-        self.filtered_ts = np.array([])
+        self.df_filtered = pd.DataFrame()
         self.df_plot = pd.DataFrame()
         self.plot_units = []
 
@@ -224,7 +224,7 @@ class TimeSeriesPlotWidget(QtWidgets.QWidget):
 
         # This flag stops the on_xlims_change event from processing
         self.ignore_on_xlim_change = True
-        self.filtered_ts = self.calc_filtered_data(self.df_plot)
+        self.df_filtered = self.calc_filtered_data(self.df_plot)
         self.update_plots()
         self.ignore_on_xlim_change = False
 
@@ -337,15 +337,12 @@ class TimeSeriesPlotWidget(QtWidgets.QWidget):
         if self.apply_high_cutoff is False:
             high_cutoff = None
 
-        filtered = filter_signal(df_raw, low_cutoff, high_cutoff)
+        df_filtered = filter_signal(df_raw, low_cutoff, high_cutoff)
 
-        return filtered
+        return df_filtered
 
     def update_plots(self):
         """Create time series plots for selected logger channels."""
-
-        # First apply any filtering to the time series
-        # df_filtered = filter_signal(self.df_plot, low_cutoff=0.05, high_cutoff=0.5)
 
         self.draw_axes()
 
@@ -354,7 +351,7 @@ class TimeSeriesPlotWidget(QtWidgets.QWidget):
             return
 
         try:
-            self.plot_time_series(self.df_plot, self.filtered_ts)
+            self.plot_time_series(self.df_plot, self.df_filtered)
             self.plot_psd(self.df_plot[self.ts_xlim[0]:self.ts_xlim[1]])
         except ValueError as e:
             self.parent.error(str(e))
@@ -410,7 +407,7 @@ class TimeSeriesPlotWidget(QtWidgets.QWidget):
         # figZoom = zp.zoom_factory(self.ax2, base_scale=1.1)
         # figPan = zp.pan_factory(self.ax2)
 
-    def plot_time_series(self, df, filtered_ts=np.array([])):
+    def plot_time_series(self, df, df_filtered=pd.DataFrame()):
         """Plot time series."""
 
         # Ignore timestamp column
@@ -438,12 +435,14 @@ class TimeSeriesPlotWidget(QtWidgets.QWidget):
             self.ax1.set_ylabel(ylabel)
 
             # Plot filtered time series if exists
-            if filtered_ts.size > 0:
-                self.ax1.plot(df.index, filtered_ts[:, 0],
-                              c='red',
-                              ls='--',
-                              label=f'{df.columns[0]} (Filtered)',
-                              lw=1)
+            if df_filtered.empty is False:
+                self.ax1.plot(
+                    df_filtered.iloc[:, 0],
+                    c='red',
+                    ls='--',
+                    label=f'{df.columns[0]} (Filtered)',
+                    lw=1,
+                )
         else:
             self.ax1.yaxis.set_visible(False)
 
@@ -455,12 +454,14 @@ class TimeSeriesPlotWidget(QtWidgets.QWidget):
             self.ax1b.yaxis.set_visible(True)
 
             # Plot filtered time series if exists
-            if filtered_ts.size > 0:
-                self.ax1b.plot(df.index, filtered_ts[:, -1],
-                               c='green',
-                               ls='--',
-                               label=f'{df.columns[-1]} (Filtered)',
-                               lw=1)
+            if df_filtered.empty is False:
+                self.ax1b.plot(
+                    df_filtered.iloc[:, -1],
+                    c='green',
+                    ls='--',
+                    label=f'{df.columns[-1]} (Filtered)',
+                    lw=1,
+                )
         else:
             self.ax1b.yaxis.set_visible(False)
 

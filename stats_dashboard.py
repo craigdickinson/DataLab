@@ -855,31 +855,50 @@ class StatsWidget(QtWidgets.QWidget):
         # Plot on the primary axes
         if self.axis_i == 0:
             # Set plot data for selected subplot primary axes
-            subplot.set_axes_plot_data(axis=0,
-                                       datasets=self.datasets,
-                                       logger_i=self.logger_i,
-                                       channel_name=self.channel_name,
-                                       stat=self.stat)
+            subplot.set_axes_plot_data(
+                axis=0,
+                datasets=self.datasets,
+                logger_i=self.logger_i,
+                channel_name=self.channel_name,
+                stat=self.stat,
+            )
 
             # Plot the data
-            subplot.plot_data(plot_type=self.stat, axis=0, num_plots=self.num_plots, use_index=self.xaxis_type)
+            subplot.plot_data(
+                plot_type=self.stat,
+                axis=0,
+                num_plots=self.num_plots,
+                use_index=self.xaxis_type,
+            )
 
             # Check if no data was plotted on primary axes but the secondary axes is in use.
             # If so then need to replot the secondary axes data due to ax2 being twinned to ax1 but ax1 was cleared,
             # screwing up ax2
             if subplot.ax1_in_use is False and subplot.ax2_in_use is True:
-                subplot.plot_data(plot_type=subplot.stat_2, axis=1, num_plots=self.num_plots, use_index=self.xaxis_type)
+                subplot.plot_data(
+                    plot_type=subplot.stat_2,
+                    axis=1,
+                    num_plots=self.num_plots,
+                    use_index=self.xaxis_type,
+                )
         # Plot on the secondary axes
         else:
             # Set plot data for selected subplot secondary axes
-            subplot.set_axes_plot_data(axis=1,
-                                       datasets=self.datasets,
-                                       logger_i=self.logger_i,
-                                       channel_name=self.channel_name,
-                                       stat=self.stat)
+            subplot.set_axes_plot_data(
+                axis=1,
+                datasets=self.datasets,
+                logger_i=self.logger_i,
+                channel_name=self.channel_name,
+                stat=self.stat,
+            )
 
             # Create combined stats plot
-            subplot.plot_data(plot_type=self.stat, axis=1, num_plots=self.num_plots, use_index=self.xaxis_type)
+            subplot.plot_data(
+                plot_type=self.stat,
+                axis=1,
+                num_plots=self.num_plots,
+                use_index=self.xaxis_type,
+            )
 
         # Format plot
         self._set_xaxis()
@@ -897,10 +916,20 @@ class StatsWidget(QtWidgets.QWidget):
         for subplot in self.subplots:
             # Check data exists
             if subplot.ax1_in_use is True:
-                subplot.plot_data(plot_type=subplot.stat_1, axis=0, num_plots=self.num_plots, use_index=self.xaxis_type)
+                subplot.plot_data(
+                    plot_type=subplot.stat_1,
+                    axis=0,
+                    num_plots=self.num_plots,
+                    use_index=self.xaxis_type,
+                )
                 data_plotted = True
             if subplot.ax2_in_use is True:
-                subplot.plot_data(plot_type=subplot.stat_2, axis=1, num_plots=self.num_plots, use_index=self.xaxis_type)
+                subplot.plot_data(
+                    plot_type=subplot.stat_2,
+                    axis=1,
+                    num_plots=self.num_plots,
+                    use_index=self.xaxis_type,
+                )
                 data_plotted = True
 
         if data_plotted is True:
