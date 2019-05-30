@@ -260,7 +260,7 @@ class PlotAxesData:
         ax.cla()
         handles = []
         ax_in_use = False
-        if df.empty is False:
+        if not df.empty:
             # Plot all stats on selected axes
             if plot_type == 'Combined':
                 mn = df['min'].values.flatten()

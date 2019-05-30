@@ -91,7 +91,7 @@ class SeascatterDiagram(QtWidgets.QWidget):
     def update_hs_bins(self):
         """Refresh seascatter diagram for change in Hs bin size."""
 
-        if self.df_ss.empty is True:
+        if self.df_ss.empty:
             return
 
         self.hs_bin_size = float(self.hsBinSize.text())
@@ -101,7 +101,7 @@ class SeascatterDiagram(QtWidgets.QWidget):
     def update_tp_bins(self):
         """Refresh seascatter diagram for change in Tp bin size."""
 
-        if self.df_ss.empty is True:
+        if self.df_ss.empty:
             return
 
         self.tp_bin_size = float(self.tpBinSize.text())

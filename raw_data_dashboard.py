@@ -323,10 +323,9 @@ class TimeSeriesPlotWidget(QtWidgets.QWidget):
         return df_plot
 
     def calc_filtered_data(self, df_raw):
-        """Remove noise."""
+        """Filter out low frequencies (drift) and high frequencies (noise)."""
 
         df_raw = df_raw.select_dtypes('number')
-
         low_cutoff = self.low_cutoff
         high_cutoff = self.high_cutoff
 
@@ -337,6 +336,7 @@ class TimeSeriesPlotWidget(QtWidgets.QWidget):
         if self.apply_high_cutoff is False:
             high_cutoff = None
 
+        # Apply bandpass filter
         df_filtered = filter_signal(df_raw, low_cutoff, high_cutoff)
 
         return df_filtered
@@ -435,7 +435,7 @@ class TimeSeriesPlotWidget(QtWidgets.QWidget):
             self.ax1.set_ylabel(ylabel)
 
             # Plot filtered time series if exists
-            if df_filtered.empty is False:
+            if not df_filtered.empty:
                 self.ax1.plot(
                     df_filtered.iloc[:, 0],
                     c='red',
@@ -454,7 +454,7 @@ class TimeSeriesPlotWidget(QtWidgets.QWidget):
             self.ax1b.yaxis.set_visible(True)
 
             # Plot filtered time series if exists
-            if df_filtered.empty is False:
+            if not df_filtered.empty:
                 self.ax1b.plot(
                     df_filtered.iloc[:, -1],
                     c='green',

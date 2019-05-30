@@ -5,7 +5,7 @@ import pandas as pd
 def filter_signal(df, low_cutoff=None, high_cutoff=None, retain_mean=True):
     """Apply bandpass filter to data frame of time series and return data frame of filtered time series."""
 
-    # If no cut-off frequencies are set, return empty array
+    # If no cut-off frequencies are set, return empty data frame
     if low_cutoff is None and high_cutoff is None:
         return pd.DataFrame()
 

@@ -1,7 +1,7 @@
 __author__ = 'Craig Dickinson'
 __program__ = 'DataLab'
 __version__ = '0.28'
-__date__ = '29 May 2019'
+__date__ = '30 May 2019'
 
 import logging
 import os
@@ -90,9 +90,6 @@ class DataLabGui(QtWidgets.QMainWindow):
 
         # Seascatter diagram module
         self.seascatterModule = SeascatterDiagram(self)
-        # self.seascatterModule = QtWidgets.QTabWidget()
-        # self.scatterTab = SeascatterDiagram(self)
-        # self.seascatterModule.addTab(self.scatterTab, 'Seascatter Diagram')
 
         # Transfer functions module
         self.transFuncsModule = QtWidgets.QTabWidget()
@@ -507,7 +504,6 @@ class DataLabGui(QtWidgets.QMainWindow):
     def view_tab_seascatter(self):
         self.update_tool_buttons('seascatter')
         self.modulesWidget.setCurrentWidget(self.seascatterModule)
-        # self.statsScreeningModule.setCurrentWidget(self.scatterTab)
 
     def update_tool_buttons(self, active_button):
         """Format selected module button."""
@@ -662,7 +658,6 @@ class DataLabGui(QtWidgets.QMainWindow):
         else:
             try:
                 self.seascatterModule.get_seascatter_dataset(df_vessel)
-                # self.scatterTab.generate_scatter_diag(df_vessel)
             except Exception as e:
                 msg = 'Unexpected error generating seascatter diagram'
                 self.error(f'{msg}:\n{e}\n{sys.exc_info()[0]}')
@@ -685,15 +680,13 @@ class DataLabGui(QtWidgets.QMainWindow):
     def save_scatter_diagram(self):
         """Export seascatter diagram to Excel."""
 
-        if self.seascatterModule.df_scatter.empty is True:
-            # if self.scatterTab.df_scatter.empty is True:
+        if self.seascatterModule.df_scatter.empty:
             self.warning('No seascatter diagram generated. Nothing to export!')
         else:
             fname, _ = QtWidgets.QFileDialog.getSaveFileName(self, 'Save Seascatter Diagram',
                                                              filter='Excel Files (*.xlsx)')
             if fname:
                 self.seascatterModule.export_scatter_diagram(fname)
-                # self.scatterTab.export_scatter_diagram(fname)
 
 
 class ControlFileWorker(QtCore.QThread):

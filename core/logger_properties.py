@@ -88,9 +88,9 @@ class LoggerProperties:
         self.stats_start = None  # *STATS_START
         self.stats_end = None  # *STATS_END
 
-        # Cut-off frequencies for filtered RMS statistic
-        self.rms_low_cutoff = 0.05
-        self.rms_high_cutoff = 0.5
+        # Cut-off frequencies for filtered statistics
+        self.stats_low_cutoff_freq = 0.05
+        self.stats_high_cutoff_freq = 0.5
 
         # SPECTRAL ANALYSIS PARAMETERS
         # Include in processing flag

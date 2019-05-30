@@ -37,7 +37,7 @@ class StatsOutput:
         ws = self.wb[sheet_name]
         self.wb.remove(ws)
 
-    def compile_stats_dataframe(self, logger, sample_start, sample_end, logger_stats):
+    def compile_stats_dataframe(self, logger, sample_start, sample_end, logger_stats, filtered_logger_stats=None):
         """
         Compile statistics into data frame for exporting and for use by gui.
         :param logger: object
