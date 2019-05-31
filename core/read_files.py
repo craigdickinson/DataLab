@@ -7,7 +7,7 @@ import pandas as pd
 
 
 def read_fugro_csv(filename):
-    """Read Fugro-csv file into pandas data frame."""
+    """Read Fugro-csv file into pandas data frame. Index is time in seconds."""
 
     try:
         df = pd.read_csv(filename, header=[1, 2], index_col=0, encoding='latin')
@@ -34,7 +34,7 @@ def read_pulse_acc(filename):
     """
     Read Pulse-acc file into pandas data in a format used for the raw data module.
     Header is channel names and units as a multi-index header.
-    Index is time steps.
+    Index is time in seconds.
     """
 
     data = []

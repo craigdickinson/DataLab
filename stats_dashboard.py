@@ -260,7 +260,7 @@ class PlotAxesData:
         ax.cla()
         handles = []
         ax_in_use = False
-        if df.empty is False:
+        if not df.empty:
             # Plot all stats on selected axes
             if plot_type == 'Combined':
                 mn = df['min'].values.flatten()
@@ -617,6 +617,12 @@ class StatsWidget(QtWidgets.QWidget):
 
         self.xaxis_type = self.xaxisType.currentText()
 
+        # Disable the x-axis interval combo box if x-axis type is not set to Timestamps
+        if self.xaxis_type == 'Timestamps':
+            self.xaxisIntervals.setEnabled(True)
+        else:
+            self.xaxisIntervals.setEnabled(False)
+
         # Update subplots stored data and replot
         for subplot in self.subplots:
             # Check data exists
@@ -849,31 +855,50 @@ class StatsWidget(QtWidgets.QWidget):
         # Plot on the primary axes
         if self.axis_i == 0:
             # Set plot data for selected subplot primary axes
-            subplot.set_axes_plot_data(axis=0,
-                                       datasets=self.datasets,
-                                       logger_i=self.logger_i,
-                                       channel_name=self.channel_name,
-                                       stat=self.stat)
+            subplot.set_axes_plot_data(
+                axis=0,
+                datasets=self.datasets,
+                logger_i=self.logger_i,
+                channel_name=self.channel_name,
+                stat=self.stat,
+            )
 
             # Plot the data
-            subplot.plot_data(plot_type=self.stat, axis=0, num_plots=self.num_plots, use_index=self.xaxis_type)
+            subplot.plot_data(
+                plot_type=self.stat,
+                axis=0,
+                num_plots=self.num_plots,
+                use_index=self.xaxis_type,
+            )
 
             # Check if no data was plotted on primary axes but the secondary axes is in use.
             # If so then need to replot the secondary axes data due to ax2 being twinned to ax1 but ax1 was cleared,
             # screwing up ax2
             if subplot.ax1_in_use is False and subplot.ax2_in_use is True:
-                subplot.plot_data(plot_type=subplot.stat_2, axis=1, num_plots=self.num_plots, use_index=self.xaxis_type)
+                subplot.plot_data(
+                    plot_type=subplot.stat_2,
+                    axis=1,
+                    num_plots=self.num_plots,
+                    use_index=self.xaxis_type,
+                )
         # Plot on the secondary axes
         else:
             # Set plot data for selected subplot secondary axes
-            subplot.set_axes_plot_data(axis=1,
-                                       datasets=self.datasets,
-                                       logger_i=self.logger_i,
-                                       channel_name=self.channel_name,
-                                       stat=self.stat)
+            subplot.set_axes_plot_data(
+                axis=1,
+                datasets=self.datasets,
+                logger_i=self.logger_i,
+                channel_name=self.channel_name,
+                stat=self.stat,
+            )
 
             # Create combined stats plot
-            subplot.plot_data(plot_type=self.stat, axis=1, num_plots=self.num_plots, use_index=self.xaxis_type)
+            subplot.plot_data(
+                plot_type=self.stat,
+                axis=1,
+                num_plots=self.num_plots,
+                use_index=self.xaxis_type,
+            )
 
         # Format plot
         self._set_xaxis()
@@ -891,10 +916,20 @@ class StatsWidget(QtWidgets.QWidget):
         for subplot in self.subplots:
             # Check data exists
             if subplot.ax1_in_use is True:
-                subplot.plot_data(plot_type=subplot.stat_1, axis=0, num_plots=self.num_plots, use_index=self.xaxis_type)
+                subplot.plot_data(
+                    plot_type=subplot.stat_1,
+                    axis=0,
+                    num_plots=self.num_plots,
+                    use_index=self.xaxis_type,
+                )
                 data_plotted = True
             if subplot.ax2_in_use is True:
-                subplot.plot_data(plot_type=subplot.stat_2, axis=1, num_plots=self.num_plots, use_index=self.xaxis_type)
+                subplot.plot_data(
+                    plot_type=subplot.stat_2,
+                    axis=1,
+                    num_plots=self.num_plots,
+                    use_index=self.xaxis_type,
+                )
                 data_plotted = True
 
         if data_plotted is True:
@@ -1466,124 +1501,6 @@ class VesselStatsWidget(QtWidgets.QWidget):
                             )
             # Ensure plots don't overlap suptitle and legend
             self.fig.tight_layout(rect=[0, .05, 1, .9])  # (rect=[left, bottom, right, top])
-
-        self.canvas.draw()
-
-
-class VarianceWidget(QtWidgets.QWidget):
-
-    def __init__(self):
-        super().__init__()
-
-        self.logger_names = []
-        self.datasets = {}
-
-        # Create plot figure, canvas widget to display figure and navbar
-        self.fig, self.ax = plt.subplots()
-        self.canvas = FigureCanvas(self.fig)
-        self.canvas.draw()
-        navbar = NavigationToolbar(self.canvas, self)
-
-        # Main layout
-        layout = QtWidgets.QHBoxLayout(self)
-
-        # Plot layout
-        plot = QtWidgets.QWidget()
-        plot_layout = QtWidgets.QVBoxLayout()
-        plot.setLayout(plot_layout)
-        plot_layout.addWidget(navbar)
-        plot_layout.addWidget(self.canvas)
-
-        # Selection layout
-        selection = QtWidgets.QWidget()
-        selection.setFixedWidth(150)
-        vbox = QtWidgets.QVBoxLayout(selection)
-
-        lbl1 = QtWidgets.QLabel('Channel:')
-        self.channelsCombo = QtWidgets.QComboBox()
-        self.channelsCombo.addItems(variance_channels_combo)
-        lbl2 = QtWidgets.QLabel('Loaded Datasets')
-        self.datasetList = QtWidgets.QListWidget()
-
-        vbox.addWidget(lbl1)
-        vbox.addWidget(self.channelsCombo)
-        vbox.addWidget(lbl2)
-        vbox.addWidget(self.datasetList)
-
-        layout.addWidget(selection)
-        layout.addWidget(plot)
-
-        self.connect_signals()
-
-    def connect_signals(self):
-        self.channelsCombo.currentIndexChanged.connect(self.update_variance_plot)
-        self.datasetList.currentItemChanged.connect(self.update_variance_plot)
-
-    def update_variance_datasets_list(self, dataset_names):
-        """Populate loaded datasets list."""
-
-        # Create active channels flag lists
-        self.logger_names = dataset_names
-
-        # Repopulate datasets list
-        self.datasetList.clear()
-        [self.datasetList.addItem(x) for x in dataset_names]
-        self.datasetList.setCurrentRow(0)
-
-    def update_variance_plot(self, init_plot=False):
-        """Plot stats mean, range and std variability."""
-
-        self.ax.cla()
-
-        # For some reason when processing stats, update of variance plot is not triggered by change in dataset list item
-        # Therefore force plotting of first dataset in list
-        if init_plot:
-            if self.datasetList.count() > 0:
-                logger = self.datasetList.item(0).text()
-            else:
-                return
-        # Get dataset list index; quit routine if list is empty
-        else:
-            logger_i = self.datasetList.currentRow()
-            if logger_i == -1:
-                return
-
-            logger = self.datasetList.currentItem().text()
-
-        channel_i = self.channelsCombo.currentIndex()
-        channel = self.channelsCombo.currentText()
-        # title = '21148 Total Glenlivet G1 Well Monitoring Campaign\n' + logger + ' ' + channel
-        title = '21239 Total WoS - Glendronach Well Monitoring Campaign\n' + logger + ' ' + channel
-        df = self.datasets[logger]
-        cols = [4 * channel_i + i for i in range(4)]
-
-        min = df.iloc[:, cols[0]]
-        max = df.iloc[:, cols[1]]
-        mean = df.iloc[:, cols[2]]
-        std = df.iloc[:, cols[3]]
-        self.ax.plot(mean)
-        self.ax.fill_between(df.index, min, max, alpha=0.2)
-        self.ax.fill_between(df.index, mean - std, mean + std, alpha=0.2, facecolor='r')
-        # self.ax.errorbar(x=df.index, y=mean, yerr=std, fmt='o', ecolor='gray', linewidth=1)
-        self.ax.legend(['Mean', 'Range', 'Standard deviation'])
-
-        # Determine y label
-        if channel_i < 2:
-            ylabel = stat_ylabels[0]
-        else:
-            ylabel = stat_ylabels[1]
-
-        self.ax.set_xlabel('Timestamp')
-        self.ax.set_ylabel(ylabel)
-        self.ax.set_title(title)
-        self.ax.margins(x=0, y=0)
-        self.ax.xaxis.set_major_formatter(mdates.DateFormatter('%d-%b-%y %H:%M'))
-        self.fig.autofmt_xdate()
-        # self.fig.tight_layout()
-        # self.ax.xaxis.set_major_locator(mdates.DayLocator(interval=7))
-        # self.ax.xaxis.set_major_locator(mdates.HourLocator(interval=1))
-        # self.ax.xaxis.set_minor_locator(mdates.MinuteLocator(interval=10))
-        # self.ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y:%m:%d'))
 
         self.canvas.draw()
 

@@ -17,13 +17,13 @@ class LoggerStats:
         self.std = []
         self.mean = []
 
-    def calc_stats(self, sample, unit_conv_factors):
+    def calc_stats(self, df_sample, unit_conv_factors):
         """
         Calculate basic stats.
         Assumes at least two columns and first column is time.
         """
 
-        data = sample[sample.columns[1:]]
+        data = df_sample[df_sample.columns[1:]]
 
         # Calculate min, max, mean and std for each channel
         mn = data.min()

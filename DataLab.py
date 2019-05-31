@@ -1,7 +1,7 @@
 __author__ = 'Craig Dickinson'
 __program__ = 'DataLab'
-__version__ = '0.28'
-__date__ = '29 May 2019'
+__version__ = '0.30'
+__date__ = '31 May 2019'
 
 import logging
 import os
@@ -26,7 +26,7 @@ from project_config_dashboard import ConfigModule
 from raw_data_dashboard import TimeSeriesPlotWidget
 from seascatter_dashboard import SeascatterDiagram
 from spectral_dashboard import SpectrogramWidget
-from stats_dashboard import PlotStyle2H, StatsDataset, StatsWidget, VarianceWidget, VesselStatsWidget
+from stats_dashboard import PlotStyle2H, StatsDataset, StatsWidget, VesselStatsWidget
 from transfer_functions_dashboard import TransferFunctionsWidget
 
 
@@ -80,10 +80,8 @@ class DataLabGui(QtWidgets.QMainWindow):
         self.statsScreeningModule = QtWidgets.QTabWidget()
         self.statsTab = StatsWidget(self)
         self.vesselStatsTab = VesselStatsWidget(self)
-        self.varianceTab = VarianceWidget()
         self.statsScreeningModule.addTab(self.statsTab, 'Statistics')
         self.statsScreeningModule.addTab(self.vesselStatsTab, 'Vessel Statistics')
-        self.statsScreeningModule.addTab(self.varianceTab, 'Variance')
 
         # Spectral screening module
         self.spectralScreeningModule = QtWidgets.QTabWidget()
@@ -92,9 +90,6 @@ class DataLabGui(QtWidgets.QMainWindow):
 
         # Seascatter diagram module
         self.seascatterModule = SeascatterDiagram(self)
-        # self.seascatterModule = QtWidgets.QTabWidget()
-        # self.scatterTab = SeascatterDiagram(self)
-        # self.seascatterModule.addTab(self.scatterTab, 'Seascatter Diagram')
 
         # Transfer functions module
         self.transFuncsModule = QtWidgets.QTabWidget()
@@ -364,10 +359,6 @@ class DataLabGui(QtWidgets.QMainWindow):
                     self.vesselStatsTab.set_plot_data(init=True)
                     self.vesselStatsTab.update_plots()
 
-                # Update variance plot tab - plot update is triggered upon setting dataset list index
-                self.varianceTab.datasets = dict_stats
-                self.varianceTab.update_variance_datasets_list(dataset_ids)
-
                 # Show dashboard
                 if src == 'logger_stats':
                     self.view_tab_stats()
@@ -513,7 +504,6 @@ class DataLabGui(QtWidgets.QMainWindow):
     def view_tab_seascatter(self):
         self.update_tool_buttons('seascatter')
         self.modulesWidget.setCurrentWidget(self.seascatterModule)
-        # self.statsScreeningModule.setCurrentWidget(self.scatterTab)
 
     def update_tool_buttons(self, active_button):
         """Format selected module button."""
@@ -656,12 +646,6 @@ class DataLabGui(QtWidgets.QMainWindow):
         # self.parent.spectrogramTab.datasets[logger] = df
         # self.parent.spectrogramTab.update_spect_datasets_list(logger)
 
-        # Update variance plot tab - plot update is triggered upon setting dataset list index
-        self.varianceTab.datasets = datalab.dict_stats
-        self.varianceTab.update_variance_datasets_list(dataset_ids)
-        self.varianceTab.datasetList.setCurrentRow(0)
-        self.varianceTab.update_variance_plot(init_plot=True)
-
     def gen_scatter_diag(self):
         """Create seascatter diagram if vessel stats data is loaded."""
 
@@ -674,7 +658,6 @@ class DataLabGui(QtWidgets.QMainWindow):
         else:
             try:
                 self.seascatterModule.get_seascatter_dataset(df_vessel)
-                # self.scatterTab.generate_scatter_diag(df_vessel)
             except Exception as e:
                 msg = 'Unexpected error generating seascatter diagram'
                 self.error(f'{msg}:\n{e}\n{sys.exc_info()[0]}')
@@ -697,15 +680,13 @@ class DataLabGui(QtWidgets.QMainWindow):
     def save_scatter_diagram(self):
         """Export seascatter diagram to Excel."""
 
-        if self.seascatterModule.df_scatter.empty is True:
-            # if self.scatterTab.df_scatter.empty is True:
+        if self.seascatterModule.df_scatter.empty:
             self.warning('No seascatter diagram generated. Nothing to export!')
         else:
             fname, _ = QtWidgets.QFileDialog.getSaveFileName(self, 'Save Seascatter Diagram',
                                                              filter='Excel Files (*.xlsx)')
             if fname:
                 self.seascatterModule.export_scatter_diagram(fname)
-                # self.scatterTab.export_scatter_diagram(fname)
 
 
 class ControlFileWorker(QtCore.QThread):
