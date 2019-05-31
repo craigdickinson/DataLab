@@ -276,10 +276,12 @@ class ConfigModule(QtWidgets.QWidget):
         """Save project configuration settings as a dictionary to a JSON file."""
 
         if self.control.project_num == '':
-            return self.parent.warning('Project number required to create project config file.')
+            msg = 'Project number required to create project config file. Add data to the Campaign Info tab.'
+            return self.parent.warning(msg)
 
         if self.control.project_name == '':
-            return self.parent.warning('Project name required to create project config file.')
+            msg = 'Project name required to create project config file. Input data to the Campaign Info tab.'
+            return self.parent.warning(msg)
 
         # Compile configuration data into a dictionary and save as a json file
         config = ProjectConfigJSONFile()

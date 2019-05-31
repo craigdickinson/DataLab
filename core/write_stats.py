@@ -4,7 +4,6 @@ Class to compile and export logger stats.
 __author__ = 'Craig Dickinson'
 
 import os.path
-from datetime import datetime
 
 import numpy as np
 import pandas as pd
@@ -22,125 +21,149 @@ class StatsOutput:
 
         # Path to save output
         self.output_dir = output_dir
+        self.logger_id = ''
+
+        # List to hold stats data for all logger channels
+        self.stats = []
 
         # Dictionary to hold statistics data frames
         self.dict_stats = {}
 
         # Stats data frame for file export
-        self.logger_id = ''
-        self.stats = []
-        self.filtered_stats = []
-        self.start = []
-        self.end = []
         self.df_stats = pd.DataFrame()
 
+        # Workbook object if writing stats to Excel
         self.wb = Workbook()
         sheet_name = self.wb.sheetnames[0]
         ws = self.wb[sheet_name]
         self.wb.remove(ws)
 
-    def compile_stats_dataframe(self, logger, sample_start, sample_end, logger_stats, logger_stats_filt):
+    def compile_stats(self, logger, sample_start, sample_end, logger_stats, logger_stats_filt):
         """
         Compile statistics into data frame for exporting and for use by gui.
         :param logger: object
         :param sample_start
         :param sample_end
         :param logger_stats: object
+        :param logger_stats_filt: object
         :return: None
         """
 
         # Store logger id
         self.logger_id = logger.logger_id
 
-        # Number of stats rows
-        num_pts = len(logger_stats.min)
+        # Reorder the unfiltered logger stats
+        unfiltered_stats = self._reorder_stats(logger_stats)
+
+        # Reorder the filtered logger stats (if processed)
+        filtered_stats = self._reorder_stats(logger_stats_filt)
 
         # Create headers
         channels = logger.channel_names
-        channel_header = [x for chan in channels for x in [chan] * 4]
+        channels_header_unfilt = [x for chan in channels for x in [chan] * 4]
         stats_header = ['min', 'max', 'mean', 'std'] * len(channels)
-        units = logger.channel_units
-        units_header = [x for unit in units for x in [unit] * 4]
-        # CD: The above is equivalent to
-        # units_header = []
-        # for unit in units:
-        #     for i in range(4):
-        #         units_header.append(unit)
+        units_header = [x for unit in logger.channel_units for x in [unit] * 4]
 
-        mn = logger_stats.min
-        mx = logger_stats.max
-        ave = logger_stats.mean
-        std = logger_stats.std
-
-        # Order stats as:
-        # [[channel1: min max ave std [0]... channelM: min max ave std [0],...
-        #  [channel1: min max ave std [N]... channelM: min max ave std [N]]
-        # zip creates tuple of: ((ch1_min, ch1_max, ch1_ave, ch1_std),...,(chM_min, chM_max, chM_ave, chM_std))
-        # Logic: Loop each data point, create list, loop each channel in zip, loop each stat in channel, add to list
-        self.stats = [[stat for channel in zip(mn[k], mx[k], ave[k], std[k]) for stat in channel]
-                      for k in range(num_pts)]
-        self.start = [datetime.strftime(dt, '%Y-%m-%d %H:%M:%S') for dt in sample_start]
-        self.end = [datetime.strftime(dt, '%Y-%m-%d %H:%M:%S') for dt in sample_end]
-
-        # CD: The above is equivalent to
-        # ss = []
-        # for k in range(num_pts):
-        #     ss.append([])
-        #     for stat in range(len(mn[0])):
-        #         ss[k].append(mn[k][stat])
-        #         ss[k].append(mx[k][stat])
-        #         ss[k].append(ave[k][stat])
-        #         ss[k].append(std[k][stat])
-        #
-        # print('break')
-        # print(stats)
-        # print(ss)
-
-        # Compile filtered stats (if were calculated)
-        filtered_stats, channel_header_filt = self._compile_filtered_stats(logger_stats_filt, channels)
-
-        # Combine original and filtered stats
+        # Join original and filtered stats columns
         if filtered_stats is not None:
-            self.stats = np.hstack((self.stats, filtered_stats))
-            channel_header += channel_header_filt
+            # Join unfiltered and filtered stats arrays
+            self.stats = np.hstack((unfiltered_stats, filtered_stats))
+
+            # Create headers containing unfiltered and filtered channels
+            channel_header_filt = [x for chan in channels for x in [f'{chan} (filtered)'] * 4]
+            channels_header = channels_header_unfilt + channel_header_filt
             stats_header *= 2
             units_header *= 2
+        # Use only unfiltered stats columns
+        else:
+            self.stats = unfiltered_stats
+            channels_header = channels_header_unfilt
 
-        # Create statistics data frame
-        cols = pd.MultiIndex.from_arrays([channel_header, stats_header, units_header],
-                                         names=['channels', 'stats', 'units'])
-        df = pd.DataFrame(self.stats, index=sample_start, columns=cols)
+        # Create pandas multi-index header
+        header = self._create_header(channels_header, stats_header, units_header)
 
-        # Add stats data frame to logger dict for gui access
-        self.dict_stats[logger.logger_id] = df
+        # Create stats data frame for internal use
+        df = self._create_stats_dataframe(self.stats, sample_start, header)
 
-        # Now create a new data frame to write to file (csv/xlsx/hdf5)
-        # Add End time column, reset index and rename first column to Start
-        self.df_stats = pd.DataFrame(self.stats, index=self.start, columns=cols)
-        self.df_stats.insert(loc=0, column='End', value=self.end)
-        self.df_stats.reset_index(inplace=True)
-        self.df_stats.rename({'index': 'Start'}, axis=1, inplace=True)
+        # Create an alternative stats data frame in a layout for writing to file (includes end timestamps column)
+        self.df_stats = self._create_export_stats_dataframe(self.stats, sample_start, sample_end, header)
 
-    def _compile_filtered_stats(self, logger_stats_filt, channels):
-        channel_header_filt = None
-        filtered_stats = None
+        # Reorder stats data frame columns to preferred order of (channel, channel (filtered)) pairs
+        cols = self._reorder_columns(df)
+        df = df[cols]
+        self.df_stats = self.df_stats[['Start', 'End'] + cols]
 
-        if logger_stats_filt.min:
-            channel_header_filt = [x for chan in channels for x in [f'{chan} (filtered)'] * 4]
-            num_pts = len(logger_stats_filt.min)
+        # Add stats data frame to dictionary for internal use by the gui
+        self.dict_stats[self.logger_id] = df
 
-            filt_mn = logger_stats_filt.min
-            filt_mx = logger_stats_filt.max
-            filt_ave = logger_stats_filt.mean
-            filt_std = logger_stats_filt.std
+    @staticmethod
+    def _reorder_stats(logger_stats):
+        """
+        Order stats as:
+            [[chan_1: min max ave std [0],..., chan_M: min max ave std [0]],
+             [chan_1: min max ave std [N],..., chan_M: min max ave std [N]]].
+        """
 
-            filtered_stats = [
-                [stat for channel in zip(filt_mn[k], filt_mx[k], filt_ave[k], filt_std[k])
-                 for stat in channel]
+        if logger_stats.min:
+            num_pts = len(logger_stats.min)
+
+            # These arrays are lists of channels, e.g.
+            # mn = [[chan_1_min[0],..., chan_M_min[0]],
+            #       [chan_1_min[N],..., chan_M_min[N]]]
+            mn = logger_stats.min
+            mx = logger_stats.max
+            ave = logger_stats.mean
+            std = logger_stats.std
+
+            # Zip creates tuple of: ((ch1_min, ch1_max, ch1_ave, ch1_std),...,(chM_min, chM_max, chM_ave, chM_std))
+            # Logic: Loop each data point, create list, loop each channel in zip, loop each stat in channel, add to list
+            stats = [
+                [stat for channel in zip(mn[k], mx[k], ave[k], std[k]) for stat in channel]
                 for k in range(num_pts)
             ]
+            return stats
+        else:
+            return None
 
-        return filtered_stats, channel_header_filt
+    @staticmethod
+    def _create_header(channel_header, stats_header, units_header):
+        """Create multi-index header of channel names, stats, and units to use in stats data frame."""
+
+        header = pd.MultiIndex.from_arrays([channel_header, stats_header, units_header],
+                                           names=['channels', 'stats', 'units'])
+        return header
+
+    @staticmethod
+    def _create_stats_dataframe(stats, sample_start, header):
+        """Create statistics data frame."""
+
+        df = pd.DataFrame(data=stats, index=sample_start, columns=header)
+
+        return df
+
+    @staticmethod
+    def _create_export_stats_dataframe(stats, sample_start, sample_end, header):
+        """
+        Create an alternative statistics data frame layout for exporting to file (csv/xlsx/hdf5).
+        The only difference is that the sample end timestamps column is include and a standard integer index is used.
+        """
+
+        # Add End time column, reset index and rename first column to Start
+        df = pd.DataFrame(data=stats, columns=header)
+        df.insert(loc=0, column='Start', value=sample_start)
+        df.insert(loc=1, column='End', value=sample_end)
+
+        return df
+
+    @staticmethod
+    def _reorder_columns(df):
+        channels = df.columns.unique(0)
+        n = len(channels)
+        channels_unfilt = channels[:n // 2]
+        channels_filt = channels[n // 2:]
+        new_cols = [col for pair in zip(channels_unfilt, channels_filt) for col in pair]
+
+        return new_cols
 
     def stats_to_hdf5(self):
         """Write stats to HDF5 file."""
@@ -152,48 +175,41 @@ class StatsOutput:
         """Write stats to csv file."""
 
         file_name = os.path.join(self.output_dir, 'Statistics_' + self.logger_id + '.csv')
+
+        # Convert start and end columns to strings
+        self.df_stats['Start'] = self.df_stats['Start'].dt.strftime('%Y-%m-%d %H:%M:%S')
+        self.df_stats['End'] = self.df_stats['End'].dt.strftime('%Y-%m-%d %H:%M:%S')
+
         self.df_stats.to_csv(file_name, index=False)
 
-    def stats_to_excel(self, logger):
-        """
-        Write stats from a logger_stats object to Excel workbook.
-        :param logger: object
-        :return: None
-        """
+    def stats_to_excel(self):
+        """Write stats from a logger_stats object to Excel workbook."""
 
-        # channel_header = list(self.stats_df.columns.unique(level='channels'))
-        # stats_header = list(self.stats_df.columns.unique(level='stats'))
-        # units_header = list(self.stats_df.columns.unique(level='units'))
-        # stats = self.stats_df.values.tolist()
+        # Retrieve headers
+        channels_header = self.stats_df.columns.unique(level=0).to_list
+        stats_header = self.stats_df.columns.get_level_values(level=1).to_list()
+        units_header = self.stats_df.columns.get_level_values(level=1).to_list()
 
-        # TODO: Need to consider filtered stats
-        # Create headers
-        channels = logger.channel_names
-        channel_header = [x for chan in channels
-                          for x in [chan] + ['', '', '']]
+        # Convert start and end columns to strings
+        self.df_stats['Start'] = self.df_stats['Start'].dt.strftime('%Y-%m-%d %H:%M:%S')
+        self.df_stats['End'] = self.df_stats['End'].dt.strftime('%Y-%m-%d %H:%M:%S')
+        data = self.stats_df.values.tolist()
 
-        stats_header = ['min', 'max', 'mean', 'std'] * len(channels)
-
-        units = logger.channel_units
-        units_header = [x for unit in units
-                        for x in [unit] * 4]
-
-        # Data structure for Excel file - add in start and end time columns
-        channel_header = ['Start', 'End'] + channel_header
-        stats_header = ['', ''] + stats_header
-        units_header = ['', ''] + units_header
-        stats = [[self.start[k]] + [self.end[k]] + self.stats[k] for k in range(len(self.start))]
+        # Reformat channels header so as not to have repeating channels
+        channels = channels_header[2:]
+        channels = [x for chan in channels for x in [chan] + ['', '', '']]
+        channels_header = channels_header[:2] + channels
 
         # Create worksheet for logger
         ws = self.wb.create_sheet(title=self.logger_id)
 
         # Write headers
-        ws.append(channel_header)
+        ws.append(channels_header)
         ws.append(stats_header)
         ws.append(units_header)
 
         # Write data rows
-        for row in stats:
+        for row in data:
             ws.append(row)
 
         # Formatting
@@ -209,7 +225,7 @@ class StatsOutput:
             ws.column_dimensions[get_column_letter(col)].width = 20
 
     def save_workbook(self):
-        """Save workbook once all data has been written."""
+        """Save workbook once all worksheets have been created."""
 
         try:
             fname = 'Statistics.xlsx'

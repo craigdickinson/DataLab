@@ -223,19 +223,19 @@ class DataLab(QThread):
             # If processing selected logger stats
             if logger.process_stats is True:
                 # Create and store a data frame of logger stats
-                stats_out.compile_stats_dataframe(logger,
-                                                  data_screen[i].stats_sample_start,
-                                                  data_screen[i].stats_sample_end,
-                                                  logger_stats[i],
-                                                  logger_stats_filtered[i],
-                                                  )
+                stats_out.compile_stats(logger,
+                                        data_screen[i].stats_sample_start,
+                                        data_screen[i].stats_sample_end,
+                                        logger_stats[i],
+                                        logger_stats_filtered[i],
+                                        )
 
                 # Export stats in selected file format
                 if self.stats_file_type == 'csv':
                     stats_out.stats_to_csv()
                     # stats_out.stats_to_hdf5()
                 elif self.stats_file_type == 'excel':
-                    stats_out.stats_to_excel(logger)
+                    stats_out.stats_to_excel()
                 else:
                     stats_out.stats_to_hdf5()
 
