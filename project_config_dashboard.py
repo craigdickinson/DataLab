@@ -115,6 +115,10 @@ class ProjectConfigJSONFile:
         else:
             dict_props['stats_end'] = logger.stats_end.strftime('%Y-%m-%d %H:%M')
 
+        # Stats low and high cut-off frequencies
+        dict_props['stats_low_cutoff_freq'] = logger.stats_low_cutoff_freq
+        dict_props['stats_high_cutoff_freq'] = logger.stats_high_cutoff_freq
+
         # Spectral settings group
         dict_props['process_spectral'] = logger.process_spectral
         dict_props['spectral_interval'] = logger.spectral_interval
@@ -272,10 +276,12 @@ class ConfigModule(QtWidgets.QWidget):
         """Save project configuration settings as a dictionary to a JSON file."""
 
         if self.control.project_num == '':
-            return self.parent.warning('Project number required to create project config file.')
+            msg = 'Project number required to create project config file. Add data to the Campaign Info tab.'
+            return self.parent.warning(msg)
 
         if self.control.project_name == '':
-            return self.parent.warning('Project name required to create project config file.')
+            msg = 'Project name required to create project config file. Input data to the Campaign Info tab.'
+            return self.parent.warning(msg)
 
         # Compile configuration data into a dictionary and save as a json file
         config = ProjectConfigJSONFile()
@@ -331,7 +337,7 @@ class ConfigModule(QtWidgets.QWidget):
             logger = self.loggersList.currentItem().text()
 
         # Confirm with user
-        msg = f'Are you sure you want to remove the logger named {logger}?'
+        msg = f'Are you sure you want to remove the logger {logger}?'
         response = QtWidgets.QMessageBox.question(self, 'Remove Logger', msg)
 
         if response == QtWidgets.QMessageBox.Yes:
@@ -611,6 +617,15 @@ class ConfigModule(QtWidgets.QWidget):
                 logger.stats_end = parse(stats_end, yearfirst=True)
             except ValueError:
                 self.parent.warning(f'stats_end datetime format not recognised for logger {logger.logger_id}')
+
+        logger.stats_low_cutoff_freq = self.get_key_value(logger_id=logger.logger_id,
+                                                          data=dict_logger,
+                                                          key='stats_low_cutoff_freq',
+                                                          attr=logger.stats_low_cutoff_freq)
+        logger.stats_high_cutoff_freq = self.get_key_value(logger_id=logger.logger_id,
+                                                           data=dict_logger,
+                                                           key='stats_high_cutoff_freq',
+                                                           attr=logger.stats_high_cutoff_freq)
 
         return logger
 
@@ -954,11 +969,17 @@ class StatsAndSpectralSettingsTab(QtWidgets.QWidget):
         self.statsStart = QtWidgets.QLabel('-')
         self.statsEnd = QtWidgets.QLabel('-')
 
+        # Filtered RMS lower and upper cut-off frequencies
+        self.lowCutoff = QtWidgets.QLabel('-')
+        self.highCutoff = QtWidgets.QLabel('-')
+
         self.statsForm = QtWidgets.QFormLayout(self.statsGroup)
         self.statsForm.addRow(self.processStatsChkBox, QtWidgets.QLabel(''))
-        self.statsForm.addRow(QtWidgets.QLabel('Stats interval (s):'), self.statsInterval)
-        self.statsForm.addRow(QtWidgets.QLabel('Stats start timestamp:'), self.statsStart)
-        self.statsForm.addRow(QtWidgets.QLabel('Stats end timestamp:'), self.statsEnd)
+        self.statsForm.addRow(QtWidgets.QLabel('Interval (s):'), self.statsInterval)
+        self.statsForm.addRow(QtWidgets.QLabel('Start timestamp:'), self.statsStart)
+        self.statsForm.addRow(QtWidgets.QLabel('End timestamp:'), self.statsEnd)
+        self.statsForm.addRow(QtWidgets.QLabel('Low frequency cut-off (Hz):'), self.lowCutoff)
+        self.statsForm.addRow(QtWidgets.QLabel('High frequency cut-off (Hz):'), self.highCutoff)
 
         # Spectral settings group
         self.spectralGroup = QtWidgets.QGroupBox('Spectral Analysis Settings')
@@ -970,9 +991,9 @@ class StatsAndSpectralSettingsTab(QtWidgets.QWidget):
 
         self.spectralForm = QtWidgets.QFormLayout(self.spectralGroup)
         self.spectralForm.addRow(self.processSpectralChkBox, QtWidgets.QLabel(''))
-        self.spectralForm.addRow(QtWidgets.QLabel('Spectral interval (s):'), self.spectralInterval)
-        self.spectralForm.addRow(QtWidgets.QLabel('Spectral start timestamp:'), self.spectralStart)
-        self.spectralForm.addRow(QtWidgets.QLabel('Spectral end timestamp:'), self.spectralEnd)
+        self.spectralForm.addRow(QtWidgets.QLabel('Interval (s):'), self.spectralInterval)
+        self.spectralForm.addRow(QtWidgets.QLabel('Start timestamp:'), self.spectralStart)
+        self.spectralForm.addRow(QtWidgets.QLabel('End timestamp:'), self.spectralEnd)
 
         # Spacer widgets to separate the group boxes a bit
         spacer = QtWidgets.QSpacerItem(1, 15)
@@ -1064,8 +1085,20 @@ class StatsAndSpectralSettingsTab(QtWidgets.QWidget):
             stats_end = logger.stats_end.strftime('%Y-%m-%d %H:%M')
         self.statsEnd.setText(stats_end)
 
+        # Stats low cut-off freq
+        if logger.stats_low_cutoff_freq is None:
+            self.lowCutoff.setText('None')
+        else:
+            self.lowCutoff.setText(f'{logger.stats_low_cutoff_freq:.2f}')
+
+        # Stats high cut-off freq
+        if logger.stats_high_cutoff_freq is None:
+            self.highCutoff.setText('None')
+        else:
+            self.highCutoff.setText(f'{logger.stats_high_cutoff_freq:.2f}')
+
         # Spectral interval
-        self.spectralInterval.setText(str(logger.stats_interval))
+        self.spectralInterval.setText(str(logger.spectral_interval))
 
         # Spectral start
         if logger.spectral_start is None:
@@ -1091,6 +1124,8 @@ class StatsAndSpectralSettingsTab(QtWidgets.QWidget):
         self.statsInterval.setText('-')
         self.statsStart.setText('-')
         self.statsEnd.setText('-')
+        self.lowCutoff.setText('-')
+        self.highCutoff.setText('-')
         self.spectralInterval.setText('-')
         self.spectralStart.setText('-')
         self.spectralEnd.setText('-')
@@ -1544,11 +1579,11 @@ class EditStatsAndSpectralDialog(QtWidgets.QDialog):
         self.logger = logger
         self.logger_idx = logger_idx
 
-        self.init_ui()
-        self.connect_signals()
-        self.set_dialog_data()
+        self._init_ui()
+        self._connect_signals()
+        self._set_dialog_data()
 
-    def init_ui(self):
+    def _init_ui(self):
         self.setWindowTitle('Edit Logger Statistics and Spectral Analysis Settings')
         self.setMinimumWidth(500)
 
@@ -1559,7 +1594,11 @@ class EditStatsAndSpectralDialog(QtWidgets.QDialog):
         self.columns = QtWidgets.QLineEdit()
         self.unitConvs = QtWidgets.QLineEdit()
         self.channelNames = QtWidgets.QLineEdit()
+        msg = 'Optional: Add custom channel names separated by a space (e.g. AccelX AccelY AngRateX AngRateY)'
+        self.channelNames.setToolTip(msg)
         self.channelUnits = QtWidgets.QLineEdit()
+        msg = 'Optional: Add custom channel units separated by a space (e.g. m/s^2 m/s^2 deg/s deg/s)'
+        self.channelUnits.setToolTip(msg)
 
         self.colsForm = QtWidgets.QFormLayout(self.colsGroup)
         self.colsForm.addRow(QtWidgets.QLabel('Requested columns:'), self.columns)
@@ -1576,17 +1615,28 @@ class EditStatsAndSpectralDialog(QtWidgets.QDialog):
         self.statsEnd = QtWidgets.QLineEdit()
         self.statsEnd.setFixedWidth(100)
 
+        # Filtered low and high cut-off frequencies
+        self.lowCutoff = QtWidgets.QLineEdit()
+        self.lowCutoff.setFixedWidth(40)
+        self.highCutoff = QtWidgets.QLineEdit()
+        self.highCutoff.setFixedWidth(40)
+
         # Define input validators
         int_validator = QtGui.QIntValidator()
         int_validator.setBottom(1)
+        dbl_validator = QtGui.QDoubleValidator()
 
         # Apply validators
         self.statsInterval.setValidator(int_validator)
+        self.lowCutoff.setValidator(dbl_validator)
+        self.highCutoff.setValidator(dbl_validator)
 
         self.statsForm = QtWidgets.QFormLayout(self.statsGroup)
-        self.statsForm.addRow(QtWidgets.QLabel('Stats interval (s):'), self.statsInterval)
-        self.statsForm.addRow(QtWidgets.QLabel('Stats start timestamp:'), self.statsStart)
-        self.statsForm.addRow(QtWidgets.QLabel('Stats end timestamp:'), self.statsEnd)
+        self.statsForm.addRow(QtWidgets.QLabel('Interval (s):'), self.statsInterval)
+        self.statsForm.addRow(QtWidgets.QLabel('Start timestamp:'), self.statsStart)
+        self.statsForm.addRow(QtWidgets.QLabel('End timestamp:'), self.statsEnd)
+        self.statsForm.addRow(QtWidgets.QLabel('Low frequency cut-off (Hz):'), self.lowCutoff)
+        self.statsForm.addRow(QtWidgets.QLabel('High frequency cut-off (Hz):'), self.highCutoff)
 
         # Spectral settings group
         self.spectralGroup = QtWidgets.QGroupBox('Logger Spectral Settings')
@@ -1617,12 +1667,12 @@ class EditStatsAndSpectralDialog(QtWidgets.QDialog):
         self.layout.addWidget(self.spectralGroup)
         self.layout.addWidget(self.buttonBox, stretch=0, alignment=QtCore.Qt.AlignRight)
 
-    def connect_signals(self):
+    def _connect_signals(self):
         self.buttonBox.accepted.connect(self.on_ok_clicked)
         self.buttonBox.accepted.connect(self.accept)
         self.buttonBox.rejected.connect(self.reject)
 
-    def set_dialog_data(self):
+    def _set_dialog_data(self):
         """Set dialog data with logger stats from control object."""
 
         logger = self.logger
@@ -1662,6 +1712,18 @@ class EditStatsAndSpectralDialog(QtWidgets.QDialog):
             stats_end = logger.stats_end.strftime('%Y-%m-%d %H:%M')
         self.statsEnd.setText(stats_end)
 
+        # Low cut-off freq
+        if logger.stats_low_cutoff_freq is None:
+            self.lowCutoff.setText('None')
+        else:
+            self.lowCutoff.setText(f'{logger.stats_low_cutoff_freq:.2f}')
+
+        # High cut-off freq
+        if logger.stats_high_cutoff_freq is None:
+            self.highCutoff.setText('None')
+        else:
+            self.highCutoff.setText(f'{logger.stats_high_cutoff_freq:.2f}')
+
         # Spectral settings group
         # Spectral interval
         self.spectralInterval.setText(str(logger.spectral_interval))
@@ -1683,10 +1745,10 @@ class EditStatsAndSpectralDialog(QtWidgets.QDialog):
     def on_ok_clicked(self):
         """Assign logger stats settings to the control object and update the dashboard."""
 
-        self.set_control_data()
+        self._set_control_data()
         self.parent.set_analysis_dashboard(self.logger)
 
-    def set_control_data(self):
+    def _set_control_data(self):
         """Assign values to the control object."""
 
         logger = self.logger
@@ -1730,6 +1792,22 @@ class EditStatsAndSpectralDialog(QtWidgets.QDialog):
             except ValueError:
                 msg = 'Stats end datetime format not recognised; timestamp unchanged'
                 QtWidgets.QMessageBox.information(self, 'Stats End Input', msg)
+
+        # Stats low cut-off freq
+        try:
+            logger.stats_low_cutoff_freq = float(self.lowCutoff.text())
+            if logger.stats_low_cutoff_freq == 0:
+                logger.stats_low_cutoff_freq = None
+        except:
+            logger.stats_low_cutoff_freq = None
+
+        # Stats high cut-off freq
+        try:
+            logger.stats_high_cutoff_freq = float(self.highCutoff.text())
+            if logger.stats_high_cutoff_freq == 0:
+                logger.stats_high_cutoff_freq = None
+        except:
+            logger.stats_high_cutoff_freq = None
 
         # Spectral settings group
         logger.spectral_interval = int(self.spectralInterval.text())

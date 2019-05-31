@@ -10,6 +10,7 @@ import pandas as pd
 
 from logger_properties import LoggerProperties
 from read_files import read_pulse_acc_single_header_format
+from signal_filtering import filter_signal
 
 
 class DataScreen:
@@ -133,9 +134,9 @@ class DataScreen:
             self.dict_bad_files[filename] = 'Unexpected number of points'
         else:
             # Calculate resolution for each channel
-            self.res.append(self.resolution(df))
+            self.res.append(self._resolution(df))
 
-    def resolution(self, df):
+    def _resolution(self, df):
         """
         Return smallest difference between rows of a data frame for each
         column. Assumes column names are not multi-indexed.
@@ -168,19 +169,19 @@ class DataScreen:
 
         return self.data_completeness
 
-    def sample_data(self, sample_df, df, sample_length, type):
+    def sample_data(self, df_sample, df, sample_length, type):
         """
         Extract data sample from file.
         Move the required rows from data to sample to make len(sample) = sample_length.
-        :param sample_df: Current subset data frame of main logger file (initially empty)
+        :param df_sample: Current subset data frame of main logger file (initially empty)
         :param df: Current logger file data frame (sample data gets dropped)
-        :return: Update sample data frame and logger file data frame with sample data dropped.
+        :return: Updated sample data frame and logger file data frame with sample data dropped.
         """
 
         # TODO: Do units conversion here
 
         # Current number of points in sample
-        ns = len(sample_df)
+        ns = len(df_sample)
 
         # Number of points in data
         nd = len(df)
@@ -190,18 +191,42 @@ class DataScreen:
 
         if ns < sample_length and nd > 0:
             # Append data to sample data frame and drop sample from main data frame
-            sample_df = sample_df.append(df[:cutoff].copy(), ignore_index=True)
+            df_sample = df_sample.append(df[:cutoff].copy(), ignore_index=True)
             df.drop(df.index[:cutoff], inplace=True)
 
             # TODO: Allowing short sample length (revisit)
             # Store start and end times of sample data if data frame contains target length
             # if len(sample_df) == sample_length:
-            if len(sample_df) <= sample_length:
+            if len(df_sample) <= sample_length:
                 if type == 'stats':
-                    self.stats_sample_start.append(sample_df.iloc[0, 0])
-                    self.stats_sample_end.append(sample_df.iloc[-1, 0])
+                    self.stats_sample_start.append(df_sample.iloc[0, 0])
+                    self.stats_sample_end.append(df_sample.iloc[-1, 0])
                 elif type == 'spectral':
-                    self.spectral_sample_start.append(sample_df.iloc[0, 0])
-                    self.spectral_sample_end.append(sample_df.iloc[-1, 0])
+                    self.spectral_sample_start.append(df_sample.iloc[0, 0])
+                    self.spectral_sample_end.append(df_sample.iloc[-1, 0])
 
-        return sample_df, df
+        return df_sample, df
+
+    def filter_sample_data(self, df_sample):
+        """Filter out low frequencies (drift) and high frequencies (noise)."""
+
+        df = df_sample.copy()
+
+        # Timestamps column
+        ts = df.iloc[:, 0]
+
+        # Need index to be time - calculate time delta from t0 and convert to seconds (float) then set as index
+        t = (df.iloc[:, 0] - df.iloc[0, 0]).dt.total_seconds().values.round(3)
+        df.index = t
+
+        # Remove timestamps column
+        df = df.select_dtypes('number')
+
+        # Apply bandpass filter
+        df_filtered = filter_signal(df, self.logger.stats_low_cutoff_freq, self.logger.stats_high_cutoff_freq)
+
+        # Insert timestamps column and reset index to return a data frame in the same format as the unfiltered one
+        df_filtered.reset_index(drop=True, inplace=True)
+        df_filtered.insert(loc=0, column=ts.name, value=ts)
+
+        return df_filtered

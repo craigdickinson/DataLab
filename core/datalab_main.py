@@ -85,6 +85,7 @@ class DataLab(QThread):
         # Lists of objects to hold data screening settings and logger stats
         data_screen = []
         logger_stats = []
+        logger_stats_filtered = []
         stats_processed = False
 
         # Structure to amalgamate data screening results
@@ -113,9 +114,10 @@ class DataLab(QThread):
             # Add any bad filenames to screening report
             data_report.add_bad_filenames(logger.logger_id, logger.dict_bad_filenames)
 
-            # Create object to store stats and data screening results
+            # Create containers to store data screening results and stats
             data_screen.append(DataScreen())
             logger_stats.append(LoggerStats())
+            logger_stats_filtered.append(LoggerStats())
 
             # Set logger to process - add all logger properties from the control object for the current logger
             data_screen[i].set_logger(logger)
@@ -179,8 +181,17 @@ class DataLab(QThread):
                             # TODO: Allowing short sample length (revisit)
                             # if len(sample_df) == data_screen[i].sample_length:
                             if len(df_stats_sample) <= stats_sample_length:
-                                # Calculate statistics if logger is to be processed
+                                # Calculate statistics on original sample dataset
                                 logger_stats[i].calc_stats(df_stats_sample, logger.unit_conv_factors)
+
+                                # Apply filters to sample data if filters were set
+                                df_filtered = data_screen[i].filter_sample_data(df_stats_sample)
+
+                                # Calculate statistics on filtered sample data if filters were set
+                                if not df_filtered.empty:
+                                    logger_stats_filtered[i].calc_stats(df_filtered, logger.unit_conv_factors)
+
+                                # Clear sample data frame so as ready for next sample set
                                 df_stats_sample = pd.DataFrame()
 
                     # Spectrograms processing module
@@ -193,9 +204,11 @@ class DataLab(QThread):
                                                                                          type='spectral',
                                                                                          )
 
+                            # Calculate spectrograms
                             if len(df_spectral_sample) <= spectral_sample_length:
-                                # Calculate spectrograms
                                 spectrogram.add_data(df_spectral_sample)
+
+                                # Clear sample data frame so as ready for next sample set
                                 df_spectral_sample = pd.DataFrame()
 
                 # Emit file number signal to gui
@@ -210,18 +223,19 @@ class DataLab(QThread):
             # If processing selected logger stats
             if logger.process_stats is True:
                 # Create and store a data frame of logger stats
-                stats_out.compile_stats_dataframe(logger,
-                                                  data_screen[i].stats_sample_start,
-                                                  data_screen[i].stats_sample_end,
-                                                  logger_stats[i],
-                                                  )
+                stats_out.compile_stats(logger,
+                                        data_screen[i].stats_sample_start,
+                                        data_screen[i].stats_sample_end,
+                                        logger_stats[i],
+                                        logger_stats_filtered[i],
+                                        )
 
                 # Export stats in selected file format
                 if self.stats_file_type == 'csv':
                     stats_out.stats_to_csv()
                     # stats_out.stats_to_hdf5()
                 elif self.stats_file_type == 'excel':
-                    stats_out.stats_to_excel(logger)
+                    stats_out.stats_to_excel()
                 else:
                     stats_out.stats_to_hdf5()
 
