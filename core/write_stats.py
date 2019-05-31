@@ -1,11 +1,12 @@
 """
-Created on 6 Sep 2016
-
-@author: bowdenc
+Class to compile and export logger stats.
 """
+__author__ = 'Craig Dickinson'
+
 import os.path
 from datetime import datetime
 
+import numpy as np
 import pandas as pd
 from openpyxl.utils import get_column_letter
 from openpyxl.workbook import Workbook
@@ -28,6 +29,7 @@ class StatsOutput:
         # Stats data frame for file export
         self.logger_id = ''
         self.stats = []
+        self.filtered_stats = []
         self.start = []
         self.end = []
         self.df_stats = pd.DataFrame()
@@ -37,7 +39,7 @@ class StatsOutput:
         ws = self.wb[sheet_name]
         self.wb.remove(ws)
 
-    def compile_stats_dataframe(self, logger, sample_start, sample_end, logger_stats, filtered_logger_stats=None):
+    def compile_stats_dataframe(self, logger, sample_start, sample_end, logger_stats, logger_stats_filt):
         """
         Compile statistics into data frame for exporting and for use by gui.
         :param logger: object
@@ -55,11 +57,8 @@ class StatsOutput:
 
         # Create headers
         channels = logger.channel_names
-        # channel_header = [x for chan in channels for x in [chan] + ['', '', '']]
         channel_header = [x for chan in channels for x in [chan] * 4]
-
         stats_header = ['min', 'max', 'mean', 'std'] * len(channels)
-
         units = logger.channel_units
         units_header = [x for unit in units for x in [unit] * 4]
         # CD: The above is equivalent to
@@ -97,6 +96,16 @@ class StatsOutput:
         # print(stats)
         # print(ss)
 
+        # Compile filtered stats (if were calculated)
+        filtered_stats, channel_header_filt = self._compile_filtered_stats(logger_stats_filt, channels)
+
+        # Combine original and filtered stats
+        if filtered_stats is not None:
+            self.stats = np.hstack((self.stats, filtered_stats))
+            channel_header += channel_header_filt
+            stats_header *= 2
+            units_header *= 2
+
         # Create statistics data frame
         cols = pd.MultiIndex.from_arrays([channel_header, stats_header, units_header],
                                          names=['channels', 'stats', 'units'])
@@ -111,6 +120,27 @@ class StatsOutput:
         self.df_stats.insert(loc=0, column='End', value=self.end)
         self.df_stats.reset_index(inplace=True)
         self.df_stats.rename({'index': 'Start'}, axis=1, inplace=True)
+
+    def _compile_filtered_stats(self, logger_stats_filt, channels):
+        channel_header_filt = None
+        filtered_stats = None
+
+        if logger_stats_filt.min:
+            channel_header_filt = [x for chan in channels for x in [f'{chan} (filtered)'] * 4]
+            num_pts = len(logger_stats_filt.min)
+
+            filt_mn = logger_stats_filt.min
+            filt_mx = logger_stats_filt.max
+            filt_ave = logger_stats_filt.mean
+            filt_std = logger_stats_filt.std
+
+            filtered_stats = [
+                [stat for channel in zip(filt_mn[k], filt_mx[k], filt_ave[k], filt_std[k])
+                 for stat in channel]
+                for k in range(num_pts)
+            ]
+
+        return filtered_stats, channel_header_filt
 
     def stats_to_hdf5(self):
         """Write stats to HDF5 file."""
@@ -136,6 +166,7 @@ class StatsOutput:
         # units_header = list(self.stats_df.columns.unique(level='units'))
         # stats = self.stats_df.values.tolist()
 
+        # TODO: Need to consider filtered stats
         # Create headers
         channels = logger.channel_names
         channel_header = [x for chan in channels
