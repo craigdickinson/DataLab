@@ -1,7 +1,7 @@
 import sys
 
 import numpy as np
-from PyQt5.QtWidgets import (QApplication, QGridLayout, QWidget)
+from PyQt5.QtWidgets import QApplication, QGridLayout, QWidget
 from matplotlib import pyplot as plt
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from scipy import signal
@@ -13,7 +13,7 @@ class FFTWidget(QWidget):
     def __init__(self):
         super().__init__()
 
-        plt.style.use('seaborn')
+        plt.style.use("seaborn")
 
         # Grid layout
         grid = QGridLayout(self)
@@ -43,10 +43,10 @@ class FFTWidget(QWidget):
         # Do not plot 0 Hz which is the mean amplitude
         ax = self.ax[0]
         ax.clear()
-        ax.plot(freq[1:], amps[1:], color='b', linewidth=0.2)
-        ax.set_xlabel('Frequency (Hz)')
-        ax.set_ylabel('Amplitude ($\mathregular{m^2}$)')
-        ax.set_title('FFT')
+        ax.plot(freq[1:], amps[1:], color="b", linewidth=0.2)
+        ax.set_xlabel("Frequency (Hz)")
+        ax.set_ylabel("Amplitude ($\mathregular{m^2}$)")
+        ax.set_title("FFT")
         ax.set_xlim(0, 1)
 
         self.fig.tight_layout()
@@ -73,14 +73,14 @@ class FFTWidget(QWidget):
         # ax = self.ax[0]
         ax = self.ax
         ax.clear()
-        ax.plot(freq, amps, color='r')  # , linewidth=0.2)
+        ax.plot(freq, amps, color="r")  # , linewidth=0.2)
         # ax.plot(freq[1:], np.log10(amps[1:]), color='b')  # , linewidth=0.2)
-        ax.set_xlabel('Frequency (Hz)')
-        ax.set_ylabel('PSD ($\mathregular{(m/s^2)^2/Hz}$)')
-        ax.set_title('Power Spectral Density')
+        ax.set_xlabel("Frequency (Hz)")
+        ax.set_ylabel("PSD ($\mathregular{(m/s^2)^2/Hz}$)")
+        ax.set_title("Power Spectral Density")
         # ax.set_xlim(0, 1)
         self.ax.margins(x=0, y=0)
-        self.ax.set_yscale('log')
+        self.ax.set_yscale("log")
 
         # self.fig.tight_layout()
         self.canvas.draw()
@@ -129,10 +129,10 @@ class FFTWidget(QWidget):
 
         ax = self.ax
         ax.clear()
-        ax.plot(f, pxx, color='y', linewidth=0.2)
-        ax.set_xlabel('Frequency (Hz)')
-        ax.set_ylabel('PSD ($\mathregular{(m^2)^2/Hz}$)')
-        ax.set_title('Periodogram')
+        ax.plot(f, pxx, color="y", linewidth=0.2)
+        ax.set_xlabel("Frequency (Hz)")
+        ax.set_ylabel("PSD ($\mathregular{(m^2)^2/Hz}$)")
+        ax.set_title("Periodogram")
         ax.set_xlim(0, 1)
 
         self.fig.tight_layout()
@@ -140,7 +140,7 @@ class FFTWidget(QWidget):
 
 
 # For testing layout
-if __name__ == '__main__':
+if __name__ == "__main__":
     app = QApplication(sys.argv)
     w = FFTWidget()
     w.show()

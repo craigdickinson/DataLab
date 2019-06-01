@@ -26,25 +26,29 @@ class DataQualityReport(QtWidgets.QWidget):
 
         self.loggerCombo = QtWidgets.QComboBox()
         self.loggerCombo.setMinimumWidth(100)
-        self.loggerCombo.addItem('-')
+        self.loggerCombo.addItem("-")
 
-        self.hbox.addWidget(QtWidgets.QLabel('Selected logger:'))
+        self.hbox.addWidget(QtWidgets.QLabel("Selected logger:"))
         self.hbox.addWidget(self.loggerCombo)
 
         # Data quality report group
-        self.qualityGroup = QtWidgets.QGroupBox('Data Quality Screening Results')
+        self.qualityGroup = QtWidgets.QGroupBox("Data Quality Screening Results")
         self.qualityGroup.setFixedSize(300, 100)
         self.form = QtWidgets.QFormLayout(self.qualityGroup)
-        self.numFiles = QtWidgets.QLabel('-')
-        self.numBadFilenames = QtWidgets.QLabel('-')
-        self.percCompleteData = QtWidgets.QLabel('-')
+        self.numFiles = QtWidgets.QLabel("-")
+        self.numBadFilenames = QtWidgets.QLabel("-")
+        self.percCompleteData = QtWidgets.QLabel("-")
         self.minResTable = QtWidgets.QTableWidget()
         self.minResTable.setColumnCount(2)
         self.minResTable.setRowCount(4)
 
-        self.form.addRow(QtWidgets.QLabel('Number of files:'), self.numFiles)
-        self.form.addRow(QtWidgets.QLabel('Number of bad file names:'), self.numBadFilenames)
-        self.form.addRow(QtWidgets.QLabel('Percentage of complete data:'), self.percCompleteData)
+        self.form.addRow(QtWidgets.QLabel("Number of files:"), self.numFiles)
+        self.form.addRow(
+            QtWidgets.QLabel("Number of bad file names:"), self.numBadFilenames
+        )
+        self.form.addRow(
+            QtWidgets.QLabel("Percentage of complete data:"), self.percCompleteData
+        )
         # self.form.addRow(QtWidgets.QLabel('Percentage of complete data:'), self.minResTable)
 
         self.layout.addWidget(self.selectedLoggerWidget, 0, 0)
@@ -72,7 +76,7 @@ class DataQualityReport(QtWidgets.QWidget):
         # Update report
         self.numFiles.setText(str(len(logger_data_screen.files)))
         self.numBadFilenames.setText(str(len(logger.dict_bad_filenames)))
-        perc_complete_data = f'{int(logger_data_screen.data_completeness.min())}%'
+        perc_complete_data = f"{int(logger_data_screen.data_completeness.min())}%"
         self.percCompleteData.setText(perc_complete_data)
 
     def populate_logger_combo(self, logger_ids):
@@ -82,7 +86,7 @@ class DataQualityReport(QtWidgets.QWidget):
         self.loggerCombo.addItems(logger_ids)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
     win = DataQualityReport()
     win.show()

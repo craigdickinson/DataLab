@@ -1,7 +1,7 @@
 """
 Class to create spectrograms.
 """
-__author__ = 'Craig Dickinson'
+__author__ = "Craig Dickinson"
 
 import os
 from datetime import timedelta
@@ -35,7 +35,9 @@ class Spectrogram:
         """
 
         if n == 0:
-            raise ZeroDivisionError('Error calculating spectrogram frequencies. Sample length is zero.')
+            raise ZeroDivisionError(
+                "Error calculating spectrogram frequencies. Sample length is zero."
+            )
 
         d = T / n
         self.freq = np.fft.rfftfreq(n, d)
@@ -65,7 +67,9 @@ class Spectrogram:
             if channel not in self.spectrograms:
                 self.spectrograms[channel] = psd[:, i]
             else:
-                self.spectrograms[channel] = np.row_stack([self.spectrograms[channel], psd[:, i]])
+                self.spectrograms[channel] = np.row_stack(
+                    [self.spectrograms[channel], psd[:, i]]
+                )
 
     def add_timestamps(self, dates):
         """Store all sample start dates."""
@@ -87,10 +91,10 @@ class Spectrogram:
             plt.xlim(0, 1)
             # locs, labels = plt.xticks()
             # plt.setp(labels, rotation=90)
-            plt.xlabel('Frequency (Hz)')
-            plt.ylabel('Date')
+            plt.xlabel("Frequency (Hz)")
+            plt.ylabel("Date")
             plt.tight_layout()
-            fname = self.logger_id + '_' + channel + '.png'
+            fname = self.logger_id + "_" + channel + ".png"
             fname = os.path.join(self.output_dir, fname)
             plt.savefig(fname)
 
@@ -101,9 +105,9 @@ class Spectrogram:
 
         for channel, spect in self.spectrograms.items():
             # print('Writing spectrogram file for ' + self.logger_id + ' ' + channel)
-            filename = '_'.join(('Spectrograms_Data', self.logger_id, channel + '.h5'))
+            filename = "_".join(("Spectrograms_Data", self.logger_id, channel + ".h5"))
             file_path = os.path.join(self.output_dir, filename)
-            store_name = self.logger_id + '_' + channel
+            store_name = self.logger_id + "_" + channel
             f = self.freq
             t = self.datetimes
 
@@ -120,7 +124,7 @@ class Spectrogram:
 
         for channel, spect in self.spectrograms.items():
             # print('Writing spectrogram csv file for ' + self.logger_id + ' ' + channel)
-            fname = '_'.join(('Spectrograms_Data', self.logger_id, channel + '.csv'))
+            fname = "_".join(("Spectrograms_Data", self.logger_id, channel + ".csv"))
             fpath = os.path.join(self.output_dir, fname)
             f = self.freq
             t = self.datetimes
@@ -137,10 +141,12 @@ class Spectrogram:
         t0 = time()
 
         for channel, spect in self.spectrograms.items():
-            print('Writing spectrogram excel file for ' + self.logger_id + ' ' + channel)
-            fname = '_'.join(('Spectrograms_Data', self.logger_id, channel + '.xlsx'))
+            print(
+                "Writing spectrogram excel file for " + self.logger_id + " " + channel
+            )
+            fname = "_".join(("Spectrograms_Data", self.logger_id, channel + ".xlsx"))
             fpath = os.path.join(self.output_dir, fname)
-            store_name = self.logger_id + '_' + channel
+            store_name = self.logger_id + "_" + channel
             f = self.freq
             t = self.datetimes
 
@@ -150,7 +156,8 @@ class Spectrogram:
             writer.save()
 
         t1 = round(time() - t0)
-        print('Write xlsx time = {}'.format(str(timedelta(seconds=t1))))
+        print("Write xlsx time = {}".format(str(timedelta(seconds=t1))))
+
 
 # if __name__ == '__main__':
 #     folder = r'C:\Users\dickinsc\PycharmProjects\_2. DataLab Analysis Files\Misc\Output 21239 Test 4'

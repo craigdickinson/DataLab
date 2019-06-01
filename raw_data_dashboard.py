@@ -25,19 +25,19 @@ class TimeSeriesPlotWidget(QtWidgets.QWidget):
 
         # So can access parent class
         self.parent = parent
-        plt.style.use('seaborn')
+        plt.style.use("seaborn")
 
         self.files_list = []
-        self.logger_id = ''
+        self.logger_id = ""
         # self.project = 'Project Title'
-        self.project = 'Total WoS Glendronach Well Monitoring'
+        self.project = "Total WoS Glendronach Well Monitoring"
 
         # Plot settings
         self.plot_pri = False
         self.plot_sec = False
         self.plot_period = False
         self.log_scale = False
-        self.psd_params_type = 'default'
+        self.psd_params_type = "default"
         self.set_init_axis_limits = True
         self.ignore_on_xlim_change = True
 
@@ -47,19 +47,19 @@ class TimeSeriesPlotWidget(QtWidgets.QWidget):
 
         # Default PSD parameters
         self.def_num_ensembles = 1
-        self.def_window = 'None'
+        self.def_window = "None"
         self.def_overlap = 0
         self.def_nperseg = 256
 
         # Default Welch PSD parameters
         self.welch_num_ensembles = 46.875
-        self.welch_window = 'Hann'
+        self.welch_window = "Hann"
         self.welch_overlap = 50
         self.welch_nperseg = 256
 
         # Custom Welch PSD parameters
         self.cust_num_ensembles = 1
-        self.cust_window = 'None'
+        self.cust_window = "None"
         self.cust_overlap = 0
         self.cust_nperseg = 256
 
@@ -108,25 +108,25 @@ class TimeSeriesPlotWidget(QtWidgets.QWidget):
         vboxSetup = QtWidgets.QVBoxLayout(setupWidget)
 
         # Load file
-        self.loadFile = QtWidgets.QPushButton('Load Raw Logger File')
-        self.loadFile.setToolTip('Load raw logger file')
+        self.loadFile = QtWidgets.QPushButton("Load Raw Logger File")
+        self.loadFile.setToolTip("Load raw logger file")
 
         # Files list
-        filesLabel = QtWidgets.QLabel('Logger Files')
+        filesLabel = QtWidgets.QLabel("Logger Files")
         self.filesList = QtWidgets.QListWidget()
 
         # Channels list
-        channelsLabel = QtWidgets.QLabel('Channels (echo)')
+        channelsLabel = QtWidgets.QLabel("Channels (echo)")
         self.channelsList = QtWidgets.QListWidget()
         self.channelsList.setFixedHeight(120)
 
         # Primary and secondary axis combos
-        priLabel = QtWidgets.QLabel('Primary Axis Channel:')
-        secLabel = QtWidgets.QLabel('Secondary Axis Channel:')
+        priLabel = QtWidgets.QLabel("Primary Axis Channel:")
+        secLabel = QtWidgets.QLabel("Secondary Axis Channel:")
         self.priAxis = QtWidgets.QComboBox()
         self.secAxis = QtWidgets.QComboBox()
-        self.priAxis.addItem('None')
-        self.secAxis.addItem('None')
+        self.priAxis.addItem("None")
+        self.secAxis.addItem("None")
 
         # Line separator
         line = QtWidgets.QFrame()
@@ -134,8 +134,8 @@ class TimeSeriesPlotWidget(QtWidgets.QWidget):
         line.setFrameShadow(QtWidgets.QFrame.Sunken)
 
         # Plot settings and replot buttons
-        self.settingsButton = QtWidgets.QPushButton('Plot Settings')
-        self.replotButton = QtWidgets.QPushButton('Replot')
+        self.settingsButton = QtWidgets.QPushButton("Plot Settings")
+        self.replotButton = QtWidgets.QPushButton("Replot")
 
         # Add setup widgets
         vboxSetup.addWidget(self.loadFile)
@@ -196,10 +196,10 @@ class TimeSeriesPlotWidget(QtWidgets.QWidget):
         try:
             self.load_file(filename)
         except ValueError as e:
-            self.parent.error(f'Error: {e}')
+            self.parent.error(f"Error: {e}")
         except Exception as e:
-            msg = 'Unexpected error loading logger file'
-            self.parent.error(f'{msg}:\n{e}\n{sys.exc_info()[0]}')
+            msg = "Unexpected error loading logger file"
+            self.parent.error(f"{msg}:\n{e}\n{sys.exc_info()[0]}")
             logging.exception(msg)
 
     def load_file(self, filename):
@@ -208,7 +208,7 @@ class TimeSeriesPlotWidget(QtWidgets.QWidget):
         self.df = self.read_logger_file(filename)
 
         # Store logger ID (assume the first portion of the filename)
-        self.logger_id = filename.split('_')[0]
+        self.logger_id = filename.split("_")[0]
 
         # Store channel names and units - ignore column 1 (Timestamps)
         self.channel_names = self.df.columns.get_level_values(0).tolist()[1:]
@@ -243,16 +243,16 @@ class TimeSeriesPlotWidget(QtWidgets.QWidget):
     def read_logger_file(self, filename):
         """Read a raw logger file."""
 
-        ext = filename.split('.')[-1].lower()
+        ext = filename.split(".")[-1].lower()
 
-        if ext == 'csv':
+        if ext == "csv":
             df = read_fugro_csv(filename)
-        elif ext == 'acc':
+        elif ext == "acc":
             df = read_pulse_acc(filename)
-        elif ext == 'h5':
+        elif ext == "h5":
             df = read_logger_hdf5(filename)
         else:
-            raise FileNotFoundError(f'No files with the extension {ext} found.')
+            raise FileNotFoundError(f"No files with the extension {ext} found.")
 
         return df
 
@@ -275,14 +275,14 @@ class TimeSeriesPlotWidget(QtWidgets.QWidget):
                 item.setFlags(item.flags() & ~QtCore.Qt.ItemIsSelectable)
                 self.channelsList.addItem(item)
 
-            self.priAxis.addItem('None')
-            self.secAxis.addItem('None')
+            self.priAxis.addItem("None")
+            self.secAxis.addItem("None")
             self.priAxis.addItems(self.channel_names)
             self.secAxis.addItems(self.channel_names)
             self.current_channels = self.channel_names
 
             if self.channelsList.count() == 0:
-                raise ValueError('No channels added')
+                raise ValueError("No channels added")
 
             # Initialise so that only first channel is plotted on primary axis
             self.pri_ix = 1
@@ -305,7 +305,7 @@ class TimeSeriesPlotWidget(QtWidgets.QWidget):
 
         # Store timestamp column and rename column since original data frame is a multi-index header
         df_plot = df.iloc[:, 0].to_frame()
-        df_plot.columns = ['Timestamp']
+        df_plot.columns = ["Timestamp"]
 
         # Append data columns to plot to data frame
         i = self.pri_ix
@@ -325,7 +325,7 @@ class TimeSeriesPlotWidget(QtWidgets.QWidget):
     def calc_filtered_data(self, df_raw):
         """Filter out low frequencies (drift) and high frequencies (noise)."""
 
-        df_raw = df_raw.select_dtypes('number')
+        df_raw = df_raw.select_dtypes("number")
         low_cutoff = self.low_cutoff
         high_cutoff = self.high_cutoff
 
@@ -352,29 +352,32 @@ class TimeSeriesPlotWidget(QtWidgets.QWidget):
 
         try:
             self.plot_time_series(self.df_plot, self.df_filtered)
-            self.plot_psd(self.df_plot[self.ts_xlim[0]:self.ts_xlim[1]])
+            self.plot_psd(self.df_plot[self.ts_xlim[0] : self.ts_xlim[1]])
         except ValueError as e:
             self.parent.error(str(e))
         except Exception as e:
-            msg = 'Unexpected error processing loggers'
-            self.parent.error(f'{msg}:\n{e}\n{sys.exc_info()[0]}')
+            msg = "Unexpected error processing loggers"
+            self.parent.error(f"{msg}:\n{e}\n{sys.exc_info()[0]}")
             logging.exception(msg)
 
         # Titles and legend
         self.plot_title(self.fig, self.df_plot)
-        self.ax1.set_title('Time Series', size=12)
-        self.ax2.set_title('Power Spectral Density', size=12)
-        self.fig.legend(loc='lower center',
-                        ncol=6,
-                        fontsize=11,
-                        # frameon=False,
-                        # fancybox=False,
-                        # edgecolor='none',
-                        # facecolor='none',
-                        )
+        self.ax1.set_title("Time Series", size=12)
+        self.ax2.set_title("Power Spectral Density", size=12)
+        self.fig.legend(
+            loc="lower center",
+            ncol=6,
+            fontsize=11,
+            # frameon=False,
+            # fancybox=False,
+            # edgecolor='none',
+            # facecolor='none',
+        )
 
         # Ensure plots don't overlap suptitle and legend
-        self.fig.tight_layout(rect=[0, .05, 1, .9])  # (rect=[left, bottom, right, top])
+        self.fig.tight_layout(
+            rect=[0, 0.05, 1, 0.9]
+        )  # (rect=[left, bottom, right, top])
         # (left, bottom, right, top, wspace, hspace)
         # self.fig.subplots_adjust(bottom=.15, top=.85, hspace=.5)
         self.canvas.draw()
@@ -411,7 +414,7 @@ class TimeSeriesPlotWidget(QtWidgets.QWidget):
         """Plot time series."""
 
         # Ignore timestamp column
-        df = df.select_dtypes('number')
+        df = df.select_dtypes("number")
 
         self.ax1.cla()
         self.ax1b.cla()
@@ -426,21 +429,21 @@ class TimeSeriesPlotWidget(QtWidgets.QWidget):
             self.ax1b.grid(True)
 
         # Event connection to refresh PSD plot upon change of time series x-axis limits
-        self.ax1.callbacks.connect('xlim_changed', self.on_xlims_change)
+        self.ax1.callbacks.connect("xlim_changed", self.on_xlims_change)
 
         # Plot primary axis channel time series
         if self.plot_pri is True:
-            self.ax1.plot(df.iloc[:, 0], c='dodgerblue', label=df.columns[0], lw=1)
-            ylabel = f'{df.columns[0]} ({self.plot_units[0]})'
+            self.ax1.plot(df.iloc[:, 0], c="dodgerblue", label=df.columns[0], lw=1)
+            ylabel = f"{df.columns[0]} ({self.plot_units[0]})"
             self.ax1.set_ylabel(ylabel)
 
             # Plot filtered time series if exists
             if not df_filtered.empty:
                 self.ax1.plot(
                     df_filtered.iloc[:, 0],
-                    c='red',
-                    ls='--',
-                    label=f'{df.columns[0]} (Filtered)',
+                    c="red",
+                    ls="--",
+                    label=f"{df.columns[0]} (Filtered)",
                     lw=1,
                 )
         else:
@@ -448,8 +451,8 @@ class TimeSeriesPlotWidget(QtWidgets.QWidget):
 
         # Plot secondary axis channel time series
         if self.plot_sec is True:
-            self.ax1b.plot(df.iloc[:, -1], c='purple', label=df.columns[-1], lw=1)
-            ylabel = f'{df.columns[-1]} ({self.plot_units[-1]})'
+            self.ax1b.plot(df.iloc[:, -1], c="purple", label=df.columns[-1], lw=1)
+            ylabel = f"{df.columns[-1]} ({self.plot_units[-1]})"
             self.ax1b.set_ylabel(ylabel)
             self.ax1b.yaxis.set_visible(True)
 
@@ -457,15 +460,15 @@ class TimeSeriesPlotWidget(QtWidgets.QWidget):
             if not df_filtered.empty:
                 self.ax1b.plot(
                     df_filtered.iloc[:, -1],
-                    c='green',
-                    ls='--',
-                    label=f'{df.columns[-1]} (Filtered)',
+                    c="green",
+                    ls="--",
+                    label=f"{df.columns[-1]} (Filtered)",
                     lw=1,
                 )
         else:
             self.ax1b.yaxis.set_visible(False)
 
-        self.ax1.set_xlabel('Time (s)', size=11)
+        self.ax1.set_xlabel("Time (s)", size=11)
 
         # Apply axis limits of full dataset if a new file or a file with a different number of columns is loaded
         if self.set_init_axis_limits is True:
@@ -488,7 +491,7 @@ class TimeSeriesPlotWidget(QtWidgets.QWidget):
         """Plot PSD."""
 
         # If the first column is timestamp, drop it (this will be the case but doing the check for generality)
-        if df.columns[0] == 'Timestamp':
+        if df.columns[0] == "Timestamp":
             df = df.drop(df.columns[0], axis=1)
 
         self.ax2.cla()
@@ -509,23 +512,25 @@ class TimeSeriesPlotWidget(QtWidgets.QWidget):
             # Handle for divide by zero
             f = 1 / f[1:]
             pxx = pxx[:, 1:]
-            self.ax2.set_xlabel('Period (s)', size=11)
+            self.ax2.set_xlabel("Period (s)", size=11)
         else:
-            self.ax2.set_xlabel('Frequency (Hz)', size=11)
+            self.ax2.set_xlabel("Frequency (Hz)", size=11)
 
         # Convert PSD to log10 if plot option selected
         if self.log_scale is True:
             pxx = np.log10(pxx)
-            log10 = r'$\mathregular{log_{10}}$'
+            log10 = r"$\mathregular{log_{10}}$"
         else:
-            log10 = ''
+            log10 = ""
 
         # Plot primary axis channel PSD
         if self.plot_pri is True:
-            self.ax2.plot(f, pxx[0], c='dodgerblue')
+            self.ax2.plot(f, pxx[0], c="dodgerblue")
             channel = df.columns[0]
             units = self.plot_units[0]
-            ylabel = f'{log10} {channel} PSD ($\mathregular{{({units})^2/Hz}})$'.lstrip()
+            ylabel = (
+                f"{log10} {channel} PSD ($\mathregular{{({units})^2/Hz}})$".lstrip()
+            )
             self.ax2.set_ylabel(ylabel, size=11)
             self.ax2.yaxis.set_visible(True)
         else:
@@ -533,10 +538,12 @@ class TimeSeriesPlotWidget(QtWidgets.QWidget):
 
         # Plot secondary axis channel PSD
         if self.plot_sec is True:
-            self.ax2b.plot(f, pxx[-1], c='purple')
+            self.ax2b.plot(f, pxx[-1], c="purple")
             channel = df.columns[-1]
             units = self.plot_units[-1]
-            ylabel = f'{log10} {channel} PSD ($\mathregular{{({units})^2/Hz}})$'.lstrip()
+            ylabel = (
+                f"{log10} {channel} PSD ($\mathregular{{({units})^2/Hz}})$".lstrip()
+            )
             self.ax2b.set_ylabel(ylabel, size=11)
             self.ax2b.yaxis.set_visible(True)
         else:
@@ -556,8 +563,8 @@ class TimeSeriesPlotWidget(QtWidgets.QWidget):
         # Sampling frequency
         fs = 1 / (df.index[1] - df.index[0])
         window = self.window.lower()
-        if window == 'none':
-            window = 'boxcar'
+        if window == "none":
+            window = "boxcar"
         nperseg = int(len(df) / self.num_ensembles)
         noverlap = nperseg * self.overlap // 100
 
@@ -565,9 +572,11 @@ class TimeSeriesPlotWidget(QtWidgets.QWidget):
             # Note the default Welch parameters are equivalent to running
             # f, pxx = signal.welch(df.T, fs=fs)
             # TODO: Make PSD calc a core script
-            f, pxx = signal.welch(df.T, fs=fs, window=window, nperseg=nperseg, noverlap=noverlap)
+            f, pxx = signal.welch(
+                df.T, fs=fs, window=window, nperseg=nperseg, noverlap=noverlap
+            )
         except Exception as e:
-            raise ValueError(f'Could not calculate PSD\n{e}')
+            raise ValueError(f"Could not calculate PSD\n{e}")
 
         # TODO: Dataframe of PSD - give option to export to csv
         # df_psd = pd.DataFrame(pxx.T, index=f)
@@ -583,16 +592,17 @@ class TimeSeriesPlotWidget(QtWidgets.QWidget):
         """Write main plot title."""
 
         # Store start and end timestamp of plot data for title
-        tstart = df.iloc[0, 0].strftime('%d %b %Y %H:%M:%S').lstrip('0')
-        tend = df.iloc[-1, 0].strftime('%d %b %Y %H:%M:%S')[-8:]
-        self.subtitle = f'{self.logger_id} Logger - {tstart} to {tend}'
-        title = self.project + '\n' + self.subtitle
-        fig.suptitle(title,
-                     # size=16,
-                     fontname='tahoma',
-                     color=color_2H,
-                     weight='bold',
-                     )
+        tstart = df.iloc[0, 0].strftime("%d %b %Y %H:%M:%S").lstrip("0")
+        tend = df.iloc[-1, 0].strftime("%d %b %Y %H:%M:%S")[-8:]
+        self.subtitle = f"{self.logger_id} Logger - {tstart} to {tend}"
+        title = self.project + "\n" + self.subtitle
+        fig.suptitle(
+            title,
+            # size=16,
+            fontname="tahoma",
+            color=color_2H,
+            weight="bold",
+        )
 
     def on_xlims_change(self, ax):
         # Convert to datetime
@@ -606,7 +616,7 @@ class TimeSeriesPlotWidget(QtWidgets.QWidget):
             self.psd_xlim = tuple(round(x, 1) for x in self.ax2.get_xlim())
 
             # Update PSD plot and plot title with new timestamp range
-            df_slice = self.df_plot[self.ts_xlim[0]:self.ts_xlim[1]]
+            df_slice = self.df_plot[self.ts_xlim[0] : self.ts_xlim[1]]
             self.plot_psd(df_slice)
             self.plot_title(self.fig, df_slice)
             # print(f'updated xlims: {self.ts_xlim}')
@@ -615,7 +625,7 @@ class TimeSeriesPlotWidget(QtWidgets.QWidget):
         """Formats data in plot coords box."""
 
         # return '%1.3f' % y
-        return f'{y:1.3f}'
+        return f"{y:1.3f}"
 
     def manual_calc_psd(self, df, col, n):
         """Calculate PSD."""
@@ -855,21 +865,18 @@ class LoggerPlotSettings(QtWidgets.QDialog):
         self.parent = parent
 
         # List of pairs of window combo options and corresponding signal.welch argument
-        self.windows = ['None',
-                        'Hann',
-                        'Hamming',
-                        'Bartlett',
-                        'Blackman',
-                        ]
+        self.windows = ["None", "Hann", "Hamming", "Bartlett", "Blackman"]
 
         self.init_ui()
         self.connect_signals()
 
     def init_ui(self):
-        self.setWindowTitle('Logger Plot Settings')
+        self.setWindowTitle("Logger Plot Settings")
 
         # Widget sizing policy - prevent expansion
-        policy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed)
+        policy = QtWidgets.QSizePolicy(
+            QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed
+        )
 
         # Layout
         # self.setFixedSize(400, 300)
@@ -880,22 +887,22 @@ class LoggerPlotSettings(QtWidgets.QDialog):
         form = QtWidgets.QWidget()
         formLayout = QtWidgets.QFormLayout(form)
         self.optProject = QtWidgets.QLineEdit()
-        formLayout.addRow(QtWidgets.QLabel('Project title:'), self.optProject)
+        formLayout.addRow(QtWidgets.QLabel("Project title:"), self.optProject)
 
         # Time series axes limits
-        frameTS = QtWidgets.QGroupBox('Time Series Limits')
+        frameTS = QtWidgets.QGroupBox("Time Series Limits")
         grid = QtWidgets.QGridLayout(frameTS)
-        self.optTSXmin = QtWidgets.QLineEdit('0')
-        self.optTSXmax = QtWidgets.QLineEdit('1')
+        self.optTSXmin = QtWidgets.QLineEdit("0")
+        self.optTSXmax = QtWidgets.QLineEdit("1")
         # self.optTSYmin = QtWidgets.QLineEdit('0')
         # self.optTSYmax = QtWidgets.QLineEdit('1')
         self.optTSXmin.setFixedWidth(50)
         self.optTSXmax.setFixedWidth(50)
         # self.optTSYmin.setFixedWidth(50)
         # self.optTSYmax.setFixedWidth(50)
-        grid.addWidget(QtWidgets.QLabel('X min:'), 0, 0)
+        grid.addWidget(QtWidgets.QLabel("X min:"), 0, 0)
         grid.addWidget(self.optTSXmin, 0, 1)
-        grid.addWidget(QtWidgets.QLabel('X max:'), 0, 2)
+        grid.addWidget(QtWidgets.QLabel("X max:"), 0, 2)
         grid.addWidget(self.optTSXmax, 0, 3)
         # grid.addWidget(QtWidgets.QLabel('Y min:'), 1, 0)
         # grid.addWidget(self.optTSYmin, 1, 1)
@@ -903,19 +910,19 @@ class LoggerPlotSettings(QtWidgets.QDialog):
         # grid.addWidget(self.optTSYmax, 1, 3)
 
         # PSD axes limits
-        framePSD = QtWidgets.QGroupBox('PSD Limits')
+        framePSD = QtWidgets.QGroupBox("PSD Limits")
         grid = QtWidgets.QGridLayout(framePSD)
-        self.optPSDXmin = QtWidgets.QLineEdit('0')
-        self.optPSDXmax = QtWidgets.QLineEdit('1')
+        self.optPSDXmin = QtWidgets.QLineEdit("0")
+        self.optPSDXmax = QtWidgets.QLineEdit("1")
         # self.optPSDYmin = QtWidgets.QLineEdit('0')
         # self.optPSDYmax = QtWidgets.QLineEdit('1')
         self.optPSDXmin.setFixedWidth(50)
         self.optPSDXmax.setFixedWidth(50)
         # self.optPSDYmin.setFixedWidth(50)
         # self.optPSDYmax.setFixedWidth(50)
-        grid.addWidget(QtWidgets.QLabel('X min:'), 0, 0)
+        grid.addWidget(QtWidgets.QLabel("X min:"), 0, 0)
         grid.addWidget(self.optPSDXmin, 0, 1)
-        grid.addWidget(QtWidgets.QLabel('X max:'), 0, 2)
+        grid.addWidget(QtWidgets.QLabel("X max:"), 0, 2)
         grid.addWidget(self.optPSDXmax, 0, 3)
         # grid.addWidget(QtWidgets.QLabel('Y min:'), 1, 0)
         # grid.addWidget(self.optPSDYmin, 1, 1)
@@ -930,37 +937,37 @@ class LoggerPlotSettings(QtWidgets.QDialog):
         hbox.addWidget(framePSD)
 
         # Low/high cut-off frequencies group
-        freqCutoffsGroup = QtWidgets.QGroupBox('Frequency Cut-offs')
+        freqCutoffsGroup = QtWidgets.QGroupBox("Frequency Cut-offs")
         freqCutoffsGroup.setSizePolicy(policy)
         grid = QtWidgets.QGridLayout(freqCutoffsGroup)
 
-        self.lowCutoff = QtWidgets.QLineEdit('0.05')
+        self.lowCutoff = QtWidgets.QLineEdit("0.05")
         self.lowCutoff.setFixedWidth(50)
-        self.highCutoff = QtWidgets.QLineEdit('0.50')
+        self.highCutoff = QtWidgets.QLineEdit("0.50")
         self.highCutoff.setFixedWidth(50)
-        self.lowFreqChkBox = QtWidgets.QCheckBox('Apply cut-off')
+        self.lowFreqChkBox = QtWidgets.QCheckBox("Apply cut-off")
         self.lowFreqChkBox.setChecked(True)
-        self.highFreqChkBox = QtWidgets.QCheckBox('Apply cut-off')
+        self.highFreqChkBox = QtWidgets.QCheckBox("Apply cut-off")
         self.highFreqChkBox.setChecked(True)
-        grid.addWidget(QtWidgets.QLabel('Low freq cut-off (Hz):'), 0, 0)
+        grid.addWidget(QtWidgets.QLabel("Low freq cut-off (Hz):"), 0, 0)
         grid.addWidget(self.lowCutoff, 0, 1)
         grid.addWidget(self.lowFreqChkBox, 0, 2)
-        grid.addWidget(QtWidgets.QLabel('High freq cut-off (Hz):'), 1, 0)
+        grid.addWidget(QtWidgets.QLabel("High freq cut-off (Hz):"), 1, 0)
         grid.addWidget(self.highCutoff, 1, 1)
         grid.addWidget(self.highFreqChkBox, 1, 2)
 
         # Frequency or period radio buttons
-        psdXAxisGroup = QtWidgets.QGroupBox('PSD X Axis')
+        psdXAxisGroup = QtWidgets.QGroupBox("PSD X Axis")
         psdXAxisGroup.setSizePolicy(policy)
         vbox = QtWidgets.QVBoxLayout(psdXAxisGroup)
-        self.radioFreq = QtWidgets.QRadioButton('Frequency')
-        self.radioPeriod = QtWidgets.QRadioButton('Period')
+        self.radioFreq = QtWidgets.QRadioButton("Frequency")
+        self.radioPeriod = QtWidgets.QRadioButton("Period")
         vbox.addWidget(self.radioFreq)
         vbox.addWidget(self.radioPeriod)
         self.radioFreq.setChecked(True)
 
         # PSD log scale checkbox
-        self.logScale = QtWidgets.QCheckBox('PSD log scale')
+        self.logScale = QtWidgets.QCheckBox("PSD log scale")
         self.logScale.setChecked(False)
 
         # Combine PSD x-axis and log scale
@@ -973,14 +980,14 @@ class LoggerPlotSettings(QtWidgets.QDialog):
         # Create a dummy container to maintain correct alignment with other widgets
         psdParams = QtWidgets.QWidget()
         formLayout = QtWidgets.QVBoxLayout(psdParams)
-        frame = QtWidgets.QGroupBox('Power Spectral Density Parameters')
+        frame = QtWidgets.QGroupBox("Power Spectral Density Parameters")
         frame.setSizePolicy(policy)
         formLayout.addWidget(frame)
 
         # Parameters choice
-        self.radioDefault = QtWidgets.QRadioButton('Default parameters')
-        self.radioWelch = QtWidgets.QRadioButton('Default Welch parameters')
-        self.radioCustom = QtWidgets.QRadioButton('Custom parameters')
+        self.radioDefault = QtWidgets.QRadioButton("Default parameters")
+        self.radioWelch = QtWidgets.QRadioButton("Default Welch parameters")
+        self.radioCustom = QtWidgets.QRadioButton("Custom parameters")
         self.radioDefault.setChecked(True)
 
         # PSD parameters form
@@ -991,7 +998,7 @@ class LoggerPlotSettings(QtWidgets.QDialog):
         self.optNumEnsembles = QtWidgets.QLineEdit()
         self.optWindow = QtWidgets.QComboBox()
         self.optWindow.addItems(self.windows)
-        self.optOverlap = QtWidgets.QLineEdit('50')
+        self.optOverlap = QtWidgets.QLineEdit("50")
         self.optNperseg = QtWidgets.QLineEdit()
         self.optFs = QtWidgets.QLineEdit()
 
@@ -1006,11 +1013,17 @@ class LoggerPlotSettings(QtWidgets.QDialog):
         self.optNperseg.setEnabled(False)
         self.optFs.setEnabled(False)
 
-        formLayout.addRow(QtWidgets.QLabel('Number of ensembles:'), self.optNumEnsembles)
-        formLayout.addRow(QtWidgets.QLabel('Window:'), self.optWindow)
-        formLayout.addRow(QtWidgets.QLabel('Window overlap (%):'), self.optOverlap)
-        formLayout.addRow(QtWidgets.QLabel('Number of points per ensemble (echo):'), self.optNperseg)
-        formLayout.addRow(QtWidgets.QLabel('Sampling frequency (Hz) (echo):'), self.optFs)
+        formLayout.addRow(
+            QtWidgets.QLabel("Number of ensembles:"), self.optNumEnsembles
+        )
+        formLayout.addRow(QtWidgets.QLabel("Window:"), self.optWindow)
+        formLayout.addRow(QtWidgets.QLabel("Window overlap (%):"), self.optOverlap)
+        formLayout.addRow(
+            QtWidgets.QLabel("Number of points per ensemble (echo):"), self.optNperseg
+        )
+        formLayout.addRow(
+            QtWidgets.QLabel("Sampling frequency (Hz) (echo):"), self.optFs
+        )
 
         hbox = QtWidgets.QHBoxLayout(frame)
         paramsChoice = QtWidgets.QWidget()
@@ -1023,10 +1036,12 @@ class LoggerPlotSettings(QtWidgets.QDialog):
         hbox.addWidget(params)
 
         # Button box
-        self.buttonBox = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Ok |
-                                                    QtWidgets.QDialogButtonBox.Cancel |
-                                                    QtWidgets.QDialogButtonBox.Apply |
-                                                    QtWidgets.QDialogButtonBox.Reset)
+        self.buttonBox = QtWidgets.QDialogButtonBox(
+            QtWidgets.QDialogButtonBox.Ok
+            | QtWidgets.QDialogButtonBox.Cancel
+            | QtWidgets.QDialogButtonBox.Apply
+            | QtWidgets.QDialogButtonBox.Reset
+        )
 
         # Final layout
         # sectionLabel = QtWidgets.QLabel('Plot Title and Axes Labels')
@@ -1050,8 +1065,12 @@ class LoggerPlotSettings(QtWidgets.QDialog):
         self.buttonBox.accepted.connect(self.accept)
         self.buttonBox.accepted.connect(self.set_params)
         self.buttonBox.rejected.connect(self.reject)
-        self.buttonBox.button(QtWidgets.QDialogButtonBox.Apply).clicked.connect(self.set_params)
-        self.buttonBox.button(QtWidgets.QDialogButtonBox.Reset).clicked.connect(self.reset_values)
+        self.buttonBox.button(QtWidgets.QDialogButtonBox.Apply).clicked.connect(
+            self.set_params
+        )
+        self.buttonBox.button(QtWidgets.QDialogButtonBox.Reset).clicked.connect(
+            self.reset_values
+        )
 
     def set_low_freq_cutoff_state(self):
         if self.lowFreqChkBox.isChecked() is True:
@@ -1069,14 +1088,14 @@ class LoggerPlotSettings(QtWidgets.QDialog):
         """Get plot parameters from the time series widget and assign to settings widget."""
 
         self.optProject.setText(self.parent.project)
-        self.optTSXmin.setText(f'{self.parent.ax1.get_xlim()[0]:.1f}')
-        self.optTSXmax.setText(f'{self.parent.ax1.get_xlim()[1]:.1f}')
-        self.optPSDXmin.setText(f'{self.parent.ax2.get_xlim()[0]:.1f}')
-        self.optPSDXmax.setText(f'{self.parent.ax2.get_xlim()[1]:.1f}')
+        self.optTSXmin.setText(f"{self.parent.ax1.get_xlim()[0]:.1f}")
+        self.optTSXmax.setText(f"{self.parent.ax1.get_xlim()[1]:.1f}")
+        self.optPSDXmin.setText(f"{self.parent.ax2.get_xlim()[0]:.1f}")
+        self.optPSDXmax.setText(f"{self.parent.ax2.get_xlim()[1]:.1f}")
 
         # Freq cut-offs
-        self.lowCutoff.setText(f'{self.parent.low_cutoff:.2f}')
-        self.highCutoff.setText(f'{self.parent.high_cutoff:.2f}')
+        self.lowCutoff.setText(f"{self.parent.low_cutoff:.2f}")
+        self.highCutoff.setText(f"{self.parent.high_cutoff:.2f}")
 
         if self.parent.plot_period is True:
             self.radioPeriod.setChecked(True)
@@ -1089,13 +1108,13 @@ class LoggerPlotSettings(QtWidgets.QDialog):
             self.logScale.setChecked(False)
 
         # Get PSD parameters
-        if self.parent.psd_params_type == 'default':
+        if self.parent.psd_params_type == "default":
             self.radioDefault.setChecked(True)
             self.optNumEnsembles.setText(str(self.parent.def_num_ensembles))
             self.optWindow.setCurrentText(self.parent.def_window)
             self.optOverlap.setText(str(self.parent.def_overlap))
             self.optNperseg.setText(str(int(self.parent.def_nperseg)))
-        elif self.parent.psd_params_type == 'welch':
+        elif self.parent.psd_params_type == "welch":
             self.radioWelch.setChecked(True)
             self.optNumEnsembles.setText(str(self.parent.welch_num_ensembles))
             self.optWindow.setCurrentText(self.parent.welch_window)
@@ -1119,8 +1138,14 @@ class LoggerPlotSettings(QtWidgets.QDialog):
         # Check numeric parameters are of valid type
         try:
             # Assign axes limits
-            self.parent.ts_xlim = (float(self.optTSXmin.text()), float(self.optTSXmax.text()))
-            self.parent.psd_xlim = (float(self.optPSDXmin.text()), float(self.optPSDXmax.text()))
+            self.parent.ts_xlim = (
+                float(self.optTSXmin.text()),
+                float(self.optTSXmax.text()),
+            )
+            self.parent.psd_xlim = (
+                float(self.optPSDXmin.text()),
+                float(self.optPSDXmax.text()),
+            )
 
             if self.lowFreqChkBox.isChecked() is True:
                 self.parent.apply_low_cutoff = True
@@ -1146,7 +1171,7 @@ class LoggerPlotSettings(QtWidgets.QDialog):
             self.optPSDXmax.setText(str(round(self.parent.psd_xlim[1], 1)))
         except ValueError as e:
             # Notify error in main DataLab class
-            self.parent.parent.error(f'Non-numeric input entered: {e}')
+            self.parent.parent.error(f"Non-numeric input entered: {e}")
         else:
             # Store custom PSD parameters
             if self.radioCustom.isChecked():
@@ -1159,17 +1184,19 @@ class LoggerPlotSettings(QtWidgets.QDialog):
             self.parent.log_scale = self.logScale.isChecked()
 
             if self.radioDefault.isChecked():
-                self.parent.psd_params_type = 'default'
+                self.parent.psd_params_type = "default"
             elif self.radioWelch.isChecked():
-                self.parent.psd_params_type = 'welch'
+                self.parent.psd_params_type = "welch"
             else:
-                self.parent.psd_params_type = 'custom'
+                self.parent.psd_params_type = "custom"
 
             # Check a logger files has already been loaded
             if self.parent.filesList.count() > 0:
                 # This flag stops the on_xlims_change event from processing
                 self.parent.ignore_on_xlim_change = True
-                self.parent.filtered_ts = self.parent.calc_filtered_data(self.parent.df_plot)
+                self.parent.filtered_ts = self.parent.calc_filtered_data(
+                    self.parent.df_plot
+                )
                 self.parent.update_plots()
                 self.parent.ignore_on_xlim_change = False
 
@@ -1180,8 +1207,8 @@ class LoggerPlotSettings(QtWidgets.QDialog):
         self.logScale.setChecked(False)
         self.optTSXmin.setText(str(round(self.parent.init_xlim[0], 1)))
         self.optTSXmax.setText(str(round(self.parent.init_xlim[1], 1)))
-        self.optPSDXmin.setText('0.0')
-        self.optPSDXmax.setText('1.0')
+        self.optPSDXmin.setText("0.0")
+        self.optPSDXmax.setText("1.0")
         self.radioDefault.setChecked(True)
 
     def switch_psd_xaxis(self):
@@ -1190,21 +1217,21 @@ class LoggerPlotSettings(QtWidgets.QDialog):
         try:
             xmin, xmax = float(self.optPSDXmin.text()), float(self.optPSDXmax.text())
         except ValueError as e:
-            print(f'Axis limits must be numeric - {e}')
+            print(f"Axis limits must be numeric - {e}")
 
         # Default min axis to 0
-        self.optPSDXmin.setText('0.0')
+        self.optPSDXmin.setText("0.0")
 
         # Set frequency axis - default xlim max to 1 Hz/20s if current xlim min is 0s or 0 Hz respectively
         if self.radioFreq.isChecked():
             if xmin == 0:
-                self.optPSDXmax.setText('1.0')
+                self.optPSDXmax.setText("1.0")
             else:
                 self.optPSDXmax.setText(str(1 / xmin))
         # Set period axis
         else:
             if xmin == 0:
-                self.optPSDXmax.setText('20.0')
+                self.optPSDXmax.setText("20.0")
             else:
                 self.optPSDXmax.setText(str(1 / xmin))
 
@@ -1236,7 +1263,7 @@ class LoggerPlotSettings(QtWidgets.QDialog):
 
 
 # For testing layout
-if __name__ == '__main__':
+if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
     # win = TimeSeriesPlotWidget()
     win = LoggerPlotSettings()

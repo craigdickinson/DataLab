@@ -1,8 +1,8 @@
-'''
+"""
 Created on 9 Aug 2016
 
 @author: bowdenc
-'''
+"""
 import datetime as dt
 import io
 import unittest
@@ -17,9 +17,9 @@ from core import data_screen
 def example_data_file():
     """Create an example data file in memory."""
 
-    header1 = '#Sample Interval: 0.100000 (seconds)'
-    header2 = 'Timestamp,AccelX,AccelY,RateX,RateY'
-    header3 = 'dd-mmm-yyyy HH:MM:SS.FFF,mm/s2,mm/s2,rad/s,rad/s'
+    header1 = "#Sample Interval: 0.100000 (seconds)"
+    header2 = "Timestamp,AccelX,AccelY,RateX,RateY"
+    header3 = "dd-mmm-yyyy HH:MM:SS.FFF,mm/s2,mm/s2,rad/s,rad/s"
 
     start_date = dt.datetime(2016, 3, 17, 1, 0, 0)
 
@@ -37,20 +37,20 @@ def example_data_file():
 
     # Array of times
     time = [start_date + i * time_delta for i in range(N)]
-    time_str = [t.strftime('%Y-%m-%d %H:%M:%S.%f') for t in time]
+    time_str = [t.strftime("%Y-%m-%d %H:%M:%S.%f") for t in time]
 
     ax, ay, Rx, Ry = example_data(sample_freq, Ts)
 
-    data = [','.join([time_str[i],
-                      str(ax[i]), str(ay[i]),
-                      str(Rx[i]), str(Ry[i])])
-            for i in range(N)]
+    data = [
+        ",".join([time_str[i], str(ax[i]), str(ay[i]), str(Rx[i]), str(Ry[i])])
+        for i in range(N)
+    ]
 
     data.insert(0, header3)
     data.insert(0, header2)
     data.insert(0, header1)
 
-    return '\n'.join(data)
+    return "\n".join(data)
 
 
 def example_data(fs, Ts):
@@ -66,10 +66,8 @@ def example_data(fs, Ts):
 
     # random signals
     phi = np.pi / 2
-    ax = [np.sin(2 * np.pi * 2 * (i / fs))
-          for i in range(N)]
-    ay = [np.sin(2 * np.pi * 2 * (i / fs) + phi)
-          for i in range(N)]
+    ax = [np.sin(2 * np.pi * 2 * (i / fs)) for i in range(N)]
+    ay = [np.sin(2 * np.pi * 2 * (i / fs) + phi) for i in range(N)]
     Rx = [a * 0.01 + 0.5 for a in ax]
     Ry = [a * 0.01 + 0.3 for a in ay]
 
@@ -106,21 +104,21 @@ class Test(unittest.TestCase):
         header = 1
         skip_rows = [2]
         use_cols = [0, 1, 2, 3, 4]
-        delim = ','
-        data = self.logger_stats.read_data(test_stream,
-                                           delim,
-                                           header,
-                                           skip_rows,
-                                           use_cols)
+        delim = ","
+        data = self.logger_stats.read_data(
+            test_stream, delim, header, skip_rows, use_cols
+        )
 
         # Compare the data
         test_stream.seek(0)
-        data1 = pd.read_csv(test_stream,
-                            sep=delim,
-                            header=header,
-                            usecols=use_cols,
-                            skiprows=skip_rows,
-                            encoding='utf-8')
+        data1 = pd.read_csv(
+            test_stream,
+            sep=delim,
+            header=header,
+            usecols=use_cols,
+            skiprows=skip_rows,
+            encoding="utf-8",
+        )
 
         pdt.assert_frame_equal(data1, data)
 
