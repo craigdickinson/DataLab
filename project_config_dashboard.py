@@ -323,9 +323,12 @@ class ConfigModule(QtWidgets.QWidget):
         item = QtWidgets.QListWidgetItem(logger_id)
         item.setFlags(item.flags() | QtCore.Qt.ItemIsEditable)
         self.loggersList.addItem(item)
-
-        # TODO: Address that adding item triggers combo box change which sets dashboards values before confirmed by user
         self.loggersList.setCurrentRow(n)
+
+        # Update dashboards with initial values for logger
+        self.loggerPropsTab.set_logger_dashboard(logger)
+        self.analysisTab.set_analysis_dashboard(logger)
+        self.set_logger_header_list(logger)
 
         # Open logger properties edit widget
         self.setupTabs.setCurrentWidget(self.loggerPropsTab)
@@ -346,7 +349,7 @@ class ConfigModule(QtWidgets.QWidget):
             logger = self.loggersList.currentItem().text()
 
         # Confirm with user
-        msg = f"Are you sure you want to remove the logger {logger}?"
+        msg = f"Are you sure you want to remove logger {logger}?"
         response = QtWidgets.QMessageBox.question(self, "Remove Logger", msg)
 
         if response == QtWidgets.QMessageBox.Yes:
