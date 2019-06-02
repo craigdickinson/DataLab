@@ -26,201 +26,34 @@ from core.read_files import (
     read_stats_hdf5,
 )
 from core.read_files import read_wcfat_results
-from data_screening_dashboard import DataQualityReport
-from fatigue_dashboard import FatigueProcessingWidget
-from project_config_dashboard import ConfigModule
-from raw_data_dashboard import TimeSeriesPlotWidget
-from seascatter_dashboard import SeascatterDiagram
-from spectral_dashboard import SpectrogramWidget
-from stats_dashboard import PlotStyle2H, StatsDataset, StatsWidget, VesselStatsWidget
-from transfer_functions_dashboard import TransferFunctionsWidget
+from data_screening_view import DataQualityReport
+from fatigue_view import FatigueProcessingWidget
+from project_config_view import ConfigModule
+from raw_data_view import TimeSeriesPlotWidget
+from seascatter_view import SeascatterDiagram
+from spectral_view import SpectrogramWidget
+from stats_view import PlotStyle2H, StatsDataset, StatsWidget, VesselStatsWidget
+from transfer_functions_view import TransferFunctionsWidget
+from views.main_window_view import DataLabGui
 
 
-class DataLabGui(QtWidgets.QMainWindow):
+class DataLabApp(DataLabGui):
     """Class to create main gui."""
 
     def __init__(self):
         super().__init__()
 
         self.version = __version__
+        self.setWindowTitle(f"DataLab {self.version}")
 
         # Set root path because path is changed when using file tree
         self.root = os.getcwd()
-        self.datfile = None
         self.datalab = None
-        self.init_ui()
+
+        # self.ui = DataLabGui()
+        self.update_tool_buttons("config")
         self.connect_signals()
         self.connect_child_signals()
-        # self._centre()
-
-        # self.output_folder = r'C:\Users\dickinsc\PycharmProjects\DSPLab\output\Glenlivet G1G2'
-        # self.summary_stats_file = 'dd10 Statistics.xlsx'
-
-    def init_ui(self):
-        """Initialise gui."""
-
-        self.setWindowTitle(f"DataLab {self.version}")
-        self.setGeometry(50, 50, 1400, 800)
-
-        # Create stacked central widget
-        self.modulesWidget = QtWidgets.QStackedWidget()
-        self.setCentralWidget(self.modulesWidget)
-        self.statusbar = self.statusBar()
-
-        # Create menu bar and tool bar
-        self.menu_bar()
-        self.tool_bar()
-
-        # Project config module
-        self.projConfigModule = ConfigModule(self)
-
-        # Raw data inspection module
-        self.rawDataModule = QtWidgets.QTabWidget()
-        self.timeSeriesTab = TimeSeriesPlotWidget(self)
-        self.rawDataModule.addTab(self.timeSeriesTab, "Time Series")
-
-        # Data quality screening report module
-        self.dataQualityModule = DataQualityReport(self)
-
-        # Stats screening module
-        self.statsScreeningModule = QtWidgets.QTabWidget()
-        self.statsTab = StatsWidget(self)
-        self.vesselStatsTab = VesselStatsWidget(self)
-        self.statsScreeningModule.addTab(self.statsTab, "Statistics")
-        self.statsScreeningModule.addTab(self.vesselStatsTab, "Vessel Statistics")
-
-        # Spectral screening module
-        self.spectralScreeningModule = QtWidgets.QTabWidget()
-        self.spectrogramTab = SpectrogramWidget(self)
-        self.spectralScreeningModule.addTab(self.spectrogramTab, "Spectrograms")
-
-        # Seascatter diagram module
-        self.seascatterModule = SeascatterDiagram(self)
-
-        # Transfer functions module
-        self.transFuncsModule = QtWidgets.QTabWidget()
-        self.transferFuncsTab = TransferFunctionsWidget(self)
-        self.transFuncsModule.addTab(
-            self.transferFuncsTab, "2HFATLASA Transfer Functions"
-        )
-
-        # Fatigue processing module
-        self.fatigueModule = QtWidgets.QTabWidget()
-        self.fatigueTab = FatigueProcessingWidget(self)
-        self.fatigueModule.addTab(self.fatigueTab, "2HFATLASA")
-
-        # Add stacked widgets
-        self.modulesWidget.addWidget(self.projConfigModule)
-        self.modulesWidget.addWidget(self.rawDataModule)
-        self.modulesWidget.addWidget(self.dataQualityModule)
-        self.modulesWidget.addWidget(self.statsScreeningModule)
-        self.modulesWidget.addWidget(self.spectralScreeningModule)
-        self.modulesWidget.addWidget(self.seascatterModule)
-        self.modulesWidget.addWidget(self.transFuncsModule)
-        self.modulesWidget.addWidget(self.fatigueModule)
-
-        # 2H plotting class
-        self.plot_2h = PlotStyle2H(self.statsTab.canvas, self.statsTab.fig)
-
-    def menu_bar(self):
-        """Create menu bar."""
-
-        # Menu bar
-        menubar = self.menuBar()
-
-        # Primary menus
-        menuFile = menubar.addMenu("&File")
-        menuView = menubar.addMenu("&View")
-        menuProcess = menubar.addMenu("&Process")
-        menuLogic = menubar.addMenu("&Applied Logic")
-        menuPlotSettings = menubar.addMenu("&Plot Settings")
-        menuExport = menubar.addMenu("&Export")
-        menuAbout = menubar.addMenu("&Help")
-
-        # File menu
-        # Open submenu
-        openMenu = menuFile.addMenu("&Open")
-        self.loadConfigFile = QtWidgets.QAction("Config File")
-        self.loadConfigFile.setShortcut("Ctrl+Shift+C")
-        self.loadConfigFile.setStatusTip("Load config file (*.json)")
-        self.openLoggerFile = QtWidgets.QAction("Logger File")
-        self.openLoggerFile.setShortcut("Ctrl+O")
-        self.openLoggerStats = QtWidgets.QAction("Logger Stats")
-        self.openLoggerStats.setShortcut("Ctrl+Shift+O")
-        self.openSpectrograms = QtWidgets.QAction("Spectrograms")
-        self.openSpectrograms.setShortcut("Ctrl+Shift+S")
-        openMenu.addAction(self.loadConfigFile)
-        openMenu.addAction(self.openLoggerFile)
-        openMenu.addAction(self.openLoggerStats)
-        openMenu.addAction(self.openSpectrograms)
-
-        # View menu
-        self.showControlScreen = QtWidgets.QAction("Control/Processing")
-        self.showPlotScreen = QtWidgets.QAction("Plots")
-        menuView.addAction(self.showControlScreen)
-        menuView.addAction(self.showPlotScreen)
-
-        # Process menu
-        self.calcStats = QtWidgets.QAction("Calculate Statistics")
-        self.calcStats.setShortcut("Ctrl+R")
-        self.calcStats.setStatusTip("Run Control File (*.dat)")
-        self.genScatterDiag = QtWidgets.QAction("Generate Seascatter Diagram")
-        menuProcess.addAction(self.calcStats)
-        menuProcess.addAction(self.genScatterDiag)
-
-        # Applied logic menu
-        self.filter = QtWidgets.QAction("Apply Low/High Pass Filter")
-        self.spikeRemoval = QtWidgets.QAction("Spike Removal")
-        menuLogic.addAction(self.filter)
-        menuLogic.addAction(self.spikeRemoval)
-
-        # Plot settings menu
-        self.add2HIcon = QtWidgets.QAction("Add 2H Icon")
-        self.add2HIcon.setCheckable(True)
-        self.loggerPlotSettings = QtWidgets.QAction("Logger Plot Settings")
-        self.loggerPlotSettings.setShortcut("Ctrl+S")
-        self.spectPlotSettings = QtWidgets.QAction("Spectrogram Plot Settings")
-        menuPlotSettings.addAction(self.add2HIcon)
-        menuPlotSettings.addAction(self.loggerPlotSettings)
-        menuPlotSettings.addAction(self.spectPlotSettings)
-
-        # Export menu
-        self.exportScatterDiag = QtWidgets.QAction("Export Seascatter Diagram")
-        self.exportScatterDiag.setStatusTip("Export seascatter diagram to Excel")
-        menuExport.addAction(self.exportScatterDiag)
-
-        # Help menu
-        self.showHelp = QtWidgets.QAction("Help")
-        self.showAbout = QtWidgets.QAction("About")
-        menuAbout.addAction(self.showHelp)
-        menuAbout.addAction(self.showAbout)
-
-    def tool_bar(self):
-        """Create toolbar with button to show dashboards."""
-
-        self.toolBar = self.addToolBar("Modules")
-        self.toolBar.setStyleSheet("QToolBar{spacing:5px}")
-
-        self.projConfigButton = QtWidgets.QPushButton("Project Config")
-        self.rawDataButton = QtWidgets.QPushButton("Raw Data")
-        self.dataQualityButton = QtWidgets.QPushButton("Data Quality Report")
-        self.statsScreeningButton = QtWidgets.QPushButton("Statistics Screening")
-        self.spectralScreeningButton = QtWidgets.QPushButton("Spectral Screening")
-        self.seascatterButton = QtWidgets.QPushButton("Seascatter Diagram")
-        self.transFuncsButton = QtWidgets.QPushButton("Transfer Functions")
-        self.fatigueButton = QtWidgets.QPushButton("Fatigue Analysis")
-
-        self.toolBar.addWidget(QtWidgets.QLabel("Modules:"))
-        self.toolBar.addWidget(self.projConfigButton)
-        self.toolBar.addWidget(self.rawDataButton)
-        self.toolBar.addWidget(self.dataQualityButton)
-        self.toolBar.addWidget(self.statsScreeningButton)
-        self.toolBar.addWidget(self.spectralScreeningButton)
-        self.toolBar.addWidget(self.seascatterButton)
-        self.toolBar.addWidget(self.transFuncsButton)
-        self.toolBar.addWidget(self.fatigueButton)
-
-        self.update_tool_buttons("config")
 
     def connect_signals(self):
         """Connect widget signals to methods/actions."""
@@ -261,8 +94,11 @@ class DataLabGui(QtWidgets.QMainWindow):
         self.fatigueButton.clicked.connect(self.view_mod_fatigue)
 
     def connect_child_signals(self):
+        self.timeSeriesTab.loadFileButton.clicked.connect(self.load_logger_file)
         self.statsTab.loadStatsButton.clicked.connect(self.load_stats_file)
-        self.vesselStatsTab.loadStats.clicked.connect(self.load_stats_file)
+        self.vesselStatsTab.loadStatsButton.clicked.connect(self.load_stats_file)
+        self.spectrogramTab.loadDatasetButton.clicked.connect(self.load_spectrograms_file)
+        self.fatigueTab.loadWCFATFileButton.clicked.connect(self.load_wcfat_results_file)
 
     def message_information(self, title, message, buttons=QtWidgets.QMessageBox.Ok):
         return QtWidgets.QMessageBox.information(self, title, message, buttons)
@@ -839,18 +675,6 @@ class ControlFileProgressBar(QtWidgets.QDialog):
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
     # gui = QtDesignerGui()
-    gui = DataLabGui()
-    debug = 0
-
-    # Load initial file for debugging
-    if debug == 1:
-        direc = os.getcwd()
-        direc = r"C:\Users\dickinsc\PycharmProjects\_2. DataLab Analysis Files"
-        os.chdir(direc)
-        filename = "dd10_2017_0310_0000.csv"
-        gui.timeSeriesTab.update_files_list([filename], filename)
-        gui.timeSeriesTab.load_file(filename)
-        gui.modulesWidget.setCurrentWidget(gui.statsScreeningModule)
-
+    gui = DataLabApp()
     gui.show()
     sys.exit(app.exec_())
