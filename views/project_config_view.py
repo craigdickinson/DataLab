@@ -81,6 +81,9 @@ class ProjectConfigJSONFile:
         d["stats_to_h5"] = control.stats_to_h5
         d["stats_to_csv"] = control.stats_to_csv
         d["stats_to_xlsx"] = control.stats_to_xlsx
+        d["spectral_to_h5"] = control.spect_to_h5
+        d["spectral_to_csv"] = control.spect_to_csv
+        d["spectral_to_xlsx"] = control.spect_to_xlsx
 
         self.data["general"] = d
 
@@ -542,6 +545,15 @@ class ConfigModule(QtWidgets.QWidget):
         )
         control.stats_to_xlsx = self.get_key_value(
             logger_id=key, data=data, key="stats_to_xlsx", attr=control.stats_to_xlsx
+        )
+        control.spect_to_h5 = self.get_key_value(
+            logger_id=key, data=data, key="spectral_to_h5", attr=control.spect_to_h5
+        )
+        control.spect_to_csv = self.get_key_value(
+            logger_id=key, data=data, key="spectral_to_csv", attr=control.spect_to_csv
+        )
+        control.spect_to_xlsx = self.get_key_value(
+            logger_id=key, data=data, key="spectral_to_xlsx", attr=control.spect_to_xlsx
         )
 
         return control
@@ -1127,7 +1139,7 @@ class StatsAndSpectralSettingsTab(QtWidgets.QWidget):
             QtWidgets.QLabel("High frequency cut-off (Hz):"), self.highCutoff
         )
 
-        # Stats output group
+        # Stats output file formats group
         policy = QtWidgets.QSizePolicy(
             QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed
         )
@@ -1164,23 +1176,50 @@ class StatsAndSpectralSettingsTab(QtWidgets.QWidget):
         )
         self.spectralForm.addRow(QtWidgets.QLabel("End timestamp:"), self.spectralEnd)
 
+
+        # Spectral output file formats group
+        policy = QtWidgets.QSizePolicy(
+            QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed
+        )
+
+        self.spectOutputGroup = QtWidgets.QGroupBox("Spectral File Formats to Output")
+        self.spectOutputGroup.setSizePolicy(policy)
+
+        self.spectH5 = QtWidgets.QCheckBox(".h5 (recommended - fast read/write)")
+        self.spectH5.setChecked(True)
+        self.spectCSV = QtWidgets.QCheckBox(".csv")
+        self.spectXLSX = QtWidgets.QCheckBox(".xlsx")
+        self.vbox = QtWidgets.QVBoxLayout(self.spectOutputGroup)
+        self.vbox.addWidget(self.spectH5)
+        self.vbox.addWidget(self.spectCSV)
+        self.vbox.addWidget(self.spectXLSX)
+
         # Spacer widgets to separate the group boxes a bit
         spacer = QtWidgets.QSpacerItem(1, 15)
 
         # Construct layout
-        self.hbox = QtWidgets.QHBoxLayout()
-        self.hbox.setAlignment(QtCore.Qt.AlignLeft)
-        self.hbox.addWidget(self.statsGroup)
-        self.hbox.addWidget(self.statsOutputGroup, alignment=QtCore.Qt.AlignTop)
+        self.hboxStats = QtWidgets.QHBoxLayout()
+        self.hboxStats.setAlignment(QtCore.Qt.AlignLeft)
+        self.hboxStats.addWidget(self.statsGroup)
+        self.hboxStats.addWidget(self.statsOutputGroup, alignment=QtCore.Qt.AlignTop)
 
-        self.vbox = QtWidgets.QVBoxLayout(self)
-        self.vbox.setAlignment(QtCore.Qt.AlignTop)
+        self.hboxSpect = QtWidgets.QHBoxLayout()
+        self.hboxSpect.setAlignment(QtCore.Qt.AlignLeft)
+        self.hboxSpect.addWidget(self.spectralGroup)
+        self.hboxSpect.addWidget(self.spectOutputGroup, alignment=QtCore.Qt.AlignTop)
+
+        self.vbox = QtWidgets.QVBoxLayout()
         self.vbox.addWidget(self.editButton, stretch=0, alignment=QtCore.Qt.AlignLeft)
         self.vbox.addWidget(self.colsGroup)
         self.vbox.addItem(spacer)
-        self.vbox.addLayout(self.hbox)
+        self.vbox.addLayout(self.hboxStats)
         self.vbox.addItem(spacer)
-        self.vbox.addWidget(self.spectralGroup)
+        self.vbox.addLayout(self.hboxSpect)
+        self.vbox.addStretch()
+
+        self.hbox = QtWidgets.QHBoxLayout(self)
+        self.hbox.addLayout(self.vbox)
+        self.hbox.addStretch()
 
     def connect_signals(self):
         self.editButton.clicked.connect(self.show_edit_dialog)
@@ -1191,6 +1230,9 @@ class StatsAndSpectralSettingsTab(QtWidgets.QWidget):
         self.statsH5.toggled.connect(self.on_stats_h5_toggled)
         self.statsCSV.toggled.connect(self.on_stats_csv_toggled)
         self.statsXLSX.toggled.connect(self.on_stats_xlsx_toggled)
+        self.spectH5.toggled.connect(self.on_spect_h5_toggled)
+        self.spectCSV.toggled.connect(self.on_spect_csv_toggled)
+        self.spectXLSX.toggled.connect(self.on_spect_xlsx_toggled)
 
     def show_edit_dialog(self):
         """Open logger stats edit form."""
@@ -1241,6 +1283,27 @@ class StatsAndSpectralSettingsTab(QtWidgets.QWidget):
                 self.control.stats_to_xlsx = True
             else:
                 self.control.stats_to_xlsx = False
+
+    def on_spect_h5_toggled(self):
+        if self.parent.loggersList.count() > 0:
+            if self.spectH5.isChecked():
+                self.control.spect_to_h5 = True
+            else:
+                self.control.spect_to_h5 = False
+
+    def on_spect_csv_toggled(self):
+        if self.parent.loggersList.count() > 0:
+            if self.spectCSV.isChecked():
+                self.control.spect_to_csv = True
+            else:
+                self.control.spect_to_csv = False
+
+    def on_spect_xlsx_toggled(self):
+        if self.parent.loggersList.count() > 0:
+            if self.spectXLSX.isChecked():
+                self.control.spect_to_xlsx = True
+            else:
+                self.control.spect_to_xlsx = False
 
     def set_analysis_dashboard(self, logger):
         """Set dashboard with logger stats and spectral settings from logger object."""

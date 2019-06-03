@@ -62,8 +62,9 @@ class ControlFile(object):
         self.stats_to_xlsx = False
 
         # Selected spectral output file formats
-        self.spectral_to_h5 = True
-        self.spectral_to_csv = False
+        self.spect_to_h5 = True
+        self.spect_to_csv = False
+        self.spect_to_xlsx = False
 
         # List to store lines with *LOGGER_ID
         self.logger_id_lines = []

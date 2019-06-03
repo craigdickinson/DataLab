@@ -265,9 +265,13 @@ class DataLab(QThread):
             if logger.process_spectral is True:
                 spectrogram.add_timestamps(dates=data_screen[i].spectral_sample_start)
                 # spectrogram.plot_spectrogram()
-                # spectrogram.write_spectrogram_to_hdf5()
-                spectrogram.write_to_csv()
-                # spectrogram.write_spectrogram_to_excel()
+
+                if self.control.spect_to_h5 is True:
+                    spectrogram.write_to_hdf5()
+                if self.control.spect_to_csv is True:
+                    spectrogram.write_to_csv()
+                if self.control.spect_to_xlsx is True:
+                    spectrogram.write_to_excel()
 
         # Save data screen report workbook
         data_report.write_bad_filenames()
