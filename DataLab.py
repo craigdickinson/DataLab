@@ -26,19 +26,12 @@ from core.read_files import (
     read_stats_hdf5,
 )
 from core.read_files import read_wcfat_results
-from data_screening_view import DataQualityReport
-from fatigue_view import FatigueProcessingWidget
-from project_config_view import ConfigModule
-from raw_data_view import TimeSeriesPlotWidget
-from seascatter_view import SeascatterDiagram
-from spectral_view import SpectrogramWidget
-from stats_view import PlotStyle2H, StatsDataset, StatsWidget, VesselStatsWidget
-from transfer_functions_view import TransferFunctionsWidget
+from views.stats_view import StatsDataset
 from views.main_window_view import DataLabGui
 
 
-class DataLabApp(DataLabGui):
-    """Class to create main gui."""
+class DataLab(DataLabGui):
+    """Main class for DataLab program. Takes as arg the ui class."""
 
     def __init__(self):
         super().__init__()
@@ -50,7 +43,6 @@ class DataLabApp(DataLabGui):
         self.root = os.getcwd()
         self.datalab = None
 
-        # self.ui = DataLabGui()
         self.update_tool_buttons("config")
         self.connect_signals()
         self.connect_child_signals()
@@ -422,8 +414,8 @@ class DataLabApp(DataLabGui):
 
                 # Get all channel names and units if not already stored in logger object
                 if (
-                    len(logger.all_channel_names) == 0
-                    and len(logger.all_channel_units) == 0
+                        len(logger.all_channel_names) == 0
+                        and len(logger.all_channel_units) == 0
                 ):
                     logger.get_all_channel_and_unit_names()
 
@@ -646,7 +638,7 @@ class ControlFileProgressBar(QtWidgets.QDialog):
 
     @pyqtSlot(str, int, int, int, int, int)
     def update_progress_bar(
-        self, logger, logger_i, file_i, n, file_num, total_num_files
+            self, logger, logger_i, file_i, n, file_num, total_num_files
     ):
         """Update progress bar window."""
 
@@ -675,6 +667,6 @@ class ControlFileProgressBar(QtWidgets.QDialog):
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
     # gui = QtDesignerGui()
-    gui = DataLabApp()
+    gui = DataLab()
     gui.show()
     sys.exit(app.exec_())

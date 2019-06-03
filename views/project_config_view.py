@@ -209,9 +209,9 @@ class ConfigModule(QtWidgets.QWidget):
 
         # Config tab widgets
         self.setupTabs = QtWidgets.QTabWidget()
-        self.campaignTab = CampaignInfoTab(self)
-        self.loggerPropsTab = LoggerPropertiesTab(self)
-        self.analysisTab = StatsAndSpectralSettingsTab(self)
+        self.campaignTab = CampaignInfoTab(self, self.control)
+        self.loggerPropsTab = LoggerPropertiesTab(self, self.control)
+        self.analysisTab = StatsAndSpectralSettingsTab(self, self.control)
 
         self.setupTabs.addTab(self.campaignTab, "Campaign Info")
         self.setupTabs.addTab(self.loggerPropsTab, "Logger File Properties")
@@ -798,13 +798,15 @@ class ConfigModule(QtWidgets.QWidget):
 class CampaignInfoTab(QtWidgets.QWidget):
     """GUI screen to control project setup."""
 
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, control=ControlFile()):
+        """
+        :param parent:
+        :param control: Control object containing all setup data
+        """
         super(CampaignInfoTab, self).__init__(parent)
 
         self.parent = parent
-
-        # Map control object containing all setup data
-        self.control = self.parent.control
+        self.control = control
 
         # Trick to get Pycharm's intellisense to detect the ControlFile class
         # try:
@@ -900,13 +902,11 @@ class LoggerPropertiesTab(QtWidgets.QWidget):
 
     delims_logger_to_gui = {",": "comma", " ": "space"}
 
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, control=ControlFile()):
         super(LoggerPropertiesTab, self).__init__(parent)
 
         self.parent = parent
-
-        # Map control object containing all setup data
-        self.control = self.parent.control
+        self.control = control
         self.init_ui()
         self.connect_signals()
 
@@ -1017,11 +1017,11 @@ class LoggerPropertiesTab(QtWidgets.QWidget):
 class StatsAndSpectralSettingsTab(QtWidgets.QWidget):
     """GUI screen to control project setup."""
 
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, control=ControlFile()):
         super(StatsAndSpectralSettingsTab, self).__init__(parent)
 
         self.parent = parent
-        self.control = self.parent.control
+        self.control = control
         self.init_ui()
         self.connect_signals()
 
@@ -1238,7 +1238,7 @@ class StatsAndSpectralSettingsTab(QtWidgets.QWidget):
 class EditCampaignInfoDialog(QtWidgets.QDialog):
     """Edit window for project and campaign data."""
 
-    def __init__(self, parent=None, control=None):
+    def __init__(self, parent=None, control=ControlFile()):
         super(EditCampaignInfoDialog, self).__init__(parent)
 
         self.parent = parent
@@ -1322,11 +1322,11 @@ class EditCampaignInfoDialog(QtWidgets.QDialog):
 
 class EditLoggerPropertiesDialog(QtWidgets.QDialog):
     delims_gui_to_logger = {"comma": ",", "space": " "}
-    delims_logger_to_gui = {",": "comma", " ": "space"}
+    delims_logger_to_gui = {",": "comma", " ": "space", "": ""}
     file_types = ["Fugro-csv", "Pulse-acc", "General-csv"]
     delimiters = ["comma", "space"]
 
-    def __init__(self, parent=None, logger=None, logger_idx=0):
+    def __init__(self, parent=None, logger=LoggerProperties(), logger_idx=0):
         super(EditLoggerPropertiesDialog, self).__init__(parent)
 
         self.parent = parent
@@ -1705,7 +1705,7 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
 
 
 class EditStatsAndSpectralDialog(QtWidgets.QDialog):
-    def __init__(self, parent=None, logger=None, logger_idx=0):
+    def __init__(self, parent=None, logger=LoggerProperties(), logger_idx=0):
         super(EditStatsAndSpectralDialog, self).__init__(parent)
 
         self.parent = parent
@@ -1990,8 +1990,14 @@ class EditStatsAndSpectralDialog(QtWidgets.QDialog):
 
 
 if __name__ == "__main__":
+    # For testing widget layout
     app = QtWidgets.QApplication(sys.argv)
-    win = ConfigModule()
+    # win = ConfigModule()
+    # win = CampaignInfoTab()
+    # win = LoggerPropertiesTab()
+    # win = StatsAndSpectralSettingsTab()
+    # win = EditCampaignInfoDialog()
     # win = EditLoggerPropertiesDialog()
+    win = EditStatsAndSpectralDialog()
     win.show()
     app.exit(app.exec_())

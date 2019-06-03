@@ -1,43 +1,21 @@
 __author__ = "Craig Dickinson"
-__program__ = "DataLab"
-__version__ = "0.30"
-__date__ = "31 May 2019"
 
-import logging
-import os
 import sys
-from datetime import timedelta
-from glob import glob
-from time import time
 
-from PyQt5 import QtCore, QtWidgets
-from PyQt5.QtCore import pyqtSignal, pyqtSlot
+from PyQt5 import QtWidgets
 
-# import datalab_gui_layout
-from core.control_file import InputError
-from core.datalab_main import DataLab
-from core.logger_properties import LoggerError
-from core.read_files import (
-    read_spectrograms_csv,
-    read_spectrograms_excel,
-    read_spectrograms_hdf5,
-    read_stats_csv,
-    read_stats_excel,
-    read_stats_hdf5,
-)
-from core.read_files import read_wcfat_results
 from data_screening_view import DataQualityReport
 from fatigue_view import FatigueProcessingWidget
 from project_config_view import ConfigModule
 from raw_data_view import TimeSeriesPlotWidget
 from seascatter_view import SeascatterDiagram
 from spectral_view import SpectrogramWidget
-from stats_view import PlotStyle2H, StatsDataset, StatsWidget, VesselStatsWidget
+from stats_view import PlotStyle2H, StatsWidget, VesselStatsWidget
 from transfer_functions_view import TransferFunctionsWidget
 
 
 class DataLabGui(QtWidgets.QMainWindow):
-    """Class to create main gui."""
+    """Class to create DataLab ui widgets and layout."""
 
     def __init__(self):
         super().__init__()
@@ -217,7 +195,7 @@ class DataLabGui(QtWidgets.QMainWindow):
 
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
-    # gui = QtDesignerGui()
-    gui = DataLabGui()
-    gui.show()
+    # win = QtDesignerGui()
+    win = DataLabGui()
+    win.show()
     sys.exit(app.exec_())
