@@ -51,6 +51,9 @@ class DataScreen:
         self.skip_rows = []
         self.use_cols = []
 
+        # Apply bandpass signal filtering flag
+        self.apply_filters = True
+
     def set_logger(self, logger):
         """Set the logger filenames to be assessed and required read csv file properties."""
 
@@ -74,16 +77,21 @@ class DataScreen:
         if self.header_row < 0:
             self.header_row = None
 
+        # Flag to set whether bandpass filtering is to be applied
+        low_cutoff = self.logger.stats_low_cutoff_freq
+        high_cutoff = self.logger.stats_high_cutoff_freq
+
+        if low_cutoff is None and high_cutoff is None:
+            self.apply_filters = False
+
     def read_logger_file(self, filename):
         """Read logger file into pandas data frame."""
 
         df = pd.DataFrame()
+        file_format = self.logger.file_format
 
         # Read data into pandas data frame
-        if (
-            self.logger.file_format == "Fugro-csv"
-            or self.logger.file_format == "General-csv"
-        ):
+        if file_format == "Fugro-csv" or file_format == "General-csv":
             df = pd.read_csv(
                 filename,
                 sep=self.logger.file_delimiter,
@@ -91,7 +99,7 @@ class DataScreen:
                 skiprows=self.skip_rows,
                 encoding="latin",
             )
-        elif self.logger.file_format == "Pulse-acc":
+        elif file_format == "Pulse-acc":
             df = read_pulse_acc_single_header_format(filename)
 
         return df
@@ -237,8 +245,9 @@ class DataScreen:
             df, self.logger.stats_low_cutoff_freq, self.logger.stats_high_cutoff_freq
         )
 
-        # Insert timestamps column and reset index to return a data frame in the same format as the unfiltered one
-        df_filtered.reset_index(drop=True, inplace=True)
-        df_filtered.insert(loc=0, column=ts.name, value=ts)
+        if not df_filtered.empty:
+            # Insert timestamps column and reset index to return a data frame in the same format as the unfiltered one
+            df_filtered.reset_index(drop=True, inplace=True)
+            df_filtered.insert(loc=0, column=ts.name, value=ts)
 
         return df_filtered

@@ -59,9 +59,6 @@ class DataLab(QThread):
         self.control = ControlFile()
         self.logger_path = ""
         self.data_screen = []
-        self.stats_file_type = "csv"
-        # self.stats_file_type = 'excel'
-        # self.stats_file_type = 'hdf5'
         self.dict_stats = {}
 
     def analyse_control_file(self):
@@ -123,6 +120,8 @@ class DataLab(QThread):
 
             # Set logger to process - add all logger properties from the control object for the current logger
             data_screen[i].set_logger(logger)
+
+            # Number of data points processed per sample
             stats_sample_length = int(logger.stats_interval * logger.freq)
             spectral_sample_length = int(logger.spectral_interval * logger.freq)
 
@@ -195,12 +194,12 @@ class DataLab(QThread):
                                 )
 
                                 # Apply filters to sample data if filters were set
-                                df_filtered = data_screen[i].filter_sample_data(
-                                    df_stats_sample
-                                )
+                                if data_screen[i].apply_filters is True:
+                                    df_filtered = data_screen[i].filter_sample_data(
+                                        df_stats_sample
+                                    )
 
-                                # Calculate statistics on filtered sample data if filters were set
-                                if not df_filtered.empty:
+                                    # Calculate statistics on filtered sample data
                                     logger_stats_filtered[i].calc_stats(
                                         df_filtered, logger.unit_conv_factors
                                     )
@@ -254,21 +253,20 @@ class DataLab(QThread):
                     logger_stats_filtered[i],
                 )
 
-                # Export stats in selected file format
-                if self.stats_file_type == "csv":
-                    stats_out.stats_to_csv()
-                    # stats_out.stats_to_hdf5()
-                elif self.stats_file_type == "excel":
-                    stats_out.stats_to_excel()
-                else:
-                    stats_out.stats_to_hdf5()
+                # Export stats in selected file formats
+                if self.control.stats_to_h5 is True:
+                    stats_out.write_to_hdf5()
+                if self.control.stats_to_csv is True:
+                    stats_out.write_to_csv()
+                if self.control.stats_to_xlsx is True:
+                    stats_out.write_to_excel()
 
             # Plot spectrograms
             if logger.process_spectral is True:
                 spectrogram.add_timestamps(dates=data_screen[i].spectral_sample_start)
                 # spectrogram.plot_spectrogram()
                 # spectrogram.write_spectrogram_to_hdf5()
-                spectrogram.write_spectrogram_to_csv()
+                spectrogram.write_to_csv()
                 # spectrogram.write_spectrogram_to_excel()
 
         # Save data screen report workbook
@@ -287,7 +285,7 @@ class DataLab(QThread):
             self.dict_stats = stats_out.dict_stats
 
             # Save stats workbook
-            if self.stats_file_type == "excel":
+            if self.control.stats_to_xlsx is True:
                 stats_out.save_workbook()
 
         print("\nProcessing complete")

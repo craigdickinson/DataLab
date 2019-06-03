@@ -98,7 +98,7 @@ class Spectrogram:
             fname = os.path.join(self.output_dir, fname)
             plt.savefig(fname)
 
-    def write_spectrogram_to_hdf5(self):
+    def write_to_hdf5(self):
         """Write spectrogram data to HDF5 file."""
 
         t0 = time()
@@ -117,7 +117,7 @@ class Spectrogram:
         t1 = round(time() - t0)
         # print('Write hdf5 time = {}'.format(str(timedelta(seconds=t1))))
 
-    def write_spectrogram_to_csv(self):
+    def write_to_csv(self):
         """Write spectrogram data to csv file."""
 
         t0 = time()
@@ -135,7 +135,7 @@ class Spectrogram:
         t1 = round(time() - t0)
         # print('Write csv time = {}'.format(str(timedelta(seconds=t1))))
 
-    def write_spectrogram_to_excel(self):
+    def write_to_excel(self):
         """Write spectrogram data to Excel file."""
 
         t0 = time()

@@ -119,7 +119,7 @@ class FatigueProcessingWidget(QtWidgets.QWidget):
         self.plot_fatigue_damage()
 
     def on_log_scale_changed(self):
-        if self.damLogScale.isChecked() is True:
+        if self.damLogScale.isChecked():
             self.log_scale = True
         else:
             self.log_scale = False
@@ -127,7 +127,7 @@ class FatigueProcessingWidget(QtWidgets.QWidget):
         self.plot_fatigue_damage()
 
     def on_scale_damage_rate_changed(self):
-        if self.damRatePerEvent.isChecked() is True:
+        if self.damRatePerEvent.isChecked():
             self.df_dam = self.df_dam_per_event
             self.period = f"{self.event_length} mins"
         else:

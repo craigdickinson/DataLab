@@ -1,7 +1,7 @@
 __author__ = "Craig Dickinson"
 __program__ = "DataLab"
-__version__ = "0.30"
-__date__ = "31 May 2019"
+__version__ = "0.31"
+__date__ = "3 June 2019"
 
 import logging
 import os
@@ -30,7 +30,7 @@ from views.stats_view import StatsDataset
 from views.main_window_view import DataLabGui
 
 
-class DataLab(DataLabGui):
+class DataLabApp(DataLabGui):
     """Main class for DataLab program. Takes as arg the ui class."""
 
     def __init__(self):
@@ -582,7 +582,7 @@ class ControlFileWorker(QtCore.QThread):
             self.signal_error.emit(str(e))
             logging.exception(e)
         except Exception as e:
-            msg = "Unexpected error on processing control file"
+            msg = "Unexpected error processing control file"
             self.signal_error.emit(f"{msg}:\n{e}\n{sys.exc_info()[0]}")
             logging.exception(msg)
         finally:
@@ -667,6 +667,6 @@ class ControlFileProgressBar(QtWidgets.QDialog):
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
     # gui = QtDesignerGui()
-    gui = DataLab()
+    gui = DataLabApp()
     gui.show()
     sys.exit(app.exec_())

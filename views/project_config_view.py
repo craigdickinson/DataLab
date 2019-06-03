@@ -74,6 +74,16 @@ class ProjectConfigJSONFile:
             # Add logger props dictionary to loggers dictionary
             self.data["loggers"][logger.logger_id] = dict_props
 
+    def add_general_data(self, control):
+        """Add general settings."""
+
+        d = dict()
+        d["stats_to_h5"] = control.stats_to_h5
+        d["stats_to_csv"] = control.stats_to_csv
+        d["stats_to_xlsx"] = control.stats_to_xlsx
+
+        self.data["general"] = d
+
     def add_logger_props(self, logger, dict_props):
         """Add control object logger properties to JSON dictionary."""
 
@@ -271,6 +281,7 @@ class ConfigModule(QtWidgets.QWidget):
                 # Assign config data to control object and project dashboard
                 self.control = self.map_campaign_json_section(data, self.control)
                 self.control = self.map_loggers_json_section(data, self.control)
+                self.control = self.map_general_settings(data, self.control)
                 self.set_dashboards()
                 self.set_window_title(filename)
             except InputError as e:
@@ -293,12 +304,18 @@ class ConfigModule(QtWidgets.QWidget):
             return self.parent.warning(msg)
 
         # Compile configuration data into a dictionary and save as a json file
-        config = ProjectConfigJSONFile()
-        config.add_campaign_data(self.control)
-        config.add_logger_data(self.control.loggers)
-        config.export_config(
-            proj_num=self.control.project_num, proj_name=self.control.project_name
-        )
+        try:
+            config = ProjectConfigJSONFile()
+            config.add_campaign_data(self.control)
+            config.add_logger_data(self.control.loggers)
+            config.add_general_data(self.control)
+            config.export_config(
+                proj_num=self.control.project_num, proj_name=self.control.project_name
+            )
+        except Exception as e:
+            msg = "Unexpected error saving project config"
+            self.parent.error(f"{msg}:\n{e}\n{sys.exc_info()[0]}")
+            logging.exception(msg)
 
         # Check file created
         if os.path.exists(config.filename):
@@ -323,9 +340,11 @@ class ConfigModule(QtWidgets.QWidget):
         item = QtWidgets.QListWidgetItem(logger_id)
         item.setFlags(item.flags() | QtCore.Qt.ItemIsEditable)
         self.loggersList.addItem(item)
-
-        # TODO: Address that adding item triggers combo box change which sets dashboards values before confirmed by user
         self.loggersList.setCurrentRow(n)
+
+        # Initialise dashboard layouts
+        self.loggerPropsTab.set_logger_dashboard(logger)
+        self.analysisTab.set_analysis_dashboard(logger)
 
         # Open logger properties edit widget
         self.setupTabs.setCurrentWidget(self.loggerPropsTab)
@@ -346,7 +365,7 @@ class ConfigModule(QtWidgets.QWidget):
             logger = self.loggersList.currentItem().text()
 
         # Confirm with user
-        msg = f"Are you sure you want to remove the logger {logger}?"
+        msg = f"Are you sure you want to remove logger {logger}?"
         response = QtWidgets.QMessageBox.question(self, "Remove Logger", msg)
 
         if response == QtWidgets.QMessageBox.Yes:
@@ -456,7 +475,7 @@ class ConfigModule(QtWidgets.QWidget):
             attr=self.control.project_num,
         )
         control.project_name = self.get_key_value(
-            logger_id=key, data=data, key="project_name", attr=self.control.project_name
+            logger_id=key, data=data, key="project_name", attr=control.project_name
         )
         control.campaign_name = self.get_key_value(
             logger_id=key, data=data, key="campaign_name", attr=control.campaign_name
@@ -501,6 +520,29 @@ class ConfigModule(QtWidgets.QWidget):
             control.logger_ids.append(logger_id)
             control.logger_ids_upper.append(logger_id.upper())
             control.loggers.append(logger)
+
+        return control
+
+    def map_general_settings(self, data, control):
+        """Map the general settings section to the control object."""
+
+        key = "general"
+        if key in data.keys():
+            data = data[key]
+        else:
+            msg = f"'{key}' key not found in config file"
+            self.parent.warning(msg)
+            return control
+
+        control.stats_to_h5 = self.get_key_value(
+            logger_id=key, data=data, key="stats_to_h5", attr=control.stats_to_h5
+        )
+        control.stats_to_csv = self.get_key_value(
+            logger_id=key, data=data, key="stats_to_csv", attr=control.stats_to_csv
+        )
+        control.stats_to_xlsx = self.get_key_value(
+            logger_id=key, data=data, key="stats_to_xlsx", attr=control.stats_to_xlsx
+        )
 
         return control
 
@@ -819,18 +861,13 @@ class CampaignInfoTab(QtWidgets.QWidget):
         self.connect_signals()
 
     def init_ui(self):
-        # self.setFixedSize(700, 300)
-        policy = QtWidgets.QSizePolicy(
-            QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum
-        )
-        self.setSizePolicy(policy)
-        self.layout = QtWidgets.QVBoxLayout(self)
-
-        # Form
-        self.group = QtWidgets.QGroupBox("Project and Campaign Info")
-
         self.editButton = QtWidgets.QPushButton("Edit Data")
         self.editButton.setShortcut("Ctrl+E")
+
+        # Campaign details group
+        self.projGroup = QtWidgets.QGroupBox("Project and Campaign Info")
+        self.projGroup.setMinimumWidth(500)
+
         self.projNum = QtWidgets.QLabel("-")
         self.projNum.setFixedWidth(40)
         self.projName = QtWidgets.QLabel("-")
@@ -839,16 +876,22 @@ class CampaignInfoTab(QtWidgets.QWidget):
         self.projPath.setWordWrap(True)
         self.configFile = QtWidgets.QLabel("-")
 
-        self.form = QtWidgets.QFormLayout(self.group)
-        self.form.addRow(self.editButton, QtWidgets.QLabel(""))
+        self.form = QtWidgets.QFormLayout(self.projGroup)
         self.form.addRow(QtWidgets.QLabel("Project number:"), self.projNum)
         self.form.addRow(QtWidgets.QLabel("Project name:"), self.projName)
         self.form.addRow(QtWidgets.QLabel("Campaign name:"), self.campaignName)
         self.form.addRow(QtWidgets.QLabel("Project location:"), self.projPath)
         self.form.addRow(QtWidgets.QLabel("Config file name:"), self.configFile)
 
-        # self.layout.addWidget(self.editButton, stretch=0, alignment=QtCore.Qt.AlignLeft)
-        self.layout.addWidget(self.group)
+        # Construct layout
+        self.vbox = QtWidgets.QVBoxLayout()
+        self.vbox.addWidget(self.editButton, stretch=0, alignment=QtCore.Qt.AlignLeft)
+        self.vbox.addWidget(self.projGroup)
+        self.vbox.addStretch()
+
+        self.hbox = QtWidgets.QHBoxLayout(self)
+        self.hbox.addLayout(self.vbox)
+        self.hbox.addStretch()
 
         # TABLE INPUT TEST - Could consider trying to use OrcaFlex style table input cells
         # self.tableInput = QtWidgets.QTableWidget()
@@ -913,14 +956,13 @@ class LoggerPropertiesTab(QtWidgets.QWidget):
     def init_ui(self):
         """Create widget layout."""
 
-        self.layout = QtWidgets.QVBoxLayout(self)
+        self.editButton = QtWidgets.QPushButton("Edit Data")
+        self.editButton.setShortcut("Ctrl+E")
 
         # Logger properties group
         self.loggerPropsGroup = QtWidgets.QGroupBox("Logger Properties")
-        self.form = QtWidgets.QFormLayout(self.loggerPropsGroup)
+        self.loggerPropsGroup.setMinimumWidth(500)
 
-        self.editButton = QtWidgets.QPushButton("Edit Data")
-        self.editButton.setShortcut("Ctrl+E")
         self.loggerID = QtWidgets.QLabel("-")
         self.fileFormat = QtWidgets.QLabel("-")
         self.loggerPath = QtWidgets.QLabel("-")
@@ -936,7 +978,7 @@ class LoggerPropertiesTab(QtWidgets.QWidget):
         self.loggingFreq = QtWidgets.QLabel("-")
         self.loggingDuration = QtWidgets.QLabel("-")
 
-        self.form.addRow(self.editButton, QtWidgets.QLabel(""))
+        self.form = QtWidgets.QFormLayout(self.loggerPropsGroup)
         self.form.addRow(QtWidgets.QLabel("Logger ID:"), self.loggerID)
         self.form.addRow(QtWidgets.QLabel("File type:"), self.fileFormat)
         self.form.addRow(QtWidgets.QLabel("Logger path:"), self.loggerPath)
@@ -955,8 +997,15 @@ class LoggerPropertiesTab(QtWidgets.QWidget):
             QtWidgets.QLabel("Logging duration (s):"), self.loggingDuration
         )
 
-        # Assemble group boxes
-        self.layout.addWidget(self.loggerPropsGroup)
+        # Construct layout
+        self.vbox = QtWidgets.QVBoxLayout()
+        self.vbox.addWidget(self.editButton, stretch=0, alignment=QtCore.Qt.AlignLeft)
+        self.vbox.addWidget(self.loggerPropsGroup)
+        self.vbox.addStretch()
+
+        self.hbox = QtWidgets.QHBoxLayout(self)
+        self.hbox.addLayout(self.vbox)
+        self.hbox.addStretch()
 
     def connect_signals(self):
         self.editButton.clicked.connect(self.show_edit_dialog)
@@ -1022,20 +1071,19 @@ class StatsAndSpectralSettingsTab(QtWidgets.QWidget):
 
         self.parent = parent
         self.control = control
+        self.logger = None
         self.init_ui()
         self.connect_signals()
 
     def init_ui(self):
         """Create widget layout."""
 
-        self.layout = QtWidgets.QVBoxLayout(self)
-        self.layout.setAlignment(QtCore.Qt.AlignTop)
-
         self.editButton = QtWidgets.QPushButton("Edit Data")
         self.editButton.setShortcut("Ctrl+E")
 
         # Processed columns group
         self.colsGroup = QtWidgets.QGroupBox("Processed Columns")
+
         self.columns = QtWidgets.QLabel("-")
         self.unitConvs = QtWidgets.QLabel("-")
         self.channelNames = QtWidgets.QLabel("-")
@@ -1055,13 +1103,15 @@ class StatsAndSpectralSettingsTab(QtWidgets.QWidget):
 
         # Stats settings group
         self.statsGroup = QtWidgets.QGroupBox("Statistical Analysis Settings")
+        self.statsGroup.setFixedWidth(250)
+
         self.processStatsChkBox = QtWidgets.QCheckBox("Include in processing")
         self.processStatsChkBox.setChecked(True)
         self.statsInterval = QtWidgets.QLabel("-")
         self.statsStart = QtWidgets.QLabel("-")
         self.statsEnd = QtWidgets.QLabel("-")
 
-        # Filtered RMS lower and upper cut-off frequencies
+        # Low and high cut-off frequencies
         self.lowCutoff = QtWidgets.QLabel("-")
         self.highCutoff = QtWidgets.QLabel("-")
 
@@ -1077,8 +1127,27 @@ class StatsAndSpectralSettingsTab(QtWidgets.QWidget):
             QtWidgets.QLabel("High frequency cut-off (Hz):"), self.highCutoff
         )
 
+        # Stats output group
+        policy = QtWidgets.QSizePolicy(
+            QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed
+        )
+
+        self.statsOutputGroup = QtWidgets.QGroupBox("Stats File Formats to Output")
+        self.statsOutputGroup.setSizePolicy(policy)
+
+        self.statsH5 = QtWidgets.QCheckBox(".h5 (recommended - fast read/write)")
+        self.statsH5.setChecked(True)
+        self.statsCSV = QtWidgets.QCheckBox(".csv")
+        self.statsXLSX = QtWidgets.QCheckBox(".xlsx")
+        self.vbox = QtWidgets.QVBoxLayout(self.statsOutputGroup)
+        self.vbox.addWidget(self.statsH5)
+        self.vbox.addWidget(self.statsCSV)
+        self.vbox.addWidget(self.statsXLSX)
+
         # Spectral settings group
         self.spectralGroup = QtWidgets.QGroupBox("Spectral Analysis Settings")
+        self.spectralGroup.setFixedWidth(250)
+
         self.processSpectralChkBox = QtWidgets.QCheckBox("Include in processing")
         self.processSpectralChkBox.setChecked(True)
         self.spectralInterval = QtWidgets.QLabel("-")
@@ -1098,19 +1167,30 @@ class StatsAndSpectralSettingsTab(QtWidgets.QWidget):
         # Spacer widgets to separate the group boxes a bit
         spacer = QtWidgets.QSpacerItem(1, 15)
 
-        self.layout.addWidget(self.editButton, stretch=0, alignment=QtCore.Qt.AlignLeft)
-        self.layout.addWidget(self.colsGroup, alignment=QtCore.Qt.AlignTop)
-        self.layout.addItem(spacer)
-        self.layout.addWidget(self.statsGroup, alignment=QtCore.Qt.AlignTop)
-        self.layout.addItem(spacer)
-        self.layout.addWidget(self.spectralGroup, alignment=QtCore.Qt.AlignTop)
+        # Construct layout
+        self.hbox = QtWidgets.QHBoxLayout()
+        self.hbox.setAlignment(QtCore.Qt.AlignLeft)
+        self.hbox.addWidget(self.statsGroup)
+        self.hbox.addWidget(self.statsOutputGroup, alignment=QtCore.Qt.AlignTop)
+
+        self.vbox = QtWidgets.QVBoxLayout(self)
+        self.vbox.setAlignment(QtCore.Qt.AlignTop)
+        self.vbox.addWidget(self.editButton, stretch=0, alignment=QtCore.Qt.AlignLeft)
+        self.vbox.addWidget(self.colsGroup)
+        self.vbox.addItem(spacer)
+        self.vbox.addLayout(self.hbox)
+        self.vbox.addItem(spacer)
+        self.vbox.addWidget(self.spectralGroup)
 
     def connect_signals(self):
         self.editButton.clicked.connect(self.show_edit_dialog)
-        self.processStatsChkBox.toggled.connect(self.set_process_stats_check_state)
+        self.processStatsChkBox.toggled.connect(self.on_process_stats_check_box_toggled)
         self.processSpectralChkBox.toggled.connect(
-            self.set_process_spectral_check_state
+            self.on_process_spectral_check_box_toggled
         )
+        self.statsH5.toggled.connect(self.on_stats_h5_toggled)
+        self.statsCSV.toggled.connect(self.on_stats_csv_toggled)
+        self.statsXLSX.toggled.connect(self.on_stats_xlsx_toggled)
 
     def show_edit_dialog(self):
         """Open logger stats edit form."""
@@ -1129,28 +1209,43 @@ class StatsAndSpectralSettingsTab(QtWidgets.QWidget):
         editStatsSettings = EditStatsAndSpectralDialog(self, logger, logger_idx)
         editStatsSettings.show()
 
-    def set_process_stats_check_state(self):
+    def on_process_stats_check_box_toggled(self):
         """Set include in processing state in logger object."""
 
-        if self.parent.loggersList.count() == 0:
-            return
+        if self.parent.loggersList.count() > 0:
+            self.logger.process_stats = self.processStatsChkBox.isChecked()
 
-        logger_idx = self.parent.loggersList.currentRow()
-        logger = self.control.loggers[logger_idx]
-        logger.process_stats = self.processStatsChkBox.isChecked()
-
-    def set_process_spectral_check_state(self):
+    def on_process_spectral_check_box_toggled(self):
         """Set include in processing state in logger object."""
 
-        if self.parent.loggersList.count() == 0:
-            return
+        if self.parent.loggersList.count() > 0:
+            self.logger.process_spectral = self.processSpectralChkBox.isChecked()
 
-        logger_idx = self.parent.loggersList.currentRow()
-        logger = self.control.loggers[logger_idx]
-        logger.process_spectral = self.processSpectralChkBox.isChecked()
+    def on_stats_h5_toggled(self):
+        if self.parent.loggersList.count() > 0:
+            if self.statsH5.isChecked():
+                self.control.stats_to_h5 = True
+            else:
+                self.control.stats_to_h5 = False
+
+    def on_stats_csv_toggled(self):
+        if self.parent.loggersList.count() > 0:
+            if self.statsCSV.isChecked():
+                self.control.stats_to_csv = True
+            else:
+                self.control.stats_to_csv = False
+
+    def on_stats_xlsx_toggled(self):
+        if self.parent.loggersList.count() > 0:
+            if self.statsXLSX.isChecked():
+                self.control.stats_to_xlsx = True
+            else:
+                self.control.stats_to_xlsx = False
 
     def set_analysis_dashboard(self, logger):
         """Set dashboard with logger stats and spectral settings from logger object."""
+
+        self.logger = logger
 
         # Process check states
         self.processStatsChkBox.setChecked(logger.process_stats)
@@ -1200,6 +1295,22 @@ class StatsAndSpectralSettingsTab(QtWidgets.QWidget):
             self.highCutoff.setText("None")
         else:
             self.highCutoff.setText(f"{logger.stats_high_cutoff_freq:.2f}")
+
+        # Selected stats file formats to output
+        if self.control.stats_to_h5 is True:
+            self.statsH5.setChecked(True)
+        else:
+            self.statsH5.setChecked(False)
+
+        if self.control.stats_to_csv is True:
+            self.statsCSV.setChecked(True)
+        else:
+            self.statsCSV.setChecked(False)
+
+        if self.control.stats_to_xlsx is True:
+            self.statsXLSX.setChecked(True)
+        else:
+            self.statsXLSX.setChecked(False)
 
         # Spectral interval
         self.spectralInterval.setText(str(logger.spectral_interval))
@@ -1993,11 +2104,11 @@ if __name__ == "__main__":
     # For testing widget layout
     app = QtWidgets.QApplication(sys.argv)
     # win = ConfigModule()
-    # win = CampaignInfoTab()
+    win = CampaignInfoTab()
     # win = LoggerPropertiesTab()
     # win = StatsAndSpectralSettingsTab()
     # win = EditCampaignInfoDialog()
     # win = EditLoggerPropertiesDialog()
-    win = EditStatsAndSpectralDialog()
+    # win = EditStatsAndSpectralDialog()
     win.show()
     app.exit(app.exec_())

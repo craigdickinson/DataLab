@@ -53,8 +53,17 @@ class ControlFile(object):
         self.campaign_name = ""
         self.project_path = ""
 
-        # Output directory
+        # Output settings
         self.output_folder = ""
+
+        # Selected stats output file formats
+        self.stats_to_h5 = True
+        self.stats_to_csv = False
+        self.stats_to_xlsx = False
+
+        # Selected spectral output file formats
+        self.spectral_to_h5 = True
+        self.spectral_to_csv = False
 
         # List to store lines with *LOGGER_ID
         self.logger_id_lines = []
@@ -291,7 +300,7 @@ class ControlFile(object):
 
         i = slice_array[index]
         if index < len(slice_array) - 1:
-            return data[i : slice_array[index + 1]]
+            return data[i: slice_array[index + 1]]
         else:
             return data[i:]
 
@@ -751,7 +760,7 @@ class ControlFile(object):
             text_upper = text.upper().strip()
             if text_upper.startswith(key.upper()):
                 # Return the rest of the line and row number if found
-                key_data = text[len(key) :].strip()
+                key_data = text[len(key):].strip()
                 return line, key_data
 
         # Return empty string and negative row number if not found

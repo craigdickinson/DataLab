@@ -1072,13 +1072,13 @@ class LoggerPlotSettings(QtWidgets.QDialog):
         )
 
     def set_low_freq_cutoff_state(self):
-        if self.lowFreqChkBox.isChecked() is True:
+        if self.lowFreqChkBox.isChecked():
             self.lowCutoff.setEnabled(True)
         else:
             self.lowCutoff.setEnabled(False)
 
     def set_high_freq_cutoff_state(self):
-        if self.highFreqChkBox.isChecked() is True:
+        if self.highFreqChkBox.isChecked():
             self.highCutoff.setEnabled(True)
         else:
             self.highCutoff.setEnabled(False)
@@ -1146,13 +1146,13 @@ class LoggerPlotSettings(QtWidgets.QDialog):
                 float(self.optPSDXmax.text()),
             )
 
-            if self.lowFreqChkBox.isChecked() is True:
+            if self.lowFreqChkBox.isChecked():
                 self.parent.apply_low_cutoff = True
                 self.parent.low_cutoff = float(self.lowCutoff.text())
             else:
                 self.parent.apply_low_cutoff = False
 
-            if self.highFreqChkBox.isChecked() is True:
+            if self.highFreqChkBox.isChecked():
                 self.parent.apply_high_cutoff = True
                 self.parent.high_cutoff = float(self.highCutoff.text())
             else:

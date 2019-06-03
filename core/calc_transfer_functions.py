@@ -4,6 +4,7 @@ import numpy as np
 
 class TransferFunctions():
     def __init__(self):
+        pass
 
     def read_2httrace_csv(self, filename):
         """Read time series in 2HTTrace csv file output."""

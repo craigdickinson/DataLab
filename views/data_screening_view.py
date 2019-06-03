@@ -11,7 +11,6 @@ class DataQualityReport(QtWidgets.QWidget):
 
         self.parent = parent
         self.datalab = DataLab(no_dat=True)
-
         self.init_ui()
         self.connect_signals()
 
