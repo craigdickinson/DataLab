@@ -21,18 +21,18 @@ class FatigueProcessingWidget(QtWidgets.QWidget):
 
         # So can access parent class
         self.parent = parent
-        plt.style.use('seaborn')
+        plt.style.use("seaborn")
 
         self.df_dam_per_yr = pd.DataFrame()
         self.df_dam_per_event = pd.DataFrame()
         self.df_dam = pd.DataFrame()
         self.df_cfd = pd.DataFrame()
-        self.fat_loc = ''
+        self.fat_loc = ""
         self.log_scale = True
 
         # None implies damage rate is per year
         self.scale_dam_rate_to_event_len = True
-        self.period = 'year'
+        self.period = "year"
         self.event_length = 20
 
         self.init_ui()
@@ -44,21 +44,21 @@ class FatigueProcessingWidget(QtWidgets.QWidget):
         setupWidget.setFixedWidth(180)
         vboxSetup = QtWidgets.QVBoxLayout(setupWidget)
 
-        self.loadWCFATFile = QtWidgets.QPushButton('Load 2HWCFAT Damage File')
-        self.loadWCFATFile.setToolTip('Load 2HWCFAT fatigue damage (.dmg) file')
-        self.loadFATLASAFile = QtWidgets.QPushButton('Load 2HFATLASA Damage File')
-        self.loadFATLASAFile.setToolTip('Load 2HFATLASA max fatigue damage (.csv) file')
+        self.loadWCFATFileButton = QtWidgets.QPushButton("Load 2HWCFAT Damage File")
+        self.loadWCFATFileButton.setToolTip("Load 2HWCFAT fatigue damage (.dmg) file")
+        self.loadFATLASAFile = QtWidgets.QPushButton("Load 2HFATLASA Damage File")
+        self.loadFATLASAFile.setToolTip("Load 2HFATLASA max fatigue damage (.csv) file")
         self.fatigueLocsList = QtWidgets.QListWidget()
         self.fatigueLocsList.setFixedHeight(150)
-        self.damLogScale = QtWidgets.QCheckBox('Fatigue damage log scale')
+        self.damLogScale = QtWidgets.QCheckBox("Fatigue damage log scale")
         self.damLogScale.setChecked(True)
-        self.damRatePerEvent = QtWidgets.QCheckBox('Scale damage rate per event')
+        self.damRatePerEvent = QtWidgets.QCheckBox("Scale damage rate per event")
         self.damRatePerEvent.setChecked(False)
 
         # Add setup widgets
-        vboxSetup.addWidget(self.loadWCFATFile)
+        vboxSetup.addWidget(self.loadWCFATFileButton)
         vboxSetup.addWidget(self.loadFATLASAFile)
-        vboxSetup.addWidget(QtWidgets.QLabel('Assessed Fatigue Locations'))
+        vboxSetup.addWidget(QtWidgets.QLabel("Assessed Fatigue Locations"))
         vboxSetup.addWidget(self.fatigueLocsList)
         vboxSetup.addWidget(self.damLogScale)
         vboxSetup.addWidget(self.damRatePerEvent)
@@ -82,8 +82,9 @@ class FatigueProcessingWidget(QtWidgets.QWidget):
         layout.addWidget(plotWidget, 0, 1)
 
     def connect_signals(self):
-        self.loadWCFATFile.clicked.connect(self.parent.load_wcfat_results_file)
-        self.fatigueLocsList.itemDoubleClicked.connect(self.on_fatigue_loc_double_clicked)
+        self.fatigueLocsList.itemDoubleClicked.connect(
+            self.on_fatigue_loc_double_clicked
+        )
         self.damLogScale.stateChanged.connect(self.on_log_scale_changed)
         self.damRatePerEvent.stateChanged.connect(self.on_scale_damage_rate_changed)
 
@@ -96,7 +97,9 @@ class FatigueProcessingWidget(QtWidgets.QWidget):
         self.event_length = self.get_event_length(df_dam)
 
         # Rescale reported fatigue damage rate
-        self.df_dam_per_event = self.rescale_damage_rate(df_dam, period=self.event_length)
+        self.df_dam_per_event = self.rescale_damage_rate(
+            df_dam, period=self.event_length
+        )
 
         if self.scale_dam_rate_to_event_len is True:
             self.df_dam = self.df_dam_per_event
@@ -116,7 +119,7 @@ class FatigueProcessingWidget(QtWidgets.QWidget):
         self.plot_fatigue_damage()
 
     def on_log_scale_changed(self):
-        if self.damLogScale.isChecked() is True:
+        if self.damLogScale.isChecked():
             self.log_scale = True
         else:
             self.log_scale = False
@@ -124,12 +127,12 @@ class FatigueProcessingWidget(QtWidgets.QWidget):
         self.plot_fatigue_damage()
 
     def on_scale_damage_rate_changed(self):
-        if self.damRatePerEvent.isChecked() is True:
+        if self.damRatePerEvent.isChecked():
             self.df_dam = self.df_dam_per_event
-            self.period = f'{self.event_length} mins'
+            self.period = f"{self.event_length} mins"
         else:
             self.df_dam = self.df_dam_per_yr
-            self.period = 'year'
+            self.period = "year"
 
         self.plot_fatigue_damage()
 
@@ -161,10 +164,10 @@ class FatigueProcessingWidget(QtWidgets.QWidget):
 
         if self.log_scale is True:
             damage = np.log10(self.df_dam[fat_loc])
-            log10 = r'$\mathregular{log_{10}}$'
+            log10 = r"$\mathregular{log_{10}}$"
         else:
             damage = self.df_dam[fat_loc]
-            log10 = ''
+            log10 = ""
 
         cum_dam = self.df_cfd[fat_loc]
 
@@ -173,36 +176,32 @@ class FatigueProcessingWidget(QtWidgets.QWidget):
         ax1.cla()
         ax2.cla()
 
-        project = f'Total Glendronach Well Monitoring Campaign\n{fat_loc}'
-        self.fig.suptitle(project,
-                          fontname='tahoma',
-                          color=color_2H,
-                          weight='bold',
-                          )
+        project = f"Total Glendronach Well Monitoring Campaign\n{fat_loc}"
+        self.fig.suptitle(project, fontname="tahoma", color=color_2H, weight="bold")
 
         # Fatigue damage rate plot
         ax1.plot(damage)
-        ax1.set_ylabel(f'{log10}Fatigue Damage (1/{self.period})')
-        title = f'Unfactored Fatigue Damage'
+        ax1.set_ylabel(f"{log10}Fatigue Damage (1/{self.period})")
+        title = f"Unfactored Fatigue Damage"
         ax1.set_title(title)
         ax1.margins(x=0, y=0)
 
         # Cumulative fatigue damage plot
         ax2.plot(cum_dam)
-        ax2.set_ylabel('Cumulative Fatigue Damage')
-        title = f'Unfactored Cumulative Fatigue Damage'
+        ax2.set_ylabel("Cumulative Fatigue Damage")
+        title = f"Unfactored Cumulative Fatigue Damage"
         ax2.set_title(title)
         ax2.margins(x=0, y=0)
-        ax2.xaxis.set_major_formatter(mdates.DateFormatter('%d-%b-%y'))
+        ax2.xaxis.set_major_formatter(mdates.DateFormatter("%d-%b-%y"))
         ax2.xaxis.set_major_locator(mdates.DayLocator(interval=7))
 
         self.fig.autofmt_xdate()
-        self.fig.tight_layout(rect=[0, 0, 1, .9])
+        self.fig.tight_layout(rect=[0, 0, 1, 0.9])
         self.canvas.draw()
 
 
 # For testing layout
-if __name__ == '__main__':
+if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
     win = FatigueProcessingWidget()
     win.show()

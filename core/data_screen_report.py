@@ -17,7 +17,7 @@ class DataScreenReport:
 
         self.wb = Workbook()
         self.ws_summary = self.wb.active
-        self.ws_summary.title = 'Summary'
+        self.ws_summary.title = "Summary"
         self.project_name = project_name
         self.campaign_name = campaign_name
         self.bad_filenames = []
@@ -44,8 +44,10 @@ class DataScreenReport:
         :return: Compiled list of [logger id, filename, error] for output to Excel
         """
 
-        bad_files = [[logger_id] + [k, v]
-                     for k, v in zip(dict_bad_files.keys(), dict_bad_files.values())]
+        bad_files = [
+            [logger_id] + [k, v]
+            for k, v in zip(dict_bad_files.keys(), dict_bad_files.values())
+        ]
 
         return bad_files
 
@@ -53,8 +55,8 @@ class DataScreenReport:
         """Write bad filenames to Data Screening Report workbook."""
 
         if len(self.bad_filenames) > 0:
-            self.ws_bad_fname = self.wb.create_sheet(title='Bad Filenames')
-            self.ws_bad_fname.append(['Logger ID', 'File', 'Error'])
+            self.ws_bad_fname = self.wb.create_sheet(title="Bad Filenames")
+            self.ws_bad_fname.append(["Logger ID", "File", "Error"])
             for row in self.bad_filenames:
                 self.ws_bad_fname.append(row)
 
@@ -62,8 +64,8 @@ class DataScreenReport:
         """Write files with data errors to Data Screening Report workbook."""
 
         if len(self.bad_files) > 0:
-            self.ws_bad_files = self.wb.create_sheet(title='Bad Files')
-            self.ws_bad_files.append(['Logger ID', 'File', 'Error'])
+            self.ws_bad_files = self.wb.create_sheet(title="Bad Files")
+            self.ws_bad_files.append(["Logger ID", "File", "Error"])
             for row in self.bad_files:
                 self.ws_bad_files.append(row)
 

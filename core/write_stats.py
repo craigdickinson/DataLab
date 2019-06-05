@@ -1,7 +1,7 @@
 """
 Class to compile and export logger stats.
 """
-__author__ = 'Craig Dickinson'
+__author__ = "Craig Dickinson"
 
 import os.path
 
@@ -21,7 +21,7 @@ class StatsOutput:
 
         # Path to save output
         self.output_dir = output_dir
-        self.logger_id = ''
+        self.logger_id = ""
 
         # List to hold stats data for all logger channels
         self.stats = []
@@ -38,7 +38,9 @@ class StatsOutput:
         ws = self.wb[sheet_name]
         self.wb.remove(ws)
 
-    def compile_stats(self, logger, sample_start, sample_end, logger_stats, logger_stats_filt):
+    def compile_stats(
+        self, logger, sample_start, sample_end, logger_stats, logger_stats_filt
+    ):
         """
         Compile statistics into data frame for exporting and for use by gui.
         :param logger: object
@@ -61,7 +63,7 @@ class StatsOutput:
         # Create headers
         channels = logger.channel_names
         channels_header_unfilt = [x for chan in channels for x in [chan] * 4]
-        stats_header = ['min', 'max', 'mean', 'std'] * len(channels)
+        stats_header = ["min", "max", "mean", "std"] * len(channels)
         units_header = [x for unit in logger.channel_units for x in [unit] * 4]
 
         # Join original and filtered stats columns
@@ -70,7 +72,9 @@ class StatsOutput:
             self.stats = np.hstack((unfiltered_stats, filtered_stats))
 
             # Create headers containing unfiltered and filtered channels
-            channel_header_filt = [x for chan in channels for x in [f'{chan} (filtered)'] * 4]
+            channel_header_filt = [
+                x for chan in channels for x in [f"{chan} (filtered)"] * 4
+            ]
             channels_header = channels_header_unfilt + channel_header_filt
             stats_header *= 2
             units_header *= 2
@@ -86,12 +90,14 @@ class StatsOutput:
         df = self._create_stats_dataframe(self.stats, sample_start, header)
 
         # Create an alternative stats data frame in a layout for writing to file (includes end timestamps column)
-        self.df_stats = self._create_export_stats_dataframe(self.stats, sample_start, sample_end, header)
+        self.df_stats = self._create_export_stats_dataframe(
+            self.stats, sample_start, sample_end, header
+        )
 
         # Reorder stats data frame columns to preferred order of (channel, channel (filtered)) pairs
         cols = self._reorder_columns(df)
         df = df[cols]
-        self.df_stats = self.df_stats[['Start', 'End'] + cols]
+        self.df_stats = self.df_stats[["Start", "End"] + cols]
 
         # Add stats data frame to dictionary for internal use by the gui
         self.dict_stats[self.logger_id] = df
@@ -104,33 +110,36 @@ class StatsOutput:
              [chan_1: min max ave std [N],..., chan_M: min max ave std [N]]].
         """
 
-        if logger_stats.min:
-            num_pts = len(logger_stats.min)
-
-            # These arrays are lists of channels, e.g.
-            # mn = [[chan_1_min[0],..., chan_M_min[0]],
-            #       [chan_1_min[N],..., chan_M_min[N]]]
-            mn = logger_stats.min
-            mx = logger_stats.max
-            ave = logger_stats.mean
-            std = logger_stats.std
-
-            # Zip creates tuple of: ((ch1_min, ch1_max, ch1_ave, ch1_std),...,(chM_min, chM_max, chM_ave, chM_std))
-            # Logic: Loop each data point, create list, loop each channel in zip, loop each stat in channel, add to list
-            stats = [
-                [stat for channel in zip(mn[k], mx[k], ave[k], std[k]) for stat in channel]
-                for k in range(num_pts)
-            ]
-            return stats
-        else:
+        if len(logger_stats.min) == 0:
             return None
+
+        num_pts = len(logger_stats.min)
+
+        # These arrays are lists of channels, e.g.
+        # mn = [[chan_1_min[0],..., chan_M_min[0]],
+        #       [chan_1_min[N],..., chan_M_min[N]]]
+        mn = logger_stats.min
+        mx = logger_stats.max
+        ave = logger_stats.mean
+        std = logger_stats.std
+
+        # Zip creates tuple of: ((ch1_min, ch1_max, ch1_ave, ch1_std),...,(chM_min, chM_max, chM_ave, chM_std))
+        # Logic: Loop each data point, create list, loop each channel in zip, loop each stat in channel, add to list
+        stats = [
+            [stat for channel in zip(mn[k], mx[k], ave[k], std[k]) for stat in channel]
+            for k in range(num_pts)
+        ]
+
+        return stats
 
     @staticmethod
     def _create_header(channel_header, stats_header, units_header):
         """Create multi-index header of channel names, stats, and units to use in stats data frame."""
 
-        header = pd.MultiIndex.from_arrays([channel_header, stats_header, units_header],
-                                           names=['channels', 'stats', 'units'])
+        header = pd.MultiIndex.from_arrays(
+            [channel_header, stats_header, units_header],
+            names=["channels", "stats", "units"],
+        )
         return header
 
     @staticmethod
@@ -150,8 +159,12 @@ class StatsOutput:
 
         # Add End time column, reset index and rename first column to Start
         df = pd.DataFrame(data=stats, columns=header)
-        df.insert(loc=0, column='Start', value=sample_start)
-        df.insert(loc=1, column='End', value=sample_end)
+        df.insert(loc=0, column="Start", value=sample_start)
+        df.insert(loc=1, column="End", value=sample_end)
+
+        # Convert start and end columns to strings
+        df["Start"] = df["Start"].dt.strftime("%Y-%m-%d %H:%M:%S")
+        df["End"] = df["End"].dt.strftime("%Y-%m-%d %H:%M:%S")
 
         return df
 
@@ -159,45 +172,38 @@ class StatsOutput:
     def _reorder_columns(df):
         channels = df.columns.unique(0)
         n = len(channels)
-        channels_unfilt = channels[:n // 2]
-        channels_filt = channels[n // 2:]
+        channels_unfilt = channels[: n // 2]
+        channels_filt = channels[n // 2 :]
         new_cols = [col for pair in zip(channels_unfilt, channels_filt) for col in pair]
 
         return new_cols
 
-    def stats_to_hdf5(self):
+    def write_to_hdf5(self):
         """Write stats to HDF5 file."""
 
-        file_name = os.path.join(self.output_dir, 'Statistics.h5')
+        file_name = os.path.join(self.output_dir, "Statistics.h5")
         self.df_stats.to_hdf(file_name, self.logger_id)
 
-    def stats_to_csv(self):
+    def write_to_csv(self):
         """Write stats to csv file."""
 
-        file_name = os.path.join(self.output_dir, 'Statistics_' + self.logger_id + '.csv')
-
-        # Convert start and end columns to strings
-        self.df_stats['Start'] = self.df_stats['Start'].dt.strftime('%Y-%m-%d %H:%M:%S')
-        self.df_stats['End'] = self.df_stats['End'].dt.strftime('%Y-%m-%d %H:%M:%S')
-
+        file_name = os.path.join(
+            self.output_dir, "Statistics_" + self.logger_id + ".csv"
+        )
         self.df_stats.to_csv(file_name, index=False)
 
-    def stats_to_excel(self):
+    def write_to_excel(self):
         """Write stats from a logger_stats object to Excel workbook."""
 
-        # Retrieve headers
-        channels_header = self.stats_df.columns.unique(level=0).to_list
-        stats_header = self.stats_df.columns.get_level_values(level=1).to_list()
-        units_header = self.stats_df.columns.get_level_values(level=1).to_list()
-
-        # Convert start and end columns to strings
-        self.df_stats['Start'] = self.df_stats['Start'].dt.strftime('%Y-%m-%d %H:%M:%S')
-        self.df_stats['End'] = self.df_stats['End'].dt.strftime('%Y-%m-%d %H:%M:%S')
-        data = self.stats_df.values.tolist()
+        # Convert headers and values as lists
+        channels_header = self.df_stats.columns.unique(level=0).to_list()
+        stats_header = self.df_stats.columns.get_level_values(level=1).to_list()
+        units_header = self.df_stats.columns.get_level_values(level=2).to_list()
+        data = self.df_stats.values.tolist()
 
         # Reformat channels header so as not to have repeating channels
         channels = channels_header[2:]
-        channels = [x for chan in channels for x in [chan] + ['', '', '']]
+        channels = [x for chan in channels for x in [chan] + ["", "", ""]]
         channels_header = channels_header[:2] + channels
 
         # Create worksheet for logger
@@ -218,7 +224,7 @@ class StatsOutput:
         max_row = ws.max_row
         for row in range(4, max_row + 1):
             for col in range(3, max_col + 1):
-                ws.cell(row=row, column=col).number_format = '0.00E+00'
+                ws.cell(row=row, column=col).number_format = "0.00E+00"
 
         # Set width of date columns
         for col in range(1, 3):
@@ -228,7 +234,7 @@ class StatsOutput:
         """Save workbook once all worksheets have been created."""
 
         try:
-            fname = 'Statistics.xlsx'
+            fname = "Statistics.xlsx"
             self.wb.save(os.path.join(self.output_dir, fname))
         except:
-            print('\n\nFailed to save ' + fname)
+            print("\n\nFailed to save " + fname)

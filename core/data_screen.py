@@ -1,7 +1,7 @@
 """
 Class to carry out screening checks on logger data.
 """
-__author__ = 'Craig Dickinson'
+__author__ = "Craig Dickinson"
 
 import os.path
 
@@ -46,10 +46,15 @@ class DataScreen:
         self.stats_sample_length = 0
         self.spectral_sample_length = 0
 
-        # csv read properties
+        # File read properties
+        self.file_format = "General-csv"
+        self.delim = ","
         self.header_row = 0
         self.skip_rows = []
         self.use_cols = []
+
+        # Apply bandpass signal filtering flag
+        self.apply_filters = True
 
     def set_logger(self, logger):
         """Set the logger filenames to be assessed and required read csv file properties."""
@@ -57,18 +62,35 @@ class DataScreen:
         self.logger = logger
 
         # Set full file path
-        self.files = [os.path.join(self.logger.logger_path, f) for f in self.logger.files]
+        self.files = [
+            os.path.join(self.logger.logger_path, f) for f in self.logger.files
+        ]
 
-        # Set csv read properties
+        # Set file format (i.e. Fugro/Pulse/General)
+        self.file_format = self.logger.file_format
+
+        # Set file read properties
+        self.delim = self.logger.file_delimiter
         self.header_row = self.logger.channel_header_row - 1
-        self.skip_rows = [i for i in range(self.logger.num_headers) if i > self.header_row]
-
-        # Set requested columns to process
-        self.use_cols = [0] + [c - 1 for c in self.logger.requested_cols]
 
         # No header row specified
         if self.header_row < 0:
             self.header_row = None
+
+        # Additional header rows to skip - only using the first header row for data frame column names
+        self.skip_rows = [
+            i for i in range(self.logger.num_headers) if i > self.header_row
+        ]
+
+        # Set requested columns to process
+        self.use_cols = set([0] + [c - 1 for c in self.logger.requested_cols])
+
+        # Flags to set whether bandpass filtering is to be applied
+        low_cutoff = self.logger.stats_low_cutoff_freq
+        high_cutoff = self.logger.stats_high_cutoff_freq
+
+        if low_cutoff is None and high_cutoff is None:
+            self.apply_filters = False
 
     def read_logger_file(self, filename):
         """Read logger file into pandas data frame."""
@@ -76,14 +98,15 @@ class DataScreen:
         df = pd.DataFrame()
 
         # Read data into pandas data frame
-        if self.logger.file_format == 'Fugro-csv' or self.logger.file_format == 'General-csv':
-            df = pd.read_csv(filename,
-                             sep=self.logger.file_delimiter,
-                             header=self.header_row,
-                             skiprows=self.skip_rows,
-                             encoding='latin',
-                             )
-        elif self.logger.file_format == 'Pulse-acc':
+        if self.file_format == "Fugro-csv" or self.file_format == "General-csv":
+            df = pd.read_csv(
+                filename,
+                sep=self.delim,
+                header=self.header_row,
+                skiprows=self.skip_rows,
+                encoding="latin",
+            )
+        elif self.file_format == "Pulse-acc":
             df = read_pulse_acc_single_header_format(filename)
 
         return df
@@ -101,14 +124,16 @@ class DataScreen:
 
         # Create dummy data for missing columns
         for i in missing_cols:
-            df['Dummy' + str(i + 1)] = np.nan
+            df["Dummy" + str(i + 1)] = np.nan
 
         # Convert first column (should be timestamps string) to datetimes (not required for Pulse-acc format)
-        if self.logger.file_format != 'Pulse-acc':
-            df.iloc[:, 0] = pd.to_datetime(df.iloc[:, 0], format=self.logger.datetime_format, errors='coerce')
+        if self.logger.file_format != "Pulse-acc":
+            df.iloc[:, 0] = pd.to_datetime(
+                df.iloc[:, 0], format=self.logger.datetime_format, errors="coerce"
+            )
 
         # Convert any non-numeric data to NaN
-        df.iloc[:, 1:] = df.iloc[:, 1:].apply(pd.to_numeric, errors='coerce')
+        df.iloc[:, 1:] = df.iloc[:, 1:].apply(pd.to_numeric, errors="coerce")
 
         return df
 
@@ -131,7 +156,7 @@ class DataScreen:
         # Check number of points is valid
         if pts != self.logger.expected_data_points:
             filename = self.logger.files[file_num]
-            self.dict_bad_files[filename] = 'Unexpected number of points'
+            self.dict_bad_files[filename] = "Unexpected number of points"
         else:
             # Calculate resolution for each channel
             self.res.append(self._resolution(df))
@@ -198,10 +223,10 @@ class DataScreen:
             # Store start and end times of sample data if data frame contains target length
             # if len(sample_df) == sample_length:
             if len(df_sample) <= sample_length:
-                if type == 'stats':
+                if type == "stats":
                     self.stats_sample_start.append(df_sample.iloc[0, 0])
                     self.stats_sample_end.append(df_sample.iloc[-1, 0])
-                elif type == 'spectral':
+                elif type == "spectral":
                     self.spectral_sample_start.append(df_sample.iloc[0, 0])
                     self.spectral_sample_end.append(df_sample.iloc[-1, 0])
 
@@ -220,13 +245,16 @@ class DataScreen:
         df.index = t
 
         # Remove timestamps column
-        df = df.select_dtypes('number')
+        df = df.select_dtypes("number")
 
         # Apply bandpass filter
-        df_filtered = filter_signal(df, self.logger.stats_low_cutoff_freq, self.logger.stats_high_cutoff_freq)
+        df_filtered = filter_signal(
+            df, self.logger.stats_low_cutoff_freq, self.logger.stats_high_cutoff_freq
+        )
 
-        # Insert timestamps column and reset index to return a data frame in the same format as the unfiltered one
-        df_filtered.reset_index(drop=True, inplace=True)
-        df_filtered.insert(loc=0, column=ts.name, value=ts)
+        if not df_filtered.empty:
+            # Insert timestamps column and reset index to return a data frame in the same format as the unfiltered one
+            df_filtered.reset_index(drop=True, inplace=True)
+            df_filtered.insert(loc=0, column=ts.name, value=ts)
 
         return df_filtered

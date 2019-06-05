@@ -32,15 +32,15 @@ from glob import glob
 def set_pulse_acc_file_format(logger):
     """Return a LoggerProperties object populated with known Pulse-acc file format settings."""
 
-    logger.file_format = 'Pulse-acc'
-    logger.file_ext = 'acc'
-    logger.file_delimiter = ' '
+    logger.file_format = "Pulse-acc"
+    logger.file_ext = "acc"
+    logger.file_delimiter = " "
     logger.num_headers = 20
     logger.channel_header_row = 18
     logger.units_header_row = 18
 
     # Timestamp format is not needed for Pulse-acc files
-    logger.timestamp_format = 'Not required'
+    logger.timestamp_format = "Not required"
 
     return logger
 
@@ -54,10 +54,10 @@ def detect_pulse_logger_properties(logger):
     """
 
     # TODO: Need to check file is of expected filename first!
-    raw_files = glob(logger.logger_path + '/*.' + logger.file_ext)
+    raw_files = glob(logger.logger_path + "/*." + logger.file_ext)
 
     if len(raw_files) == 0:
-        msg = f'No files with the extension {logger.file_ext} found in {logger.logger_path}'
+        msg = f"No files with the extension {logger.file_ext} found in {logger.logger_path}"
         raise FileNotFoundError(msg)
 
     test_file = raw_files[0]
@@ -70,7 +70,7 @@ def detect_pulse_logger_properties(logger):
     if fs > 0:
         logger.freq = int(fs)
     else:
-        msg = f'Could not read sample interval for logger {logger.logger_id}\nFile: {test_filename}'
+        msg = f"Could not read sample interval for logger {logger.logger_id}\nFile: {test_filename}"
         raise Exception(msg)
 
     # Store expected number of columns (+1 to include timestamp column)
@@ -91,14 +91,14 @@ def read_pulse_header_info(filename):
     units
     """
 
-    with open(filename, 'r') as f:
+    with open(filename, "r") as f:
         # Read sampling frequency
         [next(f) for _ in range(9)]
-        fs = next(f).strip().split(' ')[1]
+        fs = next(f).strip().split(" ")[1]
 
         # Read columns header
         [next(f) for _ in range(7)]
-        cols = next(f).strip().split(':')
+        cols = next(f).strip().split(":")
 
         [next(f) for _ in range(2)]
         data = f.readlines()
@@ -116,13 +116,13 @@ def read_pulse_header_info(filename):
 
     # Get lists of channel names and units
     # Drop "%Data," from the first column
-    cols[0] = cols[0].split(',')[1]
+    cols[0] = cols[0].split(",")[1]
 
     # Extract channel name and units from each column
     channels = []
     units = []
     for col in cols:
-        c = col.split('(')
+        c = col.split("(")
         channels.append(c[0].strip())
         units.append(c[1][:-1])
 
@@ -139,9 +139,9 @@ def is_number(s):
         return False
 
 
-if __name__ == '__main__':
-    folder = r'C:\Users\dickinsc\PycharmProjects\_2. DataLab Analysis Files\21239\4. Dat2Acc\POD001'
-    fname = 'MPOD001_2018_06_07_16_20.ACC'
+if __name__ == "__main__":
+    folder = r"C:\Users\dickinsc\PycharmProjects\_2. DataLab Analysis Files\21239\4. Dat2Acc\POD001"
+    fname = "MPOD001_2018_06_07_16_20.ACC"
     f = os.path.join(folder, fname)
 
     read_pulse_header_info(f)
