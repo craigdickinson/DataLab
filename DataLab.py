@@ -1,6 +1,6 @@
 __author__ = "Craig Dickinson"
 __program__ = "DataLab"
-__version__ = "0.33"
+__version__ = "0.34"
 __date__ = "4 June 2019"
 
 import logging
@@ -89,8 +89,12 @@ class DataLabApp(DataLabGui):
         self.timeSeriesTab.loadFileButton.clicked.connect(self.load_logger_file)
         self.statsTab.loadStatsButton.clicked.connect(self.load_stats_file)
         self.vesselStatsTab.loadStatsButton.clicked.connect(self.load_stats_file)
-        self.spectrogramTab.loadDatasetButton.clicked.connect(self.load_spectrograms_file)
-        self.fatigueTab.loadWCFATFileButton.clicked.connect(self.load_wcfat_results_file)
+        self.spectrogramTab.loadDatasetButton.clicked.connect(
+            self.load_spectrograms_file
+        )
+        self.fatigueTab.loadWCFATFileButton.clicked.connect(
+            self.load_wcfat_results_file
+        )
 
     def message_information(self, title, message, buttons=QtWidgets.QMessageBox.Ok):
         return QtWidgets.QMessageBox.information(self, title, message, buttons)
@@ -414,8 +418,8 @@ class DataLabApp(DataLabGui):
 
                 # Get all channel names and units if not already stored in logger object
                 if (
-                        len(logger.all_channel_names) == 0
-                        and len(logger.all_channel_units) == 0
+                    len(logger.all_channel_names) == 0
+                    and len(logger.all_channel_units) == 0
                 ):
                     logger.get_all_channel_and_unit_names()
 
@@ -638,7 +642,7 @@ class ControlFileProgressBar(QtWidgets.QDialog):
 
     @pyqtSlot(str, int, int, int, int, int)
     def update_progress_bar(
-            self, logger, logger_i, file_i, n, file_num, total_num_files
+        self, logger, logger_i, file_i, n, file_num, total_num_files
     ):
         """Update progress bar window."""
 

@@ -39,7 +39,7 @@ class StatsOutput:
         self.wb.remove(ws)
 
     def compile_stats(
-            self, logger, sample_start, sample_end, logger_stats, logger_stats_filt
+        self, logger, sample_start, sample_end, logger_stats, logger_stats_filt
     ):
         """
         Compile statistics into data frame for exporting and for use by gui.
@@ -126,11 +126,7 @@ class StatsOutput:
         # Zip creates tuple of: ((ch1_min, ch1_max, ch1_ave, ch1_std),...,(chM_min, chM_max, chM_ave, chM_std))
         # Logic: Loop each data point, create list, loop each channel in zip, loop each stat in channel, add to list
         stats = [
-            [
-                stat
-                for channel in zip(mn[k], mx[k], ave[k], std[k])
-                for stat in channel
-            ]
+            [stat for channel in zip(mn[k], mx[k], ave[k], std[k]) for stat in channel]
             for k in range(num_pts)
         ]
 
@@ -177,7 +173,7 @@ class StatsOutput:
         channels = df.columns.unique(0)
         n = len(channels)
         channels_unfilt = channels[: n // 2]
-        channels_filt = channels[n // 2:]
+        channels_filt = channels[n // 2 :]
         new_cols = [col for pair in zip(channels_unfilt, channels_filt) for col in pair]
 
         return new_cols

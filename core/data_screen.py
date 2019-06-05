@@ -46,7 +46,9 @@ class DataScreen:
         self.stats_sample_length = 0
         self.spectral_sample_length = 0
 
-        # csv read properties
+        # File read properties
+        self.file_format = "General-csv"
+        self.delim = ","
         self.header_row = 0
         self.skip_rows = []
         self.use_cols = []
@@ -64,20 +66,26 @@ class DataScreen:
             os.path.join(self.logger.logger_path, f) for f in self.logger.files
         ]
 
-        # Set csv read properties
-        self.header_row = self.logger.channel_header_row - 1
-        self.skip_rows = [
-            i for i in range(self.logger.num_headers) if i > self.header_row
-        ]
+        # Set file format (i.e. Fugro/Pulse/General)
+        self.file_format = self.logger.file_format
 
-        # Set requested columns to process
-        self.use_cols = [0] + [c - 1 for c in self.logger.requested_cols]
+        # Set file read properties
+        self.delim = self.logger.file_delimiter
+        self.header_row = self.logger.channel_header_row - 1
 
         # No header row specified
         if self.header_row < 0:
             self.header_row = None
 
-        # Flag to set whether bandpass filtering is to be applied
+        # Additional header rows to skip - only using the first header row for data frame column names
+        self.skip_rows = [
+            i for i in range(self.logger.num_headers) if i > self.header_row
+        ]
+
+        # Set requested columns to process
+        self.use_cols = set([0] + [c - 1 for c in self.logger.requested_cols])
+
+        # Flags to set whether bandpass filtering is to be applied
         low_cutoff = self.logger.stats_low_cutoff_freq
         high_cutoff = self.logger.stats_high_cutoff_freq
 
@@ -88,18 +96,17 @@ class DataScreen:
         """Read logger file into pandas data frame."""
 
         df = pd.DataFrame()
-        file_format = self.logger.file_format
 
         # Read data into pandas data frame
-        if file_format == "Fugro-csv" or file_format == "General-csv":
+        if self.file_format == "Fugro-csv" or self.file_format == "General-csv":
             df = pd.read_csv(
                 filename,
-                sep=self.logger.file_delimiter,
+                sep=self.delim,
                 header=self.header_row,
                 skiprows=self.skip_rows,
                 encoding="latin",
             )
-        elif file_format == "Pulse-acc":
+        elif self.file_format == "Pulse-acc":
             df = read_pulse_acc_single_header_format(filename)
 
         return df

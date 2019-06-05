@@ -1176,7 +1176,6 @@ class StatsAndSpectralSettingsTab(QtWidgets.QWidget):
         )
         self.spectralForm.addRow(QtWidgets.QLabel("End timestamp:"), self.spectralEnd)
 
-
         # Spectral output file formats group
         policy = QtWidgets.QSizePolicy(
             QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed

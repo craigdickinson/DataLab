@@ -211,14 +211,15 @@ class ControlFile(object):
                 msg += logger.logger_id
                 raise InputError(msg)
 
-            # Get file timestamp - *FILE_TIMESTAMP
-            file_timestamp_format = self.get_file_timestamp(data)
+            # Get file timestamp - *FILE_TIMESTAMP - if not copying file format settings of a previous logger
+            if copy_file_format == "":
+                file_timestamp_format = self.get_file_timestamp(logger_data)
 
-            # Key not found
-            if file_timestamp_format == "":
-                msg = f"File timestamp format for {logger.logger_id} not found"
-                raise InputError(msg)
-            logger.file_timestamp_format = file_timestamp_format
+                # Key not found
+                if file_timestamp_format == "":
+                    msg = f"File timestamp format for {logger.logger_id} not found"
+                    raise InputError(msg)
+                logger.file_timestamp_format = file_timestamp_format
 
             # Assign file format-specific logger properties
             # General file format
@@ -236,11 +237,11 @@ class ControlFile(object):
             else:
                 raise InputError("File format option not recognised.")
 
-            # Set logging duration
-            self.get_logging_duration(logger, logger_data)
-
-            # Get header info if not copying a setting of a previous logger
+            # Get logging duration and header info if not copying file format settings of a previous logger
             if copy_file_format == "":
+                # Get logging duration
+                self.get_logging_duration(logger, logger_data)
+
                 # Check for user defined headers and units
                 self.get_user_headers(logger, logger_data)
 
@@ -277,7 +278,7 @@ class ControlFile(object):
             logger.check_headers()
 
             # Check if spectrograms are to be generated
-            self.get_spectrograms(logger_data)
+            # self.get_spectrograms(logger_data)
 
     def set_logger_file_paths(self, logger_id_lines, data):
         """
@@ -301,7 +302,7 @@ class ControlFile(object):
 
         i = slice_array[index]
         if index < len(slice_array) - 1:
-            return data[i: slice_array[index + 1]]
+            return data[i : slice_array[index + 1]]
         else:
             return data[i:]
 
@@ -761,7 +762,7 @@ class ControlFile(object):
             text_upper = text.upper().strip()
             if text_upper.startswith(key.upper()):
                 # Return the rest of the line and row number if found
-                key_data = text[len(key):].strip()
+                key_data = text[len(key) :].strip()
                 return line, key_data
 
         # Return empty string and negative row number if not found

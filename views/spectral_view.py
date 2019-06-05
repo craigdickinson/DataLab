@@ -11,6 +11,7 @@ from matplotlib import cm
 from matplotlib import gridspec
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
+
 # To resolve a pandas warning in using timestamps with matplotlib - to investigate
 from pandas.plotting import register_matplotlib_converters
 
@@ -333,8 +334,8 @@ class SpectrogramWidget(QtWidgets.QWidget):
         # Plot title
         channel = self.datasetList.currentItem().text()
         title = (
-                "21239 Total WoS - Glendronach Well Monitoring Campaign\nSpectrogram: "
-                + channel
+            "21239 Total WoS - Glendronach Well Monitoring Campaign\nSpectrogram: "
+            + channel
         )
 
         f0 = self.freqs[0]
@@ -361,7 +362,9 @@ class SpectrogramWidget(QtWidgets.QWidget):
         # im = ax1.contourf(self.freqs, self.timestamps, self.z, levels=ticks, cmap=cmap)
 
         # Maximise figure space before applying colour bar as colour bar will not move if applied after
-        self.fig.tight_layout(rect=[0, 0.1, 1, 0.92])  # (rect=[left, bottom, right, top])
+        self.fig.tight_layout(
+            rect=[0, 0.1, 1, 0.92]
+        )  # (rect=[left, bottom, right, top])
 
         # Apply colour bar
         self.cbar = self.fig.colorbar(im, ax=[ax1, ax2])
@@ -576,7 +579,7 @@ class SpectroPlotSettings(QtWidgets.QDialog):
         self.optFreqMax.setText(str(round(self.parent.init_xlim[1], 1)))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
     win = SpectrogramWidget()
     win.show()

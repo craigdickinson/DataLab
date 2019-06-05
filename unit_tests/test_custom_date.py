@@ -1,9 +1,10 @@
 """
-Created on 8 Aug 2016
-
-@author: bowdenc
+Tests for custom date routines.
 """
+__author__ = "Craig Dickinson"
+
 import unittest
+import pytest
 from core import custom_date
 
 
@@ -32,4 +33,4 @@ class TestCustomDate(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    unittest.main()
+    pytest.main()

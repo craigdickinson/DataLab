@@ -23,11 +23,11 @@ class TransferFunctions:
         pass
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     import os
 
-    fpath = r'C:\Users\dickinsc\PycharmProjects\_2. DataLab Analysis Files\21239\Transfer Functions\Hot Spots BM Z'
-    fname = '01_Glendronach_W1D_tt.csv'
+    fpath = r"C:\Users\dickinsc\PycharmProjects\_2. DataLab Analysis Files\21239\Transfer Functions\Hot Spots BM Z"
+    fname = "01_Glendronach_W1D_tt.csv"
     fpath = os.path.join(fpath, fname)
 
     tf = TransferFunctions()

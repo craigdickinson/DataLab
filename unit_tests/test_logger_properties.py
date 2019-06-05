@@ -1,10 +1,10 @@
 """
-Created on 8 Aug 2016
-
-@author: bowdenc
+Tests for logger properties routines.
 """
+__author__ = "Craig Dickinson"
 
 import unittest
+import pytest
 
 from dateutil.parser import parse
 from testfixtures import TempDirectory
@@ -57,4 +57,4 @@ class TestLogger(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    unittest.main()
+    pytest.main()

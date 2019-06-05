@@ -1,11 +1,12 @@
 """
-Created on 9 Aug 2016
-
-@author: bowdenc
+Tests for data screen routines.
 """
+__author__ = "Craig Dickinson"
+
 import datetime as dt
 import io
 import unittest
+import pytest
 
 import numpy as np
 import pandas as pd
@@ -100,24 +101,30 @@ class Test(unittest.TestCase):
         test_stream.write(eg_file)
         test_stream.seek(0)
 
-        # Read the data using data_screen routine
-        header = 1
+        # Set up file read properties
+        delim = ","
+        header_row = 1
         skip_rows = [2]
         use_cols = [0, 1, 2, 3, 4]
-        delim = ","
-        data = self.logger_stats.read_data(
-            test_stream, delim, header, skip_rows, use_cols
-        )
+
+        # Store properties in DataScreen object
+        self.logger_stats.delim = delim
+        self.logger_stats.header_row = header_row
+        self.logger_stats.skip_rows = skip_rows
+        self.logger_stats.use_cols = use_cols
+
+        # Read the data using data_screen routine
+        data = self.logger_stats.read_logger_file(test_stream)
 
         # Compare the data
         test_stream.seek(0)
         data1 = pd.read_csv(
             test_stream,
             sep=delim,
-            header=header,
+            header=header_row,
             usecols=use_cols,
             skiprows=skip_rows,
-            encoding="utf-8",
+            encoding="latin",
         )
 
         pdt.assert_frame_equal(data1, data)
@@ -128,4 +135,4 @@ class Test(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    unittest.main()
+    pytest.main()

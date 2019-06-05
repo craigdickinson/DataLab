@@ -1,6 +1,7 @@
 """
 Class to hold logger properties.
 """
+__author__ = "Craig Dickinson"
 
 import os
 from glob import glob
@@ -179,13 +180,13 @@ class LoggerProperties:
         self.file_timestamps = []
 
         for f in self.raw_filenames:
-            y = f[self.year_span[0]: self.year_span[1]]
-            m = f[self.month_span[0]: self.month_span[1]]
-            d = f[self.day_span[0]: self.day_span[1]]
-            h = f[self.hour_span[0]: self.hour_span[1]]
-            minute = f[self.min_span[0]: self.min_span[1]]
-            sec = f[self.sec_span[0]: self.sec_span[1]]
-            ms = f[self.ms_span[0]: self.ms_span[1]]
+            y = f[self.year_span[0] : self.year_span[1]]
+            m = f[self.month_span[0] : self.month_span[1]]
+            d = f[self.day_span[0] : self.day_span[1]]
+            h = f[self.hour_span[0] : self.hour_span[1]]
+            minute = f[self.min_span[0] : self.min_span[1]]
+            sec = f[self.sec_span[0] : self.sec_span[1]]
+            ms = f[self.ms_span[0] : self.ms_span[1]]
 
             # Date must contain y, m and d
             date_str = y + "-" + m + "-" + d
