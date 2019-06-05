@@ -238,10 +238,10 @@ class PlotAxesData:
         if not df.empty:
             # Plot all stats on selected axes
             if plot_type == "Combined":
-                mn = df["min"].values.flatten()
-                mx = df["max"].values.flatten()
-                ave = df["mean"].values.flatten()
-                std = df["std"].values.flatten()
+                mn = df["min"].values.ravel()
+                mx = df["max"].values.ravel()
+                ave = df["mean"].values.ravel()
+                std = df["std"].values.ravel()
 
                 label_1 = f"Mean {label}"
                 label_2 = f"Range {label}"
