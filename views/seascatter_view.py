@@ -45,9 +45,9 @@ class SeascatterDiagram(QtWidgets.QWidget):
 
     def init_ui(self):
         # Bin controls
-        self.hsBinSize = QtWidgets.QLineEdit('0.5')
+        self.hsBinSize = QtWidgets.QLineEdit("0.5")
         self.hsBinSize.setFixedWidth(30)
-        self.tpBinSize = QtWidgets.QLineEdit('1.0')
+        self.tpBinSize = QtWidgets.QLineEdit("1.0")
         self.tpBinSize.setFixedWidth(30)
 
         # Apply float validation to input boxes
@@ -58,9 +58,9 @@ class SeascatterDiagram(QtWidgets.QWidget):
         # Controls container
         self.container1 = QtWidgets.QWidget()
         self.controlsLayout = QtWidgets.QHBoxLayout(self.container1)
-        self.controlsLayout.addWidget(QtWidgets.QLabel('Hs bin size (m):'))
+        self.controlsLayout.addWidget(QtWidgets.QLabel("Hs bin size (m):"))
         self.controlsLayout.addWidget(self.hsBinSize)
-        self.controlsLayout.addWidget(QtWidgets.QLabel('Tp bin size (s):'))
+        self.controlsLayout.addWidget(QtWidgets.QLabel("Tp bin size (s):"))
         self.controlsLayout.addWidget(self.tpBinSize)
 
         # Seascatter table widget
@@ -123,8 +123,8 @@ class SeascatterDiagram(QtWidgets.QWidget):
         self.hs_bin_size = float(self.hsBinSize.text())
         self.tp_bin_size = float(self.tpBinSize.text())
 
-        self.df_ss = df_vessel.xs('mean', axis=1, level=1)
-        self.df_ss = self.df_ss[['SigWaveHeight', 'SigWavePeriod']]
+        self.df_ss = df_vessel.xs("mean", axis=1, level=1)
+        self.df_ss = self.df_ss[["SigWaveHeight", "SigWavePeriod"]]
 
         # Get Hs/Tp limits
         self.hs_min = math.floor(self.df_ss.min()[0])
@@ -141,10 +141,9 @@ class SeascatterDiagram(QtWidgets.QWidget):
         """Create and display seascatter diagram from Hs/Tp data."""
 
         # Generate seascatter diagram
-        self.df_scatter = calc_seascatter_diagram(df=self.df_ss,
-                                                  hs_bins=self.hs_bins,
-                                                  tp_bins=self.tp_bins,
-                                                  )
+        self.df_scatter = calc_seascatter_diagram(
+            df=self.df_ss, hs_bins=self.hs_bins, tp_bins=self.tp_bins
+        )
 
         # Apply seascatter to table and plot Hs/Tp distributions
         self.set_scatter_table(self.df_scatter)
@@ -165,9 +164,9 @@ class SeascatterDiagram(QtWidgets.QWidget):
                 val = df_scatter.iat[i, j]
                 frac = val / max_val
                 if val == 0:
-                    val = ''
+                    val = ""
                 else:
-                    val = f'{val:.2f}'
+                    val = f"{val:.2f}"
 
                 item = QtWidgets.QTableWidgetItem(val)
                 item.setTextAlignment(QtCore.Qt.AlignCenter)
@@ -206,14 +205,14 @@ class SeascatterDiagram(QtWidgets.QWidget):
         # Plot Hs distribution
         self.ax1.cla()
         self.ax1.plot(hs)
-        self.ax1.set_xlabel('Hs (m)')
-        self.ax1.set_ylabel('Percentage Occurrence (%)')
+        self.ax1.set_xlabel("Hs (m)")
+        self.ax1.set_ylabel("Percentage Occurrence (%)")
 
         # Plot Tp distribution
         self.ax2.cla()
         self.ax2.plot(tp)
-        self.ax2.set_xlabel('Tp (s)')
-        self.ax2.set_ylabel('Percentage Occurrence (%)')
+        self.ax2.set_xlabel("Tp (s)")
+        self.ax2.set_ylabel("Percentage Occurrence (%)")
 
         self.fig.tight_layout()
         self.canvas.draw()
@@ -221,25 +220,29 @@ class SeascatterDiagram(QtWidgets.QWidget):
     def export_scatter_diagram(self, filename):
         """Export seastate scatter diagram to Export."""
 
-        writer = pd.ExcelWriter(filename, engine='xlsxwriter')
+        writer = pd.ExcelWriter(filename, engine="xlsxwriter")
 
         # Seastates sheet
-        self.df_ss.to_excel(writer, sheet_name='Seastates', na_rep='N/A', float_format='%.2f')
-        ws = writer.sheets['Seastates']
-        ws.set_column('A:A', 11)
+        self.df_ss.to_excel(
+            writer, sheet_name="Seastates", na_rep="N/A", float_format="%.2f"
+        )
+        ws = writer.sheets["Seastates"]
+        ws.set_column("A:A", 11)
         # wb = writer.book
         # fmt = wb.add_format({'num_format': '0.00'})
         # ws.set_column('B:Y', None, fmt)
 
         # Seascatter sheet
         # Replace zeros with blanks
-        df_scatter = self.df_scatter.replace({0: ''})
-        df_scatter.to_excel(writer, sheet_name='Seascatter Diagram', float_format='%.2f')
-        ws.set_column('A:A', 18)
+        df_scatter = self.df_scatter.replace({0: ""})
+        df_scatter.to_excel(
+            writer, sheet_name="Seascatter Diagram", float_format="%.2f"
+        )
+        ws.set_column("A:A", 18)
         writer.save()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
     win = SeascatterDiagram()
     win.show()

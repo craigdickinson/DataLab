@@ -20,7 +20,7 @@ class TransferFunctionsWidget(QtWidgets.QWidget):
 
         # So can access parent class
         self.parent = parent
-        plt.style.use('seaborn')
+        plt.style.use("seaborn")
 
         self.init_ui()
         self.connect_signals()
@@ -31,11 +31,11 @@ class TransferFunctionsWidget(QtWidgets.QWidget):
         setupWidget.setFixedWidth(200)
         vboxSetup = QtWidgets.QVBoxLayout(setupWidget)
 
-        self.loadFile = QtWidgets.QPushButton('Load Transfer Functions')
-        self.loadFile.setToolTip('Load transfer functions file')
-        filesLabel = QtWidgets.QLabel('Transfer Functions')
+        self.loadFile = QtWidgets.QPushButton("Load Transfer Functions")
+        self.loadFile.setToolTip("Load transfer functions file")
+        filesLabel = QtWidgets.QLabel("Transfer Functions")
         self.transferFuncsList = QtWidgets.QListWidget()
-        self.plotButton = QtWidgets.QPushButton('Plot Transfer Functions')
+        self.plotButton = QtWidgets.QPushButton("Plot Transfer Functions")
 
         # Add setup widgets
         vboxSetup.addWidget(self.loadFile)
@@ -62,11 +62,7 @@ class TransferFunctionsWidget(QtWidgets.QWidget):
         layout.addWidget(plotWidget)
 
     def connect_signals(self):
-        pass
-        # self.loadFile.clicked.connect(self.parent.load_logger_file)
-        # self.settingsButton.clicked.connect(self.open_plot_options)
         self.plotButton.clicked.connect(self.plot)
-        # self.transferFuncsList.itemDoubleClicked.connect(self.on_file_double_clicked)
 
     def plot(self):
         self.ax.cla()
@@ -75,9 +71,9 @@ class TransferFunctionsWidget(QtWidgets.QWidget):
             df = df.set_index(df.columns[0])
             df.plot(ax=self.ax)
             # self.ax.set_yscale('log')
-            self.ax.set_xlabel('Frequency (Hz)')
-            self.ax.set_ylabel('PSD Bending Moment / PSD Acceleration')
-            self.ax.set_title('Frequency Dependent Transfer Functions')
+            self.ax.set_xlabel("Frequency (Hz)")
+            self.ax.set_ylabel("PSD Bending Moment / PSD Acceleration")
+            self.ax.set_title("Frequency Dependent Transfer Functions")
             self.ax.set_xlim(0, 0.5)
         except:
             pass
@@ -85,7 +81,7 @@ class TransferFunctionsWidget(QtWidgets.QWidget):
 
 
 # For testing layout
-if __name__ == '__main__':
+if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
     win = TransferFunctionsWidget()
     win.show()

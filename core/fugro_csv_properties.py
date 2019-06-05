@@ -15,9 +15,9 @@ from glob import glob
 def set_fugro_csv_file_format(logger):
     """Return a LoggerProperties object populated with known Fugro-csv file format settings."""
 
-    logger.file_format = 'Fugro-csv'
-    logger.file_ext = 'csv'
-    logger.file_delimiter = ','
+    logger.file_format = "Fugro-csv"
+    logger.file_ext = "csv"
+    logger.file_delimiter = ","
     logger.num_headers = 3
     logger.channel_header_row = 2
     logger.units_header_row = 3
@@ -28,9 +28,9 @@ def set_fugro_csv_file_format(logger):
 def set_general_csv_file_format(logger):
     """Return a LoggerProperties object populated with default settings for a General-csv file format."""
 
-    logger.file_format = 'General-csv'
-    logger.file_ext = 'csv'
-    logger.file_delimiter = ','
+    logger.file_format = "General-csv"
+    logger.file_ext = "csv"
+    logger.file_delimiter = ","
     logger.num_headers = 2
     logger.channel_header_row = 1
     logger.units_header_row = 2
@@ -49,10 +49,10 @@ def detect_fugro_logger_properties(logger):
     """
 
     # TODO: Need to check file is of expected filename first!
-    raw_files = glob(logger.logger_path + '/*.' + logger.file_ext)
+    raw_files = glob(logger.logger_path + "/*." + logger.file_ext)
 
     if len(raw_files) == 0:
-        msg = f'No files with the extension {logger.file_ext} found in {logger.logger_path}'
+        msg = f"No files with the extension {logger.file_ext} found in {logger.logger_path}"
         raise FileNotFoundError(msg)
 
     test_file = raw_files[0]
@@ -65,7 +65,7 @@ def detect_fugro_logger_properties(logger):
     if sample_interval > 0:
         logger.freq = int(1 / sample_interval)
     else:
-        msg = f'Could not read sample interval for logger {logger.logger_id}\nFile: {test_filename}'
+        msg = f"Could not read sample interval for logger {logger.logger_id}\nFile: {test_filename}"
         raise Exception(msg)
 
     # Read headers
@@ -101,8 +101,8 @@ def read_fugro_sample_interval(filename):
         line = f.readline()
 
     # Select the sample interval assuming header is as expected
-    words = line.split(' ')
-    samp_str = ''
+    words = line.split(" ")
+    samp_str = ""
     if len(words) == 4:
         samp_str = words[2]
 
@@ -118,8 +118,8 @@ def read_fugro_headers(filename):
     # Skip the first two lines
     with open(filename) as f:
         next(f)
-        header = f.readline().strip().split(',')
-        units = f.readline().strip().split(',')
+        header = f.readline().strip().split(",")
+        units = f.readline().strip().split(",")
 
     return header, units
 
