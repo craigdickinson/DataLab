@@ -1,6 +1,6 @@
 import sys
 from PyQt5 import QtCore, QtWidgets
-from core.datalab_main import DataLab
+from datalab_main import DataLab
 
 
 class DataQualityReport(QtWidgets.QWidget):
