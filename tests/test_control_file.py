@@ -8,8 +8,8 @@ import io
 import unittest
 import pytest
 
-# from core.control_file import ControlFile
-from control_file import ControlFile
+from core.control_file import ControlFile
+# from control_file import ControlFile
 
 
 def example_control_file():
