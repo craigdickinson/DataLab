@@ -44,10 +44,10 @@ class DataLabApp(DataLabGui):
         self.datalab = None
 
         self.update_tool_buttons("config")
-        self.connect_signals()
-        self.connect_child_signals()
+        self._connect_signals()
+        self._connect_child_signals()
 
-    def connect_signals(self):
+    def _connect_signals(self):
         """Connect widget signals to methods/actions."""
 
         # File menu
@@ -85,7 +85,7 @@ class DataLabApp(DataLabGui):
         self.transFuncsButton.clicked.connect(self.view_mod_transfer_funcs)
         self.fatigueButton.clicked.connect(self.view_mod_fatigue)
 
-    def connect_child_signals(self):
+    def _connect_child_signals(self):
         self.timeSeriesTab.loadFileButton.clicked.connect(self.load_logger_file)
         self.statsTab.loadStatsButton.clicked.connect(self.load_stats_file)
         self.vesselStatsTab.loadStatsButton.clicked.connect(self.load_stats_file)
@@ -96,23 +96,23 @@ class DataLabApp(DataLabGui):
             self.load_wcfat_results_file
         )
 
-    def message_information(self, title, message, buttons=QtWidgets.QMessageBox.Ok):
+    def _message_information(self, title, message, buttons=QtWidgets.QMessageBox.Ok):
         return QtWidgets.QMessageBox.information(self, title, message, buttons)
 
-    def message_warning(self, title, message, buttons=QtWidgets.QMessageBox.Ok):
+    def _message_warning(self, title, message, buttons=QtWidgets.QMessageBox.Ok):
         return QtWidgets.QMessageBox.warning(self, title, message, buttons)
 
-    def message_critical(self, title, message, buttons=QtWidgets.QMessageBox.Ok):
+    def _message_critical(self, title, message, buttons=QtWidgets.QMessageBox.Ok):
         return QtWidgets.QMessageBox.critical(self, title, message, buttons)
 
     @pyqtSlot(str)
     def error(self, message):
         print(f"Error: {message}")
-        self.message_warning("Error", message)
+        self._message_warning("Error", message)
 
     def warning(self, message):
         print(f"Warning: {message}")
-        self.message_information("Warning", message)
+        self._message_information("Warning", message)
 
     def load_logger_file(self):
         """Load raw logger time series file."""
@@ -279,13 +279,13 @@ class DataLabApp(DataLabGui):
         """Show program version info message box."""
 
         msg = f"Program: {__program__}\nVersion: {__version__}\nDate: {__date__}"
-        self.message_information("About", msg)
+        self._message_information("About", msg)
 
     def show_help(self):
         """Show program overview and instructions message box."""
 
         msg = f"Instructions for using {__program__}:\n\n"
-        self.message_information("Help", msg)
+        self._message_information("Help", msg)
 
     def show_error_msg(self, msg):
         self.errorBar.setAutoFillBackground(True)
