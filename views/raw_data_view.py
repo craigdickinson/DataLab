@@ -95,13 +95,13 @@ class TimeSeriesPlotWidget(QtWidgets.QWidget):
         self.current_channels = []
         self.units = []
 
-        self.init_ui()
-        self.connect_signals()
+        self._init_ui()
+        self._connect_signals()
 
         # Instantiate plot settings widget
         self.plotSettings = LoggerPlotSettings(self)
 
-    def init_ui(self):
+    def _init_ui(self):
         # Setup container
         setupWidget = QtWidgets.QWidget()
         setupWidget.setFixedWidth(200)
@@ -134,7 +134,7 @@ class TimeSeriesPlotWidget(QtWidgets.QWidget):
         line.setFrameShadow(QtWidgets.QFrame.Sunken)
 
         # Plot settings and replot buttons
-        self.settingsButton = QtWidgets.QPushButton("Plot Settings")
+        self.plotSettingsButton = QtWidgets.QPushButton("Plot Settings")
         self.replotButton = QtWidgets.QPushButton("Replot")
 
         # Add setup widgets
@@ -148,7 +148,7 @@ class TimeSeriesPlotWidget(QtWidgets.QWidget):
         vboxSetup.addWidget(secLabel)
         vboxSetup.addWidget(self.secAxis)
         vboxSetup.addWidget(line)
-        vboxSetup.addWidget(self.settingsButton)
+        vboxSetup.addWidget(self.plotSettingsButton)
         vboxSetup.addWidget(self.replotButton)
 
         # Plot container
@@ -169,22 +169,19 @@ class TimeSeriesPlotWidget(QtWidgets.QWidget):
         layout.addWidget(setupWidget)
         layout.addWidget(plotWidget)
 
-    def connect_signals(self):
-        self.settingsButton.clicked.connect(self.open_plot_options)
-        self.replotButton.clicked.connect(self.replot)
+    def _connect_signals(self):
+        self.plotSettingsButton.clicked.connect(self.on_plot_settings_clicked)
+        self.replotButton.clicked.connect(self.on_replot_clicked)
         self.filesList.itemDoubleClicked.connect(self.on_file_double_clicked)
 
-    def on_file_double_clicked(self):
-        self.replot()
-
-    def open_plot_options(self):
+    def on_plot_settings_clicked(self):
         """Show plot options window."""
 
         # Set current parameters from time series plot widget class
         self.plotSettings.get_params()
         self.plotSettings.show()
 
-    def replot(self):
+    def on_replot_clicked(self):
         """Load and process a selected logger file in the files list."""
 
         if self.filesList.count() == 0:
@@ -200,6 +197,9 @@ class TimeSeriesPlotWidget(QtWidgets.QWidget):
             msg = "Unexpected error loading logger file"
             self.parent.error(f"{msg}:\n{e}\n{sys.exc_info()[0]}")
             logging.exception(msg)
+
+    def on_file_double_clicked(self):
+        self.on_replot_clicked()
 
     def load_file(self, filename):
         """Load logger file, update widget and plot first channel."""
@@ -351,7 +351,7 @@ class TimeSeriesPlotWidget(QtWidgets.QWidget):
 
         try:
             self.plot_time_series(self.df_plot, self.df_filtered)
-            self.plot_psd(self.df_plot[self.ts_xlim[0] : self.ts_xlim[1]])
+            self.plot_psd(self.df_plot[self.ts_xlim[0]: self.ts_xlim[1]])
         except ValueError as e:
             self.parent.error(str(e))
         except Exception as e:
@@ -615,7 +615,7 @@ class TimeSeriesPlotWidget(QtWidgets.QWidget):
             self.psd_xlim = tuple(round(x, 1) for x in self.ax2.get_xlim())
 
             # Update PSD plot and plot title with new timestamp range
-            df_slice = self.df_plot[self.ts_xlim[0] : self.ts_xlim[1]]
+            df_slice = self.df_plot[self.ts_xlim[0]: self.ts_xlim[1]]
             self.plot_psd(df_slice)
             self.plot_title(self.fig, df_slice)
             # print(f'updated xlims: {self.ts_xlim}')
