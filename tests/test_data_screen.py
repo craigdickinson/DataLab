@@ -12,7 +12,8 @@ import numpy as np
 import pandas as pd
 import pandas.util.testing as pdt
 
-from core import data_screen
+# from core import data_screen
+import data_screen
 
 
 def example_data_file():
