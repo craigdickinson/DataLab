@@ -9,7 +9,7 @@ import pytest
 from dateutil.parser import parse
 from testfixtures import TempDirectory
 
-from core.logger_properties import LoggerProperties
+from app.core.logger_properties import LoggerProperties
 # from logger_properties import LoggerProperties
 
 

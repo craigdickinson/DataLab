@@ -11,15 +11,15 @@ import sys
 from PyQt5 import QtCore, QtGui, QtWidgets
 from dateutil.parser import parse
 
-from core.control_file import ControlFile, InputError
-from core.custom_date import get_datetime_format
-from core.fugro_csv_properties import (
+from app.core.control_file import ControlFile, InputError
+from app.core.custom_date import get_datetime_format
+from app.core.fugro_csv_properties import (
     detect_fugro_logger_properties,
     set_fugro_csv_file_format,
     set_general_csv_file_format,
 )
-from core.logger_properties import LoggerError, LoggerProperties
-from core.pulse_acc_properties import (
+from app.core.logger_properties import LoggerError, LoggerProperties
+from app.core.pulse_acc_properties import (
     detect_pulse_logger_properties,
     set_pulse_acc_file_format,
 )

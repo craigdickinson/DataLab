@@ -10,8 +10,8 @@ from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as Navigatio
 from scipy import signal
 
 # from gui.gui_zoom_pan_factory import ZoomPan
-from core.read_files import read_fugro_csv, read_pulse_acc, read_logger_hdf5
-from core.signal_filtering import filter_signal
+from app.core.read_files import read_fugro_csv, read_pulse_acc, read_logger_hdf5
+from app.core.signal_filtering import filter_signal
 
 # "2H blue"
 color_2H = np.array([0, 49, 80]) / 255

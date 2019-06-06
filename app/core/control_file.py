@@ -5,13 +5,13 @@ import os.path
 
 from dateutil.parser import parse
 
-from custom_date import get_datetime_format
-from fugro_csv_properties import (
+from app.core.custom_date import get_datetime_format
+from app.core.fugro_csv_properties import (
     read_fugro_headers,
     read_fugro_sample_interval,
     set_fugro_csv_file_format,
 )
-from logger_properties import LoggerProperties
+from app.core.logger_properties import LoggerProperties
 
 # Used in get_delimiter() method
 delimiters = dict(comma=",", space=" ")

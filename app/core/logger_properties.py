@@ -8,7 +8,7 @@ from glob import glob
 
 from dateutil.parser import parse
 
-from custom_date import get_date_code_span, make_time_str
+from app.core.custom_date import get_date_code_span, make_time_str
 
 
 class Error(Exception):

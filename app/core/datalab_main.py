@@ -13,12 +13,12 @@ from time import time
 import pandas as pd
 from PyQt5.QtCore import QThread, pyqtSignal
 
-from calc_stats import LoggerStats
-from control_file import ControlFile
-from data_screen import DataScreen
-from data_screen_report import DataScreenReport
-from spectrograms import Spectrogram
-from write_stats import StatsOutput
+from app.core.calc_stats import LoggerStats
+from app.core.control_file import ControlFile
+from app.core.data_screen import DataScreen
+from app.core.data_screen_report import DataScreenReport
+from app.core.spectrograms import Spectrogram
+from app.core.write_stats import StatsOutput
 
 prog_info = "Program to perform signal processing on logger data"
 

@@ -4,14 +4,14 @@ import sys
 
 from PyQt5 import QtWidgets
 
-from data_screening_view import DataQualityReport
-from fatigue_view import FatigueProcessingWidget
-from project_config_view import ConfigModule
-from raw_data_view import TimeSeriesPlotWidget
-from seascatter_view import SeascatterDiagram
-from spectral_view import SpectrogramWidget
-from stats_view import PlotStyle2H, StatsWidget, VesselStatsWidget
-from transfer_functions_view import TransferFunctionsWidget
+from views.data_screening_view import DataQualityReport
+from views.fatigue_view import FatigueProcessingWidget
+from views.project_config_view import ConfigModule
+from views.raw_data_view import TimeSeriesPlotWidget
+from views.seascatter_view import SeascatterDiagram
+from views.spectral_view import SpectrogramWidget
+from views.stats_view import PlotStyle2H, StatsWidget, VesselStatsWidget
+from views.transfer_functions_view import TransferFunctionsWidget
 
 
 class DataLabGui(QtWidgets.QMainWindow):

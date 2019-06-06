@@ -14,10 +14,10 @@ from PyQt5 import QtCore, QtWidgets
 from PyQt5.QtCore import pyqtSignal, pyqtSlot
 
 # import datalab_gui_layout
-from core.control_file import InputError
-from core.datalab_main import DataLab
-from core.logger_properties import LoggerError
-from core.read_files import (
+from app.core.control_file import InputError
+from app.core.datalab_main import DataLab
+from app.core.logger_properties import LoggerError
+from app.core.read_files import (
     read_spectrograms_csv,
     read_spectrograms_excel,
     read_spectrograms_hdf5,
@@ -25,9 +25,9 @@ from core.read_files import (
     read_stats_excel,
     read_stats_hdf5,
 )
-from core.read_files import read_wcfat_results
-from views.stats_view import StatsDataset
-from views.main_window_view import DataLabGui
+from app.core.read_files import read_wcfat_results
+from app.views.stats_view import StatsDataset
+from app.views.main_window_view import DataLabGui
 
 
 class DataLabApp(DataLabGui):

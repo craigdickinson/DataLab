@@ -12,7 +12,7 @@ import numpy as np
 import pandas as pd
 import pandas.util.testing as pdt
 
-from core import data_screen
+from app.core.data_screen import DataScreen
 # import data_screen
 
 
@@ -91,7 +91,7 @@ class Test(unittest.TestCase):
     def setUp(self):
         """Start with an empty logger_stats object and test the associated functions."""
 
-        self.logger_stats = data_screen.DataScreen()
+        self.logger_stats = DataScreen()
 
     def test_read_all_from_fstream(self):
         """Test function to read lines from file into an array."""

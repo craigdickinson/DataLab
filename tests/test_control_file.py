@@ -5,10 +5,14 @@ __author__ = "Craig Dickinson"
 
 import datetime as dt
 import io
+import os
 import unittest
+
 import pytest
 
-from core.control_file import ControlFile
+from app.core.control_file import ControlFile
+
+
 # from control_file import ControlFile
 
 
@@ -23,7 +27,7 @@ def example_control_file():
         "*CAMPAIGN_NAME test campaign 1 \n"
         "*OUTPUT_FOLDER output \n"
         "*LOGGER_ID dd09_fugro \n"
-        "*PATH test_data/dd09 \n"
+        "*PATH tests/test_data/dd09 \n"
         "*FILE_FORMAT fugro-csv \n"
         "*FILE_TIMESTAMP xxxxxYYYYxmmDDxHHMM \n"
         "*NUM_COLUMNS 5 \n"
@@ -33,7 +37,7 @@ def example_control_file():
         "*STATS_START 2015-07-01 00:00 \n"
         "*STATS_END 2016-07-01 00:00 \n"
         "*LOGGER_ID dd09b \n"
-        "*PATH test_data/dd09b \n"
+        "*PATH tests/test_data/dd09b \n"
         "*FILE_FORMAT general-csv \n"
         "*FILE_TIMESTAMP xxxxxxYYYYxmmDDxHHMM \n"
         "*EXTENSION csv \n"
@@ -51,11 +55,11 @@ def example_control_file():
         "*STATS_END 2016-07-01 00:00 \n"
         "*SPECTROGRAMS \n"
         "*LOGGER_ID dd09c \n"
-        "*PATH test_data/dd09b \n"
+        "*PATH tests/test_data/dd09b \n"
         "*COPY_FILE_FORMAT dd09b \n"
         "*COPY_STATS_FORMAT dd09b \n"
         "*LOGGER_ID dd09d \n"
-        "*PATH test_data/dd09b \n"
+        "*PATH tests/test_data/dd09b \n"
         "*COPY_FILE_FORMAT dd09b \n"
         "*COPY_STATS_FORMAT dd09b \n"
     )
@@ -113,10 +117,10 @@ class TestControlFile(unittest.TestCase):
         for i in range(len(logger_id_lines)):
             if i < len(logger_id_lines) - 1:
                 logger_id_data.append(
-                    self.test_data[logger_id_lines[i] : logger_id_lines[i + 1]]
+                    self.test_data[logger_id_lines[i]: logger_id_lines[i + 1]]
                 )
             else:
-                logger_id_data.append(self.test_data[logger_id_lines[i] :])
+                logger_id_data.append(self.test_data[logger_id_lines[i]:])
 
         # Now test against ControlFile slice_data method
         control = ControlFile()
@@ -173,6 +177,10 @@ class TestControlFile(unittest.TestCase):
     def test_logger_properties_correctly_set(self):
         """Check that logger properties get set correctly from control file."""
 
+        # Change directory to project root so test works if run from file instead of project source
+        if os.path.split(os.getcwd())[-1] == "tests":
+            os.chdir(os.path.dirname(os.getcwd()))
+
         # Create a control file object
         control = ControlFile()
 
@@ -189,7 +197,7 @@ class TestControlFile(unittest.TestCase):
 
         # Check all logger properties are read correctly
         self.assertEqual(logger0.logger_id, "dd09_fugro")
-        self.assertEqual(logger0.logger_path, "test_data/dd09")
+        self.assertEqual(logger0.logger_path, "tests/test_data/dd09")
         self.assertEqual(logger0.file_timestamp_format, "xxxxxYYYYxmmDDxHHMM")
         self.assertEqual(logger0.file_ext, "csv")
         self.assertEqual(logger0.file_delimiter, ",")
@@ -201,7 +209,7 @@ class TestControlFile(unittest.TestCase):
         self.assertEqual(logger0.stats_start, dt.datetime(2015, 7, 1, 0, 0))
         self.assertEqual(logger0.stats_end, dt.datetime(2016, 7, 1, 0, 0))
 
-        self.assertEqual(logger1.logger_path, "test_data/dd09b")
+        self.assertEqual(logger1.logger_path, "tests/test_data/dd09b")
         self.assertEqual(logger1.file_timestamp_format, "xxxxxxYYYYxmmDDxHHMM")
         self.assertEqual(logger1.file_ext, "csv")
         self.assertEqual(logger1.file_delimiter, ",")
@@ -215,4 +223,8 @@ class TestControlFile(unittest.TestCase):
 
 
 if __name__ == "__main__":
+    import sys
+
+    # sys.path.insert(0, '/path/to/mod_directory')
+
     pytest.main()

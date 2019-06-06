@@ -8,9 +8,9 @@ import os.path
 import numpy as np
 import pandas as pd
 
-from logger_properties import LoggerProperties
-from read_files import read_pulse_acc_single_header_format
-from signal_filtering import filter_signal
+from app.core.logger_properties import LoggerProperties
+from app.core.read_files import read_pulse_acc_single_header_format
+from app.core.signal_filtering import filter_signal
 
 
 class DataScreen:
