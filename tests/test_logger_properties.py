@@ -4,13 +4,12 @@ Tests for logger properties routines.
 __author__ = "Craig Dickinson"
 
 import unittest
-import pytest
 
+import pytest
 from dateutil.parser import parse
 from testfixtures import TempDirectory
 
 from app.core.logger_properties import LoggerProperties
-# from logger_properties import LoggerProperties
 
 
 class TestLogger(unittest.TestCase):

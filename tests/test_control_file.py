@@ -13,9 +13,6 @@ import pytest
 from app.core.control_file import ControlFile
 
 
-# from control_file import ControlFile
-
-
 def example_control_file():
     """
     Create an example control file to test.
@@ -223,8 +220,4 @@ class TestControlFile(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    import sys
-
-    # sys.path.insert(0, '/path/to/mod_directory')
-
     pytest.main()

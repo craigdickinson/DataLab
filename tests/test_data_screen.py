@@ -6,14 +6,13 @@ __author__ = "Craig Dickinson"
 import datetime as dt
 import io
 import unittest
-import pytest
 
 import numpy as np
 import pandas as pd
 import pandas.util.testing as pdt
+import pytest
 
 from app.core.data_screen import DataScreen
-# import data_screen
 
 
 def example_data_file():
