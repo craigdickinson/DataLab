@@ -9,7 +9,7 @@ import os.path
 from openpyxl import Workbook
 
 
-class DataScreenReport:
+class DataScreenReport(object):
     """Methods to write data screening results to Excel."""
 
     def __init__(self, project_name, campaign_name):

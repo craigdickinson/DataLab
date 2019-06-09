@@ -3,7 +3,6 @@ Project config dashboard widget. Handles all project setup.
 """
 __author__ = "Craig Dickinson"
 
-import json
 import logging
 import os
 import sys
@@ -11,7 +10,7 @@ import sys
 from PyQt5 import QtCore, QtGui, QtWidgets
 from dateutil.parser import parse
 
-from app.core.control_file import ControlFile, InputError
+from app.core.datalab_control import Control, InputError
 from app.core.custom_date import get_datetime_format
 from app.core.fugro_csv_properties import (
     detect_fugro_logger_properties,
@@ -23,153 +22,7 @@ from app.core.pulse_acc_properties import (
     detect_pulse_logger_properties,
     set_pulse_acc_file_format,
 )
-
-
-class ProjectConfigJSONFile:
-    def __init__(self):
-        # Config data dictionary to be written to a JSON file
-        self.data = {}
-        self.filename = ""
-
-    def load_config_data(self, file_name):
-        """Load project config JSON file and return the dictionary data."""
-
-        with open(file_name, encoding="utf-8") as f:
-            data = json.load(f)
-
-        # Store filename and set directory to project root
-        file_path, self.filename = os.path.split(file_name)
-        os.chdir(file_path)
-
-        return data
-
-    def add_campaign_data(self, control):
-        """Add project and campaign details."""
-
-        d = dict()
-        d["project_number"] = control.project_num
-        d["project_name"] = control.project_name
-        d["campaign_name"] = control.campaign_name
-        d["project_location"] = control.project_path
-
-        self.data["campaign"] = d
-
-    def add_logger_data(self, loggers):
-        """Add properties of all loggers."""
-
-        if not loggers:
-            return
-
-        self.data["loggers"] = dict()
-
-        for logger in loggers:
-            dict_props = dict()
-
-            # Add logger properties
-            dict_props = self.add_logger_props(logger, dict_props)
-
-            # Add logger stats and spectral settings
-            dict_props = self.add_logger_analysis_settings(logger, dict_props)
-
-            # Add logger props dictionary to loggers dictionary
-            self.data["loggers"][logger.logger_id] = dict_props
-
-    def add_general_data(self, control):
-        """Add general settings."""
-
-        d = dict()
-        d["stats_to_h5"] = control.stats_to_h5
-        d["stats_to_csv"] = control.stats_to_csv
-        d["stats_to_xlsx"] = control.stats_to_xlsx
-        d["spectral_to_h5"] = control.spect_to_h5
-        d["spectral_to_csv"] = control.spect_to_csv
-        d["spectral_to_xlsx"] = control.spect_to_xlsx
-
-        self.data["general"] = d
-
-    def add_logger_props(self, logger, dict_props):
-        """Add control object logger properties to JSON dictionary."""
-
-        dict_props["file_format"] = logger.file_format
-        dict_props["logger_path"] = logger.logger_path
-        dict_props["file_timestamp_format"] = logger.file_timestamp_format
-        dict_props["data_timestamp_format"] = logger.timestamp_format
-        dict_props["data_datetime_format"] = logger.datetime_format
-        dict_props["file_ext"] = logger.file_ext
-        dict_props["file_delimiter"] = logger.file_delimiter
-        dict_props["num_header_rows"] = logger.num_headers
-        dict_props["num_columns"] = logger.num_columns
-        dict_props["channel_header_row"] = logger.channel_header_row
-        dict_props["units_header_row"] = logger.units_header_row
-        dict_props["logging_freq"] = logger.freq
-        dict_props["logging_duration"] = logger.duration
-        dict_props["all_channel_names"] = logger.all_channel_names
-        dict_props["all_channel_units"] = logger.all_channel_units
-
-        return dict_props
-
-    def add_logger_analysis_settings(self, logger, dict_props):
-        """Add control object logger stats and spectral settings to JSON dictionary."""
-
-        # Processed columns group
-        dict_props["requested_columns"] = logger.requested_cols
-        dict_props["unit_convs"] = logger.unit_conv_factors
-        dict_props["user_channel_names"] = logger.user_channel_names
-        dict_props["user_channel_units"] = logger.user_channel_units
-
-        # Stats settings group
-        dict_props["process_stats"] = logger.process_stats
-        dict_props["stats_interval"] = logger.stats_interval
-
-        # Need to convert start and end datetimes to strings to write to JSON format
-        # Stats start
-        if logger.stats_start is None:
-            dict_props["stats_start"] = None
-        else:
-            dict_props["stats_start"] = logger.stats_start.strftime("%Y-%m-%d %H:%M")
-
-        # Stats end
-        if logger.stats_end is None:
-            dict_props["stats_end"] = None
-        else:
-            dict_props["stats_end"] = logger.stats_end.strftime("%Y-%m-%d %H:%M")
-
-        # Stats low and high cut-off frequencies
-        dict_props["stats_low_cutoff_freq"] = logger.stats_low_cutoff_freq
-        dict_props["stats_high_cutoff_freq"] = logger.stats_high_cutoff_freq
-
-        # Spectral settings group
-        dict_props["process_spectral"] = logger.process_spectral
-        dict_props["spectral_interval"] = logger.spectral_interval
-
-        # Spectral start
-        if logger.spectral_start is None:
-            dict_props["spectral_start"] = None
-        else:
-            dict_props["spectral_start"] = logger.spectral_start.strftime(
-                "%Y-%m-%d %H:%M"
-            )
-
-        # Spectral end
-        if logger.spectral_end is None:
-            dict_props["spectral_end"] = None
-        else:
-            dict_props["spectral_end"] = logger.spectral_end.strftime("%Y-%m-%d %H:%M")
-
-        return dict_props
-
-    def export_config(self, proj_num, proj_name):
-        """Export project configuration data as JSON file."""
-
-        proj_name = "_".join(proj_name.split())
-        self.filename = "_".join((proj_num, proj_name, "Config.json"))
-
-        # Save as JSON file
-        # Prevents ascii characters in file. Indent gives nicer layout instead of one long line string
-        with open(self.filename, "w", encoding="utf-8") as f:
-            f.write(
-                json.dumps(self.data, indent=4, sort_keys=False, ensure_ascii=False)
-            )
+from app.core.project_config import ProjectConfigJSONFile
 
 
 class ConfigModule(QtWidgets.QWidget):
@@ -183,7 +36,7 @@ class ConfigModule(QtWidgets.QWidget):
 
         # JSON config class - hold config data dictionary
         self.config = ProjectConfigJSONFile()
-        self.control = ControlFile()
+        self.control = Control()
         self.init_ui()
         self.connect_signals()
 
@@ -279,7 +132,7 @@ class ConfigModule(QtWidgets.QWidget):
                 data = self.config.load_config_data(filename)
 
                 # Create new control object to hold setup data
-                self.control = ControlFile()
+                self.control = Control()
 
                 # Assign config data to control object and project dashboard
                 self.control = self.map_campaign_json_section(data, self.control)
@@ -308,12 +161,14 @@ class ConfigModule(QtWidgets.QWidget):
 
         # Compile configuration data into a dictionary and save as a json file
         try:
-            config = ProjectConfigJSONFile()
-            config.add_campaign_data(self.control)
-            config.add_logger_data(self.control.loggers)
-            config.add_general_data(self.control)
-            config.export_config(
-                proj_num=self.control.project_num, proj_name=self.control.project_name
+            self.config = ProjectConfigJSONFile()
+            self.config.add_campaign_data(self.control)
+            self.config.add_logger_data(self.control.loggers)
+            self.config.add_general_data(self.control)
+            self.config.save_config(
+                proj_num=self.control.project_num,
+                proj_name=self.control.project_name,
+                proj_path=self.control.project_path,
             )
         except Exception as e:
             msg = "Unexpected error saving project config"
@@ -321,10 +176,11 @@ class ConfigModule(QtWidgets.QWidget):
             logging.exception(msg)
 
         # Check file created
-        if os.path.exists(config.filename):
-            # Write to gui and inform user
-            self.campaignTab.configFile.setText(config.filename)
-            msg = f"Project config settings saved to {config.filename}"
+        if os.path.exists(self.config.full_path):
+            # Update config dashboard with config file name and inform user
+            self.control.config_file = self.config.filename
+            self.campaignTab.configFile.setText(self.config.filename)
+            msg = f"Project config settings saved to:\n{self.config.full_path}"
             QtWidgets.QMessageBox.information(self, "Save Project Config", msg)
 
     def add_logger(self):
@@ -437,7 +293,8 @@ class ConfigModule(QtWidgets.QWidget):
         """Clear project control object and all config dashboard values."""
 
         # Create new control object and map to campaign, logger properties and analysis tabs
-        self.control = ControlFile()
+        self.config = ProjectConfigJSONFile()
+        self.control = Control()
         self.campaignTab.control = self.control
         self.loggerPropsTab.control = self.control
         self.analysisTab.control = self.control
@@ -852,7 +709,7 @@ class ConfigModule(QtWidgets.QWidget):
 class CampaignInfoTab(QtWidgets.QWidget):
     """GUI screen to control project setup."""
 
-    def __init__(self, parent=None, control=ControlFile()):
+    def __init__(self, parent=None, control=Control()):
         """
         :param parent:
         :param control: Control object containing all setup data
@@ -957,7 +814,7 @@ class LoggerPropertiesTab(QtWidgets.QWidget):
 
     delims_logger_to_gui = {",": "comma", " ": "space"}
 
-    def __init__(self, parent=None, control=ControlFile()):
+    def __init__(self, parent=None, control=Control()):
         super(LoggerPropertiesTab, self).__init__(parent)
 
         self.parent = parent
@@ -1078,7 +935,7 @@ class LoggerPropertiesTab(QtWidgets.QWidget):
 class StatsAndSpectralSettingsTab(QtWidgets.QWidget):
     """GUI screen to control project setup."""
 
-    def __init__(self, parent=None, control=ControlFile()):
+    def __init__(self, parent=None, control=Control()):
         super(StatsAndSpectralSettingsTab, self).__init__(parent)
 
         self.parent = parent
@@ -1411,7 +1268,7 @@ class StatsAndSpectralSettingsTab(QtWidgets.QWidget):
 class EditCampaignInfoDialog(QtWidgets.QDialog):
     """Edit window for project and campaign data."""
 
-    def __init__(self, parent=None, control=ControlFile()):
+    def __init__(self, parent=None, control=Control()):
         super(EditCampaignInfoDialog, self).__init__(parent)
 
         self.parent = parent
@@ -1432,6 +1289,7 @@ class EditCampaignInfoDialog(QtWidgets.QDialog):
         self.projName = QtWidgets.QLineEdit()
         self.campaignName = QtWidgets.QLineEdit()
         self.projPath = QtWidgets.QLineEdit()
+        self.projPath.setToolTip("If not input the current working directory will be used.")
         self.browseButton = QtWidgets.QPushButton("Browse")
         policy = QtWidgets.QSizePolicy(
             QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed
@@ -1481,7 +1339,11 @@ class EditCampaignInfoDialog(QtWidgets.QDialog):
         control.project_num = self.projNum.text()
         control.project_name = self.projName.text()
         control.campaign_name = self.campaignName.text()
-        control.project_path = self.projPath.text()
+
+        if self.projPath.text() == "":
+            control.project_path = os.getcwd()
+        else:
+            control.project_path = self.projPath.text()
 
     def set_project_path(self):
         """Set location of project root directory."""

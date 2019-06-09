@@ -14,7 +14,7 @@ import pandas as pd
 from PyQt5.QtCore import QThread, pyqtSignal
 
 from app.core.calc_stats import LoggerStats
-from app.core.control_file import ControlFile
+from app.core.datalab_control import Control
 from app.core.data_screen import DataScreen
 from app.core.data_screen_report import DataScreenReport
 from app.core.spectrograms import Spectrogram
@@ -56,7 +56,7 @@ class DataLab(QThread):
                 datfile = parser.datfile.name
 
         self.datfile = datfile
-        self.control = ControlFile()
+        self.control = Control()
         self.logger_path = ""
         self.data_screen = []
         self.dict_stats = {}
@@ -68,7 +68,7 @@ class DataLab(QThread):
         print("Analysing control file")
 
         # Create control file object
-        self.control = ControlFile()
+        self.control = Control()
         self.control.set_filename(self.datfile)
         self.control.analyse()
 
@@ -152,7 +152,7 @@ class DataLab(QThread):
                 progress = (
                     f"Processing {logger.logger_id} file {j + 1} of {n} ({filename})"
                 )
-                # print(f'\r{progress}', end='')
+                print(f'\r{progress}', end='')
 
                 # Read the file into a pandas data frame
                 df = data_screen[i].read_logger_file(file)

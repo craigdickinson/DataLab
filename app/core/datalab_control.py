@@ -34,8 +34,8 @@ class InputError(Error):
         self.message = message
 
 
-class ControlFile(object):
-    """Read and store user setup instructions."""
+class Control(object):
+    """Contain and process input settings."""
 
     def __init__(self):
         """Initialise control file properties."""

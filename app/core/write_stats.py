@@ -11,7 +11,7 @@ from openpyxl.utils import get_column_letter
 from openpyxl.workbook import Workbook
 
 
-class StatsOutput:
+class StatsOutput(object):
     """
     Methods to write statistics from LoggerStats to Excel.
     """

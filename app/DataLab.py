@@ -1,7 +1,7 @@
 __author__ = "Craig Dickinson"
 __program__ = "DataLab"
-__version__ = "0.35"
-__date__ = "7 June 2019"
+__version__ = "0.36"
+__date__ = "9 June 2019"
 
 import logging
 import os
@@ -14,7 +14,7 @@ from PyQt5 import QtCore, QtWidgets
 from PyQt5.QtCore import pyqtSignal, pyqtSlot
 
 # import datalab_gui_layout
-from app.core.control_file import InputError
+from app.core.datalab_control import InputError
 from app.core.datalab_main import DataLab
 from app.core.logger_properties import LoggerError
 from app.core.read_files import (
@@ -395,9 +395,14 @@ class DataLabApp(DataLabGui):
     def analyse_config_setup(self, control):
         """Run statistical and spectral analysis in config setup."""
 
+        # Check project path exists
+        if control.project_path == "":
+            self.warning("Cannot process: Project location not set")
+            return
+
         # Check at least one logger exists
         if not control.loggers:
-            self.warning("No loggers exist in setup")
+            self.warning("Cannot process: No loggers exist in setup")
             return
 
         # First get all raw data filenames for all loggers to be processed and perform some screening checks
@@ -418,8 +423,8 @@ class DataLabApp(DataLabGui):
 
                 # Get all channel names and units if not already stored in logger object
                 if (
-                    len(logger.all_channel_names) == 0
-                    and len(logger.all_channel_units) == 0
+                        len(logger.all_channel_names) == 0
+                        and len(logger.all_channel_units) == 0
                 ):
                     logger.get_all_channel_and_unit_names()
 
@@ -435,9 +440,11 @@ class DataLabApp(DataLabGui):
                 # Check headers length match number of columns
                 logger.check_headers()
         except InputError as e:
-            return self.error(str(e))
+            self.error(str(e))
+            return logging.exception(e)
         except LoggerError as e:
-            return self.error(str(e))
+            self.error(str(e))
+            return logging.exception(e)
         except Exception as e:
             msg = "Unexpected error on preparing config setup"
             self.error(f"{msg}:\n{e}\n{sys.exc_info()[0]}")
@@ -642,12 +649,12 @@ class ControlFileProgressBar(QtWidgets.QDialog):
 
     @pyqtSlot(str, int, int, int, int, int)
     def update_progress_bar(
-        self, logger, logger_i, file_i, n, file_num, total_num_files
+            self, logger, logger_i, file_i, n, file_num, total_num_files
     ):
         """Update progress bar window."""
 
         self.label.setText(
-            f"Processing logger {logger}: file {file_i} of {total_num_files}"
+            f"Processing logger {logger}: file {file_i} of {n}"
         )
 
         perc = file_num / total_num_files * 100
@@ -669,6 +676,7 @@ class ControlFileProgressBar(QtWidgets.QDialog):
 
 
 if __name__ == "__main__":
+    os.chdir(r'C:\Users\dickinsc\PycharmProjects\DataLab\demo_data\2. Project Configs')
     app = QtWidgets.QApplication(sys.argv)
     # gui = QtDesignerGui()
     gui = DataLabApp()
