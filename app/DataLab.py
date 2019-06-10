@@ -1,5 +1,3 @@
-from processing_progress_view import ProcessingProgressBar
-
 __author__ = "Craig Dickinson"
 __program__ = "DataLab"
 __version__ = "0.37"
@@ -28,8 +26,9 @@ from app.core.read_files import (
     read_stats_hdf5,
 )
 from app.core.read_files import read_wcfat_results
-from app.views.stats_view import StatsDataset
 from app.views.main_window_view import DataLabGui
+from app.views.processing_progress_view import ProcessingProgressBar
+from app.views.stats_view import StatsDataset
 
 
 class DataLabApp(DataLabGui):

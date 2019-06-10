@@ -13,7 +13,7 @@ class ProcessingProgressBar(QtWidgets.QDialog):
 
         # self.setFixedWidth(400)
         self.setWindowTitle("Processing Loggers")
-        self.setFixedHeight(180)
+        self.setFixedHeight(150)
 
         self.hbox = QtWidgets.QHBoxLayout(self)
         self.vbox1 = QtWidgets.QVBoxLayout()
@@ -21,11 +21,11 @@ class ProcessingProgressBar(QtWidgets.QDialog):
 
         self.loggersLabel = QtWidgets.QLabel("Logger Status")
         self.loggersList = QtWidgets.QListWidget()
-        self.loggersList.setFixedWidth(200)
+        self.loggersList.setFixedWidth(160)
 
         self.progLabel = QtWidgets.QLabel()
         self.pb = QtWidgets.QProgressBar()
-        self.pb.setFixedWidth(400)
+        self.pb.setFixedWidth(350)
         self.progLabel2 = QtWidgets.QLabel()
         self.procCompleteLabel = QtWidgets.QLabel()
 
