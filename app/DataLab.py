@@ -1,7 +1,9 @@
+from processing_progress_view import ProcessingProgressBar
+
 __author__ = "Craig Dickinson"
 __program__ = "DataLab"
-__version__ = "0.36"
-__date__ = "9 June 2019"
+__version__ = "0.37"
+__date__ = "10 June 2019"
 
 import logging
 import os
@@ -472,7 +474,7 @@ class DataLabApp(DataLabGui):
             logging.exception(msg)
 
     def set_datalab_output_to_gui(self, datalab):
-        """Map results from statistical analysis to the GUI."""
+        """Map results from processing to the GUI."""
 
         # Store datalab object and update data quality report module
         self.datalab = datalab
@@ -557,7 +559,7 @@ class ControlFileWorker(QtCore.QThread):
     # Also, cannot pass parents to QObjects, which isn't ideal.
     signal_datalab = pyqtSignal(object)
     signal_error = pyqtSignal(str)
-    signal_runtime = pyqtSignal(str)
+    signal_complete = pyqtSignal(str, int)
 
     def __init__(self, datalab, parent=None):
         """Worker class to allow control file processing on a separate thread to the gui."""
@@ -568,14 +570,16 @@ class ControlFileWorker(QtCore.QThread):
         # DataLab processing object
         self.datalab = datalab
 
+        logger_ids = self.datalab.control.logger_ids
+
         # Initialise progress bar
-        self.pb = ControlFileProgressBar()
+        self.pb = ProcessingProgressBar(logger_ids=logger_ids)
         self.connect_signals()
 
     def connect_signals(self):
         self.pb.signal_quit_worker.connect(self.quit_worker)
         self.datalab.signal_notify_progress.connect(self.pb.update_progress_bar)
-        self.signal_runtime.connect(self.pb.report_runtime)
+        self.signal_complete.connect(self.pb.on_processing_complete)
 
     def run(self):
         """Override of QThread's run method to process control file."""
@@ -587,7 +591,7 @@ class ControlFileWorker(QtCore.QThread):
             # Run DataLab processing; compute and write requested logger statistics and spectrograms
             self.datalab.process_control_file()
             t = str(timedelta(seconds=round(time() - t0)))
-            self.signal_runtime.emit(t)
+            self.signal_complete.emit(t, self.datalab.total_files)
             self.signal_datalab.emit(self.datalab)
         except ZeroDivisionError as e:
             self.signal_error.emit(str(e))
@@ -612,62 +616,6 @@ class ControlFileWorker(QtCore.QThread):
         self.parent.setEnabled(True)
 
 
-class ControlFileProgressBar(QtWidgets.QDialog):
-    """Progress bar window for processing control file."""
-
-    signal_quit_worker = pyqtSignal()
-
-    def __init__(self):
-        super().__init__()
-
-        # self.setFixedSize(400, 80)
-        self.setFixedWidth(400)
-        self.setWindowTitle("Processing Logger Statistics")
-        layout = QtWidgets.QVBoxLayout(self)
-        self.label = QtWidgets.QLabel(self)
-        self.progressBar = QtWidgets.QProgressBar(self)
-        self.msgProcessingComplete = QtWidgets.QLabel(self)
-        layout.addWidget(self.label)
-        layout.addWidget(self.progressBar)
-        layout.addWidget(self.msgProcessingComplete)
-
-        self.buttonBox = QtWidgets.QDialogButtonBox(
-            QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel
-        )
-        self.buttonBox.accepted.connect(self.accept)
-        self.buttonBox.rejected.connect(self.cancel)
-        self.buttonBox.button(QtWidgets.QDialogButtonBox.Ok).setEnabled(False)
-        layout.addWidget(self.buttonBox)
-
-        self.show()
-
-    def cancel(self):
-        """Cancel progress bar."""
-
-        print("\nRun cancelled")
-        self.signal_quit_worker.emit()
-
-    @pyqtSlot(str, int, int, int, int, int)
-    def update_progress_bar(
-            self, logger, logger_i, file_i, n, file_num, total_num_files
-    ):
-        """Update progress bar window."""
-
-        self.label.setText(
-            f"Processing logger {logger}: file {file_i} of {n}"
-        )
-
-        perc = file_num / total_num_files * 100
-        print(f"{file_num} {perc:.3f}%")
-        self.progressBar.setValue(perc)
-        if int(perc) == 100:
-            self.buttonBox.button(QtWidgets.QDialogButtonBox.Ok).setEnabled(True)
-
-    @pyqtSlot(str)
-    def report_runtime(self, t):
-        self.msgProcessingComplete.setText("Processing complete: elapsed time = " + t)
-
-
 # class QtDesignerGui(QtWidgets.QMainWindow, datalab_gui_layout.Ui_MainWindow):
 #     def __init__(self):
 #         super().__init__()
@@ -678,7 +626,7 @@ class ControlFileProgressBar(QtWidgets.QDialog):
 if __name__ == "__main__":
     os.chdir(r'C:\Users\dickinsc\PycharmProjects\DataLab\demo_data\2. Project Configs')
     app = QtWidgets.QApplication(sys.argv)
-    # gui = QtDesignerGui()
-    gui = DataLabApp()
-    gui.show()
+    # win = QtDesignerGui()
+    win = DataLabApp()
+    win.show()
     sys.exit(app.exec_())
