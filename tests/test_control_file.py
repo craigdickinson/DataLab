@@ -10,7 +10,7 @@ import unittest
 
 import pytest
 
-from app.core.control_file import ControlFile
+from app.core.datalab_control import Control
 
 
 def example_control_file():
@@ -89,14 +89,14 @@ class TestControlFile(unittest.TestCase):
         """Check filename gets set properly."""
 
         # Simple check
-        control = ControlFile()
+        control = Control()
         control.set_filename(self.my_file)
         self.assertEqual(control.control_file, self.my_file)
 
     def test_read_logger_names(self):
         """Test logger names are extracted correctly."""
 
-        control = ControlFile()
+        control = Control()
         control.set_data(self.test_data)
         control.get_logger_ids()
 
@@ -120,7 +120,7 @@ class TestControlFile(unittest.TestCase):
                 logger_id_data.append(self.test_data[logger_id_lines[i]:])
 
         # Now test against ControlFile slice_data method
-        control = ControlFile()
+        control = Control()
 
         for i in range(len(logger_id_lines)):
             logger_data = control.slice_data(i, logger_id_lines, self.test_data)
@@ -132,7 +132,7 @@ class TestControlFile(unittest.TestCase):
         str1 = "some test data"
         str2 = "this can be anything"
         test_stream = self.dummy_input_stream("\n".join([str1, str2]))
-        control = ControlFile()
+        control = Control()
         data = control.read_data_from_filestream(test_stream)
         self.assertEqual("some test data\n", data[0])
         self.assertEqual("this can be anything", data[1])
@@ -141,7 +141,7 @@ class TestControlFile(unittest.TestCase):
         """Test keywords and values are successfully extracted from a list"""
 
         # Create a dummy control file object
-        control = ControlFile()
+        control = Control()
 
         # Extract title
         key = "*PROJECT_NAME"
@@ -179,7 +179,7 @@ class TestControlFile(unittest.TestCase):
             os.chdir(os.path.dirname(os.getcwd()))
 
         # Create a control file object
-        control = ControlFile()
+        control = Control()
 
         # set data to be test data
         control.set_data(self.test_data)

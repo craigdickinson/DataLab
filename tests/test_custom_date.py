@@ -23,7 +23,7 @@ class TestCustomDate(unittest.TestCase):
         self.assertEqual(start, 5)
         self.assertEqual(end, 9)
 
-        start, end = start, end = custom_date.get_date_code_span("H", test_format)
+        start, end = custom_date.get_date_code_span("H", test_format)
         self.assertEqual(start, 15)
         self.assertEqual(end, 17)
 

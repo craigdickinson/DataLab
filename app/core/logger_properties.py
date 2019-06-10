@@ -28,7 +28,7 @@ class LoggerError(Error):
         self.message = message
 
 
-class LoggerProperties:
+class LoggerProperties(object):
     """Holds properties of a logger."""
 
     def __init__(self, logger_id=""):

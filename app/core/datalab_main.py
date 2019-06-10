@@ -14,7 +14,7 @@ import pandas as pd
 from PyQt5.QtCore import QThread, pyqtSignal
 
 from app.core.calc_stats import LoggerStats
-from app.core.control_file import ControlFile
+from app.core.datalab_control import Control
 from app.core.data_screen import DataScreen
 from app.core.data_screen_report import DataScreenReport
 from app.core.spectrograms import Spectrogram
@@ -43,8 +43,8 @@ def parse_args(args):
 class DataLab(QThread):
     """Class for main DataLab program. Defined as a thread object for use with gui."""
 
-    # Signal to report logger file processing progress
-    signal_notify_progress = pyqtSignal(str, int, int, int, int, int)
+    # Signal to report processing progress to progress bar class
+    signal_notify_progress = pyqtSignal(dict)
 
     def __init__(self, datfile="", no_dat=False):
         super().__init__()
@@ -56,10 +56,11 @@ class DataLab(QThread):
                 datfile = parser.datfile.name
 
         self.datfile = datfile
-        self.control = ControlFile()
+        self.control = Control()
         self.logger_path = ""
         self.data_screen = []
         self.dict_stats = {}
+        self.total_files = 0
 
     def analyse_control_file(self):
         """Read control file (*.dat) and extract and check input settings."""
@@ -68,7 +69,7 @@ class DataLab(QThread):
         print("Analysing control file")
 
         # Create control file object
-        self.control = ControlFile()
+        self.control = Control()
         self.control.set_filename(self.datfile)
         self.control.analyse()
 
@@ -95,15 +96,15 @@ class DataLab(QThread):
         stats_out = StatsOutput(output_dir=self.control.output_folder)
 
         # Get total number of files to process
-        total_files = 0
+        logger_ids = []
         for logger in loggers:
-            total_files += len(logger.files)
+            self.total_files += len(logger.files)
+            logger_ids.append(logger.logger_id)
 
         # Process each logger file
         print("Processing loggers...")
         file_count = 0
         for i, logger in enumerate(loggers):
-            print()
             if logger.process_stats is True:
                 stats_processed = True
 
@@ -152,7 +153,8 @@ class DataLab(QThread):
                 progress = (
                     f"Processing {logger.logger_id} file {j + 1} of {n} ({filename})"
                 )
-                # print(f'\r{progress}', end='')
+                print(f"\r{progress}", end="")
+                # print(f"{progress}")
 
                 # Read the file into a pandas data frame
                 df = data_screen[i].read_logger_file(file)
@@ -228,13 +230,22 @@ class DataLab(QThread):
                                 df_spectral_sample = pd.DataFrame()
 
                 # Emit file number signal to gui
-                self.signal_notify_progress.emit(
-                    logger.logger_id, i + 1, j + 1, n, file_count, total_files
+                dict_progress = dict(
+                    logger_ids=logger_ids,
+                    logger_i=i,
+                    file_i=j,
+                    filename=filename,
+                    num_logger_files=n,
+                    file_count=file_count,
+                    total_files=self.total_files,
                 )
+
+                # Send data package to progress bar
+                self.signal_notify_progress.emit(dict_progress)
 
             coverage = data_screen[i].calc_data_completeness()
             print(
-                f"\nData coverage for {logger.logger_id} logger = {coverage.min():.1f}%"
+                f"\nData coverage for {logger.logger_id} logger = {coverage.min():.1f}%\n"
             )
 
             # Add any files containing errors to screening report
@@ -292,8 +303,7 @@ class DataLab(QThread):
             if self.control.stats_to_xlsx is True:
                 stats_out.save_workbook()
 
-        print("\nProcessing complete")
-
+        print("Processing complete")
         t1 = round(time() - t0)
         print("Screening runtime = {}".format(str(timedelta(seconds=t1))))
 

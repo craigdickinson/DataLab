@@ -13,7 +13,7 @@ import pandas as pd
 from scipy import signal
 
 
-class Spectrogram:
+class Spectrogram(object):
     """Routines to read pandas data frames and construct spectrograms."""
 
     def __init__(self, logger_id, num_chan, output_dir):
