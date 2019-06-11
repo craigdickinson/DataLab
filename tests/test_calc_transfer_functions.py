@@ -4,7 +4,7 @@ __author__ = "Craig Dickinson"
 import pytest
 import os
 
-from app.core.calc_transfer_functions import TransferFunctions, get_header_row, read_all_windows
+from app.core.calc_transfer_functions import TransferFunctions, get_header_row, read_windows_time_traces
 
 
 def setup():
@@ -27,19 +27,19 @@ def test_get_header_row():
 
 
 def test_read_loc_bm_time_traces_shape():
-    df = read_all_windows(tf.bm_files)
+    df = read_windows_time_traces(tf.bm_files)
     assert df.shape[0] == 36002
     assert df.shape[1] == 24
 
 
 def test_read_logger_disp_time_traces_shape():
-    df = read_all_windows(tf.disp_files)
+    df = read_windows_time_traces(tf.disp_files)
     assert df.shape[0] == 36002
     assert df.shape[1] == 16
 
 
 def test_read_logger_rot_time_traces_shape():
-    df = read_all_windows(tf.rot_files)
+    df = read_windows_time_traces(tf.rot_files)
     assert df.shape[0] == 36002
     assert df.shape[1] == 16
 

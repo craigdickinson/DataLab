@@ -1,15 +1,15 @@
-import csv
 import pandas as pd
 import numpy as np
 import os
 from glob import glob
+from app.core.signal_processing import calc_psd
 
 
 class TransferFunctions(object):
     def __init__(self):
-        self.num_loggers = 2
-        self.num_locs = 3
-        self.num_win = 8
+        self.num_loggers = 0
+        self.num_locs = 0
+        self.num_win = 0
         self.logger_names = ["BOP", "LMRP"]
         self.loc_names = ["LPH Weld", "HPH Weld", "BOP Connector"]
         self.bm_dir = ""
@@ -22,6 +22,10 @@ class TransferFunctions(object):
         self.df_disp = pd.DataFrame()
         self.df_rot = pd.DataFrame()
         self.df_acc = pd.DataFrame()
+
+        self.logger_acc_psds = []
+        self.loc_bm_psds = []
+        self.trans_funcs = []
 
     def get_files(self):
         self.bm_files = glob(self.bm_dir + "/*.csv")
@@ -43,9 +47,9 @@ class TransferFunctions(object):
 
     def read_fea_time_traces(self):
 
-        self.df_bm = read_all_windows(self.bm_files)
-        self.df_disp = read_all_windows(self.disp_files)
-        self.df_rot = read_all_windows(self.rot_files)
+        self.df_bm = read_windows_time_traces(self.bm_files)
+        self.df_disp = read_windows_time_traces(self.disp_files)
+        self.df_rot = read_windows_time_traces(self.rot_files)
 
         self.get_number_of_loggers()
         self.get_number_of_locations()
@@ -72,7 +76,7 @@ class TransferFunctions(object):
             self.num_locs = 0
             print('Warning: Number of windows is zero.')
 
-    def calc_g_cont_accs(self, df_disp, df_rot):
+    def calc_g_cont_accs(self):
         """
         Compute gravity-contaminated acceleration from displacement.
         Use second order central finite difference method to compute acceleration from displacement.
@@ -83,18 +87,16 @@ class TransferFunctions(object):
         """
 
         # Step size
-        h = df_disp.index[1] - df_disp.index[0]
+        h = self.df_disp.index[1] - self.df_disp.index[0]
 
         # Double differentiate node displacement to acceleration
-        acc = -(df_disp.shift(1) - 2 * df_disp + df_disp.shift(-1)) / h ** 2
+        acc = -(self.df_disp.shift(1) - 2 * self.df_disp + self.df_disp.shift(-1)) / h ** 2
 
         # Gravity component from node rotation time series
         g = 9.807
-        g_cont = g * np.sin(np.radians(df_rot))
+        g_cont = g * np.sin(np.radians(self.df_rot))
 
-        # Need to rename columns so identical in order to add data frames
-        n = self.num_loggers * self.num_win
-
+        # Acc and g_cont data frames need to have the same column names in order to add data frames together
         cols = []
         for i in range(self.num_win):
             for j in range(self.num_loggers):
@@ -107,31 +109,84 @@ class TransferFunctions(object):
         # Combine to get gravity-contaminated acceleration time series
         self.df_acc = acc + g_cont
 
-        # Finally drop NAN rows and rescale time index to zero
-        self.df_acc = self.df_acc.dropna()
+    def clean_up_acc_and_bm_dataframes(self):
+        """
+        Remove nan rows from g-cont accelerations data frame and equivalent rows in BM data frame
+        and rebase time index to 0.
+        """
+
+        # Store index of nan rows (this will actually be the first and last rows) and remove from df_bm so shape is same
+        nan_idx = self.df_acc.index[self.df_acc.isna().any(axis=1)]
+
+        # Drop nan rows from bending moment and acceleration data frames and rescale time index to zero
+        self.df_bm.drop(nan_idx, inplace=True)
+        self.df_acc.dropna(inplace=True)
+        self.df_bm.index = self.df_bm.index - self.df_bm.index[0]
         self.df_acc.index = self.df_acc.index - self.df_acc.index[0]
 
-    def calc_acc_psd(self):
-        pass
+    def calc_logger_acc_psds(self):
+        df = self.df_acc
+        fs = 1 / (df.index[1] - df.index[0])
+        freq, psds = calc_psd(data=df.T.values, fs=fs, nperseg=1000, noverlap=0)
+        freq = np.round(freq, 3)
 
-    def calc_bm_psd(self):
-        pass
+        # Create list of logger acceleration PSD data frames
+        n = self.num_loggers
+        self.loc_bm_psds = []
 
-    def calc_tf(self):
-        pass
+        for i in range(n):
+            # Select every logger i row, transpose and construct data frame
+            data = psds[i::n].T
+            cols = [f"Logger {i + 1} W{j + 1}" for j in range(self.num_win)]
+            df = pd.DataFrame(data, index=freq, columns=cols)
+            self.logger_acc_psds.append(df)
+
+    def calc_location_bm_psds(self):
+        df = self.df_bm
+        fs = 1 / (df.index[1] - df.index[0])
+        freq, psds = calc_psd(data=df.T.values, fs=fs, nperseg=1000, noverlap=0)
+        freq = np.round(freq, 3)
+
+        # Create list of locations bending moment PSD data frames
+        n = self.num_locs
+        self.loc_bm_psds = []
+
+        for i in range(n):
+            # Select every location i row, transpose and construct data frame
+            data = psds[i::n].T
+            cols = [f"Loc {i + 1} W{j + 1}" for j in range(self.num_win)]
+            df = pd.DataFrame(data, index=freq, columns=cols)
+            self.loc_bm_psds.append(df)
+
+    def calc_trans_funcs(self):
+        """
+        Compute frequency dependent transfer functions.
+        TF = [Location BM PSD] / [Logger Acc PSD]
+        Transfer functions are stored in 2D lists of form: TF[logger i][location j].
+        """
+
+        self.trans_funcs = []
+        freq = self.loc_bm_psds[0].index
+
+        # Create new TFs list for each logger
+        for i in range(self.num_loggers):
+            self.trans_funcs.append([])
+
+            # Append logger i derived TF for each location
+            for j in range(self.num_locs):
+                data = self.loc_bm_psds[j].values / self.logger_acc_psds[i].values
+                cols = [f"Logger {i + 1} Loc {j + 1} W{k + 1}" for k in range(self.num_win)]
+                self.trans_funcs[i].append(pd.DataFrame(data, index=freq, columns=cols))
 
 
-def read_all_windows(files):
+def read_windows_time_traces(files):
     df_all = pd.DataFrame()
 
     for i, f in enumerate(files):
         df = read_2httrace_csv(f)
 
-        # Format column names
-        cols = df.columns
-
         # Format and append window number to column names
-        df.columns = format_column_names(cols, win_num=i + 1)
+        df.columns = format_column_names(df.columns, win_num=i + 1)
 
         # Join frames
         df_all = pd.concat((df_all, df), axis=1)
@@ -183,11 +238,6 @@ def get_header_row(filename):
 
     return 0
 
-    #     reader = csv.reader(f)
-    #     data = [r for r in reader]
-    #
-    # for i, r in enumerate(data):
-
 
 if __name__ == "__main__":
     tf = TransferFunctions()
@@ -197,8 +247,9 @@ if __name__ == "__main__":
     tf.disp_dir = os.path.join(root, "Loggers Disp Y")
     tf.rot_dir = os.path.join(root, "Loggers Rot Z")
     tf.get_files()
-
     tf.read_fea_time_traces()
-
-    tf.calc_g_cont_accs(tf.df_disp, tf.df_rot)
-    print(tf.df_acc)
+    tf.calc_g_cont_accs()
+    tf.clean_up_acc_and_bm_dataframes()
+    tf.calc_logger_acc_psds()
+    tf.calc_location_bm_psds()
+    tf.calc_trans_funcs()
