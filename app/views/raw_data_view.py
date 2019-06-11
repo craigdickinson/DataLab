@@ -11,7 +11,7 @@ from scipy import signal
 
 # from gui.gui_zoom_pan_factory import ZoomPan
 from app.core.read_files import read_fugro_csv, read_pulse_acc, read_logger_hdf5
-from app.core.signal_filtering import filter_signal
+from app.core.signal_processing import calc_psd, filter_signal
 
 # "2H blue"
 color_2H = np.array([0, 49, 80]) / 255
@@ -571,9 +571,11 @@ class TimeSeriesPlotWidget(QtWidgets.QWidget):
             # Note the default Welch parameters are equivalent to running
             # f, pxx = signal.welch(df.T, fs=fs)
             # TODO: Make PSD calc a core script
-            f, pxx = signal.welch(
-                df.T, fs=fs, window=window, nperseg=nperseg, noverlap=noverlap
-            )
+            # f, pxx = signal.welch(
+            #     df.T, fs=fs, window=window, nperseg=nperseg, noverlap=noverlap
+            # )
+            f, pxx = calc_psd(data=df.T.values, fs=fs, window=window, nperseg=nperseg, noverlap=noverlap)
+
         except Exception as e:
             raise ValueError(f"Could not calculate PSD\n{e}")
 

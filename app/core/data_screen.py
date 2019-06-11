@@ -10,7 +10,7 @@ import pandas as pd
 
 from app.core.logger_properties import LoggerProperties
 from app.core.read_files import read_pulse_acc_single_header_format
-from app.core.signal_filtering import filter_signal
+from app.core.signal_processing import filter_signal
 
 
 class DataScreen(object):

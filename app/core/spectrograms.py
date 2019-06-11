@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from scipy import signal
+from app.core.signal_processing import calc_psd
 
 
 class Spectrogram(object):
@@ -59,16 +60,19 @@ class Spectrogram(object):
         #         self.spectrograms[channel] = np.column_stack([self.spectrograms[channel], amps[i]])
 
         # TODO: Create spectrograms with welch method with user settings
-        self.freq, psd = signal.welch(df.iloc[:, 1:], fs=10, axis=0)
+        fs = 1 / ((df.iloc[1, 0] - df.iloc[0, 0]).total_seconds())
+        # self.freq, psd = signal.welch(df.iloc[:, 1:], fs=fs, axis=0)
+        # self.freq, psd = signal.welch(df.iloc[:, 1:].T, fs=fs)
+        self.freq, psd = calc_psd(data=df.iloc[:, 1:].T.values, fs=fs, window="hann")
 
         # TODO: We are not using any user defined headers here - replace channel names with user header when create df?
         # Add 2d arrays to dictionary
         for i, channel in enumerate(channels):
             if channel not in self.spectrograms:
-                self.spectrograms[channel] = psd[:, i]
+                self.spectrograms[channel] = psd[i]
             else:
                 self.spectrograms[channel] = np.row_stack(
-                    [self.spectrograms[channel], psd[:, i]]
+                    [self.spectrograms[channel], psd[i]]
                 )
 
     def add_timestamps(self, dates):
@@ -157,7 +161,6 @@ class Spectrogram(object):
 
         t1 = round(time() - t0)
         print("Write xlsx time = {}".format(str(timedelta(seconds=t1))))
-
 
 # if __name__ == '__main__':
 #     folder = r'C:\Users\dickinsc\PycharmProjects\_2. DataLab Analysis Files\Misc\Output 21239 Test 4'
