@@ -48,12 +48,15 @@ class ConfigModule(QtWidgets.QWidget):
 
         self.loadConfigButton = QtWidgets.QPushButton("&Load")
         self.saveConfigButton = QtWidgets.QPushButton("&Save")
+        self.processButton = QtWidgets.QPushButton("Process")
+        self.processButton.setShortcut("Ctrl+R")
         # spacerItem = QtWidgets.QSpacerItem(40, 1)
 
         hbox = QtWidgets.QHBoxLayout(self.configButtonsWidget)
         hbox.addWidget(QtWidgets.QLabel("Config File:"))
         hbox.addWidget(self.loadConfigButton)
         hbox.addWidget(self.saveConfigButton)
+        hbox.addWidget(self.processButton)
         # hbox.addItem(spacerItem)
 
         # Loggers list group
@@ -85,29 +88,29 @@ class ConfigModule(QtWidgets.QWidget):
 
         self.newProjButton = QtWidgets.QPushButton("&New Project")
 
-        # Run analysis group
-        self.runWidget = QtWidgets.QWidget()
-
-        self.runGroup = QtWidgets.QGroupBox("Selected Analysis")
-        self.statsChkBox = QtWidgets.QCheckBox("Statistical Analysis")
-        self.spectralChkBox = QtWidgets.QCheckBox("Spectral Analysis")
-
-        self.vbox2 = QtWidgets.QVBoxLayout(self.runGroup)
-        self.vbox2.addWidget(self.statsChkBox)
-        self.vbox2.addWidget(self.spectralChkBox)
-
-        self.processButton = QtWidgets.QPushButton("Process")
-
-        self.vbox1 = QtWidgets.QVBoxLayout(self.runWidget)
-        self.vbox1.addWidget(self.runGroup)
-        self.vbox1.addWidget(self.processButton)
+        # # Run analysis group
+        # self.runWidget = QtWidgets.QWidget()
+        #
+        # self.runGroup = QtWidgets.QGroupBox("Selected Analysis")
+        # self.statsChkBox = QtWidgets.QCheckBox("Statistical Analysis")
+        # self.spectralChkBox = QtWidgets.QCheckBox("Spectral Analysis")
+        #
+        # self.vbox2 = QtWidgets.QVBoxLayout(self.runGroup)
+        # self.vbox2.addWidget(self.statsChkBox)
+        # self.vbox2.addWidget(self.spectralChkBox)
+        #
+        # self.processButton = QtWidgets.QPushButton("Process")
+        #
+        # self.vbox1 = QtWidgets.QVBoxLayout(self.runWidget)
+        # self.vbox1.addWidget(self.runGroup)
+        # self.vbox1.addWidget(self.processButton)
 
         # Main layout
         self.layout.addWidget(self.configButtonsWidget, 0, 0, 1, 2, QtCore.Qt.AlignLeft)
         self.layout.addWidget(self.loggersGroup, 1, 0)
         self.layout.addWidget(self.setupTabs, 1, 1)
         self.layout.addWidget(self.newProjButton, 2, 0, QtCore.Qt.AlignLeft)
-        self.layout.addWidget(self.runWidget, 1, 2, QtCore.Qt.AlignTop)
+        # self.layout.addWidget(self.runWidget, 1, 2, QtCore.Qt.AlignTop)
 
     def connect_signals(self):
         self.loadConfigButton.clicked.connect(self.load_config_file)
@@ -343,7 +346,6 @@ class ConfigModule(QtWidgets.QWidget):
         control.project_path = self.get_key_value(
             logger_id=key, data=data, key="project_location", attr=control.project_path
         )
-        control.output_folder = os.path.join(control.project_path, "Output")
         control.config_file = self.config.filename
 
         return control
@@ -1352,7 +1354,6 @@ class EditCampaignInfoDialog(QtWidgets.QDialog):
 
         if dir_path:
             self.projPath.setText(dir_path)
-            os.chdir(dir_path)
 
 
 class EditLoggerPropertiesDialog(QtWidgets.QDialog):

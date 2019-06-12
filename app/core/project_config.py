@@ -17,7 +17,6 @@ class ProjectConfigJSONFile:
 
         # Store filename and set directory to project root
         file_path, self.filename = os.path.split(file_name)
-        os.chdir(file_path)
 
         return data
 

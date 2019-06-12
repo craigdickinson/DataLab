@@ -40,7 +40,7 @@ def parse_args(args):
     return parser.parse_args(args)
 
 
-class DataLab(QThread):
+class Screening(QThread):
     """Class for main DataLab program. Defined as a thread object for use with gui."""
 
     # Signal to report processing progress to progress bar class
@@ -313,7 +313,7 @@ if __name__ == "__main__":
     f = "controlfile_fugro_slim.dat"
     f = os.path.join(direc, f)
     # f = ''
-    datalab = DataLab(datfile=f)
+    datalab = Screening(datfile=f)
 
     try:
         datalab.analyse_control_file()

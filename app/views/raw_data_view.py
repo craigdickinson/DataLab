@@ -1,4 +1,5 @@
 import logging
+import os
 import sys
 
 import matplotlib.pyplot as plt
@@ -7,26 +8,26 @@ import pandas as pd
 from PyQt5 import QtCore, QtWidgets
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
-from scipy import signal
 
 # from gui.gui_zoom_pan_factory import ZoomPan
-from app.core.read_files import read_fugro_csv, read_pulse_acc, read_logger_hdf5
+from app.core.read_files import read_fugro_csv, read_logger_hdf5, read_pulse_acc
 from app.core.signal_processing import calc_psd, filter_signal
 
 # "2H blue"
 color_2H = np.array([0, 49, 80]) / 255
 
 
-class TimeSeriesPlotWidget(QtWidgets.QWidget):
+class RawDataDashboard(QtWidgets.QWidget):
     """Create raw time series plots widget."""
 
     def __init__(self, parent=None):
-        super(TimeSeriesPlotWidget, self).__init__(parent)
+        super(RawDataDashboard, self).__init__(parent)
 
         # So can access parent class
         self.parent = parent
         plt.style.use("seaborn")
 
+        self.root = ""
         self.files_list = []
         self.logger_id = ""
         # self.project = 'Project Title'
@@ -188,11 +189,13 @@ class TimeSeriesPlotWidget(QtWidgets.QWidget):
             return
 
         filename = self.filesList.currentItem().text()
+        file = os.path.join(self.root, filename)
 
         try:
-            self.load_file(filename)
+            self.load_file(file)
         except ValueError as e:
             self.parent.error(f"Error: {e}")
+            logging.exception(e)
         except Exception as e:
             msg = "Unexpected error loading logger file"
             self.parent.error(f"{msg}:\n{e}\n{sys.exc_info()[0]}")
@@ -201,12 +204,13 @@ class TimeSeriesPlotWidget(QtWidgets.QWidget):
     def on_file_double_clicked(self):
         self.on_replot_clicked()
 
-    def load_file(self, filename):
+    def load_file(self, file):
         """Load logger file, update widget and plot first channel."""
 
-        self.df = self.read_logger_file(filename)
+        self.df = self.read_logger_file(file)
 
         # Store logger ID (assume the first portion of the filename)
+        filename = os.path.basename(file)
         self.logger_id = filename.split("_")[0]
 
         # Store channel names and units - ignore column 1 (Timestamps)
@@ -239,17 +243,18 @@ class TimeSeriesPlotWidget(QtWidgets.QWidget):
         i = files_list.index(file_name)
         self.filesList.setCurrentRow(i)
 
-    def read_logger_file(self, filename):
+    @staticmethod
+    def read_logger_file(file):
         """Read a raw logger file."""
 
-        ext = filename.split(".")[-1].lower()
+        ext = file.split(".")[-1].lower()
 
         if ext == "csv":
-            df = read_fugro_csv(filename)
+            df = read_fugro_csv(file)
         elif ext == "acc":
-            df = read_pulse_acc(filename)
+            df = read_pulse_acc(file)
         elif ext == "h5":
-            df = read_logger_hdf5(filename)
+            df = read_logger_hdf5(file)
         else:
             raise FileNotFoundError(f"No files with the extension {ext} found.")
 
@@ -1266,7 +1271,7 @@ class LoggerPlotSettings(QtWidgets.QDialog):
 # For testing layout
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
-    win = TimeSeriesPlotWidget()
+    win = RawDataDashboard()
     # win = LoggerPlotSettings()
     win.show()
     sys.exit(app.exec_())

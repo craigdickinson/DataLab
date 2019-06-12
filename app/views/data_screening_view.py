@@ -1,6 +1,6 @@
 import sys
 from PyQt5 import QtCore, QtWidgets
-from app.core.datalab_main import DataLab
+from app.core.screening import Screening
 
 
 class DataQualityReport(QtWidgets.QWidget):
@@ -10,7 +10,7 @@ class DataQualityReport(QtWidgets.QWidget):
         super(DataQualityReport, self).__init__(parent)
 
         self.parent = parent
-        self.datalab = DataLab(no_dat=True)
+        self.datalab = Screening(no_dat=True)
         self.init_ui()
         self.connect_signals()
 

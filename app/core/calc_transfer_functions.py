@@ -9,7 +9,7 @@ class TransferFunctions(object):
     def __init__(self):
         self.num_loggers = 0
         self.num_locs = 0
-        self.num_win = 0
+        self.num_ss = 0
 
         # Lists to store logger, location and transfer function names
         self.logger_names = []
@@ -17,6 +17,17 @@ class TransferFunctions(object):
         self.tf_names = []
         # self.logger_names = ["BOP", "LMRP"]
         # self.loc_names = ["LPH Weld", "HPH Weld", "BOP Connector"]
+
+        self.perc_occ = [
+            19.040,
+            10.134,
+            20.049,
+            17.022,
+            14.644,
+            10.374,
+            5.448,
+            3.289,
+        ]
 
         self.disp_dir = ""
         self.rot_dir = ""
@@ -32,6 +43,11 @@ class TransferFunctions(object):
         self.logger_acc_psds = []
         self.loc_bm_psds = []
         self.trans_funcs = []
+        self.ave_tfs = []
+
+        self.root_dir = ""
+        self.output_folder1 = "Seastate TFs"
+        self.output_folder2 = "Weighted Average TFs"
 
     def get_files(self):
         self.bm_files = glob(self.bm_dir + "/*.csv")
@@ -46,16 +62,16 @@ class TransferFunctions(object):
         n3 = len(self.rot_files)
 
         if n1 == n2 == n3:
-            self.num_win = n1
+            self.num_ss = n1
         else:
-            self.num_win = 0
+            self.num_ss = 0
             print('Warning: Unequal number of window files in each folder')
 
     def read_fea_time_traces(self):
 
-        self.df_bm = read_windows_time_traces(self.bm_files)
-        self.df_disp = read_windows_time_traces(self.disp_files)
-        self.df_rot = read_windows_time_traces(self.rot_files)
+        self.df_bm = read_seastate_time_traces(self.bm_files)
+        self.df_disp = read_seastate_time_traces(self.disp_files)
+        self.df_rot = read_seastate_time_traces(self.rot_files)
 
         self.get_number_of_loggers()
         self.get_number_of_locations()
@@ -65,8 +81,8 @@ class TransferFunctions(object):
         m = self.df_rot.shape[1]
 
         if n == m:
-            if self.num_win > 0:
-                self.num_loggers = n // self.num_win
+            if self.num_ss > 0:
+                self.num_loggers = n // self.num_ss
             else:
                 self.num_loggers = 0
                 print('Warning: Number of windows is zero.')
@@ -76,8 +92,8 @@ class TransferFunctions(object):
     def get_number_of_locations(self):
         n = self.df_bm.shape[1]
 
-        if self.num_win > 0:
-            self.num_locs = n // self.num_win
+        if self.num_ss > 0:
+            self.num_locs = n // self.num_ss
         else:
             self.num_locs = 0
             print('Warning: Number of windows is zero.')
@@ -104,7 +120,7 @@ class TransferFunctions(object):
 
         # Acc and g_cont data frames need to have the same column names in order to add data frames together
         cols = []
-        for i in range(self.num_win):
+        for i in range(self.num_ss):
             for j in range(self.num_loggers):
                 c = f"Logger {j + 1} Acc-g W{i + 1}"
                 cols.append(c)
@@ -115,7 +131,7 @@ class TransferFunctions(object):
         # Combine to get gravity-contaminated acceleration time series
         self.df_acc = acc + g_cont
 
-    def clean_up_acc_and_bm_dataframes(self):
+    def clean_acc_and_bm_dataframes(self):
         """
         Remove nan rows from g-cont accelerations data frame and equivalent rows in BM data frame
         and rebase time index to 0.
@@ -143,7 +159,7 @@ class TransferFunctions(object):
         for i in range(n):
             # Select every logger i row, transpose and construct data frame
             data = psds[i::n].T
-            cols = [f"Logger {i + 1} W{j + 1}" for j in range(self.num_win)]
+            cols = [f"Logger {i + 1} SS{j + 1}" for j in range(self.num_ss)]
             df = pd.DataFrame(data, index=freq, columns=cols)
             self.logger_acc_psds.append(df)
 
@@ -160,7 +176,7 @@ class TransferFunctions(object):
         for i in range(n):
             # Select every location i row, transpose and construct data frame
             data = psds[i::n].T
-            cols = [f"Loc {i + 1} W{j + 1}" for j in range(self.num_win)]
+            cols = [f"Loc {i + 1} SS{j + 1}" for j in range(self.num_ss)]
             df = pd.DataFrame(data, index=freq, columns=cols)
             self.loc_bm_psds.append(df)
 
@@ -190,21 +206,90 @@ class TransferFunctions(object):
             # Append logger i derived TF for each location
             for j in range(self.num_locs):
                 data = self.loc_bm_psds[j].values / self.logger_acc_psds[i].values
-                cols = [f"{logger_name} {self.loc_names[j]} W{k + 1}" for k in range(self.num_win)]
-                self.trans_funcs[i].append(pd.DataFrame(data, index=freq, columns=cols))
+                cols = [f"{logger_name} {self.loc_names[j]} SS{k + 1}" for k in range(self.num_ss)]
+                df = pd.DataFrame(data, index=freq, columns=cols)
+                df.index.name = "Freq (Hz)"
+                self.trans_funcs[i].append(df)
 
                 # Store full transfer function names
                 self.tf_names.extend(cols)
 
+    def calc_weighted_ave_trans_funcs(self):
+        """Compute percentage occurrence weighted average transfer functions for all seastates."""
 
-def read_windows_time_traces(files):
+        perc_occ = np.asarray(self.perc_occ)
+        n = perc_occ.sum()
+
+        self.ave_tfs = []
+        for i in range(self.num_loggers):
+            df_ave = pd.DataFrame()
+
+            for j in range(self.num_locs):
+                df = self.trans_funcs[i][j].apply(lambda x: perc_occ * x, axis=1).sum(axis=1) / n
+                df_ave = pd.concat((df_ave, df), axis=1)
+
+            df_ave.index.name = "Freq (Hz)"
+            df_ave.columns = self.loc_names
+            self.ave_tfs.append(df_ave)
+
+    def export_seastate_transfer_functions(self, root_dir=""):
+        """
+        Export transfer functions. Export separate file for all locations per logger, per seastate.
+        File columns: Freq, Loc 1, Loc, 2, etc.
+        """
+
+        exported = False
+        path = os.path.join(root_dir, self.output_folder1)
+
+        # Ensure folder exists
+        if os.path.exists(path) is False:
+            os.makedirs(path)
+
+        # Export transfer functions files for each location and seastate, for all locations
+        for i, logger in enumerate(self.logger_names):
+            for j in range(self.num_ss):
+                df_ss = pd.DataFrame()
+
+                for k, loc in enumerate(self.loc_names):
+                    df_ss = pd.concat((df_ss, self.trans_funcs[i][k].iloc[:, j]), axis=1)
+
+                df_ss.columns = self.loc_names
+                df_ss.index.name = "Freq (Hz)"
+                filename = f"TF_{'_'.join(logger.split(' '))}_SS{j + 1}.csv"
+                df_ss.to_csv(os.path.join(path, filename))
+                exported = True
+
+        return exported
+
+    def export_weighted_ave_trans_funcs(self, root_dir=""):
+        """
+        Export weighted average transfer functions.
+        File columns: Freq, Loc 1, Loc, 2, etc.
+        """
+
+        exported = False
+        path = os.path.join(root_dir, self.output_folder2)
+
+        # Ensure folder exists
+        if os.path.exists(path) is False:
+            os.makedirs(path)
+
+        for i, logger in enumerate(self.logger_names):
+            filename = f"TF_Weighted_Ave_{'_'.join(logger.split(' '))}.csv"
+            self.ave_tfs[i].to_csv(os.path.join(path, filename))
+            exported = True
+
+        return exported
+
+
+def read_seastate_time_traces(files):
     df_all = pd.DataFrame()
 
     for i, f in enumerate(files):
         df = read_2httrace_csv(f)
 
         # Format and append window number to column names
-        df.columns = format_column_names(df.columns, win_num=i + 1)
+        df.columns = format_column_names(df.columns, ss_num=i + 1)
 
         # Join frames
         df_all = pd.concat((df_all, df), axis=1)
@@ -212,7 +297,7 @@ def read_windows_time_traces(files):
     return df_all
 
 
-def format_column_names(cols, win_num):
+def format_column_names(cols, ss_num):
     cols_new = []
     for c in cols:
         # Remove the element _After or _Before suffix if present
@@ -223,7 +308,7 @@ def format_column_names(cols, win_num):
         if pos > -1:
             c = c[:pos]
 
-        cols_new.append(f"{c.strip()}_W{win_num}")
+        cols_new.append(f"{c.strip()}_W{ss_num}")
 
     return cols_new
 
@@ -289,47 +374,50 @@ if __name__ == "__main__":
     tf.get_files()
     tf.read_fea_time_traces()
     tf.calc_g_cont_accs()
-    tf.clean_up_acc_and_bm_dataframes()
+    tf.clean_acc_and_bm_dataframes()
     tf.calc_logger_acc_psds()
     tf.calc_location_bm_psds()
     tf.calc_trans_funcs()
+    tf.calc_weighted_ave_trans_funcs()
+    tf.export_seastate_transfer_functions()
+    tf.export_weighted_ave_trans_funcs()
 
-    # Test find nearest window
-    windows = [1, 2, 3, 4, 5, 6, 7, 8]
-    hs = [
-        0.875,
-        2.625,
-        1.125,
-        1.375,
-        2.625,
-        1.375,
-        1.125,
-        2.125,
-    ]
-    tp = [
-        6.5,
-        7.5,
-        7.5,
-        8.5,
-        9.5,
-        9.5,
-        11.5,
-        14.5,
-    ]
-    perc_occ = [
-        19.040,
-        10.134,
-        20.049,
-        17.022,
-        14.644,
-        10.374,
-        5.448,
-        3.289,
-    ]
-
-    hs_i = 2
-    tp_i = 9.5
-    print(f"hs_i = {hs_i} m")
-    print(f"tp_i = {tp_i} s")
-    win = find_nearest_window(windows, hs, tp, hs_i, tp_i)
-    print(f"Window = {win}")
+    # # Test find nearest window
+    # windows = [1, 2, 3, 4, 5, 6, 7, 8]
+    # hs = [
+    #     0.875,
+    #     2.625,
+    #     1.125,
+    #     1.375,
+    #     2.625,
+    #     1.375,
+    #     1.125,
+    #     2.125,
+    # ]
+    # tp = [
+    #     6.5,
+    #     7.5,
+    #     7.5,
+    #     8.5,
+    #     9.5,
+    #     9.5,
+    #     11.5,
+    #     14.5,
+    # ]
+    # perc_occ = [
+    #     19.040,
+    #     10.134,
+    #     20.049,
+    #     17.022,
+    #     14.644,
+    #     10.374,
+    #     5.448,
+    #     3.289,
+    # ]
+    #
+    # hs_i = 2
+    # tp_i = 9.5
+    # print(f"hs_i = {hs_i} m")
+    # print(f"tp_i = {tp_i} s")
+    # win = find_nearest_window(windows, hs, tp, hs_i, tp_i)
+    # print(f"Window = {win}")

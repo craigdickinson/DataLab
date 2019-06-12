@@ -34,7 +34,9 @@ class TransferFunctionsWidget(QtWidgets.QWidget):
         self.vbox1 = QtWidgets.QVBoxLayout()
 
         self.setTTPathsButton = QtWidgets.QPushButton("Set Paths Time Traces")
-        self.calcTransFuncsButton = QtWidgets.QPushButton("Generate Transfer Functions")
+        self.calcTFButton = QtWidgets.QPushButton("Generate Transfer Functions")
+        self.exportSSTFButton = QtWidgets.QPushButton("Export Seastate TFs")
+        self.exportAveTFButton = QtWidgets.QPushButton("Export Average TFs")
         self.loadFileButton = QtWidgets.QPushButton("Load Transfer Functions")
         self.loadFileButton.setToolTip("Load transfer functions file")
 
@@ -55,7 +57,9 @@ class TransferFunctionsWidget(QtWidgets.QWidget):
 
         # Add setup widgets
         self.vbox1.addWidget(self.setTTPathsButton)
-        self.vbox1.addWidget(self.calcTransFuncsButton)
+        self.vbox1.addWidget(self.calcTFButton)
+        self.vbox1.addWidget(self.exportSSTFButton)
+        self.vbox1.addWidget(self.exportAveTFButton)
         self.vbox1.addWidget(self.loadFileButton)
         self.vbox1.addWidget(self.filesLabel)
         self.vbox1.addWidget(self.transferFuncsList)
@@ -82,7 +86,9 @@ class TransferFunctionsWidget(QtWidgets.QWidget):
 
     def connect_signals(self):
         self.setTTPathsButton.clicked.connect(self.on_set_path_clicked)
-        self.calcTransFuncsButton.clicked.connect(self.on_calc_trans_funcs_clicked)
+        self.calcTFButton.clicked.connect(self.on_calc_trans_funcs_clicked)
+        self.exportSSTFButton.clicked.connect(self.on_export_ss_tf_button_clicked)
+        self.exportAveTFButton.clicked.connect(self.on_export_ave_tf_button_clicked)
         self.plotButton.clicked.connect(self.plot)
 
     def on_set_path_clicked(self):
@@ -103,10 +109,11 @@ class TransferFunctionsWidget(QtWidgets.QWidget):
         self.tf.get_files()
         self.tf.read_fea_time_traces()
         self.tf.calc_g_cont_accs()
-        self.tf.clean_up_acc_and_bm_dataframes()
+        self.tf.clean_acc_and_bm_dataframes()
         self.tf.calc_logger_acc_psds()
         self.tf.calc_location_bm_psds()
         self.tf.calc_trans_funcs()
+        self.tf.calc_weighted_ave_trans_funcs()
 
         # Populate gui
         self.transferFuncsList.clear()
@@ -124,13 +131,39 @@ class TransferFunctionsWidget(QtWidgets.QWidget):
 
         self.plot()
 
+    def on_export_ss_tf_button_clicked(self):
+        # Export transfer functions to csv files (parse project root path)
+        root_dir = self.parent.control.project_path
+        if root_dir == "":
+            root_dir = os.getcwd()
+
+        retval = self.tf.export_seastate_transfer_functions(root_dir)
+
+        if retval is True:
+            path = os.path.join(root_dir, self.tf.output_folder1)
+            msg = f"Transfer functions exported successfully to:\n{path}"
+            return QtWidgets.QMessageBox.information(self, "Export Transfer Functions", msg)
+
+    def on_export_ave_tf_button_clicked(self):
+        # Export transfer functions to csv files (parse project root path)
+        root_dir = self.parent.control.project_path
+        if root_dir == "":
+            root_dir = os.getcwd()
+
+        retval = self.tf.export_weighted_ave_trans_funcs(root_dir)
+
+        if retval is True:
+            path = os.path.join(root_dir, self.tf.output_folder2)
+            msg = f"Transfer functions exported successfully to:\n{path}"
+            return QtWidgets.QMessageBox.information(self, "Export Transfer Functions", msg)
+
     def plot(self):
         self.ax.cla()
         try:
             # df = pd.read_clipboard()
 
             logger_i = self.loggerCombo.currentIndex()
-            loc_i=self.locCombo.currentIndex()
+            loc_i = self.locCombo.currentIndex()
 
             # Select TF data frame
             df = self.tf.trans_funcs[logger_i][loc_i]

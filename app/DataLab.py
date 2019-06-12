@@ -1,6 +1,6 @@
 __author__ = "Craig Dickinson"
 __program__ = "DataLab"
-__version__ = "0.39"
+__version__ = "0.40"
 __date__ = "12 June 2019"
 
 import logging
@@ -15,7 +15,7 @@ from PyQt5.QtCore import pyqtSignal, pyqtSlot
 
 # import datalab_gui_layout
 from app.core.datalab_control import InputError
-from app.core.datalab_main import DataLab
+from app.core.screening import Screening
 from app.core.logger_properties import LoggerError
 from app.core.read_files import (
     read_spectrograms_csv,
@@ -31,8 +31,8 @@ from app.views.processing_progress_view import ProcessingProgressBar
 from app.views.stats_view import StatsDataset
 
 
-class DataLabApp(DataLabGui):
-    """Main class for DataLab program. Takes as arg the ui class."""
+class DataLab(DataLabGui):
+    """Main class for DataLab program. Subclasses the ui class."""
 
     def __init__(self):
         super().__init__()
@@ -40,13 +40,15 @@ class DataLabApp(DataLabGui):
         self.version = __version__
         self.setWindowTitle(f"DataLab {self.version}")
 
-        # Set root path because path is changed when using file tree
-        self.root = os.getcwd()
-        self.datalab = None
-
-        self.update_tool_buttons("config")
+        self.set_active_tool_button("config")
         self._connect_signals()
         self._connect_child_signals()
+
+        # Dummy placeholder for Screening class (main processor)
+        self.datalab = None
+
+        # Mapping of control setup object
+        self.control = self.projConfigModule.control
 
     def _connect_signals(self):
         """Connect widget signals to methods/actions."""
@@ -87,7 +89,7 @@ class DataLabApp(DataLabGui):
         self.fatigueButton.clicked.connect(self.view_mod_fatigue)
 
     def _connect_child_signals(self):
-        self.timeSeriesTab.loadFileButton.clicked.connect(self.load_logger_file)
+        self.rawDataTab.loadFileButton.clicked.connect(self.load_logger_file)
         self.statsTab.loadStatsButton.clicked.connect(self.load_stats_file)
         self.vesselStatsTab.loadStatsButton.clicked.connect(self.load_stats_file)
         self.spectrogramTab.loadDatasetButton.clicked.connect(
@@ -123,20 +125,23 @@ class DataLabApp(DataLabGui):
         )
 
         if self.ts_file:
-            fpath = "/".join(self.ts_file.split("/")[:-1])
-            filename = self.ts_file.split("/")[-1]
-            ext = filename.split(".")[-1]
-            os.chdir(fpath)
-            files_list = glob("*." + ext)
+            root = os.path.dirname(self.ts_file)
+            self.rawDataTab.root = root
+            filename = os.path.basename(self.ts_file)
+            ext = os.path.splitext(self.ts_file)[1]
+            files_list = glob(root + "/*" + ext)
+            files = [os.path.basename(f) for f in files_list]
 
             try:
                 # Populate files list widget and read file
-                self.timeSeriesTab.update_files_list(files_list, filename)
-                self.timeSeriesTab.load_file(filename)
+                self.rawDataTab.update_files_list(files, filename)
+                self.rawDataTab.load_file(self.ts_file)
             except FileNotFoundError as e:
                 self.error(str(e))
+                logging.exception(e)
             except ValueError as e:
                 self.error(str(e))
+                logging.exception(e)
             except Exception as e:
                 msg = "Unexpected error processing loggers"
                 self.error(f"{msg}:\n{e}\n{sys.exc_info()[0]}")
@@ -254,8 +259,8 @@ class DataLabApp(DataLabGui):
         """Show raw data plot settings window."""
 
         # Set current parameters from time series plot widget class
-        self.timeSeriesTab.plotSettings.get_params()
-        self.timeSeriesTab.plotSettings.show()
+        self.rawDataTab.plotSettings.get_params()
+        self.rawDataTab.plotSettings.show()
 
     def open_spect_plot_settings(self):
         """Show spectrogram plot settings window."""
@@ -300,57 +305,57 @@ class DataLabApp(DataLabGui):
         self.errorBar.hide()
 
     def view_proj_config_mod(self):
-        self.update_tool_buttons("config")
+        self.set_active_tool_button("config")
         self.modulesWidget.setCurrentWidget(self.projConfigModule)
 
     def view_mod_raw_data(self):
-        self.update_tool_buttons("raw")
+        self.set_active_tool_button("raw")
         self.modulesWidget.setCurrentWidget(self.rawDataModule)
 
     def view_mod_data_quality(self):
-        self.update_tool_buttons("quality")
+        self.set_active_tool_button("quality")
         self.modulesWidget.setCurrentWidget(self.dataQualityModule)
 
     def view_mod_stats_screening(self):
-        self.update_tool_buttons("stats")
+        self.set_active_tool_button("stats")
         self.modulesWidget.setCurrentWidget(self.statsScreeningModule)
 
     def view_mod_spectral_screening(self):
-        self.update_tool_buttons("spectral")
+        self.set_active_tool_button("spectral")
         self.modulesWidget.setCurrentWidget(self.spectralScreeningModule)
 
     def view_mod_seascatter(self):
-        self.update_tool_buttons("seascatter")
+        self.set_active_tool_button("seascatter")
         self.modulesWidget.setCurrentWidget(self.seascatterModule)
 
     def view_mod_transfer_funcs(self):
-        self.update_tool_buttons("tf")
+        self.set_active_tool_button("tf")
         self.modulesWidget.setCurrentWidget(self.transFuncsModule)
 
     def view_mod_fatigue(self):
-        self.update_tool_buttons("fatigue")
+        self.set_active_tool_button("fatigue")
         self.modulesWidget.setCurrentWidget(self.fatigueModule)
 
     def view_tab_stats(self):
-        self.update_tool_buttons("stats")
+        self.set_active_tool_button("stats")
         self.modulesWidget.setCurrentWidget(self.statsScreeningModule)
         self.statsScreeningModule.setCurrentWidget(self.statsTab)
 
     def view_tab_vessel_stats(self):
-        self.update_tool_buttons("stats")
+        self.set_active_tool_button("stats")
         self.modulesWidget.setCurrentWidget(self.statsScreeningModule)
         self.statsScreeningModule.setCurrentWidget(self.vesselStatsTab)
 
     def view_tab_spectrogram(self):
-        self.update_tool_buttons("spectral")
+        self.set_active_tool_button("spectral")
         self.modulesWidget.setCurrentWidget(self.spectralScreeningModule)
         self.statsScreeningModule.setCurrentWidget(self.spectrogramTab)
 
     def view_tab_seascatter(self):
-        self.update_tool_buttons("seascatter")
+        self.set_active_tool_button("seascatter")
         self.modulesWidget.setCurrentWidget(self.seascatterModule)
 
-    def update_tool_buttons(self, active_button):
+    def set_active_tool_button(self, active_button):
         """Format selected module button."""
 
         # button_style = 'font-weight: bold'
@@ -411,7 +416,8 @@ class DataLabApp(DataLabGui):
             # Check all ids are unique
             control.check_logger_ids(control.logger_ids)
 
-            # Create output folder if necessary
+            # Set output folder name and create if doesn't exist
+            control.output_folder = os.path.join(control.project_path, "Output")
             control.ensure_dir_exists(control.output_folder)
 
             # Get raw filenames, check timestamps and select files in processing datetime range
@@ -459,7 +465,7 @@ class DataLabApp(DataLabGui):
         # Run processing on QThread worker - prevents GUI lock up
         try:
             # Create datalab object, map control data and process
-            datalab = DataLab(no_dat=True)
+            datalab = Screening(no_dat=True)
             datalab.control = control
 
             # Create worker thread, connect signals to methods in this class and start, which this calls worker.run()
@@ -626,6 +632,6 @@ if __name__ == "__main__":
     os.chdir(r'C:\Users\dickinsc\PycharmProjects\DataLab\demo_data\2. Project Configs')
     app = QtWidgets.QApplication(sys.argv)
     # win = QtDesignerGui()
-    win = DataLabApp()
+    win = DataLab()
     win.show()
     sys.exit(app.exec_())

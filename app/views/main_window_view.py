@@ -7,7 +7,7 @@ from PyQt5 import QtWidgets
 from views.data_screening_view import DataQualityReport
 from views.fatigue_view import FatigueProcessingWidget
 from views.project_config_view import ConfigModule
-from views.raw_data_view import TimeSeriesPlotWidget
+from views.raw_data_view import RawDataDashboard
 from views.seascatter_view import SeascatterDiagram
 from views.spectral_view import SpectrogramWidget
 from views.stats_view import PlotStyle2H, StatsWidget, VesselStatsWidget
@@ -41,8 +41,8 @@ class DataLabGui(QtWidgets.QMainWindow):
 
         # Raw data inspection module
         self.rawDataModule = QtWidgets.QTabWidget()
-        self.timeSeriesTab = TimeSeriesPlotWidget(self)
-        self.rawDataModule.addTab(self.timeSeriesTab, "Time Series")
+        self.rawDataTab = RawDataDashboard(self)
+        self.rawDataModule.addTab(self.rawDataTab, "Time Series")
 
         # Data quality screening report module
         self.dataQualityModule = DataQualityReport(self)
@@ -64,9 +64,9 @@ class DataLabGui(QtWidgets.QMainWindow):
 
         # Transfer functions module
         self.transFuncsModule = QtWidgets.QTabWidget()
-        self.transferFuncsTab = TransferFunctionsWidget(self)
+        self.transFuncsTab = TransferFunctionsWidget(self)
         self.transFuncsModule.addTab(
-            self.transferFuncsTab, "2HFATLASA Transfer Functions"
+            self.transFuncsTab, "2HFATLASA Transfer Functions"
         )
 
         # Fatigue processing module
@@ -127,7 +127,7 @@ class DataLabGui(QtWidgets.QMainWindow):
 
         # Process menu
         self.calcStats = QtWidgets.QAction("Calculate Statistics")
-        self.calcStats.setShortcut("Ctrl+R")
+        # self.calcStats.setShortcut("Ctrl+R")
         self.calcStats.setStatusTip("Run Control File (*.dat)")
         self.genScatterDiag = QtWidgets.QAction("Generate Seascatter Diagram")
         menuProcess.addAction(self.calcStats)
