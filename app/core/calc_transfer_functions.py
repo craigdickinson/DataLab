@@ -10,17 +10,23 @@ class TransferFunctions(object):
         self.num_loggers = 0
         self.num_locs = 0
         self.num_win = 0
-        self.logger_names = ["BOP", "LMRP"]
-        self.loc_names = ["LPH Weld", "HPH Weld", "BOP Connector"]
-        self.bm_dir = ""
+
+        # Lists to store logger, location and transfer function names
+        self.logger_names = []
+        self.loc_names = []
+        self.tf_names = []
+        # self.logger_names = ["BOP", "LMRP"]
+        # self.loc_names = ["LPH Weld", "HPH Weld", "BOP Connector"]
+
         self.disp_dir = ""
         self.rot_dir = ""
-        self.bm_files = []
+        self.bm_dir = ""
         self.disp_files = []
         self.rot_files = []
-        self.df_bm = pd.DataFrame()
+        self.bm_files = []
         self.df_disp = pd.DataFrame()
         self.df_rot = pd.DataFrame()
+        self.df_bm = pd.DataFrame()
         self.df_acc = pd.DataFrame()
 
         self.logger_acc_psds = []
@@ -165,18 +171,30 @@ class TransferFunctions(object):
         Transfer functions are stored in 2D lists of form: TF[logger i][location j].
         """
 
+        self.logger_names = []
+        self.tf_names = []
         self.trans_funcs = []
         freq = self.loc_bm_psds[0].index
+
+        # Store location names
+        self.loc_names = [f"Loc {i + 1}" for i in range(self.num_locs)]
 
         # Create new TFs list for each logger
         for i in range(self.num_loggers):
             self.trans_funcs.append([])
 
+            # Store logger name
+            logger_name = f"Logger {i + 1}"
+            self.logger_names.append(logger_name)
+
             # Append logger i derived TF for each location
             for j in range(self.num_locs):
                 data = self.loc_bm_psds[j].values / self.logger_acc_psds[i].values
-                cols = [f"Logger {i + 1} Loc {j + 1} W{k + 1}" for k in range(self.num_win)]
+                cols = [f"{logger_name} {self.loc_names[j]} W{k + 1}" for k in range(self.num_win)]
                 self.trans_funcs[i].append(pd.DataFrame(data, index=freq, columns=cols))
+
+                # Store full transfer function names
+                self.tf_names.extend(cols)
 
 
 def read_windows_time_traces(files):
@@ -263,18 +281,18 @@ def find_nearest_window(windows, hs_list, tp_list, hs_i, tp_i):
 
 
 if __name__ == "__main__":
-    # tf = TransferFunctions()
-    # root = r"C:\Users\dickinsc\PycharmProjects\DataLab\demo_data\3. Transfer Functions"
-    # tf.bm_dir = os.path.join(root, "Hot Spots BM Z")
-    # tf.disp_dir = os.path.join(root, "Loggers Disp Y")
-    # tf.rot_dir = os.path.join(root, "Loggers Rot Z")
-    # tf.get_files()
-    # tf.read_fea_time_traces()
-    # tf.calc_g_cont_accs()
-    # tf.clean_up_acc_and_bm_dataframes()
-    # tf.calc_logger_acc_psds()
-    # tf.calc_location_bm_psds()
-    # tf.calc_trans_funcs()
+    tf = TransferFunctions()
+    root = r"C:\Users\dickinsc\PycharmProjects\DataLab\demo_data\3. Transfer Functions"
+    tf.bm_dir = os.path.join(root, "Hot Spots BM Z")
+    tf.disp_dir = os.path.join(root, "Loggers Disp Y")
+    tf.rot_dir = os.path.join(root, "Loggers Rot Z")
+    tf.get_files()
+    tf.read_fea_time_traces()
+    tf.calc_g_cont_accs()
+    tf.clean_up_acc_and_bm_dataframes()
+    tf.calc_logger_acc_psds()
+    tf.calc_location_bm_psds()
+    tf.calc_trans_funcs()
 
     # Test find nearest window
     windows = [1, 2, 3, 4, 5, 6, 7, 8]

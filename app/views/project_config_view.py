@@ -1348,11 +1348,11 @@ class EditCampaignInfoDialog(QtWidgets.QDialog):
     def set_project_path(self):
         """Set location of project root directory."""
 
-        file_path = QtWidgets.QFileDialog.getExistingDirectory(self, "Project Location")
+        dir_path = QtWidgets.QFileDialog.getExistingDirectory(self, "Project Location")
 
-        if file_path:
-            self.projPath.setText(file_path)
-            os.chdir(file_path)
+        if dir_path:
+            self.projPath.setText(dir_path)
+            os.chdir(dir_path)
 
 
 class EditLoggerPropertiesDialog(QtWidgets.QDialog):
