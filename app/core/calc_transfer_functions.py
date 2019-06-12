@@ -226,7 +226,7 @@ def read_2httrace_csv(filename):
 def get_header_row(filename):
     """
     Determine header row of 2HTTrace.csv file.
-    Will differ depending on whetehr user labels included in DAT file.
+    Will differ depending on whether user labels are included in 2HTTrace dat file.
     """
 
     with open(filename, "r") as f:
@@ -239,17 +239,79 @@ def get_header_row(filename):
     return 0
 
 
-if __name__ == "__main__":
-    tf = TransferFunctions()
+def find_nearest_window(windows, hs_list, tp_list, hs_i, tp_i):
+    """Find the nearest seastate window from the linearised seastates for a given (Hs, Tp) pair."""
 
-    root = r"C:\Users\dickinsc\PycharmProjects\DataLab\demo_data\3. Transfer Functions"
-    tf.bm_dir = os.path.join(root, "Hot Spots BM Z")
-    tf.disp_dir = os.path.join(root, "Loggers Disp Y")
-    tf.rot_dir = os.path.join(root, "Loggers Rot Z")
-    tf.get_files()
-    tf.read_fea_time_traces()
-    tf.calc_g_cont_accs()
-    tf.clean_up_acc_and_bm_dataframes()
-    tf.calc_logger_acc_psds()
-    tf.calc_location_bm_psds()
-    tf.calc_trans_funcs()
+    # Ensure working with arrays
+    windows = np.asarray(windows)
+    hs_list = np.asarray(hs_list)
+    tp_list = np.asarray(tp_list)
+
+    # Make window seastate data frame
+    df = pd.DataFrame(np.vstack((windows, hs_list, tp_list)).T, columns=["Windows", "Hs", "Tp"])
+
+    # Find nearest Tp
+    i = np.abs(df["Tp"] - tp_i).idxmin()
+    nearest_tp = df.loc[i, "Tp"]
+
+    # Slice data frame on nearest Tp and find nearest Hs in subset and return window number
+    df = df[df["Tp"] == nearest_tp]
+    i = np.abs(df["Hs"] - hs_i).idxmin()
+    win = df.loc[i, "Windows"]
+
+    return int(win)
+
+
+if __name__ == "__main__":
+    # tf = TransferFunctions()
+    # root = r"C:\Users\dickinsc\PycharmProjects\DataLab\demo_data\3. Transfer Functions"
+    # tf.bm_dir = os.path.join(root, "Hot Spots BM Z")
+    # tf.disp_dir = os.path.join(root, "Loggers Disp Y")
+    # tf.rot_dir = os.path.join(root, "Loggers Rot Z")
+    # tf.get_files()
+    # tf.read_fea_time_traces()
+    # tf.calc_g_cont_accs()
+    # tf.clean_up_acc_and_bm_dataframes()
+    # tf.calc_logger_acc_psds()
+    # tf.calc_location_bm_psds()
+    # tf.calc_trans_funcs()
+
+    # Test find nearest window
+    windows = [1, 2, 3, 4, 5, 6, 7, 8]
+    hs = [
+        0.875,
+        2.625,
+        1.125,
+        1.375,
+        2.625,
+        1.375,
+        1.125,
+        2.125,
+    ]
+    tp = [
+        6.5,
+        7.5,
+        7.5,
+        8.5,
+        9.5,
+        9.5,
+        11.5,
+        14.5,
+    ]
+    perc_occ = [
+        19.040,
+        10.134,
+        20.049,
+        17.022,
+        14.644,
+        10.374,
+        5.448,
+        3.289,
+    ]
+
+    hs_i = 2
+    tp_i = 9.5
+    print(f"hs_i = {hs_i} m")
+    print(f"tp_i = {tp_i} s")
+    win = find_nearest_window(windows, hs, tp, hs_i, tp_i)
+    print(f"Window = {win}")
