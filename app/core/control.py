@@ -518,7 +518,7 @@ class Control(object):
 
         # TODO: Sort this out for topside data where not all columns are present
         #  Check stats columns make sense
-        m = max(logger.requested_cols)
+        m = max(logger.cols_to_process)
         if m > len(header):
             msg = "Error in *STATS_COLUMNS for logger " + logger.logger_id
             msg += "\n Number of columns detected is less than " + str(m)
@@ -664,7 +664,7 @@ class Control(object):
             msg = key + " data not found for " + logger.logger_id
             raise InputError(msg)
 
-        logger.requested_cols = list(map(int, stats_col_str.split()))
+        logger.cols_to_process = list(map(int, stats_col_str.split()))
 
         # Get unit conversion factors (optional)
         key = "*STATS_UNIT_CONV_FACTORS"
@@ -728,7 +728,7 @@ class Control(object):
 
         # Attributes to copy
         names = [
-            "requested_cols",
+            "cols_to_process",
             "unit_conv_factors",
             "stats_interval",
             "stats_start",

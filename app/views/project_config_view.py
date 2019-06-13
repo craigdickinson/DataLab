@@ -522,11 +522,11 @@ class ConfigModule(QtWidgets.QWidget):
     def map_logger_requested_cols_settings(self, logger, dict_logger):
         """Retrieve logger requested columns settings from JSON dictionary and map to logger object."""
 
-        logger.requested_cols = self.get_key_value(
+        logger.cols_to_process = self.get_key_value(
             logger_id=logger.logger_id,
             data=dict_logger,
-            key="requested_columns",
-            attr=logger.requested_cols,
+            key="columns_to_process",
+            attr=logger.cols_to_process,
         )
         logger.unit_conv_factors = self.get_key_value(
             logger_id=logger.logger_id,
@@ -1179,7 +1179,7 @@ class StatsAndSpectralSettingsTab(QtWidgets.QWidget):
         self.processSpectralChkBox.setChecked(logger.process_spectral)
 
         # Columns
-        cols_str = " ".join([str(i) for i in logger.requested_cols])
+        cols_str = " ".join([str(i) for i in logger.cols_to_process])
         self.columns.setText(cols_str)
 
         # Unit conversion factors
@@ -1871,7 +1871,7 @@ class EditStatsAndSpectralDialog(QtWidgets.QDialog):
 
         # Processed columns group
         # Columns
-        cols_str = " ".join([str(i) for i in logger.requested_cols])
+        cols_str = " ".join([str(i) for i in logger.cols_to_process])
         self.columns.setText(cols_str)
 
         # Unit conversion factors
@@ -1948,7 +1948,7 @@ class EditStatsAndSpectralDialog(QtWidgets.QDialog):
         # Processed columns group
         # Convert strings to lists
         try:
-            logger.requested_cols = list(map(int, self.columns.text().split()))
+            logger.cols_to_process = list(map(int, self.columns.text().split()))
         except ValueError:
             msg = "Only integer column numbers are allowed.\nSeparate each number with a space, e.g. 2 3 4 5."
             QtWidgets.QMessageBox.information(

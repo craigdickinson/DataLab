@@ -89,7 +89,7 @@ class ProjectConfigJSONFile:
         """Add control object logger stats and spectral settings to JSON dictionary."""
 
         # Processed columns group
-        dict_props["requested_columns"] = logger.requested_cols
+        dict_props["columns_to_process"] = logger.cols_to_process
         dict_props["unit_convs"] = logger.unit_conv_factors
         dict_props["user_channel_names"] = logger.user_channel_names
         dict_props["user_channel_units"] = logger.user_channel_units

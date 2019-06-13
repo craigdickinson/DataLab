@@ -83,7 +83,7 @@ class DataScreen(object):
         ]
 
         # Set requested columns to process
-        self.use_cols = set([0] + [c - 1 for c in self.logger.requested_cols])
+        self.use_cols = set([0] + [c - 1 for c in self.logger.cols_to_process])
 
         # Flags to set whether bandpass filtering is to be applied
         low_cutoff = self.logger.stats_low_cutoff_freq

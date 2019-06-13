@@ -40,7 +40,7 @@ class LoggerStats(object):
             std = np.multiply(std, c)
 
         # Append to internal list
-        self.min.append([mn[i] for i in range(len(mn))])
-        self.max.append([mx[i] for i in range(len(mx))])
-        self.mean.append([ave[i] for i in range(len(ave))])
-        self.std.append([std[i] for i in range(len(std))])
+        self.min.append(mn.values)
+        self.max.append(mx.values)
+        self.mean.append(ave.values)
+        self.std.append(std.values)

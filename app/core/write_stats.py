@@ -39,7 +39,7 @@ class StatsOutput(object):
         self.wb.remove(ws)
 
     def compile_stats(
-        self, logger, sample_start, sample_end, logger_stats, logger_stats_filt
+            self, logger, sample_start, sample_end, logger_stats, logger_stats_filt
     ):
         """
         Compile statistics into data frame for exporting and for use by gui.
@@ -137,6 +137,9 @@ class StatsOutput(object):
     def _create_header(channel_header, stats_header, units_header):
         """Create multi-index header of channel names, stats, and units to use in stats data frame."""
 
+        if not len(channel_header) == len(stats_header) == len(units_header):
+            raise ValueError("Cannot create stats results header. Length of header rows is not equal.")
+
         header = pd.MultiIndex.from_arrays(
             [channel_header, stats_header, units_header],
             names=["channels", "stats", "units"],
@@ -145,11 +148,7 @@ class StatsOutput(object):
 
     @staticmethod
     def _create_stats_dataframe(stats, sample_start, header):
-        """Create statistics data frame."""
-
-        df = pd.DataFrame(data=stats, index=sample_start, columns=header)
-
-        return df
+        return pd.DataFrame(data=stats, index=sample_start, columns=header)
 
     @staticmethod
     def _create_export_stats_dataframe(stats, sample_start, sample_end, header):
@@ -174,7 +173,7 @@ class StatsOutput(object):
         channels = df.columns.unique(0)
         n = len(channels)
         channels_unfilt = channels[: n // 2]
-        channels_filt = channels[n // 2 :]
+        channels_filt = channels[n // 2:]
         new_cols = [col for pair in zip(channels_unfilt, channels_filt) for col in pair]
 
         return new_cols

@@ -47,7 +47,7 @@ class Spectrogram(object):
         """Calculate amplitude spectrum for each channel in sample data frame and store result in dictionary."""
 
         # Drop timestamp column
-        channels = df.columns[1:]
+        channels = df.columns[1:].astype(str)
 
         # Calculate amplitude spectrum
         # amps = [np.abs(np.fft.rfft(df[channel]) ** 2) for channel in channels]

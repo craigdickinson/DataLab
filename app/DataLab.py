@@ -1,7 +1,7 @@
 __author__ = "Craig Dickinson"
 __program__ = "DataLab"
-__version__ = "0.41"
-__date__ = "13 June 2019"
+__version__ = "0.42"
+__date__ = "14 June 2019"
 
 import logging
 import os
@@ -119,6 +119,7 @@ class DataLab(DataLabGui):
         print(f"Error: {message}")
         self._message_warning("Error", message)
 
+    @pyqtSlot(str)
     def warning(self, message):
         print(f"Warning: {message}")
         self._message_information("Warning", message)
@@ -443,6 +444,9 @@ class DataLab(DataLabGui):
 
                 # Check requested channels exist
                 if logger.process_stats is True or logger.process_spectral is True:
+                    # Make connection to warning signal
+                    logger.signal_warning.connect(self.warning)
+
                     channels, units = logger.check_requested_columns_exist()
                     logger.channel_names = channels
                     logger.channel_units = units
@@ -471,7 +475,7 @@ class DataLab(DataLabGui):
         # Run processing on QThread worker - prevents GUI lock up
         try:
             # Create datalab object, map control data and process
-            datalab = Screening(no_dat=True)
+            datalab = Screening(self, no_dat=True)
             datalab.control = control
 
             # Create worker thread, connect signals to methods in this class and start, which this calls worker.run()
@@ -604,6 +608,9 @@ class ControlFileWorker(QtCore.QThread):
             t = str(timedelta(seconds=round(time() - t0)))
             self.signal_complete.emit(t, self.datalab.total_files)
             self.signal_datalab.emit(self.datalab)
+        except ValueError as e:
+            self.signal_error.emit(str(e))
+            logging.exception(e)
         except ZeroDivisionError as e:
             self.signal_error.emit(str(e))
             logging.exception(e)

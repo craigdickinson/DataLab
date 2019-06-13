@@ -7,6 +7,7 @@ import os
 from glob import glob
 
 from dateutil.parser import parse
+from PyQt5.QtCore import QObject, pyqtSignal
 
 from app.core.custom_date import get_date_code_span, make_time_str
 
@@ -28,8 +29,10 @@ class LoggerError(Error):
         self.message = message
 
 
-class LoggerProperties(object):
+class LoggerProperties(QObject):
     """Holds properties of a logger."""
+
+    signal_warning = pyqtSignal(str)
 
     def __init__(self, logger_id=""):
         """
@@ -37,6 +40,7 @@ class LoggerProperties(object):
         May wish to use a dictionary to hold these properties in future
         and then write this dictionary straight to JSON as part of the config file.
         """
+        super().__init__()
 
         # Name and location
         self.logger_id = logger_id  # *LOGGER_ID
@@ -66,7 +70,7 @@ class LoggerProperties(object):
         self.all_channel_units = []
 
         # Channel columns to process
-        self.requested_cols = []
+        self.cols_to_process = []
 
         # Channel unit conversion factors
         self.unit_conv_factors = []
@@ -279,7 +283,7 @@ class LoggerProperties(object):
                 units = header_lines[u - 1][1:]
             # If no units header exists, create a dummy list
             else:
-                units = ["-" for _ in range(len(channels))]
+                units = ["-"] * len(channels)
         elif file_format == "Pulse-acc":
             with open(test_file, "r") as f:
                 # Read columns header
@@ -307,11 +311,13 @@ class LoggerProperties(object):
         units = self.all_channel_units
         test_file = self.files[0]
         file_path = os.path.join(self.logger_path, test_file)
-        last_col = max(self.requested_cols)
-        
+        last_col = max(self.cols_to_process)
+
         # Initialise requested columns header lists
         channel_names = []
         channel_units = []
+
+        warn_flag = False
 
         # Read first data row
         with open(file_path) as f:
@@ -320,42 +326,59 @@ class LoggerProperties(object):
 
         # Check requested columns make sense
         # Error message to raise if requested columns doesn't make sense
-        msg = (
-            f"Number of columns in first file for logger {self.logger_id} is less than {last_col}"
-            f"\nFile: {test_file}"
+        msg1 = (
+            f"Number of columns in test file for logger {self.logger_id} is less than {last_col}."
+            f"\nTest file: {test_file}."
+        )
+
+        msg2 = (
+            f"Number of columns in test file for logger {self.logger_id} is less than {last_col}.\n"
+            f"If user has not supplied channel and units names, dummy column names will be created."
+            f"\nTest file: {test_file}."
         )
 
         # TODO: Sort this out for topside data where not all columns are present
         # Check we have at least one full row of data
         if last_col > len(first_row):
-            raise LoggerError(msg)
+            raise LoggerError(msg1)
 
-        # Get headers for the columns to be processed
+        # Get channel names for the columns to be processed
         if self.channel_header_row > 0:
-            # TODO: Sort this out for vessel data where not all columns are present (analyse first selected file)
             # Check number of columns in header row is sufficient
-            # (note timestamp column is not included in channels list)
-            if last_col > len(channels) + 1:
-                raise LoggerError(msg)
+            # Construct lists of columns present and missing in test file
+            num_cols = len(channels) + 1
+            present_cols = [c for c in self.cols_to_process if c - num_cols <= 0]
+            missing_cols = [c for c in self.cols_to_process if c - num_cols > 0]
 
-            # TODO: Issue here if first file doesn't have all columns
-            # Keep headers requested
-            channel_names = [channels[i - 2] for i in self.requested_cols]
+            # Construct list of dummy channel names for column numbers not in test file
+            dummy_cols = [f"Column {i}" for i in missing_cols]
 
-        # Get units for the columns to be processed
+            # Keep headers requested (append dummy channel names if exist)
+            channel_names = [channels[i - 2] for i in present_cols] + dummy_cols
+
+            if missing_cols:
+                warn_flag = True
+
+        # Get channel units for the columns to be processed
         if self.units_header_row > 0:
-            # TODO: Sort this out for topside data where not all columns are present
             # Check number of columns in units row is sufficient
-            # (note timestamp column is not included in units list)
-            if last_col > len(units) + 1:
-                raise LoggerError(msg)
+            # Construct lists of columns present and missing in test file
+            num_cols = len(units) + 1
+            present_cols = [c for c in self.cols_to_process if c - num_cols <= 0]
+            missing_cols = [c for c in self.cols_to_process if c - num_cols > 0]
 
-            # TODO: Issue here if first file doesn't have all columns
-            # Keep headers requested
-            channel_units = [units[i - 2] for i in self.requested_cols]
-        # If no units header exists, create a dummy list
-        else:
-            channel_units = ["-" for _ in range(len(channel_names))]
+            # Construct list of dummy channel names for column numbers not in test file
+            dummy_cols = ["-"] * len(missing_cols)
+
+            # Keep headers requested (append dummy channel units if exist)
+            channel_units = [units[i - 2] for i in present_cols] + dummy_cols
+
+            if missing_cols:
+                warn_flag = True
+
+        # If missing cols found, warn user
+        if warn_flag is True:
+            self.signal_warning.emit(msg2)
 
         return channel_names, channel_units
 
@@ -373,7 +396,7 @@ class LoggerProperties(object):
             first_row = f.readline().strip().split(delim)
 
         # Rows/cols to process
-        last_stats_col = max(self.requested_cols)
+        last_stats_col = max(self.cols_to_process)
         c = self.channel_header_row
         u = self.units_header_row
 
@@ -399,7 +422,7 @@ class LoggerProperties(object):
 
             # TODO: Issue here if first file doesn't have all columns
             # Keep headers requested
-            self.channel_names = [header[i - 1] for i in self.requested_cols]
+            self.channel_names = [header[i - 1] for i in self.cols_to_process]
 
         # Get units for the columns to be processed
         if u > 0:
@@ -412,7 +435,7 @@ class LoggerProperties(object):
 
             # TODO: Issue here if first file doesn't have all columns
             # Keep headers requested
-            self.channel_units = [units[i - 1] for i in self.requested_cols]
+            self.channel_units = [units[i - 1] for i in self.cols_to_process]
 
     def user_header_override(self):
         """Override detected channel names and units with user defined values."""
@@ -425,16 +448,18 @@ class LoggerProperties(object):
                 self.channel_units = self.user_channel_units
 
     def check_headers(self):
-        """If names for headers and units have been supplied check that there is one per requested channel."""
+        """If user channel and units names have been supplied, check that there is one per requested channel."""
 
         # Check number of analysis headers is correct
         if self.process_stats is True or self.process_spectral is True:
             # Check length of channel header
-            if len(self.channel_names) != len(self.requested_cols):
-                msg = f"Number of headers specified does not equal number of channels for logger {self.logger_id}"
+            if len(self.channel_names) != len(self.cols_to_process):
+                msg = f"Number of channel names specified does not equal number of " \
+                    f"channels to process for logger {self.logger_id}."
                 raise LoggerError(msg)
 
             # Check length of units header
-            if len(self.channel_units) != len(self.requested_cols):
-                msg = f"Number of units specified does not equal number of channels for logger {self.logger_id}"
+            if len(self.channel_units) != len(self.cols_to_process):
+                msg = f"Number of units specified does not equal number of " \
+                    f"channels to process for logger {self.logger_id}."
                 raise LoggerError(msg)
