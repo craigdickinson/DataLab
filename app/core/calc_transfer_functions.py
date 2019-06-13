@@ -65,7 +65,7 @@ class TransferFunctions(object):
             self.num_ss = n1
         else:
             self.num_ss = 0
-            print('Warning: Unequal number of window files in each folder')
+            print('Warning: Unequal number of sea state files in each folder')
 
     def read_fea_time_traces(self):
 
@@ -87,7 +87,7 @@ class TransferFunctions(object):
                 self.num_loggers = 0
                 print('Warning: Number of windows is zero.')
         else:
-            print('Warning: Unequal number of columns in logger displacements and logger rotations time traces.')
+            print('Warning: Unequal number of columns in logger displacements and rotations time traces.')
 
     def get_number_of_locations(self):
         n = self.df_bm.shape[1]

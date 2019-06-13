@@ -10,7 +10,7 @@ import sys
 from PyQt5 import QtCore, QtGui, QtWidgets
 from dateutil.parser import parse
 
-from app.core.datalab_control import Control, InputError
+from app.core.control import Control, InputError
 from app.core.custom_date import get_datetime_format
 from app.core.fugro_csv_properties import (
     detect_fugro_logger_properties,
@@ -113,16 +113,16 @@ class ConfigModule(QtWidgets.QWidget):
         # self.layout.addWidget(self.runWidget, 1, 2, QtCore.Qt.AlignTop)
 
     def connect_signals(self):
-        self.loadConfigButton.clicked.connect(self.load_config_file)
-        self.saveConfigButton.clicked.connect(self.save_config_file)
-        self.addLoggerButton.clicked.connect(self.add_logger)
-        self.remLoggerButton.clicked.connect(self.remove_logger)
+        self.loadConfigButton.clicked.connect(self.on_load_config_clicked)
+        self.saveConfigButton.clicked.connect(self.on_save_config_clicked)
+        self.addLoggerButton.clicked.connect(self.on_add_logger_clicked)
+        self.remLoggerButton.clicked.connect(self.on_remove_logger_clicked)
         self.loggersList.itemClicked.connect(self.on_logger_selected)
         self.loggersList.itemChanged.connect(self.on_logger_item_edited)
-        self.newProjButton.clicked.connect(self.new_project)
-        self.processButton.clicked.connect(self.run_analysis)
+        self.newProjButton.clicked.connect(self.on_new_project_clicked)
+        self.processButton.clicked.connect(self.on_process_clicked)
 
-    def load_config_file(self):
+    def on_load_config_clicked(self):
         """Load config JSON file."""
 
         filename, _ = QtWidgets.QFileDialog.getOpenFileName(
@@ -149,9 +149,12 @@ class ConfigModule(QtWidgets.QWidget):
             except Exception as e:
                 msg = "Unexpected error loading config file"
                 self.parent.error(f"{msg}:\n{e}\n{sys.exc_info()[0]}")
-                logging.exception(e)
+                logging.exception(msg)
 
-    def save_config_file(self):
+        # Update control object in DataLab instance
+        self.parent.control = self.control
+
+    def on_save_config_clicked(self):
         """Save project configuration settings as a dictionary to a JSON file."""
 
         if self.control.project_num == "":
@@ -186,7 +189,10 @@ class ConfigModule(QtWidgets.QWidget):
             msg = f"Project config settings saved to:\n{self.config.full_path}"
             QtWidgets.QMessageBox.information(self, "Save Project Config", msg)
 
-    def add_logger(self):
+            # Update control object in DataLab instance
+            self.parent.control = self.control
+
+    def on_add_logger_clicked(self):
         """Add new logger to list. Initial logger name format is 'Logger n'."""
 
         n = self.loggersList.count()
@@ -212,7 +218,7 @@ class ConfigModule(QtWidgets.QWidget):
         self.setupTabs.setCurrentWidget(self.loggerPropsTab)
         self.loggerPropsTab.show_edit_dialog()
 
-    def remove_logger(self):
+    def on_remove_logger_clicked(self):
         """Remove selected logger."""
 
         if self.loggersList.count() == 0:
@@ -239,7 +245,7 @@ class ConfigModule(QtWidgets.QWidget):
             self.loggersList.takeItem(i)
 
             if self.loggersList.count() == 0:
-                self.new_project()
+                self.on_new_project_clicked()
 
     def on_logger_selected(self):
         """Update dashboard data pertaining to selected logger."""
@@ -292,7 +298,7 @@ class ConfigModule(QtWidgets.QWidget):
                 item.setFlags(item.flags() & ~QtCore.Qt.ItemIsSelectable)
                 self.columnsList.addItem(item)
 
-    def new_project(self):
+    def on_new_project_clicked(self):
         """Clear project control object and all config dashboard values."""
 
         # Create new control object and map to campaign, logger properties and analysis tabs
@@ -315,7 +321,7 @@ class ConfigModule(QtWidgets.QWidget):
         # Reset window title
         self.set_window_title()
 
-    def run_analysis(self):
+    def on_process_clicked(self):
         """Run DataLab processing engine - call function in main DataLab class."""
 
         self.parent.analyse_config_setup(self.control)

@@ -14,7 +14,7 @@ from PyQt5 import QtCore, QtWidgets
 from PyQt5.QtCore import pyqtSignal, pyqtSlot
 
 # import datalab_gui_layout
-from app.core.datalab_control import InputError
+from app.core.control import InputError
 from app.core.screening import Screening
 from app.core.logger_properties import LoggerError
 from app.core.read_files import (
@@ -29,6 +29,12 @@ from app.core.read_files import read_wcfat_results
 from app.views.main_window_view import DataLabGui
 from app.views.processing_progress_view import ProcessingProgressBar
 from app.views.stats_view import StatsDataset
+
+if hasattr(QtCore.Qt, 'AA_EnableHighDpiScaling'):
+    QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling, True)
+
+if hasattr(QtCore.Qt, 'AA_UseHighDpiPixmaps'):
+    QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_UseHighDpiPixmaps, True)
 
 
 class DataLab(DataLabGui):
@@ -54,7 +60,7 @@ class DataLab(DataLabGui):
         """Connect widget signals to methods/actions."""
 
         # File menu
-        self.loadConfigFile.triggered.connect(self.projConfigModule.load_config_file)
+        self.loadConfigFile.triggered.connect(self.projConfigModule.on_load_config_clicked)
         self.openLoggerFile.triggered.connect(self.load_logger_file)
         self.openLoggerStats.triggered.connect(self.load_stats_file_from_file_menu)
         self.openSpectrograms.triggered.connect(self.load_spectrograms_file)

@@ -10,7 +10,7 @@ import unittest
 
 import pytest
 
-from app.core.datalab_control import Control
+from app.core.control import Control
 
 
 def example_control_file():

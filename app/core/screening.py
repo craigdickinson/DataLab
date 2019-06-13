@@ -14,7 +14,7 @@ import pandas as pd
 from PyQt5.QtCore import QThread, pyqtSignal
 
 from app.core.calc_stats import LoggerStats
-from app.core.datalab_control import Control
+from app.core.control import Control
 from app.core.data_screen import DataScreen
 from app.core.data_screen_report import DataScreenReport
 from app.core.spectrograms import Spectrogram

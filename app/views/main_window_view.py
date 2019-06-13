@@ -97,7 +97,7 @@ class DataLabGui(QtWidgets.QMainWindow):
         menuFile = menubar.addMenu("&File")
         menuView = menubar.addMenu("&View")
         menuProcess = menubar.addMenu("&Process")
-        menuLogic = menubar.addMenu("&Applied Logic")
+        # menuLogic = menubar.addMenu("&Applied Logic")
         menuPlotSettings = menubar.addMenu("&Plot Settings")
         menuExport = menubar.addMenu("&Export")
         menuAbout = menubar.addMenu("&Help")
@@ -120,9 +120,9 @@ class DataLabGui(QtWidgets.QMainWindow):
         openMenu.addAction(self.openSpectrograms)
 
         # View menu
-        self.showControlScreen = QtWidgets.QAction("Control/Processing")
+        # self.showControlScreen = QtWidgets.QAction("Control/Processing")
         self.showPlotScreen = QtWidgets.QAction("Plots")
-        menuView.addAction(self.showControlScreen)
+        # menuView.addAction(self.showControlScreen)
         menuView.addAction(self.showPlotScreen)
 
         # Process menu
@@ -134,10 +134,10 @@ class DataLabGui(QtWidgets.QMainWindow):
         menuProcess.addAction(self.genScatterDiag)
 
         # Applied logic menu
-        self.filter = QtWidgets.QAction("Apply Low/High Pass Filter")
-        self.spikeRemoval = QtWidgets.QAction("Spike Removal")
-        menuLogic.addAction(self.filter)
-        menuLogic.addAction(self.spikeRemoval)
+        # self.filter = QtWidgets.QAction("Apply Low/High Pass Filter")
+        # self.spikeRemoval = QtWidgets.QAction("Spike Removal")
+        # menuLogic.addAction(self.filter)
+        # menuLogic.addAction(self.spikeRemoval)
 
         # Plot settings menu
         self.add2HIcon = QtWidgets.QAction("Add 2H Icon")
@@ -168,10 +168,10 @@ class DataLabGui(QtWidgets.QMainWindow):
 
         self.projConfigButton = QtWidgets.QPushButton("Project Config")
         self.rawDataButton = QtWidgets.QPushButton("Raw Data")
-        self.dataQualityButton = QtWidgets.QPushButton("Data Quality Report")
+        self.dataQualityButton = QtWidgets.QPushButton("Data Quality Screening")
         self.statsScreeningButton = QtWidgets.QPushButton("Statistics Screening")
         self.spectralScreeningButton = QtWidgets.QPushButton("Spectral Screening")
-        self.seascatterButton = QtWidgets.QPushButton("Seascatter Diagram")
+        self.seascatterButton = QtWidgets.QPushButton("Seascatter")
         self.transFuncsButton = QtWidgets.QPushButton("Transfer Functions")
         self.fatigueButton = QtWidgets.QPushButton("Fatigue Analysis")
 

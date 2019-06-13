@@ -168,11 +168,12 @@ class TransferFunctionsWidget(QtWidgets.QWidget):
             # Select TF data frame
             df = self.tf.trans_funcs[logger_i][loc_i]
             df.plot(ax=self.ax)
-            self.ax.set_yscale('log')
+            # self.ax.set_yscale('log')
             self.ax.set_xlabel("Frequency (Hz)")
             self.ax.set_ylabel("PSD Bending Moment / PSD Acceleration")
             self.ax.set_title("Frequency-Dependent Transfer Functions")
             self.ax.set_xlim(0, 0.5)
+            self.fig.tight_layout()
         except:
             pass
         self.canvas.draw()

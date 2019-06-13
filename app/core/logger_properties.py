@@ -303,17 +303,12 @@ class LoggerProperties(object):
         :return: Lists of requested channel names and units
         """
 
-        last_col = max(self.requested_cols)
-
-        # Remember, header row inputs could be optional!
-        c = self.channel_header_row
-        u = self.units_header_row
         channels = self.all_channel_names
         units = self.all_channel_units
-
         test_file = self.files[0]
         file_path = os.path.join(self.logger_path, test_file)
-
+        last_col = max(self.requested_cols)
+        
         # Initialise requested columns header lists
         channel_names = []
         channel_units = []
@@ -335,32 +330,32 @@ class LoggerProperties(object):
         if last_col > len(first_row):
             raise LoggerError(msg)
 
-        # # Get headers for the columns to be processed
-        # if c > 0:
-        #     # TODO: Sort this out for vessel data where not all columns are present (analyse first selected file)
-        #     # Check number of columns in header row is sufficient
-        #     # (note timestamp column is not included in channels list)
-        #     if last_col > len(channels) + 1:
-        #         raise LoggerError(msg)
-        #
-        #     # TODO: Issue here if first file doesn't have all columns
-        #     # Keep headers requested
-        #     channel_names = [channels[i - 2] for i in self.requested_cols]
-        #
-        # # Get units for the columns to be processed
-        # if u > 0:
-        #     # TODO: Sort this out for topside data where not all columns are present
-        #     # Check number of columns in units row is sufficient
-        #     # (note timestamp column is not included in units list)
-        #     if last_col > len(units) + 1:
-        #         raise LoggerError(msg)
-        #
-        #     # TODO: Issue here if first file doesn't have all columns
-        #     # Keep headers requested
-        #     channel_units = [units[i - 2] for i in self.requested_cols]
-        # # If no units header exists, create a dummy list
-        # else:
-        #     channel_units = ["-" for _ in range(len(channel_names))]
+        # Get headers for the columns to be processed
+        if self.channel_header_row > 0:
+            # TODO: Sort this out for vessel data where not all columns are present (analyse first selected file)
+            # Check number of columns in header row is sufficient
+            # (note timestamp column is not included in channels list)
+            if last_col > len(channels) + 1:
+                raise LoggerError(msg)
+
+            # TODO: Issue here if first file doesn't have all columns
+            # Keep headers requested
+            channel_names = [channels[i - 2] for i in self.requested_cols]
+
+        # Get units for the columns to be processed
+        if self.units_header_row > 0:
+            # TODO: Sort this out for topside data where not all columns are present
+            # Check number of columns in units row is sufficient
+            # (note timestamp column is not included in units list)
+            if last_col > len(units) + 1:
+                raise LoggerError(msg)
+
+            # TODO: Issue here if first file doesn't have all columns
+            # Keep headers requested
+            channel_units = [units[i - 2] for i in self.requested_cols]
+        # If no units header exists, create a dummy list
+        else:
+            channel_units = ["-" for _ in range(len(channel_names))]
 
         return channel_names, channel_units
 
