@@ -94,10 +94,11 @@ class StatsOutput(object):
             self.stats, sample_start, sample_end, header
         )
 
-        # Reorder stats data frame columns to preferred order of (channel, channel (filtered)) pairs
-        cols = self._reorder_columns(df)
-        df = df[cols]
-        self.df_stats = self.df_stats[["Start", "End"] + cols]
+        # Reorder stats data frame columns to preferred order of (channel, channel (filtered)) pairs if filtering used
+        if filtered_stats is not None:
+            cols = self._reorder_columns(df)
+            df = df[cols]
+            self.df_stats = self.df_stats[["Start", "End"] + cols]
 
         # Add stats data frame to dictionary for internal use by the gui
         self.dict_stats[self.logger_id] = df

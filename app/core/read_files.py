@@ -205,7 +205,6 @@ def read_stats_csv(filename):
             # Timestamp will likely be in this format if csv file has been subsequently edited and saved
             df.index = pd.to_datetime(df.index, format="%d/%m/%Y %H:%M")
         except Exception as e:
-            print("Error " + str(e))
             raise
 
     df.index.name = "Datetime"

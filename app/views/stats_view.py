@@ -37,10 +37,10 @@ variance_channels_combo = [
 ]
 
 motion_types = ["Surge/Sway/Heave", "Roll/Pitch/Yaw"]
-
-vessel_trans = ["AccSurge", "AccSway", "AccHeave"]
-
-vessel_rots = ["AccRoll", "AccPitch", "AccYaw"]
+vessel_trans = ["Surge", "Sway", "Heave"]
+vessel_rots = ["Roll", "Pitch", "Yaw"]
+# vessel_trans = ["AccSurge", "AccSway", "AccHeave"]
+# vessel_rots = ["AccRoll", "AccPitch", "AccYaw"]
 
 # Dictionary of stats combo items and stats file column name pairs
 dict_stats = {
@@ -1342,7 +1342,7 @@ class VesselStatsWidget(QtWidgets.QWidget):
         # Get axis 1 plot data
         # Get vessel motions data from vessel data frame - it is required that the vessel dataset is called "VESSEL"
         for i in range(len(self.datasets)):
-            if self.datasets[i].logger_id == "VESSEL":
+            if self.datasets[i].logger_id.upper() == "VESSEL":
                 df_vessel = self.datasets[i].df
                 df_vessel = df_vessel.xs(key=stat1_col, axis=1, level=1)
                 df_vessel = df_vessel[motion_cols]
@@ -1388,7 +1388,7 @@ class VesselStatsWidget(QtWidgets.QWidget):
             channel = dict_labels[channel]
 
         # # Construct label - prepend logger name unless channel source is the vessel (which would be superfluous)
-        if logger_id != "VESSEL":
+        if logger_id.upper() != "VESSEL":
             label = " ".join((stat, logger_id, channel))
         else:
             label = " ".join((stat, channel))
@@ -1421,7 +1421,7 @@ class VesselStatsWidget(QtWidgets.QWidget):
         if "vessel_data" in self.plot_data:
             df_vessel = self.plot_data["vessel_data"]
             col = df_vessel.columns[0]
-            motion = col[0][3:]
+            motion = col[0]
             units = col[1]
             self.ax1.plot(
                 df_vessel[col], "r", lw=linewidth, label=motion + " Acceleration"
@@ -1430,7 +1430,7 @@ class VesselStatsWidget(QtWidgets.QWidget):
             self.ax1.set_ylabel(label)
 
             col = df_vessel.columns[1]
-            motion = col[0][3:]
+            motion = col[0]
             units = col[1]
             self.ax2.plot(
                 df_vessel[col], "g", lw=linewidth, label=motion + " Acceleration"
@@ -1439,7 +1439,7 @@ class VesselStatsWidget(QtWidgets.QWidget):
             self.ax2.set_ylabel(label)
 
             col = df_vessel.columns[2]
-            motion = col[0][3:]
+            motion = col[0]
             units = col[1]
             self.ax3.plot(
                 df_vessel[col], "purple", lw=linewidth, label=motion + " Acceleration"

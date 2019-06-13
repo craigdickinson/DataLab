@@ -1,7 +1,7 @@
 __author__ = "Craig Dickinson"
 __program__ = "DataLab"
-__version__ = "0.40"
-__date__ = "12 June 2019"
+__version__ = "0.41"
+__date__ = "13 June 2019"
 
 import logging
 import os
@@ -538,7 +538,7 @@ class DataLab(DataLabGui):
         """
 
         for dataset in datasets:
-            if dataset.logger_id == "VESSEL":
+            if dataset.logger_id.upper() == "VESSEL":
                 return dataset.df
         return False
 
