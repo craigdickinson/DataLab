@@ -20,9 +20,9 @@ class DataLabGui(QtWidgets.QMainWindow):
     def __init__(self):
         super().__init__()
 
-        self.init_ui()
+        self._init_ui()
 
-    def init_ui(self):
+    def _init_ui(self):
         """Initialise gui."""
 
         self.setGeometry(50, 50, 1400, 800)
@@ -33,16 +33,16 @@ class DataLabGui(QtWidgets.QMainWindow):
         self.statusbar = self.statusBar()
 
         # Create menu bar and tool bar
-        self.menu_bar()
-        self.tool_bar()
-
-        # Project config module
-        self.projConfigModule = ConfigModule(self)
+        self._menu_bar()
+        self._tool_bar()
 
         # Raw data inspection module
         self.rawDataModule = QtWidgets.QTabWidget()
         self.rawDataTab = RawDataDashboard(self)
         self.rawDataModule.addTab(self.rawDataTab, "Time Series")
+
+        # Project config module
+        self.projConfigModule = ConfigModule(self)
 
         # Data quality screening report module
         self.dataQualityModule = DataQualityReport(self)
@@ -75,8 +75,8 @@ class DataLabGui(QtWidgets.QMainWindow):
         self.fatigueModule.addTab(self.fatigueTab, "2HFATLASA")
 
         # Add stacked widgets
-        self.modulesWidget.addWidget(self.projConfigModule)
         self.modulesWidget.addWidget(self.rawDataModule)
+        self.modulesWidget.addWidget(self.projConfigModule)
         self.modulesWidget.addWidget(self.dataQualityModule)
         self.modulesWidget.addWidget(self.statsScreeningModule)
         self.modulesWidget.addWidget(self.spectralScreeningModule)
@@ -87,7 +87,7 @@ class DataLabGui(QtWidgets.QMainWindow):
         # 2H plotting class
         self.plot_2h = PlotStyle2H(self.statsTab.canvas, self.statsTab.fig)
 
-    def menu_bar(self):
+    def _menu_bar(self):
         """Create menu bar."""
 
         # Menu bar
@@ -160,24 +160,24 @@ class DataLabGui(QtWidgets.QMainWindow):
         menuAbout.addAction(self.showHelp)
         menuAbout.addAction(self.showAbout)
 
-    def tool_bar(self):
+    def _tool_bar(self):
         """Create toolbar with button to show dashboards."""
 
         self.toolBar = self.addToolBar("Modules")
         self.toolBar.setStyleSheet("QToolBar{spacing:5px}")
 
-        self.projConfigButton = QtWidgets.QPushButton("Project Config")
-        self.rawDataButton = QtWidgets.QPushButton("Raw Data")
-        self.dataQualityButton = QtWidgets.QPushButton("Data Quality Screening")
-        self.statsScreeningButton = QtWidgets.QPushButton("Statistics Screening")
-        self.spectralScreeningButton = QtWidgets.QPushButton("Spectral Screening")
-        self.seascatterButton = QtWidgets.QPushButton("Seascatter")
-        self.transFuncsButton = QtWidgets.QPushButton("Transfer Functions")
-        self.fatigueButton = QtWidgets.QPushButton("Fatigue Analysis")
+        self.rawDataButton = QtWidgets.QPushButton("0. Raw Data Screen")
+        self.projConfigButton = QtWidgets.QPushButton("1. Project Config")
+        self.dataQualityButton = QtWidgets.QPushButton("2. Data Quality Screening")
+        self.statsScreeningButton = QtWidgets.QPushButton("3. Statistics Screening")
+        self.spectralScreeningButton = QtWidgets.QPushButton("4. Spectral Screening")
+        self.seascatterButton = QtWidgets.QPushButton("5. Seascatter")
+        self.transFuncsButton = QtWidgets.QPushButton("6. Transfer Functions")
+        self.fatigueButton = QtWidgets.QPushButton("7. Fatigue Analysis")
 
-        self.toolBar.addWidget(QtWidgets.QLabel("Modules:"))
-        self.toolBar.addWidget(self.projConfigButton)
+        self.toolBar.addWidget(QtWidgets.QLabel("Dashboards:"))
         self.toolBar.addWidget(self.rawDataButton)
+        self.toolBar.addWidget(self.projConfigButton)
         self.toolBar.addWidget(self.dataQualityButton)
         self.toolBar.addWidget(self.statsScreeningButton)
         self.toolBar.addWidget(self.spectralScreeningButton)

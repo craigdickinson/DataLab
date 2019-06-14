@@ -316,7 +316,7 @@ class LoggerProperties(QObject):
         if len(self.cols_to_process) > 0:
             last_col = max(self.cols_to_process)
         else:
-            msg = f"No columns to process have been input for logger {self.logger_id}."
+            msg = f"Need to input columns to process for logger {self.logger_id} or disable processing."
             raise LoggerError(msg)
 
         test_file = self.files[0]

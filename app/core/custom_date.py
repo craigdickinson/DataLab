@@ -6,27 +6,29 @@ import re
 # Dict of strings that may appear in datetime formats
 # Format assumes that mm is month, MM is minute
 replacements = {
-    r"dd": "%d",
-    r"d": "%d",
-    r"mm": "%m",
-    r"m": "%m",
-    r"mmm": "%b",
-    r"MMM": "%b",
-    r"yyyy": "%Y",
-    r"YYYY": "%Y",
-    r"yy": "%y",
-    r"YY": "%y",
-    r"hh": "%H",
-    r"HH": "%H",
-    r"MM": "%M",
-    r"ss": "%S",
-    r"SS": "%S",
-    r"f": "%f",
-    r"ff": "%f",
-    r"fff": "%f",
-    r"F": "%f",
-    r"FF": "%f",
-    r"FFF": "%f",
+    "dd": "%d",
+    "d": "%d",
+    "DD": "%d",
+    "D": "%d",
+    "mm": "%m",
+    "m": "%m",
+    "mmm": "%b",
+    "MMM": "%b",
+    "yyyy": "%Y",
+    "YYYY": "%Y",
+    "yy": "%y",
+    "YY": "%y",
+    "hh": "%H",
+    "HH": "%H",
+    "MM": "%M",
+    "ss": "%S",
+    "SS": "%S",
+    "f": "%f",
+    "ff": "%f",
+    "fff": "%f",
+    "F": "%f",
+    "FF": "%f",
+    "FFF": "%f",
 }
 
 
@@ -78,7 +80,7 @@ def get_datetime_format(timestamp_format_str):
                Datetime format:  %d-%b-%Y %H:%M:%S.%f
     Example 2: Timestamp format: dd/mm/yyyy HH:MM:SS.FFF
                Datetime format:  %d/%m/%Y %H:%M:%S.%f
-    :param timestamp_format_str: Fugro-style timestamps form at string
+    :param timestamp_format_str: Fugro-style timestamps format string
     :return: Datetime format string
     """
 

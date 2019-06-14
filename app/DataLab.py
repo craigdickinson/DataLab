@@ -1,6 +1,6 @@
 __author__ = "Craig Dickinson"
 __program__ = "DataLab"
-__version__ = "0.43"
+__version__ = "0.44"
 __date__ = "14 June 2019"
 
 import logging
@@ -30,6 +30,7 @@ from app.views.main_window_view import DataLabGui
 from app.views.processing_progress_view import ProcessingProgressBar
 from app.views.stats_view import StatsDataset
 
+
 # if hasattr(QtCore.Qt, 'AA_EnableHighDpiScaling'):
 #     QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling, True)
 #
@@ -49,6 +50,7 @@ class DataLab(DataLabGui):
         self.set_active_tool_button("config")
         self._connect_signals()
         self._connect_child_signals()
+        self.view_proj_config_mod()
 
         # Dummy placeholder for Screening class (main processor)
         self.datalab = None
@@ -300,24 +302,24 @@ class DataLab(DataLabGui):
         msg = f"Instructions for using {__program__}:\n\n"
         self._message_information("Help", msg)
 
-    def show_error_msg(self, msg):
-        self.errorBar.setAutoFillBackground(True)
-        self.errorBar.setStyleSheet("background:rgba(255,255,0,255)")
-        self.errorLabel.setText(msg)
-        self.errorBar.show()
+    # def show_error_msg(self, msg):
+    #     self.errorBar.setAutoFillBackground(True)
+    #     self.errorBar.setStyleSheet("background:rgba(255,255,0,255)")
+    #     self.errorLabel.setText(msg)
+    #     self.errorBar.show()
 
-    def clear_error_msg(self):
-        self.errorLabel.setStyleSheet("background:rgba(0,0,0,0)")
-        self.errorLabel.setText("")
-        self.errorBar.hide()
-
-    def view_proj_config_mod(self):
-        self.set_active_tool_button("config")
-        self.modulesWidget.setCurrentWidget(self.projConfigModule)
+    # def clear_error_msg(self):
+    #     self.errorLabel.setStyleSheet("background:rgba(0,0,0,0)")
+    #     self.errorLabel.setText("")
+    #     self.errorBar.hide()
 
     def view_mod_raw_data(self):
         self.set_active_tool_button("raw")
         self.modulesWidget.setCurrentWidget(self.rawDataModule)
+
+    def view_proj_config_mod(self):
+        self.set_active_tool_button("config")
+        self.modulesWidget.setCurrentWidget(self.projConfigModule)
 
     def view_mod_data_quality(self):
         self.set_active_tool_button("quality")
@@ -366,7 +368,9 @@ class DataLab(DataLabGui):
         """Format selected module button."""
 
         # button_style = 'font-weight: bold'
-        active_style = "background-color: blue; color: white"
+        # active_style = "background-color: blue; color: white"
+        # active_style = "background-color: rgb(0,49,80); color: white"
+        active_style = "background-color: rgb(0,112,192); color: white"
         inactive_style = "background-color: none; color: none"
 
         # Reset all button colours
