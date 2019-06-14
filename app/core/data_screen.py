@@ -73,14 +73,14 @@ class DataScreen(object):
         self.delim = self.logger.file_delimiter
         self.header_row = self.logger.channel_header_row - 1
 
-        # No header row specified
-        if self.header_row < 0:
-            self.header_row = None
-
         # Additional header rows to skip - only using the first header row for data frame column names
         self.skip_rows = [
             i for i in range(self.logger.num_headers) if i > self.header_row
         ]
+
+        # No header row specified
+        if self.header_row < 0:
+            self.header_row = None
 
         # Set requested columns to process
         self.use_cols = set([0] + [c - 1 for c in self.logger.cols_to_process])

@@ -246,7 +246,7 @@ class Control(object):
                 self.get_user_headers(logger, logger_data)
 
                 # Check at least one header specification has been made
-                self.check_header_specification(logger)
+                logger.check_header_specification()
 
             # Get stats format
             self.read_or_copy_stats_format(logger, logger_data)
@@ -272,7 +272,7 @@ class Control(object):
             logger.expected_data_points = logger.freq * logger.duration
 
             # Make any user defined units and channels override any detected
-            logger.user_header_override()
+            logger.check_for_user_headers()
 
             # Check header lengths match number of columns
             logger.check_headers()
@@ -457,19 +457,6 @@ class Control(object):
         i, units_str = self.get_key_data(key, data)
         if i > -1:
             logger.user_channel_units = units_str.split()
-
-    def check_header_specification(self, logger):
-        """Check channel names and units have been specified in control file."""
-
-        # Check something has been entered for channel names
-        if logger.channel_header_row == 0 and len(logger.user_channel_names) == 0:
-            msg = "Channel names not specified for logger " + logger.logger_id
-            raise InputError(msg)
-
-        # Check something has been entered for units
-        if logger.units_header_row == 0 and len(logger.user_channel_units) == 0:
-            msg = "Units not specified for logger " + logger.logger_id
-            raise InputError(msg)
 
     def read_or_copy_stats_format(self, logger, data):
         """Read file format from control file or copy from another logger."""

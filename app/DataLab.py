@@ -1,6 +1,6 @@
 __author__ = "Craig Dickinson"
 __program__ = "DataLab"
-__version__ = "0.42"
+__version__ = "0.43"
 __date__ = "14 June 2019"
 
 import logging
@@ -30,11 +30,11 @@ from app.views.main_window_view import DataLabGui
 from app.views.processing_progress_view import ProcessingProgressBar
 from app.views.stats_view import StatsDataset
 
-if hasattr(QtCore.Qt, 'AA_EnableHighDpiScaling'):
-    QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling, True)
-
-if hasattr(QtCore.Qt, 'AA_UseHighDpiPixmaps'):
-    QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_UseHighDpiPixmaps, True)
+# if hasattr(QtCore.Qt, 'AA_EnableHighDpiScaling'):
+#     QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling, True)
+#
+# if hasattr(QtCore.Qt, 'AA_UseHighDpiPixmaps'):
+#     QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_UseHighDpiPixmaps, True)
 
 
 class DataLab(DataLabGui):
@@ -444,18 +444,19 @@ class DataLab(DataLabGui):
 
                 # Check requested channels exist
                 if logger.process_stats is True or logger.process_spectral is True:
-                    # Make connection to warning signal
+                    # Connect to warning signal to warning message box in DataLab class
+                    try:
+                        # Diconnect any existing connection to prevent repeated triggerings
+                        logger.signal_warning.disconnect()
+                    except:
+                        pass
                     logger.signal_warning.connect(self.warning)
 
-                    channels, units = logger.check_requested_columns_exist()
-                    logger.channel_names = channels
-                    logger.channel_units = units
+                    # Set user-defined channel names and units if supplied
+                    logger.set_columns_to_process_headers()
 
-                # Make any user defined units and channels override any detected
-                logger.user_header_override()
-
-                # Check headers length match number of columns
-                logger.check_headers()
+                    # Check number of headers match number of columns to process
+                    logger.check_headers()
         except InputError as e:
             self.error(str(e))
             return logging.exception(e)
