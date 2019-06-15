@@ -17,9 +17,8 @@ from app.core.signal_processing import calc_psd
 class Spectrogram(object):
     """Routines to read pandas data frames and construct spectrograms."""
 
-    def __init__(self, logger_id, num_chan, output_dir):
+    def __init__(self, logger_id, output_dir):
         self.logger_id = logger_id
-        self.num_chan = num_chan
         self.output_dir = output_dir
 
         # Dictionary to hold spectrograms for each channel
@@ -98,69 +97,48 @@ class Spectrogram(object):
             plt.xlabel("Frequency (Hz)")
             plt.ylabel("Date")
             plt.tight_layout()
-            fname = self.logger_id + "_" + channel + ".png"
-            fname = os.path.join(self.output_dir, fname)
-            plt.savefig(fname)
+            filename = self.logger_id + "_" + channel + ".png"
+            filename = os.path.join(self.output_dir, filename)
+            plt.savefig(filename)
 
-    def write_to_hdf5(self):
-        """Write spectrogram data to HDF5 file."""
+    def export_spectrograms_data(self, dict_formats_to_write):
+        """Write spectrograms data to requested file formats (HDF5, csv, xlsx)."""
 
         t0 = time()
 
         for channel, spect in self.spectrograms.items():
-            # print('Writing spectrogram file for ' + self.logger_id + ' ' + channel)
-            filename = "_".join(("Spectrograms_Data", self.logger_id, channel + ".h5"))
+            logger_id = replace_space_with_underscore(self.logger_id)
+            channel = replace_space_with_underscore(channel)
+            filename = "_".join(("Spectrograms_Data", logger_id, channel))
             file_path = os.path.join(self.output_dir, filename)
-            store_name = self.logger_id + "_" + channel
+            key = logger_id + "_" + channel
             f = self.freq
             t = self.datetimes
-
             df = pd.DataFrame(data=spect, index=t, columns=f)
-            df.to_hdf(file_path, store_name)
+
+            if dict_formats_to_write["h5"] is True:
+                df.to_hdf(file_path + ".h5", key)
+            if dict_formats_to_write["csv"] is True:
+                df.to_csv(file_path + ".csv")
+            if dict_formats_to_write["xlsx"] is True:
+                writer = pd.ExcelWriter(file_path + ".xlsx")
+                df.to_excel(writer, sheet_name=key)
+                writer.save()
 
         t1 = round(time() - t0)
         # print('Write hdf5 time = {}'.format(str(timedelta(seconds=t1))))
 
-    def write_to_csv(self):
-        """Write spectrogram data to csv file."""
 
-        t0 = time()
+def replace_space_with_underscore(input_str):
+    """Replace any spaces with underscores in string."""
 
-        for channel, spect in self.spectrograms.items():
-            # print('Writing spectrogram csv file for ' + self.logger_id + ' ' + channel)
-            fname = "_".join(("Spectrograms_Data", self.logger_id, channel + ".csv"))
-            fpath = os.path.join(self.output_dir, fname)
-            f = self.freq
-            t = self.datetimes
+    return "_".join(input_str.split(" "))
 
-            df = pd.DataFrame(data=spect, index=t, columns=f)
-            df.to_csv(fpath)
 
-        t1 = round(time() - t0)
-        # print('Write csv time = {}'.format(str(timedelta(seconds=t1))))
+def replace_space_with_underscore(input_str):
+    """Replace any spaces with underscores in string."""
 
-    def write_to_excel(self):
-        """Write spectrogram data to Excel file."""
-
-        t0 = time()
-
-        for channel, spect in self.spectrograms.items():
-            print(
-                "Writing spectrogram excel file for " + self.logger_id + " " + channel
-            )
-            fname = "_".join(("Spectrograms_Data", self.logger_id, channel + ".xlsx"))
-            fpath = os.path.join(self.output_dir, fname)
-            store_name = self.logger_id + "_" + channel
-            f = self.freq
-            t = self.datetimes
-
-            writer = pd.ExcelWriter(fpath)
-            df = pd.DataFrame(data=spect, index=t, columns=f)
-            df.to_excel(writer, sheet_name=store_name)
-            writer.save()
-
-        t1 = round(time() - t0)
-        print("Write xlsx time = {}".format(str(timedelta(seconds=t1))))
+    return "_".join(input_str.split(" "))
 
 # if __name__ == '__main__':
 #     folder = r'C:\Users\dickinsc\PycharmProjects\_2. DataLab Analysis Files\Misc\Output 21239 Test 4'

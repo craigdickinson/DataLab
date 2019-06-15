@@ -257,7 +257,7 @@ def read_spectrograms_csv(filename):
     df = pd.read_csv(filename, index_col=0)
     df.index = pd.to_datetime(df.index, format="%Y-%m-%d %H:%M:%S")
 
-    # Need to convert frequencies (the column headers) to float
+    # Need to convert frequencies (header) from object/string to float
     df.columns = df.columns.astype(float)
 
     t1 = round(time() - t0)
@@ -272,7 +272,8 @@ def read_spectrograms_excel(filename):
     t0 = time()
     xl = pd.ExcelFile(filename)
     logger = xl.sheet_names[0]
-    df = pd.read_excel(xl)
+    df = pd.read_excel(xl, index_col=0)
+    df.index = pd.to_datetime(df.index, format="%Y-%m-%d %H:%M:%S")
     t1 = round(time() - t0)
     print("Read xlsx file time = {}".format(str(timedelta(seconds=t1))))
 

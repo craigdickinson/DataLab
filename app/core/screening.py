@@ -124,22 +124,21 @@ class Screening(QThread):
 
             # Number of data points processed per sample
             stats_sample_length = int(logger.stats_interval * logger.freq)
-            spectral_sample_length = int(logger.spectral_interval * logger.freq)
+            spect_sample_length = int(logger.spect_interval * logger.freq)
 
             # Spectrograms object
             if logger.process_spectral is True:
                 spectrogram = Spectrogram(
                     logger_id=logger.logger_id,
-                    num_chan=len(logger.spectral_cols),
                     output_dir=self.control.output_folder,
                 )
                 spectrogram.set_freq(
-                    n=spectral_sample_length, T=logger.spectral_interval
+                    n=spect_sample_length, T=logger.spect_interval
                 )
 
             # Initialise sample pandas data frame for logger
             df_stats_sample = pd.DataFrame()
-            df_spectral_sample = pd.DataFrame()
+            df_spect_sample = pd.DataFrame()
             n = len(data_screen[i].files)
 
             # Expose each sample here; that way it can be sent to different processing modules
@@ -173,7 +172,7 @@ class Screening(QThread):
                     # Initialise with stats and spectral data frames both pointing to the same source data frame
                     # (note this does not create an actual copy of the data in memory)
                     df_stats = df.copy()
-                    df_spectral = df.copy()
+                    df_spect = df.copy()
 
                     # Stats processing module
                     if logger.process_stats is True:
@@ -211,23 +210,21 @@ class Screening(QThread):
 
                     # Spectrograms processing module
                     if logger.process_spectral is True:
-                        while len(df_spectral) > 0:
+                        while len(df_spect) > 0:
                             # Extract sample data frame from main dataset
-                            df_spectral_sample, df_spectral = data_screen[
-                                i
-                            ].sample_data(
-                                df_spectral_sample,
-                                df_spectral,
-                                spectral_sample_length,
+                            df_spect_sample, df_spect = data_screen[i].sample_data(
+                                df_spect_sample,
+                                df_spect,
+                                spect_sample_length,
                                 type="spectral",
                             )
 
                             # Calculate spectrograms
-                            if len(df_spectral_sample) <= spectral_sample_length:
-                                spectrogram.add_data(df_spectral_sample)
+                            if len(df_spect_sample) <= spect_sample_length:
+                                spectrogram.add_data(df_spect_sample)
 
                                 # Clear sample data frame so as ready for next sample set
-                                df_spectral_sample = pd.DataFrame()
+                                df_spect_sample = pd.DataFrame()
 
                 # Emit file number signal to gui
                 dict_progress = dict(
@@ -264,7 +261,7 @@ class Screening(QThread):
                     logger_stats_filtered[i],
                 )
 
-                # Export stats in selected file formats
+                # Export stats to requested file formats
                 if self.control.stats_to_h5 is True:
                     stats_out.write_to_hdf5()
                 if self.control.stats_to_csv is True:
@@ -272,17 +269,17 @@ class Screening(QThread):
                 if self.control.stats_to_xlsx is True:
                     stats_out.write_to_excel()
 
-            # Plot spectrograms
+            # Export spectrograms data to requested file formats
             if logger.process_spectral is True:
-                spectrogram.add_timestamps(dates=data_screen[i].spectral_sample_start)
+                spectrogram.add_timestamps(dates=data_screen[i].stats_sample_start)
                 # spectrogram.plot_spectrogram()
 
-                if self.control.spect_to_h5 is True:
-                    spectrogram.write_to_hdf5()
-                if self.control.spect_to_csv is True:
-                    spectrogram.write_to_csv()
-                if self.control.spect_to_xlsx is True:
-                    spectrogram.write_to_excel()
+                # Create dictionary of True/False flags of file formats to write
+                dict_formats_to_write = dict(h5=self.control.spect_to_h5,
+                                             csv=self.control.spect_to_csv,
+                                             xlsx=self.control.spect_to_xlsx,
+                                             )
+                spectrogram.export_spectrograms_data(dict_formats_to_write)
 
         # Save data screen report workbook
         data_report.write_bad_filenames()

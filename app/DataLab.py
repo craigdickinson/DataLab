@@ -1,7 +1,7 @@
 __author__ = "Craig Dickinson"
 __program__ = "DataLab"
-__version__ = "0.44"
-__date__ = "14 June 2019"
+__version__ = "0.45"
+__date__ = "15 June 2019"
 
 import logging
 import os
@@ -435,7 +435,7 @@ class DataLab(DataLabGui):
             for logger in control.loggers:
                 logger.process_filenames()
                 logger.select_files_in_datetime_range(
-                    logger.stats_start, logger.stats_end
+                    logger.process_start, logger.process_end
                 )
                 logger.expected_data_points = logger.freq * logger.duration
 

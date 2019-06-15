@@ -333,9 +333,6 @@ class StatsWidget(QtWidgets.QWidget):
         self.channel_name = ""
         self.stat = ""
 
-        # Plot data and settings
-        self.project = "21239 Total WoS - Glendronach Well Monitoring Campaign"
-
         # Container to hold plot data for each subplot
         self.subplots = [PlotAxesData()]
 
@@ -357,6 +354,9 @@ class StatsWidget(QtWidgets.QWidget):
 
         # X-axis values type
         self.xaxis_type = "Timestamps"
+
+        self.share_pri_yaxes = True
+        self.share_sec_yaxes = True
 
         # Set layout and initialise combo boxes
         self._init_ui()
@@ -411,10 +411,17 @@ class StatsWidget(QtWidgets.QWidget):
         self.form.addRow(QtWidgets.QLabel("Channel:"), self.channelCombo)
         self.form.addRow(QtWidgets.QLabel("Stat:"), self.statCombo)
 
+        # Plot settings group
         # X axis datetime interval options
         self.plotSettingsGroup = QtWidgets.QGroupBox("Plot Settings")
         self.xaxisIntervals = QtWidgets.QComboBox()
         self.xaxisType = QtWidgets.QComboBox()
+
+        # Check boxes to set whether pri/sec y-axes are shared
+        self.sharePriYAxesChkBox = QtWidgets.QCheckBox('Share pri y-axis')
+        self.sharePriYAxesChkBox.setChecked(True)
+        self.shareSecYAxesChkBox = QtWidgets.QCheckBox('Share sec y-axis')
+        self.shareSecYAxesChkBox.setChecked(True)
 
         # Plot settings button
         self.settingsButton = QtWidgets.QPushButton("Plot Settings")
@@ -424,7 +431,9 @@ class StatsWidget(QtWidgets.QWidget):
         self.grid.addWidget(self.xaxisType, 0, 1)
         self.grid.addWidget(QtWidgets.QLabel("X-axis interval:"), 1, 0)
         self.grid.addWidget(self.xaxisIntervals, 1, 1)
-        self.grid.addWidget(self.settingsButton, 2, 0, 1, 2)
+        self.grid.addWidget(self.sharePriYAxesChkBox, 2, 0, 1, 2)
+        self.grid.addWidget(self.shareSecYAxesChkBox, 3, 0, 1, 2)
+        self.grid.addWidget(self.settingsButton, 4, 0, 1, 2)
 
         # Combine selection widgets
         self.vbox = QtWidgets.QVBoxLayout(self.selectionContainer)
@@ -482,6 +491,8 @@ class StatsWidget(QtWidgets.QWidget):
         self.statCombo.currentIndexChanged.connect(self.on_stat_combo_changed)
         self.xaxisType.currentIndexChanged.connect(self.on_xaxis_type_changed)
         self.xaxisIntervals.currentIndexChanged.connect(self.on_xaxis_interval_changed)
+        self.sharePriYAxesChkBox.toggled.connect(self.on_share_yaxes1_changed)
+        self.shareSecYAxesChkBox.toggled.connect(self.on_share_yaxes2_changed)
 
     @staticmethod
     def _get_plot_numbers_list(n):
@@ -644,12 +655,42 @@ class StatsWidget(QtWidgets.QWidget):
         self._set_xaxis()
         self.canvas.draw()
 
+    def on_share_yaxes1_changed(self):
+        """Redraw subplots with shared or unshared primary axes and replot current data."""
+
+        if self.sharePriYAxesChkBox.isChecked() is True:
+            self.share_pri_yaxes = True
+        else:
+            self.share_pri_yaxes = False
+
+        try:
+            # Create new number of subplots and replot all current plot data
+            self._create_subplots()
+            self._plot_all_stored_data()
+        except Exception as e:
+            msg = "Unexpected error plotting stats"
+            self.parent.error(f"{msg}:\n{e}\n{sys.exc_info()[0]}")
+            logging.exception(e)
+
+    def on_share_yaxes2_changed(self):
+        """Redraw subplots with shared or unshared secondary axes and replot current data."""
+
+        if self.shareSecYAxesChkBox.isChecked() is True:
+            self.share_sec_yaxes = True
+        else:
+            self.share_sec_yaxes = False
+
+        try:
+            # Create new number of subplots and replot all current plot data
+            self._create_subplots()
+            self._plot_all_stored_data()
+        except Exception as e:
+            msg = "Unexpected error plotting stats"
+            self.parent.error(f"{msg}:\n{e}\n{sys.exc_info()[0]}")
+            logging.exception(e)
+
     def _create_subplots(self):
         """Create figure with required number of subplots."""
-
-        # TODO: Make as user settings
-        share_pri_y_axes = True
-        share_sec_y_axes = True
 
         self.fig.clf()
 
@@ -657,7 +698,7 @@ class StatsWidget(QtWidgets.QWidget):
         ax1 = self.fig.add_subplot(self.num_plots, 1, 1)
 
         # Create remaining subplots with a shared x-axis to ax1 then prepend ax1 to axes list
-        if share_pri_y_axes is True:
+        if self.share_pri_yaxes is True:
             sharey_ax = ax1
         else:
             sharey_ax = None
@@ -674,7 +715,7 @@ class StatsWidget(QtWidgets.QWidget):
 
         for ax in sec_axes:
             # Share secondary axes with first subplot
-            if share_sec_y_axes is True:
+            if self.share_sec_yaxes is True:
                 if ax != ax0:
                     ax0.get_shared_x_axes().join(ax0, ax)
                     ax0.get_shared_y_axes().join(ax0, ax)
@@ -834,7 +875,7 @@ class StatsWidget(QtWidgets.QWidget):
             # print('removing channels')
             return
 
-        print("Updating plot")
+        # print("Updating plot")
         i = self.plot_i
         subplot = self.subplots[i]
 

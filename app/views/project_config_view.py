@@ -183,7 +183,7 @@ class ConfigModule(QtWidgets.QWidget):
 
         # Check file created
         if os.path.exists(self.config.full_path):
-            # Update config dashboard with config file name and inform user
+            # Update config dashboard with config filename and inform user
             self.control.config_file = self.config.filename
             self.campaignTab.configFile.setText(self.config.filename)
             msg = f"Project config settings saved to:\n{self.config.full_path}"
@@ -375,51 +375,13 @@ class ConfigModule(QtWidgets.QWidget):
             # Logger properties
             logger = self.map_logger_props(logger, dict_logger)
 
-            # Logger columns to process settings
-            logger = self.map_logger_requested_cols_settings(logger, dict_logger)
-
-            # Logger stats settings
-            logger = self.map_logger_stats_settings(logger, dict_logger)
-
-            # Logger spectral settings
-            logger = self.map_logger_spectral_settings(logger, dict_logger)
+            # Logger screening settings
+            logger = self.map_logger_screening_settings(logger, dict_logger)
 
             # Finally, assign logger to control object
             control.logger_ids.append(logger_id)
             control.logger_ids_upper.append(logger_id.upper())
             control.loggers.append(logger)
-
-        return control
-
-    def map_general_settings(self, data, control):
-        """Map the general settings section to the control object."""
-
-        key = "general"
-        if key in data.keys():
-            data = data[key]
-        else:
-            msg = f"'{key}' key not found in config file"
-            self.parent.warning(msg)
-            return control
-
-        control.stats_to_h5 = self.get_key_value(
-            logger_id=key, data=data, key="stats_to_h5", attr=control.stats_to_h5
-        )
-        control.stats_to_csv = self.get_key_value(
-            logger_id=key, data=data, key="stats_to_csv", attr=control.stats_to_csv
-        )
-        control.stats_to_xlsx = self.get_key_value(
-            logger_id=key, data=data, key="stats_to_xlsx", attr=control.stats_to_xlsx
-        )
-        control.spect_to_h5 = self.get_key_value(
-            logger_id=key, data=data, key="spectral_to_h5", attr=control.spect_to_h5
-        )
-        control.spect_to_csv = self.get_key_value(
-            logger_id=key, data=data, key="spectral_to_csv", attr=control.spect_to_csv
-        )
-        control.spect_to_xlsx = self.get_key_value(
-            logger_id=key, data=data, key="spectral_to_xlsx", attr=control.spect_to_xlsx
-        )
 
         return control
 
@@ -519,8 +481,8 @@ class ConfigModule(QtWidgets.QWidget):
 
         return logger
 
-    def map_logger_requested_cols_settings(self, logger, dict_logger):
-        """Retrieve logger requested columns settings from JSON dictionary and map to logger object."""
+    def map_logger_screening_settings(self, logger, dict_logger):
+        """Retrieve logger screening settings from JSON dictionary and map to logger object."""
 
         logger.cols_to_process = self.get_key_value(
             logger_id=logger.logger_id,
@@ -546,11 +508,50 @@ class ConfigModule(QtWidgets.QWidget):
             key="user_channel_units",
             attr=logger.user_channel_units,
         )
-        return logger
-
-    def map_logger_stats_settings(self, logger, dict_logger):
-        """Retrieve logger stats settings from JSON dictionary and map to logger object."""
-
+        process_start = self.get_key_value(
+            logger_id=logger.logger_id,
+            data=dict_logger,
+            key="process_start",
+            attr=logger.process_start,
+        )
+        if process_start is None:
+            logger.process_start = None
+        else:
+            try:
+                # Need to convert stats start to datetime
+                logger.process_start = parse(process_start, yearfirst=True)
+            except ValueError:
+                self.parent.warning(
+                    f"Process start format not recognised for logger {logger.logger_id}."
+                )
+        process_end = self.get_key_value(
+            logger_id=logger.logger_id,
+            data=dict_logger,
+            key="process_end",
+            attr=logger.process_end,
+        )
+        if process_end is None:
+            logger.process_end = None
+        else:
+            try:
+                # Need to convert stats end to datetime
+                logger.process_end = parse(process_end, yearfirst=True)
+            except ValueError:
+                self.parent.warning(
+                    f"Process end format not recognised for logger {logger.logger_id}."
+                )
+        logger.low_cutoff_freq = self.get_key_value(
+            logger_id=logger.logger_id,
+            data=dict_logger,
+            key="low_cutoff_freq",
+            attr=logger.low_cutoff_freq,
+        )
+        logger.high_cutoff_freq = self.get_key_value(
+            logger_id=logger.logger_id,
+            data=dict_logger,
+            key="high_cutoff_freq",
+            attr=logger.high_cutoff_freq,
+        )
         logger.process_stats = self.get_key_value(
             logger_id=logger.logger_id,
             data=dict_logger,
@@ -563,105 +564,51 @@ class ConfigModule(QtWidgets.QWidget):
             key="stats_interval",
             attr=logger.stats_interval,
         )
-        stats_start = self.get_key_value(
-            logger_id=logger.logger_id,
-            data=dict_logger,
-            key="stats_start",
-            attr=logger.stats_start,
-        )
-        if stats_start is None:
-            logger.stats_start = None
-        else:
-            try:
-                # Need to convert stats start to datetime
-                logger.stats_start = parse(stats_start, yearfirst=True)
-            except ValueError:
-                self.parent.warning(
-                    f"stats_start datetime format not recognised for logger {logger.logger_id}"
-                )
-
-        stats_end = self.get_key_value(
-            logger_id=logger.logger_id,
-            data=dict_logger,
-            key="stats_end",
-            attr=logger.stats_end,
-        )
-        if stats_end is None:
-            logger.stats_end = None
-        else:
-            try:
-                # Need to convert stats end to datetime
-                logger.stats_end = parse(stats_end, yearfirst=True)
-            except ValueError:
-                self.parent.warning(
-                    f"stats_end datetime format not recognised for logger {logger.logger_id}"
-                )
-
-        logger.stats_low_cutoff_freq = self.get_key_value(
-            logger_id=logger.logger_id,
-            data=dict_logger,
-            key="stats_low_cutoff_freq",
-            attr=logger.stats_low_cutoff_freq,
-        )
-        logger.stats_high_cutoff_freq = self.get_key_value(
-            logger_id=logger.logger_id,
-            data=dict_logger,
-            key="stats_high_cutoff_freq",
-            attr=logger.stats_high_cutoff_freq,
-        )
-
-        return logger
-
-    def map_logger_spectral_settings(self, logger, dict_logger):
-        """Retrieve logger spectral settings from JSON dictionary and map to logger object."""
-
         logger.process_spectral = self.get_key_value(
             logger_id=logger.logger_id,
             data=dict_logger,
             key="process_spectral",
             attr=logger.process_spectral,
         )
-        logger.spectral_interval = self.get_key_value(
+        logger.spect_interval = self.get_key_value(
             logger_id=logger.logger_id,
             data=dict_logger,
             key="spectral_interval",
-            attr=logger.spectral_interval,
+            attr=logger.spect_interval,
         )
-        spectral_start = self.get_key_value(
-            logger_id=logger.logger_id,
-            data=dict_logger,
-            key="spectral_start",
-            attr=logger.spectral_start,
-        )
-        if spectral_start is None:
-            logger.spectral_start = None
-        else:
-            try:
-                # Need to convert spectral start to datetime
-                logger.spectral_start = parse(spectral_start, yearfirst=True)
-            except ValueError:
-                self.parent.warning(
-                    f"spectral_start datetime format not recognised for logger {logger.logger_id}"
-                )
-
-        spectral_end = self.get_key_value(
-            logger_id=logger.logger_id,
-            data=dict_logger,
-            key="spectral_end",
-            attr=logger.spectral_end,
-        )
-        if spectral_end is None:
-            logger.spectral_end = None
-        else:
-            try:
-                # Need to convert spectral end to datetime
-                logger.spectral_end = parse(spectral_end, yearfirst=True)
-            except ValueError:
-                self.parent.warning(
-                    f"spectral_end datetime format not recognised for {logger.logger_id}"
-                )
-
         return logger
+
+    def map_general_settings(self, data, control):
+        """Map the general settings section to the control object."""
+
+        key = "general"
+        if key in data.keys():
+            data = data[key]
+        else:
+            msg = f"'{key}' key not found in config file"
+            self.parent.warning(msg)
+            return control
+
+        control.stats_to_h5 = self.get_key_value(
+            logger_id=key, data=data, key="stats_to_h5", attr=control.stats_to_h5
+        )
+        control.stats_to_csv = self.get_key_value(
+            logger_id=key, data=data, key="stats_to_csv", attr=control.stats_to_csv
+        )
+        control.stats_to_xlsx = self.get_key_value(
+            logger_id=key, data=data, key="stats_to_xlsx", attr=control.stats_to_xlsx
+        )
+        control.spect_to_h5 = self.get_key_value(
+            logger_id=key, data=data, key="spectral_to_h5", attr=control.spect_to_h5
+        )
+        control.spect_to_csv = self.get_key_value(
+            logger_id=key, data=data, key="spectral_to_csv", attr=control.spect_to_csv
+        )
+        control.spect_to_xlsx = self.get_key_value(
+            logger_id=key, data=data, key="spectral_to_xlsx", attr=control.spect_to_xlsx
+        )
+
+        return control
 
     def get_key_value(self, logger_id, data, key, attr=None):
         """Assign data from a JSON key to control object attribute."""
@@ -959,12 +906,14 @@ class StatsAndSpectralSettingsTab(QtWidgets.QWidget):
         self.editButton.setShortcut("Ctrl+E")
 
         # Processed columns group
-        self.colsGroup = QtWidgets.QGroupBox("Select Columns to Process")
+        self.colsGroup = QtWidgets.QGroupBox("General Settings")
 
         self.columns = QtWidgets.QLabel("-")
         self.unitConvs = QtWidgets.QLabel("-")
         self.channelNames = QtWidgets.QLabel("-")
         self.channelUnits = QtWidgets.QLabel("-")
+        self.processStart = QtWidgets.QLabel("-")
+        self.processEnd = QtWidgets.QLabel("-")
 
         self.colsForm = QtWidgets.QFormLayout(self.colsGroup)
         self.colsForm.addRow(QtWidgets.QLabel("Columns to process:"), self.columns)
@@ -977,6 +926,8 @@ class StatsAndSpectralSettingsTab(QtWidgets.QWidget):
         self.colsForm.addRow(
             QtWidgets.QLabel("Channel units override (optional):"), self.channelUnits
         )
+        self.colsForm.addRow(QtWidgets.QLabel("Start timestamp:"), self.processStart)
+        self.colsForm.addRow(QtWidgets.QLabel("End timestamp:"), self.processEnd)
 
         # Stats settings group
         self.statsGroup = QtWidgets.QGroupBox("Statistical Analysis Settings")
@@ -985,8 +936,6 @@ class StatsAndSpectralSettingsTab(QtWidgets.QWidget):
         self.processStatsChkBox = QtWidgets.QCheckBox("Include in processing")
         self.processStatsChkBox.setChecked(True)
         self.statsInterval = QtWidgets.QLabel("-")
-        self.statsStart = QtWidgets.QLabel("-")
-        self.statsEnd = QtWidgets.QLabel("-")
 
         # Low and high cut-off frequencies
         self.lowCutoff = QtWidgets.QLabel("-")
@@ -995,13 +944,12 @@ class StatsAndSpectralSettingsTab(QtWidgets.QWidget):
         self.statsForm = QtWidgets.QFormLayout(self.statsGroup)
         self.statsForm.addRow(self.processStatsChkBox, QtWidgets.QLabel(""))
         self.statsForm.addRow(QtWidgets.QLabel("Sample length (s):"), self.statsInterval)
-        self.statsForm.addRow(QtWidgets.QLabel("Start timestamp:"), self.statsStart)
-        self.statsForm.addRow(QtWidgets.QLabel("End timestamp:"), self.statsEnd)
+
         self.statsForm.addRow(
-            QtWidgets.QLabel("Low frequency cut-off (Hz):"), self.lowCutoff
+            QtWidgets.QLabel("Low cut-off frequency (Hz):"), self.lowCutoff
         )
         self.statsForm.addRow(
-            QtWidgets.QLabel("High frequency cut-off (Hz):"), self.highCutoff
+            QtWidgets.QLabel("High cut-off frequency (Hz):"), self.highCutoff
         )
 
         # Stats output file formats group
@@ -1022,24 +970,18 @@ class StatsAndSpectralSettingsTab(QtWidgets.QWidget):
         self.vbox.addWidget(self.statsXLSX)
 
         # Spectral settings group
-        self.spectralGroup = QtWidgets.QGroupBox("Spectral Analysis Settings")
-        self.spectralGroup.setFixedWidth(250)
+        self.spectGroup = QtWidgets.QGroupBox("Spectral Analysis Settings")
+        self.spectGroup.setFixedWidth(250)
 
-        self.processSpectralChkBox = QtWidgets.QCheckBox("Include in processing")
-        self.processSpectralChkBox.setChecked(True)
-        self.spectralInterval = QtWidgets.QLabel("-")
-        self.spectralStart = QtWidgets.QLabel("-")
-        self.spectralEnd = QtWidgets.QLabel("-")
+        self.processSpectChkBox = QtWidgets.QCheckBox("Include in processing")
+        self.processSpectChkBox.setChecked(True)
+        self.spectInterval = QtWidgets.QLabel("-")
 
-        self.spectralForm = QtWidgets.QFormLayout(self.spectralGroup)
-        self.spectralForm.addRow(self.processSpectralChkBox, QtWidgets.QLabel(""))
-        self.spectralForm.addRow(
-            QtWidgets.QLabel("Sample length (s):"), self.spectralInterval
+        self.spectForm = QtWidgets.QFormLayout(self.spectGroup)
+        self.spectForm.addRow(self.processSpectChkBox, QtWidgets.QLabel(""))
+        self.spectForm.addRow(
+            QtWidgets.QLabel("Sample length (s):"), self.spectInterval
         )
-        self.spectralForm.addRow(
-            QtWidgets.QLabel("Start timestamp:"), self.spectralStart
-        )
-        self.spectralForm.addRow(QtWidgets.QLabel("End timestamp:"), self.spectralEnd)
 
         # Spectral output file formats group
         policy = QtWidgets.QSizePolicy(
@@ -1069,7 +1011,7 @@ class StatsAndSpectralSettingsTab(QtWidgets.QWidget):
 
         self.hboxSpect = QtWidgets.QHBoxLayout()
         self.hboxSpect.setAlignment(QtCore.Qt.AlignLeft)
-        self.hboxSpect.addWidget(self.spectralGroup)
+        self.hboxSpect.addWidget(self.spectGroup)
         self.hboxSpect.addWidget(self.spectOutputGroup, alignment=QtCore.Qt.AlignTop)
 
         self.vbox = QtWidgets.QVBoxLayout()
@@ -1088,8 +1030,8 @@ class StatsAndSpectralSettingsTab(QtWidgets.QWidget):
     def connect_signals(self):
         self.editButton.clicked.connect(self.show_edit_dialog)
         self.processStatsChkBox.toggled.connect(self.on_process_stats_check_box_toggled)
-        self.processSpectralChkBox.toggled.connect(
-            self.on_process_spectral_check_box_toggled
+        self.processSpectChkBox.toggled.connect(
+            self.on_process_spect_check_box_toggled
         )
         self.statsH5.toggled.connect(self.on_stats_h5_toggled)
         self.statsCSV.toggled.connect(self.on_stats_csv_toggled)
@@ -1121,11 +1063,11 @@ class StatsAndSpectralSettingsTab(QtWidgets.QWidget):
         if self.parent.loggersList.count() > 0:
             self.logger.process_stats = self.processStatsChkBox.isChecked()
 
-    def on_process_spectral_check_box_toggled(self):
+    def on_process_spect_check_box_toggled(self):
         """Set include in processing state in logger object."""
 
         if self.parent.loggersList.count() > 0:
-            self.logger.process_spectral = self.processSpectralChkBox.isChecked()
+            self.logger.process_spectral = self.processSpectChkBox.isChecked()
 
     def on_stats_h5_toggled(self):
         if self.parent.loggersList.count() > 0:
@@ -1176,7 +1118,7 @@ class StatsAndSpectralSettingsTab(QtWidgets.QWidget):
 
         # Process check states
         self.processStatsChkBox.setChecked(logger.process_stats)
-        self.processSpectralChkBox.setChecked(logger.process_spectral)
+        self.processSpectChkBox.setChecked(logger.process_spectral)
 
         # Columns
         cols_str = " ".join([str(i) for i in logger.cols_to_process])
@@ -1194,34 +1136,37 @@ class StatsAndSpectralSettingsTab(QtWidgets.QWidget):
         units_items_str = " ".join([i for i in logger.user_channel_units])
         self.channelUnits.setText(units_items_str)
 
+        # Start datetime
+        if logger.process_start is None:
+            process_start = "First file"
+        else:
+            process_start = logger.process_start.strftime("%Y-%m-%d %H:%M")
+        self.processStart.setText(process_start)
+
+        # End datetime
+        if logger.process_end is None:
+            process_end = "Last file"
+        else:
+            process_end = logger.process_end.strftime("%Y-%m-%d %H:%M")
+        self.processEnd.setText(process_end)
+
+        # Low cut-off frequency
+        if logger.low_cutoff_freq is None:
+            self.lowCutoff.setText("None")
+        else:
+            self.lowCutoff.setText(f"{logger.low_cutoff_freq:.2f}")
+
+        # High cut-off frequency
+        if logger.high_cutoff_freq is None:
+            self.highCutoff.setText("None")
+        else:
+            self.highCutoff.setText(f"{logger.high_cutoff_freq:.2f}")
+
         # Stats interval
         self.statsInterval.setText(str(logger.stats_interval))
 
-        # Stats start
-        if logger.stats_start is None:
-            stats_start = "First file"
-        else:
-            stats_start = logger.stats_start.strftime("%Y-%m-%d %H:%M")
-        self.statsStart.setText(stats_start)
-
-        # Stats end
-        if logger.stats_end is None:
-            stats_end = "Last file"
-        else:
-            stats_end = logger.stats_end.strftime("%Y-%m-%d %H:%M")
-        self.statsEnd.setText(stats_end)
-
-        # Stats low cut-off freq
-        if logger.stats_low_cutoff_freq is None:
-            self.lowCutoff.setText("None")
-        else:
-            self.lowCutoff.setText(f"{logger.stats_low_cutoff_freq:.2f}")
-
-        # Stats high cut-off freq
-        if logger.stats_high_cutoff_freq is None:
-            self.highCutoff.setText("None")
-        else:
-            self.highCutoff.setText(f"{logger.stats_high_cutoff_freq:.2f}")
+        # Spectral interval
+        self.spectInterval.setText(str(logger.spect_interval))
 
         # Selected stats file formats to output
         if self.control.stats_to_h5 is True:
@@ -1239,22 +1184,21 @@ class StatsAndSpectralSettingsTab(QtWidgets.QWidget):
         else:
             self.statsXLSX.setChecked(False)
 
-        # Spectral interval
-        self.spectralInterval.setText(str(logger.spectral_interval))
-
-        # Spectral start
-        if logger.spectral_start is None:
-            spectral_start = "First file"
+        # Selected spectral file formats to output
+        if self.control.spect_to_h5 is True:
+            self.spectH5.setChecked(True)
         else:
-            spectral_start = logger.spectral_start.strftime("%Y-%m-%d %H:%M")
-        self.spectralStart.setText(spectral_start)
+            self.spectH5.setChecked(False)
 
-        # Spectral end
-        if logger.spectral_end is None:
-            spectral_end = "Last file"
+        if self.control.spect_to_csv is True:
+            self.spectCSV.setChecked(True)
         else:
-            spectral_end = logger.spectral_end.strftime("%Y-%m-%d %H:%M")
-        self.spectralEnd.setText(spectral_end)
+            self.spectCSV.setChecked(False)
+
+        if self.control.spect_to_xlsx is True:
+            self.spectXLSX.setChecked(True)
+        else:
+            self.spectXLSX.setChecked(False)
 
     def clear_dashboard(self):
         """Initialise all values in stats and spectral analysis dashboard."""
@@ -1264,13 +1208,11 @@ class StatsAndSpectralSettingsTab(QtWidgets.QWidget):
         self.channelNames.setText("-")
         self.channelUnits.setText("-")
         self.statsInterval.setText("-")
-        self.statsStart.setText("-")
-        self.statsEnd.setText("-")
+        self.processStart.setText("-")
+        self.processEnd.setText("-")
         self.lowCutoff.setText("-")
         self.highCutoff.setText("-")
-        self.spectralInterval.setText("-")
-        self.spectralStart.setText("-")
-        self.spectralEnd.setText("-")
+        self.spectInterval.setText("-")
 
 
 class EditCampaignInfoDialog(QtWidgets.QDialog):
@@ -1764,10 +1706,15 @@ class EditStatsAndSpectralDialog(QtWidgets.QDialog):
         self.setWindowTitle("Edit Logger Statistics and Spectral Analysis Settings")
         self.setMinimumWidth(500)
 
+        # Define input validators
+        int_validator = QtGui.QIntValidator()
+        int_validator.setBottom(1)
+        dbl_validator = QtGui.QDoubleValidator()
+
         self.layout = QtWidgets.QVBoxLayout(self)
 
         # Processed columns group
-        self.colsGroup = QtWidgets.QGroupBox("Select Columns to Process")
+        self.colsGroup = QtWidgets.QGroupBox("General Settings")
         self.columns = QtWidgets.QLineEdit()
         self.columns.setToolTip("Column numbers to process, separated by a space.\n"
                                 "E.g. 2 3 4 5 (column 1 (time index) does not need to be included).")
@@ -1780,7 +1727,24 @@ class EditStatsAndSpectralDialog(QtWidgets.QDialog):
         self.channelUnits = QtWidgets.QLineEdit()
         self.channelUnits.setToolTip("Custom channel units, separated by a space.\n"
                                      "E.g. m/s^2 m/s^2 deg/s deg/s.")
+        self.processStart = QtWidgets.QLineEdit()
+        self.processStart.setToolTip("If blank, the timestamps of the first file "
+                                     "will be used (if detected).")
+        self.processStart.setFixedWidth(100)
+        self.processEnd = QtWidgets.QLineEdit()
+        self.processEnd.setToolTip("If blank, the timestamp of the last file "
+                                   "will be used (if detected).")
+        self.processEnd.setFixedWidth(100)
 
+        # Filtered low and high cut-off frequencies
+        self.lowCutoff = QtWidgets.QLineEdit()
+        self.lowCutoff.setFixedWidth(40)
+        self.lowCutoff.setValidator(dbl_validator)
+        self.highCutoff = QtWidgets.QLineEdit()
+        self.highCutoff.setFixedWidth(40)
+        self.highCutoff.setValidator(dbl_validator)
+
+        # Form layout
         self.colsForm = QtWidgets.QFormLayout(self.colsGroup)
         self.colsForm.addRow(QtWidgets.QLabel("Columns to process:"), self.columns)
         self.colsForm.addRow(
@@ -1792,69 +1756,37 @@ class EditStatsAndSpectralDialog(QtWidgets.QDialog):
         self.colsForm.addRow(
             QtWidgets.QLabel("Channel units override (optional):"), self.channelUnits
         )
+        self.colsForm.addRow(QtWidgets.QLabel("Start timestamp:"), self.processStart)
+        self.colsForm.addRow(QtWidgets.QLabel("End timestamp:"), self.processEnd)
+        self.colsForm.addRow(
+            QtWidgets.QLabel("Low cut-off frequency (Hz):"), self.lowCutoff
+        )
+        self.colsForm.addRow(
+            QtWidgets.QLabel("High cut-off frequency (Hz):"), self.highCutoff
+        )
 
         # Stats settings group
         self.statsGroup = QtWidgets.QGroupBox("Logger Statistics Settings")
         self.statsInterval = QtWidgets.QLineEdit()
         self.statsInterval.setFixedWidth(40)
-        self.statsStart = QtWidgets.QLineEdit()
-        self.statsStart.setToolTip("If blank, the first file timestamp in the logger path will be used (if detected).")
-        self.statsStart.setFixedWidth(100)
-        self.statsEnd = QtWidgets.QLineEdit()
-        self.statsEnd.setToolTip("If blank, the last file timestamp in the logger path will be used (if detected).")
-        self.statsEnd.setFixedWidth(100)
-
-        # Filtered low and high cut-off frequencies
-        self.lowCutoff = QtWidgets.QLineEdit()
-        self.lowCutoff.setFixedWidth(40)
-        self.highCutoff = QtWidgets.QLineEdit()
-        self.highCutoff.setFixedWidth(40)
-
-        # Define input validators
-        int_validator = QtGui.QIntValidator()
-        int_validator.setBottom(1)
-        dbl_validator = QtGui.QDoubleValidator()
-
-        # Apply validators
         self.statsInterval.setValidator(int_validator)
-        self.lowCutoff.setValidator(dbl_validator)
-        self.highCutoff.setValidator(dbl_validator)
 
+        # Form layout
         self.statsForm = QtWidgets.QFormLayout(self.statsGroup)
         self.statsForm.addRow(QtWidgets.QLabel("Sample length (s):"), self.statsInterval)
-        self.statsForm.addRow(QtWidgets.QLabel("Start timestamp:"), self.statsStart)
-        self.statsForm.addRow(QtWidgets.QLabel("End timestamp:"), self.statsEnd)
-        self.statsForm.addRow(
-            QtWidgets.QLabel("Low frequency cut-off (Hz):"), self.lowCutoff
-        )
-        self.statsForm.addRow(
-            QtWidgets.QLabel("High frequency cut-off (Hz):"), self.highCutoff
-        )
 
         # Spectral settings group
         self.spectGroup = QtWidgets.QGroupBox("Logger Spectral Settings")
-        self.spectralForm = QtWidgets.QFormLayout(self.spectGroup)
+
         self.spectInterval = QtWidgets.QLineEdit()
         self.spectInterval.setFixedWidth(40)
-        self.spectStart = QtWidgets.QLineEdit()
-        self.spectStart.setFixedWidth(100)
-        self.spectEnd = QtWidgets.QLineEdit()
-        self.spectEnd.setFixedWidth(100)
-
-        # Define input validators
-        int_validator = QtGui.QIntValidator()
-        int_validator.setBottom(1)
-
-        # Apply validators
         self.spectInterval.setValidator(int_validator)
 
-        self.spectralForm.addRow(
+        # Form layout
+        self.spectForm = QtWidgets.QFormLayout(self.spectGroup)
+        self.spectForm.addRow(
             QtWidgets.QLabel("Sample length (s):"), self.spectInterval
         )
-        self.spectralForm.addRow(
-            QtWidgets.QLabel("Start timestamp:"), self.spectStart
-        )
-        self.spectralForm.addRow(QtWidgets.QLabel("End timestamp:"), self.spectEnd)
 
         self.buttonBox = QtWidgets.QDialogButtonBox(
             QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel
@@ -1892,53 +1824,39 @@ class EditStatsAndSpectralDialog(QtWidgets.QDialog):
         units_items_str = " ".join([i for i in logger.user_channel_units])
         self.channelUnits.setText(units_items_str)
 
+        # Process start
+        if logger.process_start is None:
+            process_start = "First file"
+        else:
+            process_start = logger.process_start.strftime("%Y-%m-%d %H:%M")
+        self.processStart.setText(process_start)
+
+        # Process end
+        if logger.process_end is None:
+            process_end = "Last file"
+        else:
+            process_end = logger.process_end.strftime("%Y-%m-%d %H:%M")
+        self.processEnd.setText(process_end)
+
+        # Low cut-off frequency
+        if logger.low_cutoff_freq is None:
+            self.lowCutoff.setText("None")
+        else:
+            self.lowCutoff.setText(f"{logger.low_cutoff_freq:.2f}")
+
+        # High cut-off frequency
+        if logger.high_cutoff_freq is None:
+            self.highCutoff.setText("None")
+        else:
+            self.highCutoff.setText(f"{logger.high_cutoff_freq:.2f}")
+
         # Stats settings group
         # Stats interval
         self.statsInterval.setText(str(logger.stats_interval))
 
-        # Stats start
-        if logger.stats_start is None:
-            stats_start = "First file"
-        else:
-            stats_start = logger.stats_start.strftime("%Y-%m-%d %H:%M")
-        self.statsStart.setText(stats_start)
-
-        # Stats end
-        if logger.stats_end is None:
-            stats_end = "Last file"
-        else:
-            stats_end = logger.stats_end.strftime("%Y-%m-%d %H:%M")
-        self.statsEnd.setText(stats_end)
-
-        # Low cut-off freq
-        if logger.stats_low_cutoff_freq is None:
-            self.lowCutoff.setText("None")
-        else:
-            self.lowCutoff.setText(f"{logger.stats_low_cutoff_freq:.2f}")
-
-        # High cut-off freq
-        if logger.stats_high_cutoff_freq is None:
-            self.highCutoff.setText("None")
-        else:
-            self.highCutoff.setText(f"{logger.stats_high_cutoff_freq:.2f}")
-
         # Spectral settings group
         # Spectral interval
-        self.spectInterval.setText(str(logger.spectral_interval))
-
-        # Spectral start
-        if logger.spectral_start is None:
-            spectral_start = "First file"
-        else:
-            spectral_start = logger.spectral_start.strftime("%Y-%m-%d %H:%M")
-        self.spectStart.setText(spectral_start)
-
-        # Spectral end
-        if logger.spectral_end is None:
-            spectral_end = "Last file"
-        else:
-            spectral_end = logger.spectral_end.strftime("%Y-%m-%d %H:%M")
-        self.spectEnd.setText(spectral_end)
+        self.spectInterval.setText(str(logger.spect_interval))
 
     def on_ok_clicked(self):
         """Assign logger stats settings to the control object and update the dashboard."""
@@ -1974,77 +1892,56 @@ class EditStatsAndSpectralDialog(QtWidgets.QDialog):
         logger.user_channel_names = self.channelNames.text().split()
         logger.user_channel_units = self.channelUnits.text().split()
 
-        # Stats settings group
-        logger.stats_interval = int(self.statsInterval.text())
-
-        stats_start = self.statsStart.text()
-        if stats_start == "" or stats_start == "First file":
-            logger.stats_start = self.get_ith_file_timestamp(logger, idx=0)
+        process_start = self.processStart.text()
+        if process_start == "" or process_start == "First file":
+            logger.process_start = self.get_timestamp_in_filename(logger, file_idx=0)
         else:
             try:
-                logger.stats_start = parse(stats_start, yearfirst=True)
+                logger.process_start = parse(process_start, yearfirst=True)
             except ValueError:
                 msg = "Stats start datetime format not recognised; timestamp unchanged"
                 QtWidgets.QMessageBox.information(self, "Stats Start Input", msg)
 
-        stats_end = self.statsEnd.text()
-        if stats_end == "" or stats_end == "Last file":
-            logger.stats_end = self.get_ith_file_timestamp(logger, idx=-1)
+        process_end = self.processEnd.text()
+        if process_end == "" or process_end == "Last file":
+            logger.process_end = self.get_timestamp_in_filename(logger, file_idx=-1)
         else:
             try:
-                logger.stats_end = parse(stats_end, yearfirst=True)
+                logger.process_end = parse(process_end, yearfirst=True)
             except ValueError:
                 msg = "Stats end datetime format not recognised; timestamp unchanged"
                 QtWidgets.QMessageBox.information(self, "Stats End Input", msg)
 
-        # Stats low cut-off freq
+        # Low cut-off freq
         try:
-            logger.stats_low_cutoff_freq = float(self.lowCutoff.text())
-            if logger.stats_low_cutoff_freq == 0:
-                logger.stats_low_cutoff_freq = None
+            logger.low_cutoff_freq = float(self.lowCutoff.text())
+            if logger.low_cutoff_freq == 0:
+                logger.low_cutoff_freq = None
         except:
-            logger.stats_low_cutoff_freq = None
+            logger.low_cutoff_freq = None
 
-        # Stats high cut-off freq
+        # High cut-off freq
         try:
-            logger.stats_high_cutoff_freq = float(self.highCutoff.text())
-            if logger.stats_high_cutoff_freq == 0:
-                logger.stats_high_cutoff_freq = None
+            logger.high_cutoff_freq = float(self.highCutoff.text())
+            if logger.high_cutoff_freq == 0:
+                logger.high_cutoff_freq = None
         except:
-            logger.stats_high_cutoff_freq = None
+            logger.high_cutoff_freq = None
+
+        # Stats settings group
+        logger.stats_interval = int(self.statsInterval.text())
 
         # Spectral settings group
-        logger.spectral_interval = int(self.spectInterval.text())
-
-        spectral_start = self.spectStart.text()
-        if spectral_start == "" or spectral_start == "First file":
-            logger.spectral_start = None
-        else:
-            try:
-                logger.spectral_start = parse(spectral_start, yearfirst=True)
-            except ValueError:
-                msg = (
-                    "Spectral start datetime format not recognised; timestamp unchanged"
-                )
-                QtWidgets.QMessageBox.information(self, "Spectral Start Input", msg)
-
-        spectral_end = self.spectEnd.text()
-        if spectral_end == "" or spectral_end == "Last file":
-            logger.spectral_end = None
-        else:
-            try:
-                logger.spectral_end = parse(spectral_end, yearfirst=True)
-            except ValueError:
-                msg = "Spectral end datetime format not recognised; timestamp unchanged"
-                QtWidgets.QMessageBox.information(self, "Spectral End Input", msg)
+        logger.spect_interval = int(self.spectInterval.text())
 
     @staticmethod
-    def get_ith_file_timestamp(logger, idx):
-        """Attempt to retrieve first timestamp in logger files."""
+    def get_timestamp_in_filename(logger, file_idx):
+        """Attempt to retrieve the timestamp embedded in the filename of the file in the parsed list index."""
 
         try:
+            # Process filenames to get list of files and extract the datetimes embedded in each filename
             logger.process_filenames()
-            return logger.file_timestamps[idx]
+            return logger.file_timestamps[file_idx]
         except:
             return None
 
@@ -2053,11 +1950,11 @@ if __name__ == "__main__":
     # For testing widget layout
     app = QtWidgets.QApplication(sys.argv)
     # win = ConfigModule()
-    win = CampaignInfoTab()
+    # win = CampaignInfoTab()
     # win = LoggerPropertiesTab()
     # win = StatsAndSpectralSettingsTab()
     # win = EditCampaignInfoDialog()
     # win = EditLoggerPropertiesDialog()
-    # win = EditStatsAndSpectralDialog()
+    win = EditStatsAndSpectralDialog()
     win.show()
     app.exit(app.exec_())

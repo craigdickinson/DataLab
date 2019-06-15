@@ -40,7 +40,7 @@ class Control(object):
     def __init__(self):
         """Initialise control file properties."""
 
-        # Control file name to read from
+        # Control filename to read from
         self.control_file = ""
         self.config_file = ""
 
@@ -255,7 +255,7 @@ class Control(object):
             logger.process_filenames()
 
             # Select only files within specified datetime range
-            logger.select_files_in_datetime_range(logger.stats_start, logger.stats_end)
+            logger.select_files_in_datetime_range(logger.process_start, logger.process_end)
 
             # Select first logger file to detect additional properties and checks on
             test_file = logger.files[0]
@@ -677,20 +677,20 @@ class Control(object):
         # Get start date if specified
         # TODO: Once have start and end dates should create list of expected filenames sequence to check missing files
         key = "*STATS_START"
-        i, stats_start_str = self.get_key_data(key, data)
+        i, process_start_str = self.get_key_data(key, data)
         if i != -1:
             try:
-                logger.stats_start = parse(stats_start_str, yearfirst=True)
+                logger.process_start = parse(process_start_str, yearfirst=True)
             except ValueError:
                 msg = key + " format not recognised for " + logger.logger_id
                 raise InputError(msg)
 
         # Get end date if specified
         key = "*STATS_END"
-        i, stats_end_str = self.get_key_data(key, data)
+        i, process_end_str = self.get_key_data(key, data)
         if i != -1:
             try:
-                logger.stats_end = parse(stats_end_str, yearfirst=True)
+                logger.process_end = parse(process_end_str, yearfirst=True)
             except ValueError:
                 msg = key + " format not recognised for " + logger.logger_id
                 raise InputError(msg)
@@ -718,8 +718,8 @@ class Control(object):
             "cols_to_process",
             "unit_conv_factors",
             "stats_interval",
-            "stats_start",
-            "stats_end",
+            "process_start",
+            "process_end",
         ]
 
         # Copy attributes from reference logger

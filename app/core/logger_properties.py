@@ -83,6 +83,14 @@ class LoggerProperties(QObject):
         self.user_channel_names = []  # *CHANNEL_NAMES
         self.user_channel_units = []  # *CHANNEL_UNITS
 
+        # Datetime range to process over
+        self.process_start = None  # *STATS_START
+        self.process_end = None  # *STATS_END
+
+        # Cut-off frequencies for filtered screening analysis
+        self.low_cutoff_freq = 0.05
+        self.high_cutoff_freq = 0.5
+
         # STATISTICS ANALYSIS PARAMETERS
         # Include in processing flag
         self.process_stats = True
@@ -90,30 +98,12 @@ class LoggerProperties(QObject):
         # Interval (in seconds) to process stats over
         self.stats_interval = 0  # *STATS_INTERVAL
 
-        # Date range to process stats over
-        self.stats_start = None  # *STATS_START
-        self.stats_end = None  # *STATS_END
-
-        # Cut-off frequencies for filtered statistics
-        self.stats_low_cutoff_freq = 0.05
-        self.stats_high_cutoff_freq = 0.5
-
         # SPECTRAL ANALYSIS PARAMETERS
         # Include in processing flag
         self.process_spectral = True
 
-        # Channel columns to process
-        self.spectral_cols = []
-
-        # Channel unit conversion factors
-        self.spectral_unit_conv_factors = []
-
         # Interval (in seconds) to process stats over
-        self.spectral_interval = 0
-
-        # Date range to process stats over
-        self.spectral_start = None
-        self.spectral_end = None
+        self.spect_interval = 0
 
         # List of raw filenames and of accepted file timestamps for each filename
         self.raw_filenames = []

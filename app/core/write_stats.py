@@ -181,14 +181,16 @@ class StatsOutput(object):
     def write_to_hdf5(self):
         """Write stats to HDF5 file."""
 
+        logger_id = replace_space_with_underscore(self.logger_id)
         file_name = os.path.join(self.output_dir, "Statistics.h5")
-        self.df_stats.to_hdf(file_name, self.logger_id)
+        self.df_stats.to_hdf(file_name, logger_id)
 
     def write_to_csv(self):
         """Write stats to csv file."""
 
+        logger_id = replace_space_with_underscore(self.logger_id)
         file_name = os.path.join(
-            self.output_dir, "Statistics_" + self.logger_id + ".csv"
+            self.output_dir, "Statistics_" + logger_id + ".csv"
         )
         self.df_stats.to_csv(file_name, index=False)
 
@@ -207,7 +209,8 @@ class StatsOutput(object):
         channels_header = channels_header[:2] + channels
 
         # Create worksheet for logger
-        ws = self.wb.create_sheet(title=self.logger_id)
+        logger_id = replace_space_with_underscore(self.logger_id)
+        ws = self.wb.create_sheet(title=logger_id)
 
         # Write headers
         ws.append(channels_header)
@@ -238,3 +241,9 @@ class StatsOutput(object):
             self.wb.save(os.path.join(self.output_dir, fname))
         except:
             print("\n\nFailed to save " + fname)
+
+
+def replace_space_with_underscore(input_str):
+    """Replace any spaces with underscores in string."""
+
+    return "_".join(input_str.split(" "))

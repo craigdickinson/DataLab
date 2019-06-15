@@ -36,15 +36,15 @@ class DataScreen(object):
         # Data completeness
         self.data_completeness = np.array([])
 
-        # Lists for sample start and end times
+        # Lists for sample start and end datetimes
         self.stats_sample_start = []
         self.stats_sample_end = []
-        self.spectral_sample_start = []
-        self.spectral_sample_end = []
+        self.spect_sample_start = []
+        self.spect_sample_end = []
 
         # Interval to calculate stats over
         self.stats_sample_length = 0
-        self.spectral_sample_length = 0
+        self.spect_sample_length = 0
 
         # File read properties
         self.file_format = "General-csv"
@@ -86,8 +86,8 @@ class DataScreen(object):
         self.use_cols = set([0] + [c - 1 for c in self.logger.cols_to_process])
 
         # Flags to set whether bandpass filtering is to be applied
-        low_cutoff = self.logger.stats_low_cutoff_freq
-        high_cutoff = self.logger.stats_high_cutoff_freq
+        low_cutoff = self.logger.low_cutoff_freq
+        high_cutoff = self.logger.high_cutoff_freq
 
         if low_cutoff is None and high_cutoff is None:
             self.apply_filters = False
@@ -227,8 +227,8 @@ class DataScreen(object):
                     self.stats_sample_start.append(df_sample.iloc[0, 0])
                     self.stats_sample_end.append(df_sample.iloc[-1, 0])
                 elif type == "spectral":
-                    self.spectral_sample_start.append(df_sample.iloc[0, 0])
-                    self.spectral_sample_end.append(df_sample.iloc[-1, 0])
+                    self.spect_sample_start.append(df_sample.iloc[0, 0])
+                    self.spect_sample_end.append(df_sample.iloc[-1, 0])
 
         return df_sample, df
 
@@ -249,7 +249,7 @@ class DataScreen(object):
 
         # Apply bandpass filter
         df_filtered = filter_signal(
-            df, self.logger.stats_low_cutoff_freq, self.logger.stats_high_cutoff_freq
+            df, self.logger.low_cutoff_freq, self.logger.high_cutoff_freq
         )
 
         if not df_filtered.empty:

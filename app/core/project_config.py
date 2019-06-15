@@ -46,7 +46,7 @@ class ProjectConfigJSONFile:
             dict_props = self.add_logger_props(logger, dict_props)
 
             # Add logger stats and spectral settings
-            dict_props = self.add_logger_analysis_settings(logger, dict_props)
+            dict_props = self.add_logger_screening_settings(logger, dict_props)
 
             # Add logger props dictionary to loggers dictionary
             self.data["loggers"][logger.logger_id] = dict_props
@@ -85,7 +85,7 @@ class ProjectConfigJSONFile:
 
         return dict_props
 
-    def add_logger_analysis_settings(self, logger, dict_props):
+    def add_logger_screening_settings(self, logger, dict_props):
         """Add control object logger stats and spectral settings to JSON dictionary."""
 
         # Processed columns group
@@ -94,44 +94,30 @@ class ProjectConfigJSONFile:
         dict_props["user_channel_names"] = logger.user_channel_names
         dict_props["user_channel_units"] = logger.user_channel_units
 
+        # Need to convert start and end datetimes to strings to write to JSON format
+        # Process start
+        if logger.process_start is None:
+            dict_props["process_start"] = None
+        else:
+            dict_props["process_start"] = logger.process_start.strftime("%Y-%m-%d %H:%M")
+
+        # Process end
+        if logger.process_end is None:
+            dict_props["process_end"] = None
+        else:
+            dict_props["process_end"] = logger.process_end.strftime("%Y-%m-%d %H:%M")
+
+        # Stats low and high cut-off frequencies
+        dict_props["low_cutoff_freq"] = logger.low_cutoff_freq
+        dict_props["high_cutoff_freq"] = logger.high_cutoff_freq
+
         # Stats settings group
         dict_props["process_stats"] = logger.process_stats
         dict_props["stats_interval"] = logger.stats_interval
 
-        # Need to convert start and end datetimes to strings to write to JSON format
-        # Stats start
-        if logger.stats_start is None:
-            dict_props["stats_start"] = None
-        else:
-            dict_props["stats_start"] = logger.stats_start.strftime("%Y-%m-%d %H:%M")
-
-        # Stats end
-        if logger.stats_end is None:
-            dict_props["stats_end"] = None
-        else:
-            dict_props["stats_end"] = logger.stats_end.strftime("%Y-%m-%d %H:%M")
-
-        # Stats low and high cut-off frequencies
-        dict_props["stats_low_cutoff_freq"] = logger.stats_low_cutoff_freq
-        dict_props["stats_high_cutoff_freq"] = logger.stats_high_cutoff_freq
-
         # Spectral settings group
         dict_props["process_spectral"] = logger.process_spectral
-        dict_props["spectral_interval"] = logger.spectral_interval
-
-        # Spectral start
-        if logger.spectral_start is None:
-            dict_props["spectral_start"] = None
-        else:
-            dict_props["spectral_start"] = logger.spectral_start.strftime(
-                "%Y-%m-%d %H:%M"
-            )
-
-        # Spectral end
-        if logger.spectral_end is None:
-            dict_props["spectral_end"] = None
-        else:
-            dict_props["spectral_end"] = logger.spectral_end.strftime("%Y-%m-%d %H:%M")
+        dict_props["spectral_interval"] = logger.spect_interval
 
         return dict_props
 
