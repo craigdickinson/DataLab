@@ -1,9 +1,16 @@
 import json
 import os
+from dateutil.parser import parse
+from app.core.logger_properties import LoggerProperties
+from PyQt5.QtCore import QObject, pyqtSignal
 
 
-class ProjectConfigJSONFile:
+class ProjectConfigJSONFile(QObject):
+    signal_warning = pyqtSignal(str)
+
     def __init__(self):
+        super().__init__()
+
         # Config data dictionary to be written to a JSON file
         self.data = {}
         self.filename = ""
@@ -13,12 +20,316 @@ class ProjectConfigJSONFile:
         """Load project config JSON file and return the dictionary data."""
 
         with open(file_name, encoding="utf-8") as f:
-            data = json.load(f)
+            self.data = json.load(f)
 
         # Store filename and set directory to project root
         file_path, self.filename = os.path.split(file_name)
 
-        return data
+    def map_json_to_control(self, control):
+        """
+        Take JSON config dictionary and map to a control class object.
+        :param control: Instance of Control class.
+        :return: Populated control object.
+        """
+
+        data = self.data
+        control = self._map_campaign_json_section(data, control)
+        control = self._map_loggers_json_section(data, control)
+        control = self._map_general_settings(data, control)
+
+        return control
+
+    def _map_campaign_json_section(self, data, control):
+        """Map the config campaign section to the control object."""
+
+        key = "campaign"
+        if key in data.keys():
+            data = data[key]
+        else:
+            msg = f"'{key}' key not found in config file."
+            self.signal_warning.emit(msg)
+            return control
+
+        control.project_num = self._get_key_value(
+            logger_id=key,
+            data=data,
+            key="project_number",
+            attr=control.project_num,
+        )
+        control.project_name = self._get_key_value(
+            logger_id=key, data=data, key="project_name", attr=control.project_name
+        )
+        control.campaign_name = self._get_key_value(
+            logger_id=key, data=data, key="campaign_name", attr=control.campaign_name
+        )
+        control.project_path = self._get_key_value(
+            logger_id=key, data=data, key="project_location", attr=control.project_path
+        )
+        control.config_file = self.filename
+
+        return control
+
+    def _map_loggers_json_section(self, data, control):
+        """Map the config loggers section to the control object for all logger."""
+
+        key = "loggers"
+        if key in data.keys():
+            data = data[key]
+        else:
+            msg = f"'{key}' key not found in config file."
+            self.signal_warning.emit(msg)
+            return control
+
+        for logger_id, dict_logger in data.items():
+            # Create new logger properties object and assign attributes from JSON dictionary
+            logger = LoggerProperties()
+            logger.logger_id = logger_id
+
+            # Logger properties
+            logger = self._map_logger_props(logger, dict_logger)
+
+            # Logger screening settings
+            logger = self._map_logger_screening_settings(logger, dict_logger)
+
+            # Finally, assign logger to control object
+            control.logger_ids.append(logger_id)
+            control.logger_ids_upper.append(logger_id.upper())
+            control.loggers.append(logger)
+
+        return control
+
+    def _map_logger_props(self, logger, dict_logger):
+        """Retrieve logger properties from JSON dictionary and map to logger object."""
+
+        logger.file_format = self._get_key_value(
+            logger_id=logger.logger_id,
+            data=dict_logger,
+            key="file_format",
+            attr=logger.file_format,
+        )
+        logger.logger_path = self._get_key_value(
+            logger_id=logger.logger_id,
+            data=dict_logger,
+            key="logger_path",
+            attr=logger.logger_path,
+        )
+        logger.file_timestamp_format = self._get_key_value(
+            logger_id=logger.logger_id,
+            data=dict_logger,
+            key="file_timestamp_format",
+            attr=logger.file_timestamp_format,
+        )
+        logger.timestamp_format = self._get_key_value(
+            logger_id=logger.logger_id,
+            data=dict_logger,
+            key="data_timestamp_format",
+            attr=logger.timestamp_format,
+        )
+        logger.datetime_format = self._get_key_value(
+            logger_id=logger.logger_id,
+            data=dict_logger,
+            key="data_datetime_format",
+            attr=logger.datetime_format,
+        )
+        logger.file_ext = self._get_key_value(
+            logger_id=logger.logger_id,
+            data=dict_logger,
+            key="file_ext",
+            attr=logger.file_ext,
+        )
+        logger.file_delimiter = self._get_key_value(
+            logger_id=logger.logger_id,
+            data=dict_logger,
+            key="file_delimiter",
+            attr=logger.file_delimiter,
+        )
+        logger.num_headers = self._get_key_value(
+            logger_id=logger.logger_id,
+            data=dict_logger,
+            key="num_header_rows",
+            attr=logger.num_headers,
+        )
+        logger.num_columns = self._get_key_value(
+            logger_id=logger.logger_id,
+            data=dict_logger,
+            key="num_columns",
+            attr=logger.num_columns,
+        )
+        logger.channel_header_row = self._get_key_value(
+            logger_id=logger.logger_id,
+            data=dict_logger,
+            key="channel_header_row",
+            attr=logger.channel_header_row,
+        )
+        logger.units_header_row = self._get_key_value(
+            logger_id=logger.logger_id,
+            data=dict_logger,
+            key="units_header_row",
+            attr=logger.units_header_row,
+        )
+        logger.freq = self._get_key_value(
+            logger_id=logger.logger_id,
+            data=dict_logger,
+            key="logging_freq",
+            attr=logger.freq,
+        )
+        logger.duration = self._get_key_value(
+            logger_id=logger.logger_id,
+            data=dict_logger,
+            key="logging_duration",
+            attr=logger.duration,
+        )
+        logger.all_channel_names = self._get_key_value(
+            logger_id=logger.logger_id,
+            data=dict_logger,
+            key="all_channel_names",
+            attr=logger.all_channel_names,
+        )
+        logger.all_channel_units = self._get_key_value(
+            logger_id=logger.logger_id,
+            data=dict_logger,
+            key="all_channel_units",
+            attr=logger.all_channel_units,
+        )
+
+        return logger
+
+    def _map_logger_screening_settings(self, logger, dict_logger):
+        """Retrieve logger screening settings from JSON dictionary and map to logger object."""
+
+        logger.cols_to_process = self._get_key_value(
+            logger_id=logger.logger_id,
+            data=dict_logger,
+            key="columns_to_process",
+            attr=logger.cols_to_process,
+        )
+        logger.unit_conv_factors = self._get_key_value(
+            logger_id=logger.logger_id,
+            data=dict_logger,
+            key="unit_convs",
+            attr=logger.unit_conv_factors,
+        )
+        logger.user_channel_names = self._get_key_value(
+            logger_id=logger.logger_id,
+            data=dict_logger,
+            key="user_channel_names",
+            attr=logger.user_channel_names,
+        )
+        logger.user_channel_units = self._get_key_value(
+            logger_id=logger.logger_id,
+            data=dict_logger,
+            key="user_channel_units",
+            attr=logger.user_channel_units,
+        )
+        process_start = self._get_key_value(
+            logger_id=logger.logger_id,
+            data=dict_logger,
+            key="process_start",
+            attr=logger.process_start,
+        )
+        if process_start is None:
+            logger.process_start = None
+        else:
+            try:
+                # Need to convert stats start to datetime
+                logger.process_start = parse(process_start, yearfirst=True)
+            except ValueError:
+                msg = f"Process start format not recognised for logger {logger.logger_id}."
+                self.signal_warning.emit(msg)
+        process_end = self._get_key_value(
+            logger_id=logger.logger_id,
+            data=dict_logger,
+            key="process_end",
+            attr=logger.process_end,
+        )
+        if process_end is None:
+            logger.process_end = None
+        else:
+            try:
+                # Need to convert stats end to datetime
+                logger.process_end = parse(process_end, yearfirst=True)
+            except ValueError:
+                msg = f"Process end format not recognised for logger {logger.logger_id}."
+                self.signal_warning.emit(msg)
+        logger.low_cutoff_freq = self._get_key_value(
+            logger_id=logger.logger_id,
+            data=dict_logger,
+            key="low_cutoff_freq",
+            attr=logger.low_cutoff_freq,
+        )
+        logger.high_cutoff_freq = self._get_key_value(
+            logger_id=logger.logger_id,
+            data=dict_logger,
+            key="high_cutoff_freq",
+            attr=logger.high_cutoff_freq,
+        )
+        logger.process_stats = self._get_key_value(
+            logger_id=logger.logger_id,
+            data=dict_logger,
+            key="process_stats",
+            attr=logger.process_stats,
+        )
+        logger.stats_interval = self._get_key_value(
+            logger_id=logger.logger_id,
+            data=dict_logger,
+            key="stats_interval",
+            attr=logger.stats_interval,
+        )
+        logger.process_spectral = self._get_key_value(
+            logger_id=logger.logger_id,
+            data=dict_logger,
+            key="process_spectral",
+            attr=logger.process_spectral,
+        )
+        logger.spect_interval = self._get_key_value(
+            logger_id=logger.logger_id,
+            data=dict_logger,
+            key="spectral_interval",
+            attr=logger.spect_interval,
+        )
+        return logger
+
+    def _map_general_settings(self, data, control):
+        """Map the general settings section to the control object."""
+
+        key = "general"
+        if key in data.keys():
+            data = data[key]
+        else:
+            msg = f"'{key}' key not found in config file."
+            self.signal_warning.emit(msg)
+            return control
+
+        control.stats_to_h5 = self._get_key_value(
+            logger_id=key, data=data, key="stats_to_h5", attr=control.stats_to_h5
+        )
+        control.stats_to_csv = self._get_key_value(
+            logger_id=key, data=data, key="stats_to_csv", attr=control.stats_to_csv
+        )
+        control.stats_to_xlsx = self._get_key_value(
+            logger_id=key, data=data, key="stats_to_xlsx", attr=control.stats_to_xlsx
+        )
+        control.spect_to_h5 = self._get_key_value(
+            logger_id=key, data=data, key="spectral_to_h5", attr=control.spect_to_h5
+        )
+        control.spect_to_csv = self._get_key_value(
+            logger_id=key, data=data, key="spectral_to_csv", attr=control.spect_to_csv
+        )
+        control.spect_to_xlsx = self._get_key_value(
+            logger_id=key, data=data, key="spectral_to_xlsx", attr=control.spect_to_xlsx
+        )
+
+        return control
+
+    def _get_key_value(self, logger_id, data, key, attr=None):
+        """Assign data from a JSON key to control object attribute."""
+
+        if key in data.keys():
+            return data[key]
+        else:
+            msg = f"{key} key not found in config file for {logger_id} logger"
+            self.signal_warning.emit(msg)
+            return attr
 
     def add_campaign_data(self, control):
         """Add project and campaign details."""
@@ -43,10 +354,10 @@ class ProjectConfigJSONFile:
             dict_props = dict()
 
             # Add logger properties
-            dict_props = self.add_logger_props(logger, dict_props)
+            dict_props = self._add_logger_props(logger, dict_props)
 
             # Add logger stats and spectral settings
-            dict_props = self.add_logger_screening_settings(logger, dict_props)
+            dict_props = self._add_logger_screening_settings(logger, dict_props)
 
             # Add logger props dictionary to loggers dictionary
             self.data["loggers"][logger.logger_id] = dict_props
@@ -64,7 +375,8 @@ class ProjectConfigJSONFile:
 
         self.data["general"] = d
 
-    def add_logger_props(self, logger, dict_props):
+    @staticmethod
+    def _add_logger_props(logger, dict_props):
         """Add control object logger properties to JSON dictionary."""
 
         dict_props["file_format"] = logger.file_format
@@ -85,7 +397,8 @@ class ProjectConfigJSONFile:
 
         return dict_props
 
-    def add_logger_screening_settings(self, logger, dict_props):
+    @staticmethod
+    def _add_logger_screening_settings(logger, dict_props):
         """Add control object logger stats and spectral settings to JSON dictionary."""
 
         # Processed columns group

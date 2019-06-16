@@ -199,7 +199,7 @@ class RawDataDashboard(QtWidgets.QWidget):
         except Exception as e:
             msg = "Unexpected error loading logger file"
             self.parent.error(f"{msg}:\n{e}\n{sys.exc_info()[0]}")
-            logging.exception(msg)
+            logging.exception(e)
 
     def on_file_double_clicked(self):
         self.on_replot_clicked()
@@ -362,7 +362,7 @@ class RawDataDashboard(QtWidgets.QWidget):
         except Exception as e:
             msg = "Unexpected error processing loggers"
             self.parent.error(f"{msg}:\n{e}\n{sys.exc_info()[0]}")
-            logging.exception(msg)
+            logging.exception(e)
 
         # Titles and legend
         self.plot_title(self.fig, self.df_plot)
@@ -759,7 +759,7 @@ class RawDataDashboard(QtWidgets.QWidget):
     #         except Exception as e:
     #             msg = 'Unexpected error on plotting logger file'
     #             self.parent.error(f'{msg}:\n{e}\n{sys.exc_info()[0]}')
-    #             logging.exception(msg)
+    #             logging.exception(e)
     #
     # def extend_backward(self):
     #     df_plot = self.df_plot

@@ -91,6 +91,10 @@ class LoggerProperties(QObject):
         self.low_cutoff_freq = 0.05
         self.high_cutoff_freq = 0.5
 
+        # 0 = unfiltered only, 1 = filtered only, 2 = both unfiltered and filtered
+        self.screen_on_idx = 2
+        self.screen_on_str = "Both unfiltered and filtered"
+
         # STATISTICS ANALYSIS PARAMETERS
         # Include in processing flag
         self.process_stats = True
@@ -373,8 +377,8 @@ class LoggerProperties(QObject):
         # If missing cols found, warn user
         if warn_flag is True:
             msg = (
-                f"Number of columns in test file for logger {self.logger_id} is less than {last_col}.\n"
-                f"Dummy column names will be created for missing columns.\n"
+                f"Number of columns in test file for logger {self.logger_id} is less than {last_col}.\n\n"
+                f"Dummy column names will be created for missing columns.\n\n"
                 f"Alternatively, input custom channel and unit names."
                 f"\nTest file: {test_file}."
             )

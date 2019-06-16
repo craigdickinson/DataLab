@@ -262,7 +262,7 @@ class SpectrogramWidget(QtWidgets.QWidget):
         except Exception as e:
             msg = "Unexpected error loading plotting spectrogram"
             self.parent.error(f"{msg}:\n{e}\n{sys.exc_info()[0]}")
-            logging.exception(msg)
+            logging.exception(e)
 
     def create_plots(self):
         """Create spectrograms plots dashboard."""

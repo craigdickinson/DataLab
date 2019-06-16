@@ -154,7 +154,7 @@ class DataLab(DataLabGui):
             except Exception as e:
                 msg = "Unexpected error processing loggers"
                 self.error(f"{msg}:\n{e}\n{sys.exc_info()[0]}")
-                logging.exception(msg)
+                logging.exception(e)
 
             self.view_mod_raw_data()
 
@@ -448,9 +448,9 @@ class DataLab(DataLabGui):
 
                 # Check requested channels exist
                 if logger.process_stats is True or logger.process_spectral is True:
-                    # Connect to warning signal to warning message box in DataLab class
+                    # Connect warning signal to warning message box in DataLab class
                     try:
-                        # Diconnect any existing connection to prevent repeated triggerings
+                        # Disconnect any existing connection to prevent repeated triggerings
                         logger.signal_warning.disconnect()
                     except:
                         pass
@@ -470,7 +470,7 @@ class DataLab(DataLabGui):
         except Exception as e:
             msg = "Unexpected error on preparing config setup"
             self.error(f"{msg}:\n{e}\n{sys.exc_info()[0]}")
-            return logging.exception(msg)
+            return logging.exception(e)
 
         self.run_analysis(control)
 
@@ -491,7 +491,7 @@ class DataLab(DataLabGui):
         except Exception as e:
             msg = "Unexpected error on processing config setup"
             self.error(f"{msg}:\n{e}\n{sys.exc_info()[0]}")
-            logging.exception(msg)
+            logging.exception(e)
 
     def set_datalab_output_to_gui(self, datalab):
         """Map results from processing to the GUI."""
@@ -541,7 +541,7 @@ class DataLab(DataLabGui):
             except Exception as e:
                 msg = "Unexpected error generating seascatter diagram"
                 self.error(f"{msg}:\n{e}\n{sys.exc_info()[0]}")
-                logging.exception(msg)
+                logging.exception(e)
 
         self.view_tab_seascatter()
 
@@ -622,7 +622,7 @@ class ControlFileWorker(QtCore.QThread):
         except Exception as e:
             msg = "Unexpected error processing control file"
             self.signal_error.emit(f"{msg}:\n{e}\n{sys.exc_info()[0]}")
-            logging.exception(msg)
+            logging.exception(e)
         finally:
             self.parent.setEnabled(True)
 

@@ -8,6 +8,7 @@ import os
 import sys
 
 from PyQt5 import QtCore, QtGui, QtWidgets
+from PyQt5.QtCore import pyqtSlot
 from dateutil.parser import parse
 
 from app.core.control import Control, InputError
@@ -37,10 +38,10 @@ class ConfigModule(QtWidgets.QWidget):
         # JSON config class - hold config data dictionary
         self.config = ProjectConfigJSONFile()
         self.control = Control()
-        self.init_ui()
-        self.connect_signals()
+        self._init_ui()
+        self._connect_signals()
 
-    def init_ui(self):
+    def _init_ui(self):
         self.layout = QtWidgets.QGridLayout(self)
 
         # Container for load and save buttons and logger select drop down
@@ -112,7 +113,7 @@ class ConfigModule(QtWidgets.QWidget):
         self.layout.addWidget(self.newProjButton, 2, 0, QtCore.Qt.AlignLeft)
         # self.layout.addWidget(self.runWidget, 1, 2, QtCore.Qt.AlignTop)
 
-    def connect_signals(self):
+    def _connect_signals(self):
         self.loadConfigButton.clicked.connect(self.on_load_config_clicked)
         self.saveConfigButton.clicked.connect(self.on_save_config_clicked)
         self.addLoggerButton.clicked.connect(self.on_add_logger_clicked)
@@ -121,6 +122,7 @@ class ConfigModule(QtWidgets.QWidget):
         self.loggersList.itemChanged.connect(self.on_logger_item_edited)
         self.newProjButton.clicked.connect(self.on_new_project_clicked)
         self.processButton.clicked.connect(self.on_process_clicked)
+        self.config.signal_warning.connect(self.raise_warning)
 
     def on_load_config_clicked(self):
         """Load config JSON file."""
@@ -132,24 +134,21 @@ class ConfigModule(QtWidgets.QWidget):
         if filename:
             try:
                 # Read JSON file and store data in config object
-                data = self.config.load_config_data(filename)
+                self.config.load_config_data(filename)
 
-                # Create new control object to hold setup data
-                self.control = Control()
+                # Map JSON data to new control object to hold setup data
+                self.control = self.config.map_json_to_control(Control())
 
                 # Assign config data to control object and project dashboard
-                self.control = self.map_campaign_json_section(data, self.control)
-                self.control = self.map_loggers_json_section(data, self.control)
-                self.control = self.map_general_settings(data, self.control)
-                self.set_dashboards()
-                self.set_window_title(filename)
+                self._set_dashboards()
+                self._set_window_title(filename)
             except InputError as e:
                 self.parent.error(str(e))
                 logging.exception(e)
             except Exception as e:
                 msg = "Unexpected error loading config file"
                 self.parent.error(f"{msg}:\n{e}\n{sys.exc_info()[0]}")
-                logging.exception(msg)
+                logging.exception(e)
 
         # Update control object in DataLab instance
         self.parent.control = self.control
@@ -179,7 +178,7 @@ class ConfigModule(QtWidgets.QWidget):
         except Exception as e:
             msg = "Unexpected error saving project config"
             self.parent.error(f"{msg}:\n{e}\n{sys.exc_info()[0]}")
-            logging.exception(msg)
+            logging.exception(e)
 
         # Check file created
         if os.path.exists(self.config.full_path):
@@ -319,309 +318,14 @@ class ConfigModule(QtWidgets.QWidget):
         self.analysisTab.clear_dashboard()
 
         # Reset window title
-        self.set_window_title()
+        self._set_window_title()
 
     def on_process_clicked(self):
         """Run DataLab processing engine - call function in main DataLab class."""
 
         self.parent.analyse_config_setup(self.control)
 
-    def map_campaign_json_section(self, data, control):
-        """Map the config campaign section to the control object."""
-
-        key = "campaign"
-        if key in data.keys():
-            data = data[key]
-        else:
-            msg = f"'{key}' key not found in config file"
-            self.parent.warning(msg)
-            return control
-
-        control.project_num = self.get_key_value(
-            logger_id=key,
-            data=data,
-            key="project_number",
-            attr=self.control.project_num,
-        )
-        control.project_name = self.get_key_value(
-            logger_id=key, data=data, key="project_name", attr=control.project_name
-        )
-        control.campaign_name = self.get_key_value(
-            logger_id=key, data=data, key="campaign_name", attr=control.campaign_name
-        )
-        control.project_path = self.get_key_value(
-            logger_id=key, data=data, key="project_location", attr=control.project_path
-        )
-        control.config_file = self.config.filename
-
-        return control
-
-    def map_loggers_json_section(self, data, control):
-        """Map the config loggers section to the control object for all logger."""
-
-        key = "loggers"
-        if key in data.keys():
-            data = data[key]
-        else:
-            msg = f"'{key}' key not found in config file"
-            self.parent.warning(msg)
-            return control
-
-        for logger_id, dict_logger in data.items():
-            # Create new logger properties object and assign attributes from JSON dictionary
-            logger = LoggerProperties()
-            logger.logger_id = logger_id
-
-            # Logger properties
-            logger = self.map_logger_props(logger, dict_logger)
-
-            # Logger screening settings
-            logger = self.map_logger_screening_settings(logger, dict_logger)
-
-            # Finally, assign logger to control object
-            control.logger_ids.append(logger_id)
-            control.logger_ids_upper.append(logger_id.upper())
-            control.loggers.append(logger)
-
-        return control
-
-    def map_logger_props(self, logger, dict_logger):
-        """Retrieve logger properties from JSON dictionary and map to logger object."""
-
-        logger.file_format = self.get_key_value(
-            logger_id=logger.logger_id,
-            data=dict_logger,
-            key="file_format",
-            attr=logger.file_format,
-        )
-        logger.logger_path = self.get_key_value(
-            logger_id=logger.logger_id,
-            data=dict_logger,
-            key="logger_path",
-            attr=logger.logger_path,
-        )
-        logger.file_timestamp_format = self.get_key_value(
-            logger_id=logger.logger_id,
-            data=dict_logger,
-            key="file_timestamp_format",
-            attr=logger.file_timestamp_format,
-        )
-        logger.timestamp_format = self.get_key_value(
-            logger_id=logger.logger_id,
-            data=dict_logger,
-            key="data_timestamp_format",
-            attr=logger.timestamp_format,
-        )
-        logger.datetime_format = self.get_key_value(
-            logger_id=logger.logger_id,
-            data=dict_logger,
-            key="data_datetime_format",
-            attr=logger.datetime_format,
-        )
-        logger.file_ext = self.get_key_value(
-            logger_id=logger.logger_id,
-            data=dict_logger,
-            key="file_ext",
-            attr=logger.file_ext,
-        )
-        logger.file_delimiter = self.get_key_value(
-            logger_id=logger.logger_id,
-            data=dict_logger,
-            key="file_delimiter",
-            attr=logger.file_delimiter,
-        )
-        logger.num_headers = self.get_key_value(
-            logger_id=logger.logger_id,
-            data=dict_logger,
-            key="num_header_rows",
-            attr=logger.num_headers,
-        )
-        logger.num_columns = self.get_key_value(
-            logger_id=logger.logger_id,
-            data=dict_logger,
-            key="num_columns",
-            attr=logger.num_columns,
-        )
-        logger.channel_header_row = self.get_key_value(
-            logger_id=logger.logger_id,
-            data=dict_logger,
-            key="channel_header_row",
-            attr=logger.channel_header_row,
-        )
-        logger.units_header_row = self.get_key_value(
-            logger_id=logger.logger_id,
-            data=dict_logger,
-            key="units_header_row",
-            attr=logger.units_header_row,
-        )
-        logger.freq = self.get_key_value(
-            logger_id=logger.logger_id,
-            data=dict_logger,
-            key="logging_freq",
-            attr=logger.freq,
-        )
-        logger.duration = self.get_key_value(
-            logger_id=logger.logger_id,
-            data=dict_logger,
-            key="logging_duration",
-            attr=logger.duration,
-        )
-        logger.all_channel_names = self.get_key_value(
-            logger_id=logger.logger_id,
-            data=dict_logger,
-            key="all_channel_names",
-            attr=logger.all_channel_names,
-        )
-        logger.all_channel_units = self.get_key_value(
-            logger_id=logger.logger_id,
-            data=dict_logger,
-            key="all_channel_units",
-            attr=logger.all_channel_units,
-        )
-
-        return logger
-
-    def map_logger_screening_settings(self, logger, dict_logger):
-        """Retrieve logger screening settings from JSON dictionary and map to logger object."""
-
-        logger.cols_to_process = self.get_key_value(
-            logger_id=logger.logger_id,
-            data=dict_logger,
-            key="columns_to_process",
-            attr=logger.cols_to_process,
-        )
-        logger.unit_conv_factors = self.get_key_value(
-            logger_id=logger.logger_id,
-            data=dict_logger,
-            key="unit_convs",
-            attr=logger.unit_conv_factors,
-        )
-        logger.user_channel_names = self.get_key_value(
-            logger_id=logger.logger_id,
-            data=dict_logger,
-            key="user_channel_names",
-            attr=logger.user_channel_names,
-        )
-        logger.user_channel_units = self.get_key_value(
-            logger_id=logger.logger_id,
-            data=dict_logger,
-            key="user_channel_units",
-            attr=logger.user_channel_units,
-        )
-        process_start = self.get_key_value(
-            logger_id=logger.logger_id,
-            data=dict_logger,
-            key="process_start",
-            attr=logger.process_start,
-        )
-        if process_start is None:
-            logger.process_start = None
-        else:
-            try:
-                # Need to convert stats start to datetime
-                logger.process_start = parse(process_start, yearfirst=True)
-            except ValueError:
-                self.parent.warning(
-                    f"Process start format not recognised for logger {logger.logger_id}."
-                )
-        process_end = self.get_key_value(
-            logger_id=logger.logger_id,
-            data=dict_logger,
-            key="process_end",
-            attr=logger.process_end,
-        )
-        if process_end is None:
-            logger.process_end = None
-        else:
-            try:
-                # Need to convert stats end to datetime
-                logger.process_end = parse(process_end, yearfirst=True)
-            except ValueError:
-                self.parent.warning(
-                    f"Process end format not recognised for logger {logger.logger_id}."
-                )
-        logger.low_cutoff_freq = self.get_key_value(
-            logger_id=logger.logger_id,
-            data=dict_logger,
-            key="low_cutoff_freq",
-            attr=logger.low_cutoff_freq,
-        )
-        logger.high_cutoff_freq = self.get_key_value(
-            logger_id=logger.logger_id,
-            data=dict_logger,
-            key="high_cutoff_freq",
-            attr=logger.high_cutoff_freq,
-        )
-        logger.process_stats = self.get_key_value(
-            logger_id=logger.logger_id,
-            data=dict_logger,
-            key="process_stats",
-            attr=logger.process_stats,
-        )
-        logger.stats_interval = self.get_key_value(
-            logger_id=logger.logger_id,
-            data=dict_logger,
-            key="stats_interval",
-            attr=logger.stats_interval,
-        )
-        logger.process_spectral = self.get_key_value(
-            logger_id=logger.logger_id,
-            data=dict_logger,
-            key="process_spectral",
-            attr=logger.process_spectral,
-        )
-        logger.spect_interval = self.get_key_value(
-            logger_id=logger.logger_id,
-            data=dict_logger,
-            key="spectral_interval",
-            attr=logger.spect_interval,
-        )
-        return logger
-
-    def map_general_settings(self, data, control):
-        """Map the general settings section to the control object."""
-
-        key = "general"
-        if key in data.keys():
-            data = data[key]
-        else:
-            msg = f"'{key}' key not found in config file"
-            self.parent.warning(msg)
-            return control
-
-        control.stats_to_h5 = self.get_key_value(
-            logger_id=key, data=data, key="stats_to_h5", attr=control.stats_to_h5
-        )
-        control.stats_to_csv = self.get_key_value(
-            logger_id=key, data=data, key="stats_to_csv", attr=control.stats_to_csv
-        )
-        control.stats_to_xlsx = self.get_key_value(
-            logger_id=key, data=data, key="stats_to_xlsx", attr=control.stats_to_xlsx
-        )
-        control.spect_to_h5 = self.get_key_value(
-            logger_id=key, data=data, key="spectral_to_h5", attr=control.spect_to_h5
-        )
-        control.spect_to_csv = self.get_key_value(
-            logger_id=key, data=data, key="spectral_to_csv", attr=control.spect_to_csv
-        )
-        control.spect_to_xlsx = self.get_key_value(
-            logger_id=key, data=data, key="spectral_to_xlsx", attr=control.spect_to_xlsx
-        )
-
-        return control
-
-    def get_key_value(self, logger_id, data, key, attr=None):
-        """Assign data from a JSON key to control object attribute."""
-
-        if key in data.keys():
-            return data[key]
-        else:
-            self.parent.warning(
-                f"{key} key not found in config file for {logger_id} logger"
-            )
-            return attr
-
-    def set_dashboards(self):
+    def _set_dashboards(self):
         """Set dashboard values with data in control object after loading JSON file."""
 
         # First need to map the newly loaded control object to campaignTab and loggerTab
@@ -650,7 +354,7 @@ class ConfigModule(QtWidgets.QWidget):
             self.analysisTab.set_analysis_dashboard(logger)
             self.set_logger_header_list(logger)
 
-    def set_window_title(self, filename=None):
+    def _set_window_title(self, filename=None):
         """Update main window title with config filename."""
 
         if filename:
@@ -659,6 +363,10 @@ class ConfigModule(QtWidgets.QWidget):
             )
         else:
             self.parent.setWindowTitle(f"DataLab {self.parent.version}")
+
+    @pyqtSlot(str)
+    def raise_warning(self, msg):
+        self.parent.warning(msg)
 
 
 class CampaignInfoTab(QtWidgets.QWidget):
@@ -905,7 +613,7 @@ class StatsAndSpectralSettingsTab(QtWidgets.QWidget):
         self.editButton = QtWidgets.QPushButton("Edit Data")
         self.editButton.setShortcut("Ctrl+E")
 
-        # Processed columns group
+        # General settings group
         self.colsGroup = QtWidgets.QGroupBox("General Settings")
 
         self.columns = QtWidgets.QLabel("-")
@@ -914,6 +622,11 @@ class StatsAndSpectralSettingsTab(QtWidgets.QWidget):
         self.channelUnits = QtWidgets.QLabel("-")
         self.processStart = QtWidgets.QLabel("-")
         self.processEnd = QtWidgets.QLabel("-")
+
+        # Low and high cut-off frequencies
+        self.lowCutoff = QtWidgets.QLabel("-")
+        self.highCutoff = QtWidgets.QLabel("-")
+        self.dataToProcess = QtWidgets.QLabel("-")
 
         self.colsForm = QtWidgets.QFormLayout(self.colsGroup)
         self.colsForm.addRow(QtWidgets.QLabel("Columns to process:"), self.columns)
@@ -928,6 +641,13 @@ class StatsAndSpectralSettingsTab(QtWidgets.QWidget):
         )
         self.colsForm.addRow(QtWidgets.QLabel("Start timestamp:"), self.processStart)
         self.colsForm.addRow(QtWidgets.QLabel("End timestamp:"), self.processEnd)
+        self.colsForm.addRow(
+            QtWidgets.QLabel("Low cut-off frequency (Hz):"), self.lowCutoff
+        )
+        self.colsForm.addRow(
+            QtWidgets.QLabel("High cut-off frequency (Hz):"), self.highCutoff
+        )
+        self.colsForm.addRow(QtWidgets.QLabel("Screen on:"), self.dataToProcess)
 
         # Stats settings group
         self.statsGroup = QtWidgets.QGroupBox("Statistical Analysis Settings")
@@ -937,20 +657,9 @@ class StatsAndSpectralSettingsTab(QtWidgets.QWidget):
         self.processStatsChkBox.setChecked(True)
         self.statsInterval = QtWidgets.QLabel("-")
 
-        # Low and high cut-off frequencies
-        self.lowCutoff = QtWidgets.QLabel("-")
-        self.highCutoff = QtWidgets.QLabel("-")
-
         self.statsForm = QtWidgets.QFormLayout(self.statsGroup)
         self.statsForm.addRow(self.processStatsChkBox, QtWidgets.QLabel(""))
         self.statsForm.addRow(QtWidgets.QLabel("Sample length (s):"), self.statsInterval)
-
-        self.statsForm.addRow(
-            QtWidgets.QLabel("Low cut-off frequency (Hz):"), self.lowCutoff
-        )
-        self.statsForm.addRow(
-            QtWidgets.QLabel("High cut-off frequency (Hz):"), self.highCutoff
-        )
 
         # Stats output file formats group
         policy = QtWidgets.QSizePolicy(
@@ -1162,6 +871,9 @@ class StatsAndSpectralSettingsTab(QtWidgets.QWidget):
         else:
             self.highCutoff.setText(f"{logger.high_cutoff_freq:.2f}")
 
+        # Screen on
+        self.dataToProcess.setText(logger.screen_on_str)
+
         # Stats interval
         self.statsInterval.setText(str(logger.stats_interval))
 
@@ -1207,11 +919,12 @@ class StatsAndSpectralSettingsTab(QtWidgets.QWidget):
         self.unitConvs.setText("-")
         self.channelNames.setText("-")
         self.channelUnits.setText("-")
-        self.statsInterval.setText("-")
         self.processStart.setText("-")
         self.processEnd.setText("-")
         self.lowCutoff.setText("-")
         self.highCutoff.setText("-")
+        self.dataToProcess.setText("-")
+        self.statsInterval.setText("-")
         self.spectInterval.setText("-")
 
 
@@ -1595,7 +1308,7 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
                 test_logger.units_header_row = int(self.unitsHeaderRow.text())
 
             # Set detected file properties to dialog
-            self.set_detected_file_props_to_dialog(test_logger)
+            self._set_detected_file_props_to_dialog(test_logger)
         except LoggerError as e:
             QtWidgets.QMessageBox.warning(self, "Error", str(e))
             logging.exception(e)
@@ -1609,7 +1322,7 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
             )
             logging.exception(e)
 
-    def set_detected_file_props_to_dialog(self, test_logger):
+    def _set_detected_file_props_to_dialog(self, test_logger):
         """
         Set the following detected (if found) logger properties to the edit dialog:
             sampling frequency
@@ -1632,8 +1345,8 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
         """Assign logger properties to the control object and update the dashboard."""
 
         try:
-            self.set_control_data()
-            self.detect_header()
+            self._set_control_data()
+            self._detect_header()
             self.parent.set_logger_dashboard(self.logger)
             self.parent.parent.update_logger_id_list(
                 self.logger.logger_id, self.logger_idx
@@ -1646,7 +1359,7 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
             )
             logging.exception(e)
 
-    def set_control_data(self):
+    def _set_control_data(self):
         """Assign values to the control object."""
 
         logger = self.logger
@@ -1672,7 +1385,7 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
         logger.freq = int(self.loggingFreq.text())
         logger.duration = float(self.loggingDuration.text())
 
-    def detect_header(self):
+    def _detect_header(self):
         """Store all channel and units names from a test file, if present. Header info will then be set in the gui."""
 
         try:
@@ -1713,7 +1426,7 @@ class EditStatsAndSpectralDialog(QtWidgets.QDialog):
 
         self.layout = QtWidgets.QVBoxLayout(self)
 
-        # Processed columns group
+        # General settings group
         self.colsGroup = QtWidgets.QGroupBox("General Settings")
         self.columns = QtWidgets.QLineEdit()
         self.columns.setToolTip("Column numbers to process, separated by a space.\n"
@@ -1744,6 +1457,12 @@ class EditStatsAndSpectralDialog(QtWidgets.QDialog):
         self.highCutoff.setFixedWidth(40)
         self.highCutoff.setValidator(dbl_validator)
 
+        self.dataToProcess = QtWidgets.QComboBox()
+        self.dataToProcess.addItems(["Unfiltered only",
+                                     "Filtered only",
+                                     "Both unfiltered and filtered"])
+        self.dataToProcess.setCurrentIndex(2)
+
         # Form layout
         self.colsForm = QtWidgets.QFormLayout(self.colsGroup)
         self.colsForm.addRow(QtWidgets.QLabel("Columns to process:"), self.columns)
@@ -1764,9 +1483,10 @@ class EditStatsAndSpectralDialog(QtWidgets.QDialog):
         self.colsForm.addRow(
             QtWidgets.QLabel("High cut-off frequency (Hz):"), self.highCutoff
         )
+        self.colsForm.addRow(QtWidgets.QLabel("Screen on:"), self.dataToProcess)
 
         # Stats settings group
-        self.statsGroup = QtWidgets.QGroupBox("Logger Statistics Settings")
+        self.statsGroup = QtWidgets.QGroupBox("Statistics Screening Settings")
         self.statsInterval = QtWidgets.QLineEdit()
         self.statsInterval.setFixedWidth(40)
         self.statsInterval.setValidator(int_validator)
@@ -1776,7 +1496,7 @@ class EditStatsAndSpectralDialog(QtWidgets.QDialog):
         self.statsForm.addRow(QtWidgets.QLabel("Sample length (s):"), self.statsInterval)
 
         # Spectral settings group
-        self.spectGroup = QtWidgets.QGroupBox("Logger Spectral Settings")
+        self.spectGroup = QtWidgets.QGroupBox("Spectral Screening Settings")
 
         self.spectInterval = QtWidgets.QLineEdit()
         self.spectInterval.setFixedWidth(40)
@@ -1927,6 +1647,10 @@ class EditStatsAndSpectralDialog(QtWidgets.QDialog):
                 logger.high_cutoff_freq = None
         except:
             logger.high_cutoff_freq = None
+
+        # Store combo box index of data to screen on selection
+        logger.screen_on_idx = self.dataToProcess.currentIndex()
+        logger.screen_on_str = self.dataToProcess.currentText()
 
         # Stats settings group
         logger.stats_interval = int(self.statsInterval.text())

@@ -1,8 +1,8 @@
 """
-Created on 22 Sep 2016
-
-@author: bowdenc
+Class to calculate and hold logger statistics.
 """
+__author__ = "Craig Dickinson"
+
 import numpy as np
 
 
