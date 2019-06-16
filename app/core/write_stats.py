@@ -63,25 +63,27 @@ class StatsOutput(object):
         # Create headers
         channels = logger.channel_names
         channels_header_unfilt = [x for chan in channels for x in [chan] * 4]
+        channels_header_filt = [x for chan in channels for x in [f"{chan} (filtered)"] * 4]
         stats_header = ["min", "max", "mean", "std"] * len(channels)
         units_header = [x for unit in logger.channel_units for x in [unit] * 4]
 
-        # Join original and filtered stats columns
-        if filtered_stats is not None:
+        # If both unfiltered and filtered stats generated, join unfiltered and filtered stats columns
+        if unfiltered_stats and filtered_stats:
             # Join unfiltered and filtered stats arrays
             self.stats = np.hstack((unfiltered_stats, filtered_stats))
 
             # Create headers containing unfiltered and filtered channels
-            channel_header_filt = [
-                x for chan in channels for x in [f"{chan} (filtered)"] * 4
-            ]
-            channels_header = channels_header_unfilt + channel_header_filt
+            channels_header = channels_header_unfilt + channels_header_filt
             stats_header *= 2
             units_header *= 2
-        # Use only unfiltered stats columns
-        else:
+        # Filtered stats not generated
+        elif unfiltered_stats:
             self.stats = unfiltered_stats
             channels_header = channels_header_unfilt
+        # unfiltered stats not generated
+        elif filtered_stats:
+            self.stats = filtered_stats
+            channels_header = channels_header_filt
 
         # Create pandas multi-index header
         header = self._create_header(channels_header, stats_header, units_header)
@@ -94,8 +96,9 @@ class StatsOutput(object):
             self.stats, sample_start, sample_end, header
         )
 
-        # Reorder stats data frame columns to preferred order of (channel, channel (filtered)) pairs if filtering used
-        if filtered_stats is not None:
+        # If unfiltered and filtered processed reorder stats data frame columns to
+        # preferred order of (channel, channel (filtered)) pairs
+        if unfiltered_stats and filtered_stats:
             cols = self._reorder_columns(df)
             df = df[cols]
             self.df_stats = self.df_stats[["Start", "End"] + cols]
@@ -112,7 +115,7 @@ class StatsOutput(object):
         """
 
         if len(logger_stats.min) == 0:
-            return None
+            return []
 
         num_pts = len(logger_stats.min)
 

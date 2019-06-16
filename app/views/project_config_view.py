@@ -35,8 +35,6 @@ class ConfigModule(QtWidgets.QWidget):
         self.parent = parent
         self.skip_on_logger_item_edited = False
 
-        # JSON config class - hold config data dictionary
-        self.config = ProjectConfigJSONFile()
         self.control = Control()
         self._init_ui()
         self._connect_signals()
@@ -122,7 +120,6 @@ class ConfigModule(QtWidgets.QWidget):
         self.loggersList.itemChanged.connect(self.on_logger_item_edited)
         self.newProjButton.clicked.connect(self.on_new_project_clicked)
         self.processButton.clicked.connect(self.on_process_clicked)
-        self.config.signal_warning.connect(self.raise_warning)
 
     def on_load_config_clicked(self):
         """Load config JSON file."""
@@ -133,11 +130,17 @@ class ConfigModule(QtWidgets.QWidget):
 
         if filename:
             try:
+                # JSON config class - holds config data dictionary
+                config = ProjectConfigJSONFile()
+
+                # Connect warning signal
+                config.signal_warning.connect(self.raise_warning)
+
                 # Read JSON file and store data in config object
-                self.config.load_config_data(filename)
+                config.load_config_data(filename)
 
                 # Map JSON data to new control object to hold setup data
-                self.control = self.config.map_json_to_control(Control())
+                self.control = config.map_json_to_control(Control())
 
                 # Assign config data to control object and project dashboard
                 self._set_dashboards()
@@ -166,11 +169,11 @@ class ConfigModule(QtWidgets.QWidget):
 
         # Compile configuration data into a dictionary and save as a json file
         try:
-            self.config = ProjectConfigJSONFile()
-            self.config.add_campaign_data(self.control)
-            self.config.add_logger_data(self.control.loggers)
-            self.config.add_general_data(self.control)
-            self.config.save_config(
+            config = ProjectConfigJSONFile()
+            config.add_campaign_data(self.control)
+            config.add_loggers_data(self.control.loggers)
+            config.add_general_data(self.control)
+            config.save_config(
                 proj_num=self.control.project_num,
                 proj_name=self.control.project_name,
                 proj_path=self.control.project_path,
@@ -181,11 +184,11 @@ class ConfigModule(QtWidgets.QWidget):
             logging.exception(e)
 
         # Check file created
-        if os.path.exists(self.config.full_path):
+        if os.path.exists(config.full_path):
             # Update config dashboard with config filename and inform user
-            self.control.config_file = self.config.filename
-            self.campaignTab.configFile.setText(self.config.filename)
-            msg = f"Project config settings saved to:\n{self.config.full_path}"
+            self.control.config_file = config.filename
+            self.campaignTab.configFile.setText(config.filename)
+            msg = f"Project config settings saved to:\n{config.full_path}"
             QtWidgets.QMessageBox.information(self, "Save Project Config", msg)
 
             # Update control object in DataLab instance
@@ -301,7 +304,6 @@ class ConfigModule(QtWidgets.QWidget):
         """Clear project control object and all config dashboard values."""
 
         # Create new control object and map to campaign, logger properties and analysis tabs
-        self.config = ProjectConfigJSONFile()
         self.control = Control()
         self.campaignTab.control = self.control
         self.loggerPropsTab.control = self.control
@@ -610,26 +612,29 @@ class StatsAndSpectralSettingsTab(QtWidgets.QWidget):
     def init_ui(self):
         """Create widget layout."""
 
+        # Define widgets
         self.editButton = QtWidgets.QPushButton("Edit Data")
         self.editButton.setShortcut("Ctrl+E")
-
-        # General settings group
-        self.colsGroup = QtWidgets.QGroupBox("General Settings")
-
         self.columns = QtWidgets.QLabel("-")
         self.unitConvs = QtWidgets.QLabel("-")
         self.channelNames = QtWidgets.QLabel("-")
         self.channelUnits = QtWidgets.QLabel("-")
         self.processStart = QtWidgets.QLabel("-")
         self.processEnd = QtWidgets.QLabel("-")
-
-        # Low and high cut-off frequencies
+        self.processType = QtWidgets.QLabel("-")
         self.lowCutoff = QtWidgets.QLabel("-")
         self.highCutoff = QtWidgets.QLabel("-")
-        self.dataToProcess = QtWidgets.QLabel("-")
+        self.processStatsChkBox = QtWidgets.QCheckBox("Include in processing")
+        self.processStatsChkBox.setChecked(True)
+        self.statsInterval = QtWidgets.QLabel("-")
+        self.processSpectChkBox = QtWidgets.QCheckBox("Include in processing")
+        self.processSpectChkBox.setChecked(True)
+        self.spectInterval = QtWidgets.QLabel("-")
 
+        # Columns to process group
+        self.colsGroup = QtWidgets.QGroupBox("Columns to Process Settings")
         self.colsForm = QtWidgets.QFormLayout(self.colsGroup)
-        self.colsForm.addRow(QtWidgets.QLabel("Columns to process:"), self.columns)
+        self.colsForm.addRow(QtWidgets.QLabel("Column numbers to process:"), self.columns)
         self.colsForm.addRow(
             QtWidgets.QLabel("Unit conversion factors:"), self.unitConvs
         )
@@ -639,24 +644,27 @@ class StatsAndSpectralSettingsTab(QtWidgets.QWidget):
         self.colsForm.addRow(
             QtWidgets.QLabel("Channel units override (optional):"), self.channelUnits
         )
-        self.colsForm.addRow(QtWidgets.QLabel("Start timestamp:"), self.processStart)
-        self.colsForm.addRow(QtWidgets.QLabel("End timestamp:"), self.processEnd)
-        self.colsForm.addRow(
+
+        # Processing date range group
+        self.dateRangeGroup = QtWidgets.QGroupBox("Processing Date Range")
+        self.dateRangeForm = QtWidgets.QFormLayout(self.dateRangeGroup)
+        self.dateRangeForm.addRow(QtWidgets.QLabel("Start timestamp:"), self.processStart)
+        self.dateRangeForm.addRow(QtWidgets.QLabel("End timestamp:"), self.processEnd)
+
+        # Filters group
+        self.filtersGroup = QtWidgets.QGroupBox("Frequency Filters")
+        self.filtersForm = QtWidgets.QFormLayout(self.filtersGroup)
+        self.filtersForm.addRow(QtWidgets.QLabel("Screen on:"), self.processType)
+        self.filtersForm.addRow(
             QtWidgets.QLabel("Low cut-off frequency (Hz):"), self.lowCutoff
         )
-        self.colsForm.addRow(
+        self.filtersForm.addRow(
             QtWidgets.QLabel("High cut-off frequency (Hz):"), self.highCutoff
         )
-        self.colsForm.addRow(QtWidgets.QLabel("Screen on:"), self.dataToProcess)
 
         # Stats settings group
         self.statsGroup = QtWidgets.QGroupBox("Statistical Analysis Settings")
         self.statsGroup.setFixedWidth(250)
-
-        self.processStatsChkBox = QtWidgets.QCheckBox("Include in processing")
-        self.processStatsChkBox.setChecked(True)
-        self.statsInterval = QtWidgets.QLabel("-")
-
         self.statsForm = QtWidgets.QFormLayout(self.statsGroup)
         self.statsForm.addRow(self.processStatsChkBox, QtWidgets.QLabel(""))
         self.statsForm.addRow(QtWidgets.QLabel("Sample length (s):"), self.statsInterval)
@@ -668,7 +676,6 @@ class StatsAndSpectralSettingsTab(QtWidgets.QWidget):
 
         self.statsOutputGroup = QtWidgets.QGroupBox("Stats File Formats to Output")
         self.statsOutputGroup.setSizePolicy(policy)
-
         self.statsH5 = QtWidgets.QCheckBox(".h5 (recommended - fast read/write)")
         self.statsH5.setChecked(True)
         self.statsCSV = QtWidgets.QCheckBox(".csv")
@@ -681,11 +688,6 @@ class StatsAndSpectralSettingsTab(QtWidgets.QWidget):
         # Spectral settings group
         self.spectGroup = QtWidgets.QGroupBox("Spectral Analysis Settings")
         self.spectGroup.setFixedWidth(250)
-
-        self.processSpectChkBox = QtWidgets.QCheckBox("Include in processing")
-        self.processSpectChkBox.setChecked(True)
-        self.spectInterval = QtWidgets.QLabel("-")
-
         self.spectForm = QtWidgets.QFormLayout(self.spectGroup)
         self.spectForm.addRow(self.processSpectChkBox, QtWidgets.QLabel(""))
         self.spectForm.addRow(
@@ -699,7 +701,6 @@ class StatsAndSpectralSettingsTab(QtWidgets.QWidget):
 
         self.spectOutputGroup = QtWidgets.QGroupBox("Spectral File Formats to Output")
         self.spectOutputGroup.setSizePolicy(policy)
-
         self.spectH5 = QtWidgets.QCheckBox(".h5 (recommended - fast read/write)")
         self.spectH5.setChecked(True)
         self.spectCSV = QtWidgets.QCheckBox(".csv")
@@ -726,9 +727,13 @@ class StatsAndSpectralSettingsTab(QtWidgets.QWidget):
         self.vbox = QtWidgets.QVBoxLayout()
         self.vbox.addWidget(self.editButton, stretch=0, alignment=QtCore.Qt.AlignLeft)
         self.vbox.addWidget(self.colsGroup)
-        self.vbox.addItem(spacer)
+        # self.vbox.addItem(spacer)
+        self.vbox.addWidget(self.dateRangeGroup)
+        # self.vbox.addItem(spacer)
+        self.vbox.addWidget(self.filtersGroup)
+        # self.vbox.addItem(spacer)
         self.vbox.addLayout(self.hboxStats)
-        self.vbox.addItem(spacer)
+        # self.vbox.addItem(spacer)
         self.vbox.addLayout(self.hboxSpect)
         self.vbox.addStretch()
 
@@ -872,7 +877,7 @@ class StatsAndSpectralSettingsTab(QtWidgets.QWidget):
             self.highCutoff.setText(f"{logger.high_cutoff_freq:.2f}")
 
         # Screen on
-        self.dataToProcess.setText(logger.screen_on_str)
+        self.processType.setText(logger.process_type)
 
         # Stats interval
         self.statsInterval.setText(str(logger.stats_interval))
@@ -923,7 +928,7 @@ class StatsAndSpectralSettingsTab(QtWidgets.QWidget):
         self.processEnd.setText("-")
         self.lowCutoff.setText("-")
         self.highCutoff.setText("-")
-        self.dataToProcess.setText("-")
+        self.processType.setText("-")
         self.statsInterval.setText("-")
         self.spectInterval.setText("-")
 
@@ -1424,10 +1429,7 @@ class EditStatsAndSpectralDialog(QtWidgets.QDialog):
         int_validator.setBottom(1)
         dbl_validator = QtGui.QDoubleValidator()
 
-        self.layout = QtWidgets.QVBoxLayout(self)
-
-        # General settings group
-        self.colsGroup = QtWidgets.QGroupBox("General Settings")
+        # Define widgets
         self.columns = QtWidgets.QLineEdit()
         self.columns.setToolTip("Column numbers to process, separated by a space.\n"
                                 "E.g. 2 3 4 5 (column 1 (time index) does not need to be included).")
@@ -1448,24 +1450,29 @@ class EditStatsAndSpectralDialog(QtWidgets.QDialog):
         self.processEnd.setToolTip("If blank, the timestamp of the last file "
                                    "will be used (if detected).")
         self.processEnd.setFixedWidth(100)
-
-        # Filtered low and high cut-off frequencies
+        self.processType = QtWidgets.QComboBox()
+        self.processType.addItems(["Unfiltered only",
+                                   "Filtered only",
+                                   "Both unfiltered and filtered"])
+        self.processType.setFixedWidth(160)
+        self.processType.setCurrentIndex(2)
         self.lowCutoff = QtWidgets.QLineEdit()
         self.lowCutoff.setFixedWidth(40)
         self.lowCutoff.setValidator(dbl_validator)
         self.highCutoff = QtWidgets.QLineEdit()
         self.highCutoff.setFixedWidth(40)
         self.highCutoff.setValidator(dbl_validator)
+        self.statsInterval = QtWidgets.QLineEdit()
+        self.statsInterval.setFixedWidth(40)
+        self.statsInterval.setValidator(int_validator)
+        self.spectInterval = QtWidgets.QLineEdit()
+        self.spectInterval.setFixedWidth(40)
+        self.spectInterval.setValidator(int_validator)
 
-        self.dataToProcess = QtWidgets.QComboBox()
-        self.dataToProcess.addItems(["Unfiltered only",
-                                     "Filtered only",
-                                     "Both unfiltered and filtered"])
-        self.dataToProcess.setCurrentIndex(2)
-
-        # Form layout
+        # Columns to process settings group
+        self.colsGroup = QtWidgets.QGroupBox("Columns to Process Settings")
         self.colsForm = QtWidgets.QFormLayout(self.colsGroup)
-        self.colsForm.addRow(QtWidgets.QLabel("Columns to process:"), self.columns)
+        self.colsForm.addRow(QtWidgets.QLabel("Column numbers to process:"), self.columns)
         self.colsForm.addRow(
             QtWidgets.QLabel("Unit conversion factors (optional):"), self.unitConvs
         )
@@ -1475,34 +1482,31 @@ class EditStatsAndSpectralDialog(QtWidgets.QDialog):
         self.colsForm.addRow(
             QtWidgets.QLabel("Channel units override (optional):"), self.channelUnits
         )
-        self.colsForm.addRow(QtWidgets.QLabel("Start timestamp:"), self.processStart)
-        self.colsForm.addRow(QtWidgets.QLabel("End timestamp:"), self.processEnd)
-        self.colsForm.addRow(
+
+        # Processing date range group
+        self.dateRangeGroup = QtWidgets.QGroupBox("Processing Date Range")
+        self.dateRangeForm = QtWidgets.QFormLayout(self.dateRangeGroup)
+        self.dateRangeForm.addRow(QtWidgets.QLabel("Start timestamp:"), self.processStart)
+        self.dateRangeForm.addRow(QtWidgets.QLabel("End timestamp:"), self.processEnd)
+
+        # Filters group
+        self.filtersGroup = QtWidgets.QGroupBox("Frequency Filters")
+        self.filtersForm = QtWidgets.QFormLayout(self.filtersGroup)
+        self.filtersForm.addRow(QtWidgets.QLabel("Screen on:"), self.processType)
+        self.filtersForm.addRow(
             QtWidgets.QLabel("Low cut-off frequency (Hz):"), self.lowCutoff
         )
-        self.colsForm.addRow(
+        self.filtersForm.addRow(
             QtWidgets.QLabel("High cut-off frequency (Hz):"), self.highCutoff
         )
-        self.colsForm.addRow(QtWidgets.QLabel("Screen on:"), self.dataToProcess)
 
         # Stats settings group
         self.statsGroup = QtWidgets.QGroupBox("Statistics Screening Settings")
-        self.statsInterval = QtWidgets.QLineEdit()
-        self.statsInterval.setFixedWidth(40)
-        self.statsInterval.setValidator(int_validator)
-
-        # Form layout
         self.statsForm = QtWidgets.QFormLayout(self.statsGroup)
         self.statsForm.addRow(QtWidgets.QLabel("Sample length (s):"), self.statsInterval)
 
         # Spectral settings group
         self.spectGroup = QtWidgets.QGroupBox("Spectral Screening Settings")
-
-        self.spectInterval = QtWidgets.QLineEdit()
-        self.spectInterval.setFixedWidth(40)
-        self.spectInterval.setValidator(int_validator)
-
-        # Form layout
         self.spectForm = QtWidgets.QFormLayout(self.spectGroup)
         self.spectForm.addRow(
             QtWidgets.QLabel("Sample length (s):"), self.spectInterval
@@ -1512,7 +1516,11 @@ class EditStatsAndSpectralDialog(QtWidgets.QDialog):
             QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel
         )
 
+        # Combine layouts
+        self.layout = QtWidgets.QVBoxLayout(self)
         self.layout.addWidget(self.colsGroup)
+        self.layout.addWidget(self.dateRangeGroup)
+        self.layout.addWidget(self.filtersGroup)
         self.layout.addWidget(self.statsGroup)
         self.layout.addWidget(self.spectGroup)
         self.layout.addWidget(self.buttonBox, stretch=0, alignment=QtCore.Qt.AlignRight)
@@ -1569,6 +1577,9 @@ class EditStatsAndSpectralDialog(QtWidgets.QDialog):
             self.highCutoff.setText("None")
         else:
             self.highCutoff.setText(f"{logger.high_cutoff_freq:.2f}")
+
+        # Data to screen on
+        self.processType.setCurrentText(logger.process_type)
 
         # Stats settings group
         # Stats interval
@@ -1649,8 +1660,7 @@ class EditStatsAndSpectralDialog(QtWidgets.QDialog):
             logger.high_cutoff_freq = None
 
         # Store combo box index of data to screen on selection
-        logger.screen_on_idx = self.dataToProcess.currentIndex()
-        logger.screen_on_str = self.dataToProcess.currentText()
+        logger.process_type = self.processType.currentText()
 
         # Stats settings group
         logger.stats_interval = int(self.statsInterval.text())
@@ -1676,9 +1686,9 @@ if __name__ == "__main__":
     # win = ConfigModule()
     # win = CampaignInfoTab()
     # win = LoggerPropertiesTab()
-    # win = StatsAndSpectralSettingsTab()
+    win = StatsAndSpectralSettingsTab()
     # win = EditCampaignInfoDialog()
     # win = EditLoggerPropertiesDialog()
-    win = EditStatsAndSpectralDialog()
+    # win = EditStatsAndSpectralDialog()
     win.show()
     app.exit(app.exec_())

@@ -1,7 +1,7 @@
 __author__ = "Craig Dickinson"
 __program__ = "DataLab"
-__version__ = "0.45"
-__date__ = "15 June 2019"
+__version__ = "0.46"
+__date__ = "16 June 2019"
 
 import logging
 import os
@@ -493,6 +493,7 @@ class DataLab(DataLabGui):
             self.error(f"{msg}:\n{e}\n{sys.exc_info()[0]}")
             logging.exception(e)
 
+    @pyqtSlot(object)
     def set_datalab_output_to_gui(self, datalab):
         """Map results from processing to the GUI."""
 

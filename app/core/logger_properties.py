@@ -91,9 +91,8 @@ class LoggerProperties(QObject):
         self.low_cutoff_freq = 0.05
         self.high_cutoff_freq = 0.5
 
-        # 0 = unfiltered only, 1 = filtered only, 2 = both unfiltered and filtered
-        self.screen_on_idx = 2
-        self.screen_on_str = "Both unfiltered and filtered"
+        # Data type to screen on (unfiltered only, filtered only, both unfiltered and filtered)
+        self.process_type = "Both unfiltered and filtered"
 
         # STATISTICS ANALYSIS PARAMETERS
         # Include in processing flag

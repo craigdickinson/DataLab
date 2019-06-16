@@ -161,7 +161,7 @@ class Screening(QThread):
                 # Data munging/wrangling to prepare dataset for processing
                 df = data_screen[i].munge_data(df)
 
-                # Data Screening module
+                # Data screening module
                 # Perform basic screening checks on file - check file has expected number of data points
                 data_screen[i].screen_data(file_num=j, df=df)
 
@@ -185,25 +185,22 @@ class Screening(QThread):
                                 type="stats",
                             )
 
-                            # Carry out processing of sample if of desired length
+                            # Processing sample if meets required length
                             # TODO: Allowing short sample length (revisit)
                             # if len(sample_df) == data_screen[i].sample_length:
                             if len(df_stats_sample) <= stats_sample_length:
-                                # Calculate statistics on original sample dataset
-                                logger_stats[i].calc_stats(
-                                    df_stats_sample, logger.unit_conv_factors
-                                )
+                                # Calculate stats on unfiltered sample
+                                if logger.process_type != "Filtered only":
+                                    logger_stats[i].calc_stats(df_stats_sample)
 
-                                # Apply filters to sample data if filters were set
-                                if data_screen[i].apply_filters is True:
-                                    df_filtered = data_screen[i].filter_sample_data(
-                                        df_stats_sample
-                                    )
-
-                                    # Calculate statistics on filtered sample data
-                                    logger_stats_filtered[i].calc_stats(
-                                        df_filtered, logger.unit_conv_factors
-                                    )
+                                # Apply low/high pass filtering and calculate stats
+                                if logger.process_type != "Unfiltered only":
+                                    # Check valid filters were set
+                                    if data_screen[i].apply_filters is True:
+                                        df_filtered = data_screen[i].filter_data(
+                                            df_stats_sample
+                                        )
+                                        logger_stats_filtered[i].calc_stats(df_filtered)
 
                                 # Clear sample data frame so as ready for next sample set
                                 df_stats_sample = pd.DataFrame()

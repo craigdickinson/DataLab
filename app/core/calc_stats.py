@@ -17,7 +17,7 @@ class LoggerStats(object):
         self.std = []
         self.mean = []
 
-    def calc_stats(self, df_sample, unit_conv_factors):
+    def calc_stats(self, df_sample):
         """
         Calculate basic stats.
         Assumes at least two columns and first column is time.
@@ -30,14 +30,6 @@ class LoggerStats(object):
         mx = data.max()
         ave = data.mean()
         std = data.std()
-
-        # Apply unit conversion factors if provided (i.e. if list is not empty)
-        if unit_conv_factors:
-            c = unit_conv_factors
-            mn = np.multiply(mn, c)
-            mx = np.multiply(mx, c)
-            ave = np.multiply(ave, c)
-            std = np.multiply(std, c)
 
         # Append to internal list
         self.min.append(mn.values)

@@ -33,13 +33,13 @@ class ProjectConfigJSONFile(QObject):
         """
 
         data = self.data
-        control = self._map_campaign_json_section(data, control)
-        control = self._map_loggers_json_section(data, control)
-        control = self._map_general_settings(data, control)
+        control = self._map_campaign_dict(data, control)
+        control = self._map_loggers_dict(data, control)
+        control = self._map_general_dict(data, control)
 
         return control
 
-    def _map_campaign_json_section(self, data, control):
+    def _map_campaign_dict(self, data, control):
         """Map the config campaign section to the control object."""
 
         key = "campaign"
@@ -69,7 +69,7 @@ class ProjectConfigJSONFile(QObject):
 
         return control
 
-    def _map_loggers_json_section(self, data, control):
+    def _map_loggers_dict(self, data, control):
         """Map the config loggers section to the control object for all logger."""
 
         key = "loggers"
@@ -263,6 +263,12 @@ class ProjectConfigJSONFile(QObject):
             key="high_cutoff_freq",
             attr=logger.high_cutoff_freq,
         )
+        logger.process_type = self._get_key_value(
+            logger_id=logger.logger_id,
+            data=dict_logger,
+            key="process_type",
+            attr=logger.process_type,
+        )
         logger.process_stats = self._get_key_value(
             logger_id=logger.logger_id,
             data=dict_logger,
@@ -289,7 +295,7 @@ class ProjectConfigJSONFile(QObject):
         )
         return logger
 
-    def _map_general_settings(self, data, control):
+    def _map_general_dict(self, data, control):
         """Map the general settings section to the control object."""
 
         key = "general"
@@ -342,7 +348,7 @@ class ProjectConfigJSONFile(QObject):
 
         self.data["campaign"] = d
 
-    def add_logger_data(self, loggers):
+    def add_loggers_data(self, loggers):
         """Add properties of all loggers."""
 
         if not loggers:
@@ -423,6 +429,9 @@ class ProjectConfigJSONFile(QObject):
         # Stats low and high cut-off frequencies
         dict_props["low_cutoff_freq"] = logger.low_cutoff_freq
         dict_props["high_cutoff_freq"] = logger.high_cutoff_freq
+
+        # Data type to screen on
+        dict_props["process_type"] = logger.process_type
 
         # Stats settings group
         dict_props["process_stats"] = logger.process_stats

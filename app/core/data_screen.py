@@ -52,6 +52,7 @@ class DataScreen(object):
         self.header_row = 0
         self.skip_rows = []
         self.use_cols = []
+        self.unit_conv_factors = []
 
         # Apply bandpass signal filtering flag
         self.apply_filters = True
@@ -84,6 +85,9 @@ class DataScreen(object):
 
         # Set requested columns to process
         self.use_cols = set([0] + [c - 1 for c in self.logger.cols_to_process])
+
+        # Unit conversion factors
+        self.unit_conv_factors = logger.unit_conv_factors
 
         # Flags to set whether bandpass filtering is to be applied
         low_cutoff = self.logger.low_cutoff_freq
@@ -134,6 +138,10 @@ class DataScreen(object):
 
         # Convert any non-numeric data to NaN
         df.iloc[:, 1:] = df.iloc[:, 1:].apply(pd.to_numeric, errors="coerce")
+
+        # Apply any unit conversions
+        if len(self.unit_conv_factors) == len(df.columns) - 1:
+            df.iloc[:, 1:] = np.multiply(df.iloc[:, 1:], self.unit_conv_factors)
 
         return df
 
@@ -232,7 +240,7 @@ class DataScreen(object):
 
         return df_sample, df
 
-    def filter_sample_data(self, df_sample):
+    def filter_data(self, df_sample):
         """Filter out low frequencies (drift) and high frequencies (noise)."""
 
         df = df_sample.copy()
