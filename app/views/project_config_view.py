@@ -1451,11 +1451,11 @@ class EditStatsAndSpectralDialog(QtWidgets.QDialog):
                                    "will be used (if detected).")
         self.processEnd.setFixedWidth(100)
         self.processType = QtWidgets.QComboBox()
-        self.processType.addItems(["Unfiltered only",
+        self.processType.addItems(["Both unfiltered and filtered",
+                                   "Unfiltered only",
                                    "Filtered only",
-                                   "Both unfiltered and filtered"])
+                                   ])
         self.processType.setFixedWidth(160)
-        self.processType.setCurrentIndex(2)
         self.lowCutoff = QtWidgets.QLineEdit()
         self.lowCutoff.setFixedWidth(40)
         self.lowCutoff.setValidator(dbl_validator)

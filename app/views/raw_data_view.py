@@ -161,6 +161,10 @@ class RawDataDashboard(QtWidgets.QWidget):
         self.canvas = FigureCanvas(self.fig)
         navbar = NavigationToolbar(self.canvas, self)
 
+        # Initial plot titles
+        self.ax1.set_title("Time Series", size=12)
+        self.ax2.set_title("Power Spectral Density", size=12)
+
         # Add plot widgets
         vboxPlot.addWidget(navbar)
         vboxPlot.addWidget(self.canvas)

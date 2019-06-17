@@ -101,7 +101,7 @@ class Spectrogram(object):
             filename = os.path.join(self.output_dir, filename)
             plt.savefig(filename)
 
-    def export_spectrograms_data(self, dict_formats_to_write):
+    def export_spectrograms_data(self, dict_formats_to_write, filtered=False):
         """Write spectrograms data to requested file formats (HDF5, csv, xlsx)."""
 
         t0 = time()
@@ -109,7 +109,11 @@ class Spectrogram(object):
         for channel, spect in self.spectrograms.items():
             logger_id = replace_space_with_underscore(self.logger_id)
             channel = replace_space_with_underscore(channel)
+
             filename = "_".join(("Spectrograms_Data", logger_id, channel))
+            if filtered is True:
+                filename += "_(filtered)"
+
             file_path = os.path.join(self.output_dir, filename)
             key = logger_id + "_" + channel
             f = self.freq

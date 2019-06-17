@@ -128,11 +128,19 @@ class Screening(QThread):
 
             # Spectrograms object
             if logger.process_spectral is True:
-                spectrogram = Spectrogram(
+                spect_unfiltered = Spectrogram(
                     logger_id=logger.logger_id,
                     output_dir=self.control.output_folder,
                 )
-                spectrogram.set_freq(
+                spect_unfiltered.set_freq(
+                    n=spect_sample_length, T=logger.spect_interval
+                )
+
+                spect_filtered = Spectrogram(
+                    logger_id=logger.logger_id,
+                    output_dir=self.control.output_folder,
+                )
+                spect_filtered.set_freq(
                     n=spect_sample_length, T=logger.spect_interval
                 )
 
@@ -218,7 +226,18 @@ class Screening(QThread):
 
                             # Calculate spectrograms
                             if len(df_spect_sample) <= spect_sample_length:
-                                spectrogram.add_data(df_spect_sample)
+                                # Calculate stats on unfiltered sample
+                                if logger.process_type != "Filtered only":
+                                    spect_unfiltered.add_data(df_spect_sample)
+
+                                # Apply low/high pass filtering and calculate stats
+                                if logger.process_type != "Unfiltered only":
+                                    # Check valid filters were set
+                                    if data_screen[i].apply_filters is True:
+                                        df_filtered = data_screen[i].filter_data(
+                                            df_spect_sample
+                                        )
+                                        spect_filtered.add_data(df_filtered)
 
                                 # Clear sample data frame so as ready for next sample set
                                 df_spect_sample = pd.DataFrame()
@@ -268,15 +287,18 @@ class Screening(QThread):
 
             # Export spectrograms data to requested file formats
             if logger.process_spectral is True:
-                spectrogram.add_timestamps(dates=data_screen[i].stats_sample_start)
-                # spectrogram.plot_spectrogram()
-
                 # Create dictionary of True/False flags of file formats to write
                 dict_formats_to_write = dict(h5=self.control.spect_to_h5,
                                              csv=self.control.spect_to_csv,
                                              xlsx=self.control.spect_to_xlsx,
                                              )
-                spectrogram.export_spectrograms_data(dict_formats_to_write)
+
+                if spect_unfiltered.spectrograms:
+                    spect_unfiltered.add_timestamps(dates=data_screen[i].spect_sample_start)
+                    spect_unfiltered.export_spectrograms_data(dict_formats_to_write)
+                if spect_filtered.spectrograms:
+                    spect_filtered.add_timestamps(dates=data_screen[i].spect_sample_start)
+                    spect_filtered.export_spectrograms_data(dict_formats_to_write, filtered=True)
 
         # Save data screen report workbook
         data_report.write_bad_filenames()
