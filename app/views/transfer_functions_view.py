@@ -93,7 +93,7 @@ class TransferFunctionsWidget(QtWidgets.QWidget):
 
     def on_set_path_clicked(self):
         setPaths = SetPathDialog(self, self.tf)
-        setPaths.set_paths_to_dialog()
+        setPaths.set_dialog_data()
         setPaths.show()
 
     def on_calc_trans_funcs_clicked(self):
@@ -179,84 +179,6 @@ class TransferFunctionsWidget(QtWidgets.QWidget):
         self.canvas.draw()
 
 
-class SetPathDialog(QtWidgets.QDialog):
-    def __init__(self, parent=None, tf=TransferFunctions()):
-        super(SetPathDialog, self).__init__(parent)
-
-        self.parent = parent
-        self._init_ui()
-        self._connect_signals()
-        self.tf = tf
-
-    def _init_ui(self):
-        self.setWindowTitle("Set Paths to FEA Time Traces")
-        self.layout = QtWidgets.QVBoxLayout(self)
-        self.grid = QtWidgets.QGridLayout()
-
-        self.loggerDispPath = QtWidgets.QLineEdit()
-        self.loggerDispPath.setMinimumWidth(500)
-        self.loggerRotPath = QtWidgets.QLineEdit()
-        self.locBMPath = QtWidgets.QLineEdit()
-        self.setDispPathButton = QtWidgets.QPushButton("Set Path")
-        self.setRotPathButton = QtWidgets.QPushButton("Set Path")
-        self.setBMPathButton = QtWidgets.QPushButton("Set Path")
-
-        # Place widgets
-        self.grid.addWidget(QtWidgets.QLabel("Logger displacements path:"), 0, 0)
-        self.grid.addWidget(QtWidgets.QLabel("Logger rotations path:"), 1, 0)
-        self.grid.addWidget(QtWidgets.QLabel("Location bending moments path:"), 2, 0)
-        self.grid.addWidget(self.loggerDispPath, 0, 1)
-        self.grid.addWidget(self.loggerRotPath, 1, 1)
-        self.grid.addWidget(self.locBMPath, 2, 1)
-        self.grid.addWidget(self.setDispPathButton, 0, 2)
-        self.grid.addWidget(self.setRotPathButton, 1, 2)
-        self.grid.addWidget(self.setBMPathButton, 2, 2)
-
-        self.buttonBox = QtWidgets.QDialogButtonBox(
-            QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel
-        )
-
-        self.layout.addLayout(self.grid)
-        self.layout.addStretch()
-        self.layout.addWidget(self.buttonBox)
-
-    def _connect_signals(self):
-        self.setDispPathButton.clicked.connect(self.on_set_disp_path_clicked)
-        self.setRotPathButton.clicked.connect(self.on_set_rot_path_clicked)
-        self.setBMPathButton.clicked.connect(self.on_set_bm_path_clicked)
-        self.buttonBox.accepted.connect(self.accept)
-        self.buttonBox.accepted.connect(self.on_ok_clicked)
-        self.buttonBox.rejected.connect(self.reject)
-
-    def set_paths_to_dialog(self):
-        self.loggerDispPath.setText(self.tf.disp_dir)
-        self.loggerRotPath.setText(self.tf.rot_dir)
-        self.locBMPath.setText(self.tf.bm_dir)
-
-    def on_set_disp_path_clicked(self):
-        dir_path = QtWidgets.QFileDialog.getExistingDirectory(self, "Logger Displacements Folder")
-
-        if dir_path:
-            self.loggerDispPath.setText(dir_path)
-
-    def on_set_rot_path_clicked(self):
-        dir_path = QtWidgets.QFileDialog.getExistingDirectory(self, "Logger Rotations Folder")
-
-        if dir_path:
-            self.loggerRotPath.setText(dir_path)
-
-    def on_set_bm_path_clicked(self):
-        dir_path = QtWidgets.QFileDialog.getExistingDirectory(self, "Location Bending Moments Folder")
-
-        if dir_path:
-            self.locBMPath.setText(dir_path)
-
-    def on_ok_clicked(self):
-        """Store time traces paths in transfer functions class."""
-
-        self.tf.disp_dir = self.loggerDispPath.text()
-        self.tf.rot_dir = self.loggerRotPath.text()
-        self.tf.bm_dir = self.locBMPath.text()
 
 
 # For testing layout

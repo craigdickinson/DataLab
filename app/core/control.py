@@ -53,8 +53,13 @@ class Control(object):
         self.campaign_name = ""
         self.project_path = ""
 
-        # Output settings
-        self.output_folder = ""
+        # Output folders and paths
+        self.report_output_folder = "Screening Report"
+        self.stats_output_folder = "Statistics"
+        self.spect_output_folder = "Spectrograms"
+        self.report_output_path = ""
+        self.stats_output_path = ""
+        self.spect_output_path = ""
 
         # Selected stats output file formats
         self.stats_to_h5 = True
@@ -89,7 +94,7 @@ class Control(object):
         self.get_project_name()
         self.get_campaign_name()
         self.get_output_folder()
-        self.ensure_dir_exists(self.output_folder)
+        self._ensure_dir_exists(self.stats_output_folder)
         self.process_logger_names()
         self.add_loggers()
 
@@ -124,11 +129,20 @@ class Control(object):
         """Extract output name from control data."""
 
         key = "*OUTPUT_FOLDER"
-        _, self.output_folder = self.get_key_data(key, self.data)
-        if self.output_folder == "":
+        _, self.stats_output_folder = self.get_key_data(key, self.data)
+        if self.stats_output_folder == "":
             raise InputError("No output folder name found in control file")
 
-    def ensure_dir_exists(self, directory):
+    def set_up_output_folders(self):
+        """Construct file paths for output folders and create folders if required."""
+
+        path = self.project_path
+        self.report_output_path = os.path.join(path, self.report_output_folder)
+        self.stats_output_path = os.path.join(path, self.stats_output_folder)
+        self.spect_output_path = os.path.join(path, self.spect_output_folder)
+
+    @staticmethod
+    def _ensure_dir_exists(directory):
         """Create directory (and intermediate directories) if do not exist."""
 
         if directory != "" and os.path.exists(directory) is False:
@@ -302,7 +316,7 @@ class Control(object):
 
         i = slice_array[index]
         if index < len(slice_array) - 1:
-            return data[i : slice_array[index + 1]]
+            return data[i: slice_array[index + 1]]
         else:
             return data[i:]
 
@@ -749,7 +763,7 @@ class Control(object):
             text_upper = text.upper().strip()
             if text_upper.startswith(key.upper()):
                 # Return the rest of the line and row number if found
-                key_data = text[len(key) :].strip()
+                key_data = text[len(key):].strip()
                 return line, key_data
 
         # Return empty string and negative row number if not found

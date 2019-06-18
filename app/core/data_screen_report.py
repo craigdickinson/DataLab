@@ -69,7 +69,10 @@ class DataScreenReport(object):
             for row in self.bad_files:
                 self.ws_bad_files.append(row)
 
-    def save_workbook(self, path, fname):
+    def save_workbook(self, directory, filename):
         """Save workbook once all data has been written."""
 
-        self.wb.save(os.path.join(path, fname))
+        # Create directory if does not exist
+        if directory != "" and os.path.exists(directory) is False:
+            os.makedirs(directory)
+        self.wb.save(os.path.join(directory, filename))

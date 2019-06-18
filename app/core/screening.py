@@ -93,7 +93,7 @@ class Screening(QThread):
         )
 
         # Create output stats to workbook object
-        stats_out = StatsOutput(output_dir=self.control.output_folder)
+        stats_out = StatsOutput(output_dir=self.control.stats_output_path)
 
         # Get total number of files to process
         logger_ids = []
@@ -130,7 +130,7 @@ class Screening(QThread):
             if logger.process_spectral is True:
                 spect_unfiltered = Spectrogram(
                     logger_id=logger.logger_id,
-                    output_dir=self.control.output_folder,
+                    output_dir=self.control.spect_output_path,
                 )
                 spect_unfiltered.set_freq(
                     n=spect_sample_length, T=logger.spect_interval
@@ -138,7 +138,7 @@ class Screening(QThread):
 
                 spect_filtered = Spectrogram(
                     logger_id=logger.logger_id,
-                    output_dir=self.control.output_folder,
+                    output_dir=self.control.spect_output_path,
                 )
                 spect_filtered.set_freq(
                     n=spect_sample_length, T=logger.spect_interval
@@ -266,8 +266,8 @@ class Screening(QThread):
                 logger.logger_id, data_screen[i].dict_bad_files
             )
 
-            # If processing selected logger stats
             if logger.process_stats is True:
+
                 # Create and store a data frame of logger stats
                 stats_out.compile_stats(
                     logger,
@@ -285,7 +285,6 @@ class Screening(QThread):
                 if self.control.stats_to_xlsx is True:
                     stats_out.write_to_excel()
 
-            # Export spectrograms data to requested file formats
             if logger.process_spectral is True:
                 # Create dictionary of True/False flags of file formats to write
                 dict_formats_to_write = dict(h5=self.control.spect_to_h5,
@@ -293,6 +292,7 @@ class Screening(QThread):
                                              xlsx=self.control.spect_to_xlsx,
                                              )
 
+                # Export spectrograms to requested file formats
                 if spect_unfiltered.spectrograms:
                     spect_unfiltered.add_timestamps(dates=data_screen[i].spect_sample_start)
                     spect_unfiltered.export_spectrograms_data(dict_formats_to_write)
@@ -304,7 +304,7 @@ class Screening(QThread):
         data_report.write_bad_filenames()
         data_report.write_bad_files()
         data_report.save_workbook(
-            self.control.output_folder, "Data Screening Report.xlsx"
+            self.control.report_output_path, "Data Screening Report.xlsx"
         )
 
         # Store data screen objects list for gui

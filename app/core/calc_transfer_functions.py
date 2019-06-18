@@ -3,10 +3,19 @@ import numpy as np
 import os
 from glob import glob
 from app.core.signal_processing import calc_psd
+from PyQt5.QtCore import QObject, pyqtSignal
 
 
-class TransferFunctions(object):
+class TransferFunctions(QObject):
+    signal_warning = pyqtSignal(str)
+
     def __init__(self):
+        super().__init__()
+
+        self.disp_dir = ""
+        self.rot_dir = ""
+        self.bm_dir = ""
+
         self.num_loggers = 0
         self.num_locs = 0
         self.num_ss = 0
@@ -14,10 +23,6 @@ class TransferFunctions(object):
         # Lists to store logger, location and transfer function names
         self.logger_names = []
         self.loc_names = []
-        self.tf_names = []
-        # self.logger_names = ["BOP", "LMRP"]
-        # self.loc_names = ["LPH Weld", "HPH Weld", "BOP Connector"]
-
         self.perc_occ = [
             19.040,
             10.134,
@@ -28,10 +33,8 @@ class TransferFunctions(object):
             5.448,
             3.289,
         ]
+        self.tf_names = []
 
-        self.disp_dir = ""
-        self.rot_dir = ""
-        self.bm_dir = ""
         self.disp_files = []
         self.rot_files = []
         self.bm_files = []
@@ -54,24 +57,13 @@ class TransferFunctions(object):
         self.disp_files = glob(self.disp_dir + "/*.csv")
         self.rot_files = glob(self.rot_dir + "/*.csv")
 
-        self.get_number_of_windows()
-
-    def get_number_of_windows(self):
-        n1 = len(self.bm_files)
-        n2 = len(self.disp_files)
-        n3 = len(self.rot_files)
-
-        if n1 == n2 == n3:
-            self.num_ss = n1
-        else:
-            self.num_ss = 0
-            print('Warning: Unequal number of sea state files in each folder')
+        # self.get_number_of_seastates()
 
     def read_fea_time_traces(self):
 
-        self.df_bm = read_seastate_time_traces(self.bm_files)
-        self.df_disp = read_seastate_time_traces(self.disp_files)
-        self.df_rot = read_seastate_time_traces(self.rot_files)
+        self.df_bm = self.read_seastate_time_traces(self.bm_files)
+        self.df_disp = self.read_seastate_time_traces(self.disp_files)
+        self.df_rot = self.read_seastate_time_traces(self.rot_files)
 
         self.get_number_of_loggers()
         self.get_number_of_locations()
@@ -85,9 +77,13 @@ class TransferFunctions(object):
                 self.num_loggers = n // self.num_ss
             else:
                 self.num_loggers = 0
-                print('Warning: Number of windows is zero.')
+                msg = "Number of sea states is zero."
+                self.signal_warning.emit(msg)
         else:
-            print('Warning: Unequal number of columns in logger displacements and rotations time traces.')
+            msg = "Unequal number of columns in logger displacements and rotations time traces."
+            self.signal_warning.emit(msg)
+
+        return self.num_loggers
 
     def get_number_of_locations(self):
         n = self.df_bm.shape[1]
@@ -96,7 +92,24 @@ class TransferFunctions(object):
             self.num_locs = n // self.num_ss
         else:
             self.num_locs = 0
-            print('Warning: Number of windows is zero.')
+            msg = "Number of sea states is zero."
+            self.signal_warning.emit(msg)
+
+        return self.num_locs
+
+    def get_number_of_seastates(self):
+        n1 = len(self.bm_files)
+        n2 = len(self.disp_files)
+        n3 = len(self.rot_files)
+
+        if n1 == n2 == n3:
+            self.num_ss = n1
+        else:
+            self.num_ss = 0
+            msg = "Unequal number of sea state files in each folder."
+            self.signal_warning.emit(msg)
+
+        return self.num_ss
 
     def calc_g_cont_accs(self):
         """
@@ -105,16 +118,16 @@ class TransferFunctions(object):
         Then add gravity-contamination contribution.
         acc_g = -[x(i-1) + 2 * x(i) - x(i+1)] / h^2 + g * sin(theta)
         Note: Negative sign added to ensure that a positive displacement and inclination results in a positive
-        gravity-contaminated acceleration (sense the logger "feels" force in the oppositve direction to motion).
+        gravity-contaminated acceleration (sense the logger "feels" force in the opposite direction to motion).
         """
 
         # Step size
         h = self.df_disp.index[1] - self.df_disp.index[0]
 
-        # Double differentiate node displacement to acceleration
+        # Double differentiate node displacements to accelerations
         acc = -(self.df_disp.shift(1) - 2 * self.df_disp + self.df_disp.shift(-1)) / h ** 2
 
-        # Gravity component from node rotation time series
+        # Gravity component from node rotations
         g = 9.807
         g_cont = g * np.sin(np.radians(self.df_rot))
 
@@ -122,7 +135,7 @@ class TransferFunctions(object):
         cols = []
         for i in range(self.num_ss):
             for j in range(self.num_loggers):
-                c = f"Logger {j + 1} Acc-g W{i + 1}"
+                c = f"Logger {j + 1} Acc-g SS{i + 1}"
                 cols.append(c)
 
         acc.columns = cols
@@ -281,88 +294,86 @@ class TransferFunctions(object):
 
         return exported
 
+    def read_seastate_time_traces(self, files):
+        df_all = pd.DataFrame()
 
-def read_seastate_time_traces(files):
-    df_all = pd.DataFrame()
+        for i, f in enumerate(files):
+            df = self.read_2httrace_csv(f)
 
-    for i, f in enumerate(files):
-        df = read_2httrace_csv(f)
+            # Format and append window number to column names
+            df.columns = self.format_column_names(df.columns, ss_num=i + 1)
 
-        # Format and append window number to column names
-        df.columns = format_column_names(df.columns, ss_num=i + 1)
+            # Join frames
+            df_all = pd.concat((df_all, df), axis=1)
 
-        # Join frames
-        df_all = pd.concat((df_all, df), axis=1)
+        return df_all
 
-    return df_all
+    @staticmethod
+    def format_column_names(cols, ss_num):
+        cols_new = []
+        for c in cols:
+            # Remove the element _After or _Before suffix if present
+            pos = c.find("_After")
+            if pos > -1:
+                c = c[:pos]
+            pos = c.find("_Before")
+            if pos > -1:
+                c = c[:pos]
 
+            cols_new.append(f"{c.strip()}_W{ss_num}")
 
-def format_column_names(cols, ss_num):
-    cols_new = []
-    for c in cols:
-        # Remove the element _After or _Before suffix if present
-        pos = c.find("_After")
-        if pos > -1:
-            c = c[:pos]
-        pos = c.find("_Before")
-        if pos > -1:
-            c = c[:pos]
+        return cols_new
 
-        cols_new.append(f"{c.strip()}_W{ss_num}")
+    def read_2httrace_csv(self, filename):
+        """Read time series in 2HTTrace csv file output."""
 
-    return cols_new
+        # Determine header row (row with "TIME" in column 1)
+        header_row = self.get_header_row(filename)
 
+        # Read file and drop wave elevation column
+        df = pd.read_csv(filename, header=header_row, index_col=0, skip_blank_lines=False)
+        df = df.drop(df.columns[0], axis=1)
 
-def read_2httrace_csv(filename):
-    """Read time series in 2HTTrace csv file output."""
+        return df
 
-    # Determine header row (row with "TIME" in column 1)
-    header_row = get_header_row(filename)
+    @staticmethod
+    def get_header_row(filename):
+        """
+        Determine header row of 2HTTrace.csv file.
+        Will differ depending on whether user labels are included in 2HTTrace dat file.
+        """
 
-    # Read file and drop wave elevation column
-    df = pd.read_csv(filename, header=header_row, index_col=0, skip_blank_lines=False)
-    df = df.drop(df.columns[0], axis=1)
+        with open(filename, "r") as f:
+            for i, line in enumerate(f):
+                test_str = line.split(",")[0].strip()
 
-    return df
+                if test_str.upper() == "TIME":
+                    return i
 
+        return 0
 
-def get_header_row(filename):
-    """
-    Determine header row of 2HTTrace.csv file.
-    Will differ depending on whether user labels are included in 2HTTrace dat file.
-    """
+    @staticmethod
+    def find_nearest_window(windows, hs_list, tp_list, hs_i, tp_i):
+        """Find the nearest seastate window from the linearised seastates for a given (Hs, Tp) pair."""
 
-    with open(filename, "r") as f:
-        for i, line in enumerate(f):
-            test_str = line.split(",")[0].strip()
+        # Ensure working with arrays
+        windows = np.asarray(windows)
+        hs_list = np.asarray(hs_list)
+        tp_list = np.asarray(tp_list)
 
-            if test_str.upper() == "TIME":
-                return i
+        # Make window seastate data frame
+        df = pd.DataFrame(np.vstack((windows, hs_list, tp_list)).T, columns=["Windows", "Hs", "Tp"])
 
-    return 0
+        # Find nearest Tp
+        i = np.abs(df["Tp"] - tp_i).idxmin()
+        nearest_tp = df.loc[i, "Tp"]
 
+        # Slice data frame on nearest Tp and find nearest Hs in subset and return window number
+        df = df[df["Tp"] == nearest_tp]
+        i = np.abs(df["Hs"] - hs_i).idxmin()
+        win = df.loc[i, "Windows"]
 
-def find_nearest_window(windows, hs_list, tp_list, hs_i, tp_i):
-    """Find the nearest seastate window from the linearised seastates for a given (Hs, Tp) pair."""
-
-    # Ensure working with arrays
-    windows = np.asarray(windows)
-    hs_list = np.asarray(hs_list)
-    tp_list = np.asarray(tp_list)
-
-    # Make window seastate data frame
-    df = pd.DataFrame(np.vstack((windows, hs_list, tp_list)).T, columns=["Windows", "Hs", "Tp"])
-
-    # Find nearest Tp
-    i = np.abs(df["Tp"] - tp_i).idxmin()
-    nearest_tp = df.loc[i, "Tp"]
-
-    # Slice data frame on nearest Tp and find nearest Hs in subset and return window number
-    df = df[df["Tp"] == nearest_tp]
-    i = np.abs(df["Hs"] - hs_i).idxmin()
-    win = df.loc[i, "Windows"]
-
-    return int(win)
+        return int(win)
 
 
 if __name__ == "__main__":

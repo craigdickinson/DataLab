@@ -114,6 +114,10 @@ class Spectrogram(object):
             if filtered is True:
                 filename += "_(filtered)"
 
+            # Create directory if does not exist
+            if self.output_dir != "" and os.path.exists(self.output_dir) is False:
+                os.makedirs(self.output_dir)
+
             file_path = os.path.join(self.output_dir, filename)
             key = logger_id + "_" + channel
             f = self.freq

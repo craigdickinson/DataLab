@@ -184,12 +184,18 @@ class StatsOutput(object):
     def write_to_hdf5(self):
         """Write stats to HDF5 file."""
 
+        # Create directory if does not exist
+        self._ensure_dir_exists(self.output_dir)
+
         logger_id = replace_space_with_underscore(self.logger_id)
         file_name = os.path.join(self.output_dir, "Statistics.h5")
         self.df_stats.to_hdf(file_name, logger_id)
 
     def write_to_csv(self):
         """Write stats to csv file."""
+
+        # Create directory if does not exist
+        self._ensure_dir_exists(self.output_dir)
 
         logger_id = replace_space_with_underscore(self.logger_id)
         file_name = os.path.join(
@@ -236,10 +242,20 @@ class StatsOutput(object):
         for col in range(1, 3):
             ws.column_dimensions[get_column_letter(col)].width = 20
 
+    @staticmethod
+    def _ensure_dir_exists(directory):
+        """Create directory (and intermediate directories) if do not exist."""
+
+        if directory != "" and os.path.exists(directory) is False:
+            os.makedirs(directory)
+
     def save_workbook(self):
         """Save workbook once all worksheets have been created."""
 
         try:
+            # Create directory if does not exist
+            self._ensure_dir_exists(self.output_dir)
+
             fname = "Statistics.xlsx"
             self.wb.save(os.path.join(self.output_dir, fname))
         except:

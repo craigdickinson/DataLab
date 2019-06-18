@@ -1,7 +1,7 @@
 __author__ = "Craig Dickinson"
 __program__ = "DataLab"
-__version__ = "0.47"
-__date__ = "17 June 2019"
+__version__ = "0.48"
+__date__ = "18 June 2019"
 
 import logging
 import os
@@ -427,9 +427,8 @@ class DataLab(DataLabGui):
             # Check all ids are unique
             control.check_logger_ids(control.logger_ids)
 
-            # Set output folder name and create if doesn't exist
-            control.output_folder = os.path.join(control.project_path, "Output")
-            control.ensure_dir_exists(control.output_folder)
+            # Set up output folders
+            control.set_up_output_folders()
 
             # Get raw filenames, check timestamps and select files in processing datetime range
             for logger in control.loggers:
