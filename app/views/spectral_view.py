@@ -66,46 +66,23 @@ class SpectrogramWidget(QtWidgets.QWidget):
         self.plotSettings = SpectroPlotSettings(self)
 
     def _init_ui(self):
-        # Main layout
-        layout = QtWidgets.QHBoxLayout(self)
-
-        # Selection layout
-        selection = QtWidgets.QWidget()
-        selection.setFixedWidth(170)
-        grid = QtWidgets.QGridLayout(selection)
-
+        # WIDGETS
         self.openSpectButton = QtWidgets.QPushButton("Open Spectrograms")
         self.openSpectButton.setToolTip("Open logger spectrograms (*.h5;*.csv;*.xlsx) (F4)")
-        lbl = QtWidgets.QLabel("Loaded Datasets")
+        self.lbl = QtWidgets.QLabel("Loaded Datasets")
         self.datasetList = QtWidgets.QListWidget()
         self.datasetList.setFixedHeight(100)
         self.datetimeEdit = QtWidgets.QDateTimeEdit()
-        lbl2 = QtWidgets.QLabel("Timestamps (reversed)")
+        self.lbl2 = QtWidgets.QLabel("Timestamps (reversed)")
         self.timestampList = QtWidgets.QListWidget()
-
         self.slider = QtWidgets.QSlider()
         self.slider.setOrientation(QtCore.Qt.Vertical)
         self.slider.setValue(50)
-
         self.openPlotSettingsButton = QtWidgets.QPushButton("Plot Settings")
         self.calcNatFreqButton = QtWidgets.QPushButton("Estimate Nat. Freq.")
         self.clearDatasetsButton = QtWidgets.QPushButton("Clear Datasets")
 
-        grid.addWidget(self.openSpectButton, 0, 0)
-        grid.addWidget(self.clearDatasetsButton, 1, 0)
-        grid.addWidget(lbl, 2, 0)
-        grid.addWidget(self.datasetList, 3, 0)
-        grid.addWidget(self.datetimeEdit, 4, 0)
-        grid.addWidget(lbl2, 5, 0)
-        grid.addWidget(self.timestampList, 6, 0)
-        grid.addWidget(self.slider, 6, 1)
-        grid.addWidget(self.openPlotSettingsButton, 7, 0)
-        grid.addWidget(self.calcNatFreqButton, 8, 0)
-
-        # Plot layout
-        # Create plot figure, canvas widget to display figure and navbar
-        plot = QtWidgets.QWidget()
-        plotLayout = QtWidgets.QGridLayout(plot)
+        # Plot canvas
         self.fig = plt.figure()
         self.canvas = FigureCanvas(self.fig)
         navbar = NavigationToolbar(self.canvas, self)
@@ -117,6 +94,9 @@ class SpectrogramWidget(QtWidgets.QWidget):
             "of all events between 0.2 Hz and 2.0 Hz.\n"
             "This assumes the wave energy is ignored."
         )
+        font = QtGui.QFont()
+        font.setPointSize(12)
+        self.natFreq.setFont(font)
 
         # Widget sizing policy - prevent vertical expansion
         policy = QtWidgets.QSizePolicy(
@@ -124,16 +104,33 @@ class SpectrogramWidget(QtWidgets.QWidget):
         )
         self.natFreq.setSizePolicy(policy)
 
-        font = QtGui.QFont()
-        font.setPointSize(12)
-        self.natFreq.setFont(font)
-        plotLayout.addWidget(navbar, 0, 0)
-        plotLayout.addWidget(self.canvas, 1, 0)
-        plotLayout.addWidget(self.natFreq, 2, 0)
+        # CONTAINERS
+        # Selection layout
+        self.selection = QtWidgets.QWidget()
+        self.selection.setFixedWidth(170)
+        self.grid = QtWidgets.QGridLayout(self.selection)
+        self.grid.addWidget(self.openSpectButton, 0, 0)
+        self.grid.addWidget(self.clearDatasetsButton, 1, 0)
+        self.grid.addWidget(self.lbl, 2, 0)
+        self.grid.addWidget(self.datasetList, 3, 0)
+        self.grid.addWidget(self.datetimeEdit, 4, 0)
+        self.grid.addWidget(self.lbl2, 5, 0)
+        self.grid.addWidget(self.timestampList, 6, 0)
+        self.grid.addWidget(self.slider, 6, 1)
+        self.grid.addWidget(self.openPlotSettingsButton, 7, 0)
+        self.grid.addWidget(self.calcNatFreqButton, 8, 0)
 
-        # Combine layouts
-        layout.addWidget(selection)
-        layout.addWidget(plot)
+        # Plot layout
+        # Create plot figure, canvas widget to display figure and navbar
+        self.vbox = QtWidgets.QVBoxLayout()
+        self.vbox.addWidget(navbar)
+        self.vbox.addWidget(self.canvas)
+        self.vbox.addWidget(self.natFreq)
+
+        # LAYOUT
+        self.layout = QtWidgets.QHBoxLayout(self)
+        self.layout.addWidget(self.selection)
+        self.layout.addLayout(self.vbox)
 
     def _connect_signals(self):
         self.calcNatFreqButton.clicked.connect(self.on_calc_nat_freq_clicked)
@@ -335,8 +332,8 @@ class SpectrogramWidget(QtWidgets.QWidget):
         # Plot title
         channel = self.datasetList.currentItem().text()
         title = (
-            "21239 Total WoS - Glendronach Well Monitoring Campaign\nSpectrogram: "
-            + channel
+                "21239 Total WoS - Glendronach Well Monitoring Campaign\nSpectrogram: "
+                + channel
         )
 
         f0 = self.freqs[0]

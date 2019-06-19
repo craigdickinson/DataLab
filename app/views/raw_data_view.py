@@ -103,76 +103,61 @@ class RawDataDashboard(QtWidgets.QWidget):
         self.plotSettings = LoggerPlotSettings(self)
 
     def _init_ui(self):
-        # Setup container
-        setupWidget = QtWidgets.QWidget()
-        setupWidget.setFixedWidth(200)
-        vboxSetup = QtWidgets.QVBoxLayout(setupWidget)
-
-        # Load file
+        # WIDGETS
         self.openRawButton = QtWidgets.QPushButton("Open Raw Logger File")
         self.openRawButton.setToolTip("Open raw logger data (*.csv;*.acc) (F2)")
-
-        # Files list
-        filesLabel = QtWidgets.QLabel("Logger Files")
+        self.filesLabel = QtWidgets.QLabel("Logger Files")
         self.filesList = QtWidgets.QListWidget()
-
-        # Channels list
-        channelsLabel = QtWidgets.QLabel("Channels (echo)")
+        self.channelsLabel = QtWidgets.QLabel("Channels (echo)")
         self.channelsList = QtWidgets.QListWidget()
         self.channelsList.setFixedHeight(120)
-
-        # Primary and secondary axis combos
-        priLabel = QtWidgets.QLabel("Primary Axis Channel:")
-        secLabel = QtWidgets.QLabel("Secondary Axis Channel:")
+        self.priLabel = QtWidgets.QLabel("Primary Axis Channel:")
+        self.secLabel = QtWidgets.QLabel("Secondary Axis Channel:")
         self.priAxis = QtWidgets.QComboBox()
         self.secAxis = QtWidgets.QComboBox()
         self.priAxis.addItem("None")
         self.secAxis.addItem("None")
-
-        # Line separator
-        line = QtWidgets.QFrame()
-        line.setFrameShape(QtWidgets.QFrame.HLine)
-        line.setFrameShadow(QtWidgets.QFrame.Sunken)
-
-        # Plot settings and replot buttons
+        self.line = QtWidgets.QFrame()
+        self.line.setFrameShape(QtWidgets.QFrame.HLine)
+        self.line.setFrameShadow(QtWidgets.QFrame.Sunken)
         self.plotSettingsButton = QtWidgets.QPushButton("Plot Settings")
         self.replotButton = QtWidgets.QPushButton("Replot")
 
-        # Add setup widgets
-        vboxSetup.addWidget(self.openRawButton)
-        vboxSetup.addWidget(filesLabel)
-        vboxSetup.addWidget(self.filesList)
-        vboxSetup.addWidget(channelsLabel)
-        vboxSetup.addWidget(self.channelsList)
-        vboxSetup.addWidget(priLabel)
-        vboxSetup.addWidget(self.priAxis)
-        vboxSetup.addWidget(secLabel)
-        vboxSetup.addWidget(self.secAxis)
-        vboxSetup.addWidget(line)
-        vboxSetup.addWidget(self.plotSettingsButton)
-        vboxSetup.addWidget(self.replotButton)
-
-        # Plot container
-        plotWidget = QtWidgets.QWidget()
-        vboxPlot = QtWidgets.QVBoxLayout(plotWidget)
-
         # Plot figure and canvas to display figure
         self.fig, (self.ax1, self.ax2) = plt.subplots(2)
+        self.ax1.set_title("Time Series", size=12)
+        self.ax2.set_title("Power Spectral Density", size=12)
+        self.fig.tight_layout()
         self.canvas = FigureCanvas(self.fig)
         navbar = NavigationToolbar(self.canvas, self)
 
-        # Initial plot titles
-        self.ax1.set_title("Time Series", size=12)
-        self.ax2.set_title("Power Spectral Density", size=12)
+        # CONTAINERS
+        # Setup container
+        self.setupWidget = QtWidgets.QWidget()
+        self.setupWidget.setFixedWidth(200)
+        self.vboxSetup = QtWidgets.QVBoxLayout(self.setupWidget)
+        self.vboxSetup.addWidget(self.openRawButton)
+        self.vboxSetup.addWidget(self.filesLabel)
+        self.vboxSetup.addWidget(self.filesList)
+        self.vboxSetup.addWidget(self.channelsLabel)
+        self.vboxSetup.addWidget(self.channelsList)
+        self.vboxSetup.addWidget(self.priLabel)
+        self.vboxSetup.addWidget(self.priAxis)
+        self.vboxSetup.addWidget(self.secLabel)
+        self.vboxSetup.addWidget(self.secAxis)
+        self.vboxSetup.addWidget(self.line)
+        self.vboxSetup.addWidget(self.plotSettingsButton)
+        self.vboxSetup.addWidget(self.replotButton)
 
-        # Add plot widgets
-        vboxPlot.addWidget(navbar)
-        vboxPlot.addWidget(self.canvas)
+        # Plot container
+        self.vbox = QtWidgets.QVBoxLayout()
+        self.vbox.addWidget(navbar)
+        self.vbox.addWidget(self.canvas)
 
-        # Final layout
-        layout = QtWidgets.QHBoxLayout(self)
-        layout.addWidget(setupWidget)
-        layout.addWidget(plotWidget)
+        # LAYOUT
+        self.layout = QtWidgets.QHBoxLayout(self)
+        self.layout.addWidget(self.setupWidget)
+        self.layout.addLayout(self.vbox)
 
     def _connect_signals(self):
         self.plotSettingsButton.clicked.connect(self.on_plot_settings_clicked)
@@ -877,10 +862,10 @@ class LoggerPlotSettings(QtWidgets.QDialog):
         # List of pairs of window combo options and corresponding signal.welch argument
         self.windows = ["None", "Hann", "Hamming", "Bartlett", "Blackman"]
 
-        self.init_ui()
-        self.connect_signals()
+        self._init_ui()
+        self._connect_signals()
 
-    def init_ui(self):
+    def _init_ui(self):
         self.setWindowTitle("Logger Plot Settings")
 
         # Widget sizing policy - prevent expansion
@@ -888,20 +873,10 @@ class LoggerPlotSettings(QtWidgets.QDialog):
             QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed
         )
 
-        # Layout
-        # self.setFixedSize(400, 300)
-        layout = QtWidgets.QVBoxLayout(self)
-        layout.addStretch()
-
-        # Title and axes labels form
-        form = QtWidgets.QWidget()
-        formLayout = QtWidgets.QFormLayout(form)
+        # WIDGETS
         self.optProject = QtWidgets.QLineEdit()
-        formLayout.addRow(QtWidgets.QLabel("Project title:"), self.optProject)
 
         # Time series axes limits
-        frameTS = QtWidgets.QGroupBox("Time Series Limits")
-        grid = QtWidgets.QGridLayout(frameTS)
         self.optTSXmin = QtWidgets.QLineEdit("0")
         self.optTSXmax = QtWidgets.QLineEdit("1")
         # self.optTSYmin = QtWidgets.QLineEdit('0')
@@ -910,18 +885,8 @@ class LoggerPlotSettings(QtWidgets.QDialog):
         self.optTSXmax.setFixedWidth(50)
         # self.optTSYmin.setFixedWidth(50)
         # self.optTSYmax.setFixedWidth(50)
-        grid.addWidget(QtWidgets.QLabel("X min:"), 0, 0)
-        grid.addWidget(self.optTSXmin, 0, 1)
-        grid.addWidget(QtWidgets.QLabel("X max:"), 0, 2)
-        grid.addWidget(self.optTSXmax, 0, 3)
-        # grid.addWidget(QtWidgets.QLabel('Y min:'), 1, 0)
-        # grid.addWidget(self.optTSYmin, 1, 1)
-        # grid.addWidget(QtWidgets.QLabel('Y max:'), 1, 2)
-        # grid.addWidget(self.optTSYmax, 1, 3)
 
         # PSD axes limits
-        framePSD = QtWidgets.QGroupBox("PSD Limits")
-        grid = QtWidgets.QGridLayout(framePSD)
         self.optPSDXmin = QtWidgets.QLineEdit("0")
         self.optPSDXmax = QtWidgets.QLineEdit("1")
         # self.optPSDYmin = QtWidgets.QLineEdit('0')
@@ -930,27 +895,8 @@ class LoggerPlotSettings(QtWidgets.QDialog):
         self.optPSDXmax.setFixedWidth(50)
         # self.optPSDYmin.setFixedWidth(50)
         # self.optPSDYmax.setFixedWidth(50)
-        grid.addWidget(QtWidgets.QLabel("X min:"), 0, 0)
-        grid.addWidget(self.optPSDXmin, 0, 1)
-        grid.addWidget(QtWidgets.QLabel("X max:"), 0, 2)
-        grid.addWidget(self.optPSDXmax, 0, 3)
-        # grid.addWidget(QtWidgets.QLabel('Y min:'), 1, 0)
-        # grid.addWidget(self.optPSDYmin, 1, 1)
-        # grid.addWidget(QtWidgets.QLabel('Y max:'), 1, 2)
-        # grid.addWidget(self.optPSDYmax, 1, 3)
 
-        # Combine axis limits group
-        axesLimits = QtWidgets.QWidget()
-        axesLimits.setSizePolicy(policy)
-        hbox = QtWidgets.QHBoxLayout(axesLimits)
-        hbox.addWidget(frameTS)
-        hbox.addWidget(framePSD)
-
-        # Low/high cut-off frequencies group
-        freqCutoffsGroup = QtWidgets.QGroupBox("Cut-off Frequencies")
-        freqCutoffsGroup.setSizePolicy(policy)
-        grid = QtWidgets.QGridLayout(freqCutoffsGroup)
-
+        # Cut-off frequencies
         self.lowCutoff = QtWidgets.QLineEdit("0.05")
         self.lowCutoff.setFixedWidth(50)
         self.lowCutoff.setEnabled(False)
@@ -961,91 +907,124 @@ class LoggerPlotSettings(QtWidgets.QDialog):
         self.lowFreqChkBox.setChecked(False)
         self.highFreqChkBox = QtWidgets.QCheckBox("Apply cut-off")
         self.highFreqChkBox.setChecked(False)
-        grid.addWidget(QtWidgets.QLabel("Low freq cut-off (Hz):"), 0, 0)
-        grid.addWidget(self.lowCutoff, 0, 1)
-        grid.addWidget(self.lowFreqChkBox, 0, 2)
-        grid.addWidget(QtWidgets.QLabel("High freq cut-off (Hz):"), 1, 0)
-        grid.addWidget(self.highCutoff, 1, 1)
-        grid.addWidget(self.highFreqChkBox, 1, 2)
 
-        # Frequency or period radio buttons
-        psdXAxisGroup = QtWidgets.QGroupBox("PSD X Axis")
-        psdXAxisGroup.setSizePolicy(policy)
-        vbox = QtWidgets.QVBoxLayout(psdXAxisGroup)
+        # Frequency/period radio buttons
         self.radioFreq = QtWidgets.QRadioButton("Frequency")
-        self.radioPeriod = QtWidgets.QRadioButton("Period")
-        vbox.addWidget(self.radioFreq)
-        vbox.addWidget(self.radioPeriod)
         self.radioFreq.setChecked(True)
+        self.radioPeriod = QtWidgets.QRadioButton("Period")
 
         # PSD log scale checkbox
         self.logScale = QtWidgets.QCheckBox("PSD log scale")
         self.logScale.setChecked(False)
 
-        # Combine PSD x-axis and log scale
-        psdOpts = QtWidgets.QWidget()
-        hbox = QtWidgets.QHBoxLayout(psdOpts)
-        hbox.addWidget(psdXAxisGroup)
-        hbox.addWidget(self.logScale)
-
         # PSD parameters
-        # Create a dummy container to maintain correct alignment with other widgets
-        psdParams = QtWidgets.QWidget()
-        formLayout = QtWidgets.QVBoxLayout(psdParams)
-        frame = QtWidgets.QGroupBox("Power Spectral Density Parameters")
-        frame.setSizePolicy(policy)
-        formLayout.addWidget(frame)
-
-        # Parameters choice
         self.radioDefault = QtWidgets.QRadioButton("Default parameters")
         self.radioWelch = QtWidgets.QRadioButton("Default Welch parameters")
         self.radioCustom = QtWidgets.QRadioButton("Custom parameters")
         self.radioDefault.setChecked(True)
-
-        # PSD parameters form
-        params = QtWidgets.QWidget()
-        params.setSizePolicy(policy)
-        formLayout = QtWidgets.QFormLayout(params)
-
         self.optNumEnsembles = QtWidgets.QLineEdit()
+        self.optNumEnsembles.setFixedWidth(50)
+        self.optNumEnsembles.setEnabled(False)
         self.optWindow = QtWidgets.QComboBox()
         self.optWindow.addItems(self.windows)
-        self.optOverlap = QtWidgets.QLineEdit("50")
-        self.optNperseg = QtWidgets.QLineEdit()
-        self.optFs = QtWidgets.QLineEdit()
-
-        self.optNumEnsembles.setFixedWidth(50)
-        self.optOverlap.setFixedWidth(50)
-        self.optNperseg.setFixedWidth(50)
-        self.optFs.setFixedWidth(50)
-
-        self.optNumEnsembles.setEnabled(False)
         self.optWindow.setEnabled(False)
+        self.optOverlap = QtWidgets.QLineEdit("50")
+        self.optOverlap.setFixedWidth(50)
         self.optOverlap.setEnabled(False)
+        self.optNperseg = QtWidgets.QLineEdit()
+        self.optNperseg.setFixedWidth(50)
         self.optNperseg.setEnabled(False)
+        self.optFs = QtWidgets.QLineEdit()
+        self.optFs.setFixedWidth(50)
         self.optFs.setEnabled(False)
 
-        formLayout.addRow(
+        # CONTAINERS
+        # Title and axes labels form
+        self.formTitle = QtWidgets.QFormLayout()
+        self.formTitle.addRow(QtWidgets.QLabel("Project title:"), self.optProject)
+
+        # Time series axes limits
+        self.frameTS = QtWidgets.QGroupBox("Time Series Limits")
+        self.frameTS.setSizePolicy(policy)
+        self.grid = QtWidgets.QGridLayout(self.frameTS)
+        self.grid.addWidget(QtWidgets.QLabel("X min:"), 0, 0)
+        self.grid.addWidget(self.optTSXmin, 0, 1)
+        self.grid.addWidget(QtWidgets.QLabel("X max:"), 0, 2)
+        self.grid.addWidget(self.optTSXmax, 0, 3)
+        # self.grid.addWidget(QtWidgets.QLabel('Y min:'), 1, 0)
+        # self.grid.addWidget(self.optTSYmin, 1, 1)
+        # self.grid.addWidget(QtWidgets.QLabel('Y max:'), 1, 2)
+        # self.grid.addWidget(self.optTSYmax, 1, 3)
+
+        # PSD axes limits
+        self.framePSD = QtWidgets.QGroupBox("PSD Limits")
+        self.framePSD.setSizePolicy(policy)
+        self.grid = QtWidgets.QGridLayout(self.framePSD)
+        self.grid.addWidget(QtWidgets.QLabel("X min:"), 0, 0)
+        self.grid.addWidget(self.optPSDXmin, 0, 1)
+        self.grid.addWidget(QtWidgets.QLabel("X max:"), 0, 2)
+        self.grid.addWidget(self.optPSDXmax, 0, 3)
+        # self.grid.addWidget(QtWidgets.QLabel('Y min:'), 1, 0)
+        # self.grid.addWidget(self.optPSDYmin, 1, 1)
+        # self.grid.addWidget(QtWidgets.QLabel('Y max:'), 1, 2)
+        # self.grid.addWidget(self.optPSDYmax, 1, 3)
+
+        # Combine axes limits group
+        self.hboxLimits = QtWidgets.QHBoxLayout()
+        self.hboxLimits.addWidget(self.frameTS)
+        self.hboxLimits.addWidget(self.framePSD)
+        self.hboxLimits.addStretch()
+
+        # Frequency/period group
+        self.psdXAxisGroup = QtWidgets.QGroupBox("PSD X Axis")
+        self.psdXAxisGroup.setSizePolicy(policy)
+        self.vbox = QtWidgets.QVBoxLayout(self.psdXAxisGroup)
+        self.vbox.addWidget(self.radioFreq)
+        self.vbox.addWidget(self.radioPeriod)
+
+        # Combine PSD x-axis and log scale
+        self.hboxPSD = QtWidgets.QHBoxLayout()
+        self.hboxPSD.addWidget(self.psdXAxisGroup)
+        self.hboxPSD.addWidget(self.logScale)
+
+        # Cut-off frequencies group
+        self.freqCutoffsGroup = QtWidgets.QGroupBox("Cut-off Frequencies")
+        self.freqCutoffsGroup.setSizePolicy(policy)
+        self.grid = QtWidgets.QGridLayout(self.freqCutoffsGroup)
+        self.grid.addWidget(QtWidgets.QLabel("Low freq cut-off (Hz):"), 0, 0)
+        self.grid.addWidget(self.lowCutoff, 0, 1)
+        self.grid.addWidget(self.lowFreqChkBox, 0, 2)
+        self.grid.addWidget(QtWidgets.QLabel("High freq cut-off (Hz):"), 1, 0)
+        self.grid.addWidget(self.highCutoff, 1, 1)
+        self.grid.addWidget(self.highFreqChkBox, 1, 2)
+
+        # Parameters choice radios
+        self.vbox = QtWidgets.QVBoxLayout()
+        self.vbox.addWidget(self.radioDefault)
+        self.vbox.addWidget(self.radioWelch)
+        self.vbox.addWidget(self.radioCustom)
+        self.vbox.addStretch()
+
+        # PSD parameters form
+        self.formLayout = QtWidgets.QFormLayout()
+        self.formLayout.addRow(
             QtWidgets.QLabel("Number of ensembles:"), self.optNumEnsembles
         )
-        formLayout.addRow(QtWidgets.QLabel("Window:"), self.optWindow)
-        formLayout.addRow(QtWidgets.QLabel("Window overlap (%):"), self.optOverlap)
-        formLayout.addRow(
+        self.formLayout.addRow(QtWidgets.QLabel("Window:"), self.optWindow)
+        self.formLayout.addRow(QtWidgets.QLabel("Window overlap (%):"), self.optOverlap)
+        self.formLayout.addRow(
             QtWidgets.QLabel("Number of points per ensemble (echo):"), self.optNperseg
         )
-        formLayout.addRow(
+        self.formLayout.addRow(
             QtWidgets.QLabel("Sampling frequency (Hz) (echo):"), self.optFs
         )
 
-        hbox = QtWidgets.QHBoxLayout(frame)
-        paramsChoice = QtWidgets.QWidget()
-        vbox = QtWidgets.QVBoxLayout(paramsChoice)
-        vbox.addWidget(self.radioDefault)
-        vbox.addWidget(self.radioWelch)
-        vbox.addWidget(self.radioCustom)
-        vbox.setAlignment(QtCore.Qt.AlignTop)
-        hbox.addWidget(paramsChoice)
-        hbox.addWidget(params)
+        # PSD parameters group
+        self.paramGroup = QtWidgets.QGroupBox("Power Spectral Density Parameters")
+        self.paramGroup.setSizePolicy(policy)
+        self.hbox = QtWidgets.QHBoxLayout(self.paramGroup)
+        self.hbox.addLayout(self.vbox)
+        self.hbox.addLayout(self.formLayout)
 
         # Button box
         self.buttonBox = QtWidgets.QDialogButtonBox(
@@ -1055,20 +1034,23 @@ class LoggerPlotSettings(QtWidgets.QDialog):
             | QtWidgets.QDialogButtonBox.Reset
         )
 
-        # Final layout
+        # LAYOUT
+        # self.setFixedSize(400, 300)
+        self.layout = QtWidgets.QVBoxLayout(self)
         # sectionLabel = QtWidgets.QLabel('Plot Title and Axes Labels')
         # bold = QtGui.QFont()
         # bold.setBold(True)
         # sectionLabel.setFont(bold)
         # mainLayout.addWidget(sectionLabel)
-        layout.addWidget(form)
-        layout.addWidget(axesLimits)
-        layout.addWidget(psdOpts)
-        layout.addWidget(freqCutoffsGroup)
-        layout.addWidget(psdParams)
-        layout.addWidget(self.buttonBox, stretch=0)
+        self.layout.addLayout(self.formTitle)
+        self.layout.addLayout(self.hboxLimits)
+        self.layout.addLayout(self.hboxPSD)
+        self.layout.addWidget(self.freqCutoffsGroup)
+        self.layout.addWidget(self.paramGroup)
+        self.layout.addStretch()
+        self.layout.addWidget(self.buttonBox, stretch=0)
 
-    def connect_signals(self):
+    def _connect_signals(self):
         self.lowFreqChkBox.toggled.connect(self.set_low_freq_cutoff_state)
         self.highFreqChkBox.toggled.connect(self.set_high_freq_cutoff_state)
         self.radioFreq.toggled.connect(self.switch_psd_xaxis)
