@@ -379,7 +379,8 @@ class StatsWidget(QtWidgets.QWidget):
         # selection.setSizePolicy(policy)
 
         # Load/clear buttons and datasets and channels lists
-        self.loadStatsButton = QtWidgets.QPushButton("Load Statistics")
+        self.openStatsButton = QtWidgets.QPushButton("Open Statistics")
+        self.openStatsButton.setToolTip("Open logger stats (*.h5;*.csv;*.xlsx) (F3)")
         self.clearDatasetsButton = QtWidgets.QPushButton("Clear Datasets")
         self.datasetList = QtWidgets.QListWidget()
         self.channelsLabel = QtWidgets.QLabel("Available Channels")
@@ -437,7 +438,7 @@ class StatsWidget(QtWidgets.QWidget):
 
         # Combine selection widgets
         self.vbox = QtWidgets.QVBoxLayout(self.selectionContainer)
-        self.vbox.addWidget(self.loadStatsButton)
+        self.vbox.addWidget(self.openStatsButton)
         self.vbox.addWidget(self.clearDatasetsButton)
         self.vbox.addWidget(QtWidgets.QLabel("Loaded Datasets"))
         self.vbox.addWidget(self.datasetList)
@@ -1152,7 +1153,7 @@ class VesselStatsWidget(QtWidgets.QWidget):
         selection.setFixedWidth(160)
         vbox = QtWidgets.QVBoxLayout(selection)
 
-        self.loadStatsButton = QtWidgets.QPushButton("Load Statistics")
+        self.openStatsButton = QtWidgets.QPushButton("Open Statistics")
         self.clearDatasetsButton = QtWidgets.QPushButton("Clear Datasets")
         lbl1 = QtWidgets.QLabel("Loaded Datasets")
         lbl2 = QtWidgets.QLabel("Channels (echo)")
@@ -1187,7 +1188,7 @@ class VesselStatsWidget(QtWidgets.QWidget):
         vbox2.addWidget(self.stats2Combo)
 
         # Combine selection widgets
-        vbox.addWidget(self.loadStatsButton)
+        vbox.addWidget(self.openStatsButton)
         vbox.addWidget(self.clearDatasetsButton)
         vbox.addWidget(lbl1)
         vbox.addWidget(self.datasetList)

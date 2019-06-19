@@ -24,97 +24,61 @@ class TransferFunctionsWidget(QtWidgets.QWidget):
         # So can access parent class
         self.parent = parent
         plt.style.use("seaborn")
-
-        self.init_ui()
-        self.connect_signals()
+        self._init_ui()
+        self._connect_signals()
         self.tf = TransferFunctions()
 
-    def init_ui(self):
-        # Setup container
-        self.vbox1 = QtWidgets.QVBoxLayout()
-
-        self.setTTPathsButton = QtWidgets.QPushButton("Set Paths Time Traces")
-        self.calcTFButton = QtWidgets.QPushButton("Generate Transfer Functions")
-        self.exportSSTFButton = QtWidgets.QPushButton("Export Seastate TFs")
-        self.exportAveTFButton = QtWidgets.QPushButton("Export Average TFs")
-        self.loadFileButton = QtWidgets.QPushButton("Load Transfer Functions")
-        self.loadFileButton.setToolTip("Load transfer functions file")
-
+    def _init_ui(self):
+        # WIDGETS
+        self.openTFsButton = QtWidgets.QPushButton("Open Transfer Functions")
+        self.openTFsButton.setToolTip("Open transfer functions (*.csv) (F5)")
+        self.exportSSTFButton = QtWidgets.QPushButton("Export Sea State TFs")
+        self.exportAveTFButton = QtWidgets.QPushButton("Export Averaged TFs")
         self.filesLabel = QtWidgets.QLabel("Transfer Functions")
         self.transferFuncsList = QtWidgets.QListWidget()
         self.transferFuncsList.setFixedWidth(160)
-
-        # Plot selection group
-        self.plotGroup = QtWidgets.QGroupBox("Select Transfer Function")
         self.loggerCombo = QtWidgets.QComboBox()
         self.locCombo = QtWidgets.QComboBox()
-
-        self.form = QtWidgets.QFormLayout(self.plotGroup)
-        self.form.addRow(QtWidgets.QLabel("Logger:"), self.loggerCombo)
-        self.form.addRow(QtWidgets.QLabel("Location:"), self.locCombo)
-
         self.plotButton = QtWidgets.QPushButton("Replot")
-
-        # Add setup widgets
-        self.vbox1.addWidget(self.setTTPathsButton)
-        self.vbox1.addWidget(self.calcTFButton)
-        self.vbox1.addWidget(self.exportSSTFButton)
-        self.vbox1.addWidget(self.exportAveTFButton)
-        self.vbox1.addWidget(self.loadFileButton)
-        self.vbox1.addWidget(self.filesLabel)
-        self.vbox1.addWidget(self.transferFuncsList)
-        self.vbox1.addWidget(self.plotGroup)
-        self.vbox1.addWidget(self.plotButton)
-        # self.vbox1.addStretch()
-
-        # Plot container
-        self.vbox2 = QtWidgets.QVBoxLayout()
 
         # Plot figure and canvas to display figure
         self.fig, self.ax = plt.subplots()
         self.canvas = FigureCanvas(self.fig)
         navbar = NavigationToolbar(self.canvas, self)
 
-        # Add plot widgets
+        # CONTAINERS
+        # Plot selection group
+        self.plotGroup = QtWidgets.QGroupBox("Select Transfer Function")
+        self.form = QtWidgets.QFormLayout(self.plotGroup)
+        self.form.addRow(QtWidgets.QLabel("Logger:"), self.loggerCombo)
+        self.form.addRow(QtWidgets.QLabel("Location:"), self.locCombo)
+
+        # Setup container
+        self.vbox1 = QtWidgets.QVBoxLayout()
+        self.vbox1.addWidget(self.openTFsButton)
+        self.vbox1.addWidget(self.exportSSTFButton)
+        self.vbox1.addWidget(self.exportAveTFButton)
+        self.vbox1.addWidget(self.filesLabel)
+        self.vbox1.addWidget(self.transferFuncsList)
+        self.vbox1.addWidget(self.plotGroup)
+        self.vbox1.addWidget(self.plotButton)
+
+        # Plot container
+        self.vbox2 = QtWidgets.QVBoxLayout()
         self.vbox2.addWidget(navbar)
         self.vbox2.addWidget(self.canvas)
 
-        # Final layout
+        # LAYOUT
         self.layout = QtWidgets.QHBoxLayout(self)
         self.layout.addLayout(self.vbox1)
         self.layout.addLayout(self.vbox2)
 
-    def connect_signals(self):
-        self.setTTPathsButton.clicked.connect(self.on_set_path_clicked)
-        self.calcTFButton.clicked.connect(self.on_calc_trans_funcs_clicked)
+    def _connect_signals(self):
         self.exportSSTFButton.clicked.connect(self.on_export_ss_tf_button_clicked)
         self.exportAveTFButton.clicked.connect(self.on_export_ave_tf_button_clicked)
         self.plotButton.clicked.connect(self.plot)
 
-    def on_set_path_clicked(self):
-        setPaths = SetPathDialog(self, self.tf)
-        setPaths.set_dialog_data()
-        setPaths.show()
-
-    def on_calc_trans_funcs_clicked(self):
-        """Calculate transfer functions from time series in csv files in folders of set paths."""
-
-        debug = 1
-        if debug == 1:
-            root = r"C:\Users\dickinsc\PycharmProjects\DataLab\demo_data\3. Transfer Functions"
-            self.tf.bm_dir = os.path.join(root, "Hot Spots BM Z")
-            self.tf.disp_dir = os.path.join(root, "Loggers Disp Y")
-            self.tf.rot_dir = os.path.join(root, "Loggers Rot Z")
-
-        self.tf.get_files()
-        self.tf.read_fea_time_traces()
-        self.tf.calc_g_cont_accs()
-        self.tf.clean_acc_and_bm_dataframes()
-        self.tf.calc_logger_acc_psds()
-        self.tf.calc_location_bm_psds()
-        self.tf.calc_trans_funcs()
-        self.tf.calc_weighted_ave_trans_funcs()
-
+    def plot_transfer_functions(self):
         # Populate gui
         self.transferFuncsList.clear()
         # self.transferFuncsList.addItems(self.tf.tf_names)
@@ -128,30 +92,37 @@ class TransferFunctionsWidget(QtWidgets.QWidget):
         self.loggerCombo.addItems(self.tf.logger_names)
         self.locCombo.clear
         self.locCombo.addItems(self.tf.loc_names)
-
         self.plot()
 
     def on_export_ss_tf_button_clicked(self):
-        # Export transfer functions to csv files (parse project root path)
-        root_dir = self.parent.control.project_path
+        """Export individual sea state transfer functions to csv files."""
+
+        root_dir = ""
+        if self.parent is not None:
+            root_dir = self.parent.control.project_path
+
         if root_dir == "":
             root_dir = os.getcwd()
 
+        # Write transfer functions to file
         retval = self.tf.export_seastate_transfer_functions(root_dir)
-
         if retval is True:
             path = os.path.join(root_dir, self.tf.output_folder1)
             msg = f"Transfer functions exported successfully to:\n{path}"
             return QtWidgets.QMessageBox.information(self, "Export Transfer Functions", msg)
 
     def on_export_ave_tf_button_clicked(self):
-        # Export transfer functions to csv files (parse project root path)
-        root_dir = self.parent.control.project_path
+        """Export sea state percentage occurrence averaged transfer functions to csv files."""
+
+        root_dir = ""
+        if self.parent is not None:
+            root_dir = self.parent.control.project_path
+
         if root_dir == "":
             root_dir = os.getcwd()
 
+        # Write transfer functions to file
         retval = self.tf.export_weighted_ave_trans_funcs(root_dir)
-
         if retval is True:
             path = os.path.join(root_dir, self.tf.output_folder2)
             msg = f"Transfer functions exported successfully to:\n{path}"
@@ -179,12 +150,9 @@ class TransferFunctionsWidget(QtWidgets.QWidget):
         self.canvas.draw()
 
 
-
-
 # For testing layout
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
     win = TransferFunctionsWidget()
-    # win = SetPathDialog()
     win.show()
     sys.exit(app.exec_())

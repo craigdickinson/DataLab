@@ -23,16 +23,7 @@ class TransferFunctions(QObject):
         # Lists to store logger, location and transfer function names
         self.logger_names = []
         self.loc_names = []
-        self.perc_occ = [
-            19.040,
-            10.134,
-            20.049,
-            17.022,
-            14.644,
-            10.374,
-            5.448,
-            3.289,
-        ]
+        self.perc_occ = []
         self.tf_names = []
 
         self.disp_files = []
@@ -52,12 +43,26 @@ class TransferFunctions(QObject):
         self.output_folder1 = "Seastate TFs"
         self.output_folder2 = "Weighted Average TFs"
 
+    def process_transfer_functions(self):
+        """Wrapper to process and calculate transfer functions."""
+
+        self.get_files()
+        if self.get_number_of_seastates() == 0:
+            return False
+        self.read_fea_time_traces()
+        self.calc_g_cont_accs()
+        self.clean_acc_and_bm_dataframes()
+        self.calc_logger_acc_psds()
+        self.calc_location_bm_psds()
+        self.calc_seastate_trans_funcs()
+        self.calc_weighted_ave_trans_funcs()
+
+        return True
+
     def get_files(self):
         self.bm_files = glob(self.bm_dir + "/*.csv")
         self.disp_files = glob(self.disp_dir + "/*.csv")
         self.rot_files = glob(self.rot_dir + "/*.csv")
-
-        # self.get_number_of_seastates()
 
     def read_fea_time_traces(self):
 
@@ -102,7 +107,10 @@ class TransferFunctions(QObject):
         n2 = len(self.disp_files)
         n3 = len(self.rot_files)
 
-        if n1 == n2 == n3:
+        if n1 == n2 == n2 == 0:
+            msg = "No FEA time series files found."
+            self.signal_warning.emit(msg)
+        elif n1 == n2 == n3:
             self.num_ss = n1
         else:
             self.num_ss = 0
@@ -193,7 +201,7 @@ class TransferFunctions(QObject):
             df = pd.DataFrame(data, index=freq, columns=cols)
             self.loc_bm_psds.append(df)
 
-    def calc_trans_funcs(self):
+    def calc_seastate_trans_funcs(self):
         """
         Compute frequency dependent transfer functions.
         TF = [Location BM PSD] / [Logger Acc PSD]
@@ -228,7 +236,7 @@ class TransferFunctions(QObject):
                 self.tf_names.extend(cols)
 
     def calc_weighted_ave_trans_funcs(self):
-        """Compute percentage occurrence weighted average transfer functions for all seastates."""
+        """Compute percentage occurrence weighted average transfer functions for all sea states."""
 
         perc_occ = np.asarray(self.perc_occ)
         n = perc_occ.sum()
@@ -238,6 +246,7 @@ class TransferFunctions(QObject):
             df_ave = pd.DataFrame()
 
             for j in range(self.num_locs):
+                # Multiply each column be percentage occurrence and average
                 df = self.trans_funcs[i][j].apply(lambda x: perc_occ * x, axis=1).sum(axis=1) / n
                 df_ave = pd.concat((df_ave, df), axis=1)
 
@@ -247,7 +256,7 @@ class TransferFunctions(QObject):
 
     def export_seastate_transfer_functions(self, root_dir=""):
         """
-        Export transfer functions. Export separate file for all locations per logger, per seastate.
+        Export transfer functions. Export separate file for all locations per logger, per sea state.
         File columns: Freq, Loc 1, Loc, 2, etc.
         """
 
@@ -258,7 +267,7 @@ class TransferFunctions(QObject):
         if os.path.exists(path) is False:
             os.makedirs(path)
 
-        # Export transfer functions files for each location and seastate, for all locations
+        # Export transfer functions files for each location and sea state, for all locations
         for i, logger in enumerate(self.logger_names):
             for j in range(self.num_ss):
                 df_ss = pd.DataFrame()
@@ -354,14 +363,14 @@ class TransferFunctions(QObject):
 
     @staticmethod
     def find_nearest_window(windows, hs_list, tp_list, hs_i, tp_i):
-        """Find the nearest seastate window from the linearised seastates for a given (Hs, Tp) pair."""
+        """Find the nearest sea state window from the linearised sea states for a given (Hs, Tp) pair."""
 
         # Ensure working with arrays
         windows = np.asarray(windows)
         hs_list = np.asarray(hs_list)
         tp_list = np.asarray(tp_list)
 
-        # Make window seastate data frame
+        # Make window sea state data frame
         df = pd.DataFrame(np.vstack((windows, hs_list, tp_list)).T, columns=["Windows", "Hs", "Tp"])
 
         # Find nearest Tp
@@ -383,12 +392,13 @@ if __name__ == "__main__":
     tf.disp_dir = os.path.join(root, "Loggers Disp Y")
     tf.rot_dir = os.path.join(root, "Loggers Rot Z")
     tf.get_files()
+    tf.get_number_of_seastates()
     tf.read_fea_time_traces()
     tf.calc_g_cont_accs()
     tf.clean_acc_and_bm_dataframes()
     tf.calc_logger_acc_psds()
     tf.calc_location_bm_psds()
-    tf.calc_trans_funcs()
+    tf.calc_seastate_trans_funcs()
     tf.calc_weighted_ave_trans_funcs()
     tf.export_seastate_transfer_functions()
     tf.export_weighted_ave_trans_funcs()

@@ -74,7 +74,8 @@ class SpectrogramWidget(QtWidgets.QWidget):
         selection.setFixedWidth(170)
         grid = QtWidgets.QGridLayout(selection)
 
-        self.loadDatasetButton = QtWidgets.QPushButton("Load Dataset")
+        self.openSpectButton = QtWidgets.QPushButton("Open Spectrograms")
+        self.openSpectButton.setToolTip("Open logger spectrograms (*.h5;*.csv;*.xlsx) (F4)")
         lbl = QtWidgets.QLabel("Loaded Datasets")
         self.datasetList = QtWidgets.QListWidget()
         self.datasetList.setFixedHeight(100)
@@ -90,7 +91,7 @@ class SpectrogramWidget(QtWidgets.QWidget):
         self.calcNatFreqButton = QtWidgets.QPushButton("Estimate Nat. Freq.")
         self.clearDatasetsButton = QtWidgets.QPushButton("Clear Datasets")
 
-        grid.addWidget(self.loadDatasetButton, 0, 0)
+        grid.addWidget(self.openSpectButton, 0, 0)
         grid.addWidget(self.clearDatasetsButton, 1, 0)
         grid.addWidget(lbl, 2, 0)
         grid.addWidget(self.datasetList, 3, 0)

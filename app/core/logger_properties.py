@@ -298,7 +298,7 @@ class LoggerProperties(QObject):
         self.all_channel_names = channels
         self.all_channel_units = units
 
-    def set_columns_to_process_headers(self):
+    def set_processed_columns_headers(self):
         """
         Assign user-defined channel names and units to logger if supplied.
         Otherwise use header info from a test file and create dummy header columns for any columns

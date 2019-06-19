@@ -80,8 +80,8 @@ class RawDataDashboard(QtWidgets.QWidget):
         self.psd_ylim = (0.0, 1.0)
 
         # Low and high frequency cut-offs
-        self.apply_low_cutoff = True
-        self.apply_high_cutoff = True
+        self.apply_low_cutoff = False
+        self.apply_high_cutoff = False
         self.low_cutoff = 0.05
         self.high_cutoff = 0.5
 
@@ -109,8 +109,8 @@ class RawDataDashboard(QtWidgets.QWidget):
         vboxSetup = QtWidgets.QVBoxLayout(setupWidget)
 
         # Load file
-        self.loadFileButton = QtWidgets.QPushButton("Load Raw Logger File")
-        self.loadFileButton.setToolTip("Load raw logger file")
+        self.openRawButton = QtWidgets.QPushButton("Open Raw Logger File")
+        self.openRawButton.setToolTip("Open raw logger data (*.csv;*.acc) (F2)")
 
         # Files list
         filesLabel = QtWidgets.QLabel("Logger Files")
@@ -139,7 +139,7 @@ class RawDataDashboard(QtWidgets.QWidget):
         self.replotButton = QtWidgets.QPushButton("Replot")
 
         # Add setup widgets
-        vboxSetup.addWidget(self.loadFileButton)
+        vboxSetup.addWidget(self.openRawButton)
         vboxSetup.addWidget(filesLabel)
         vboxSetup.addWidget(self.filesList)
         vboxSetup.addWidget(channelsLabel)
@@ -947,18 +947,20 @@ class LoggerPlotSettings(QtWidgets.QDialog):
         hbox.addWidget(framePSD)
 
         # Low/high cut-off frequencies group
-        freqCutoffsGroup = QtWidgets.QGroupBox("Frequency Cut-offs")
+        freqCutoffsGroup = QtWidgets.QGroupBox("Cut-off Frequencies")
         freqCutoffsGroup.setSizePolicy(policy)
         grid = QtWidgets.QGridLayout(freqCutoffsGroup)
 
         self.lowCutoff = QtWidgets.QLineEdit("0.05")
         self.lowCutoff.setFixedWidth(50)
+        self.lowCutoff.setEnabled(False)
         self.highCutoff = QtWidgets.QLineEdit("0.50")
         self.highCutoff.setFixedWidth(50)
+        self.highCutoff.setEnabled(False)
         self.lowFreqChkBox = QtWidgets.QCheckBox("Apply cut-off")
-        self.lowFreqChkBox.setChecked(True)
+        self.lowFreqChkBox.setChecked(False)
         self.highFreqChkBox = QtWidgets.QCheckBox("Apply cut-off")
-        self.highFreqChkBox.setChecked(True)
+        self.highFreqChkBox.setChecked(False)
         grid.addWidget(QtWidgets.QLabel("Low freq cut-off (Hz):"), 0, 0)
         grid.addWidget(self.lowCutoff, 0, 1)
         grid.addWidget(self.lowFreqChkBox, 0, 2)
@@ -1275,8 +1277,8 @@ class LoggerPlotSettings(QtWidgets.QDialog):
 # For testing layout
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
-    win = RawDataDashboard()
-    # win = LoggerPlotSettings()
+    # win = RawDataDashboard()
+    win = LoggerPlotSettings()
     win.show()
     sys.exit(app.exec_())
 

@@ -41,33 +41,59 @@ class ConfigModule(QtWidgets.QWidget):
         self._connect_signals()
 
     def _init_ui(self):
-        # DEFINE WIDGETS
-        self.loadConfigButton = QtWidgets.QPushButton("&Load")
-        self.saveConfigButton = QtWidgets.QPushButton("&Save")
-        self.processButton = QtWidgets.QPushButton("Process")
-        self.processButton.setShortcut("Ctrl+R")
-        # spacerItem = QtWidgets.QSpacerItem(40, 1)
+        # WIDGETS
+        self.openConfigButton = QtWidgets.QPushButton("Open")
+        self.openConfigButton.setToolTip("Load config (*.json) file (Ctrl+O)")
+        self.saveConfigButton = QtWidgets.QPushButton("Save")
+        self.saveConfigButton.setToolTip("Export project settings to config (*.json) file (Ctrl+S)")
+        self.newProjButton = QtWidgets.QPushButton("New Project")
+        self.newProjButton.setShortcut("Ctrl+N")
+        self.newProjButton.setToolTip("Clear all settings (Ctrl+N)")
         self.addLoggerButton = QtWidgets.QPushButton("Add Logger")
+        self.addLoggerButton.setShortcut("Ctrl+A")
+        self.addLoggerButton.setToolTip("Ctrl+A")
         self.remLoggerButton = QtWidgets.QPushButton("Remove Logger")
+        self.remLoggerButton.setShortcut("Ctrl+Del")
+        self.remLoggerButton.setToolTip("Ctrl+Del")
         self.loggersList = QtWidgets.QListWidget()
         self.columnsList = QtWidgets.QListWidget()
-        self.newProjButton = QtWidgets.QPushButton("&New Project")
+
+        # Process buttons
+        h = 30
+        self.processButton = QtWidgets.QPushButton("Process Screening")
+        self.processButton.setFixedHeight(h)
+        self.processButton.setToolTip("Screen loggers and calculate stats and spectral data (F6)")
+
+        self.calcSeascatterButton = QtWidgets.QPushButton("Create Seascatter")
+        self.calcSeascatterButton.setFixedHeight(h)
+        self.calcSeascatterButton.setToolTip("Create Hs-Tp seascatter diagram (F7)")
+
+        self.calcTFButton = QtWidgets.QPushButton("Calculate Transfer Functions")
+        self.calcTFButton.setFixedHeight(h)
+        self.calcTFButton.setToolTip("Calculate frequency-dependent transfer functions (F8)")
+
+        self.calcFatigueButton = QtWidgets.QPushButton("Calculate Fatigue")
+        self.calcFatigueButton.setFixedHeight(h)
+        self.calcFatigueButton.setToolTip("Run spectral fatigue analysis (F9)")
+        self.spacer = QtWidgets.QSpacerItem(1, 20)
 
         # Config tab widgets
         self.campaignTab = CampaignInfoTab(self, self.control)
         self.loggerPropsTab = LoggerPropertiesTab(self, self.control)
         self.analysisTab = StatsAndSpectralSettingsTab(self, self.control)
-        self.tfTab = TransferFunctionsTab(self, self.tf)
+        self.tfSettingsTab = TransferFunctionsTab(self, self.tf)
 
         # CONTAINERS
+        # Config buttons container
         self.configButtonsWidget = QtWidgets.QWidget()
-        hbox = QtWidgets.QHBoxLayout(self.configButtonsWidget)
-        hbox.addWidget(QtWidgets.QLabel("Config File:"))
-        hbox.addWidget(self.loadConfigButton)
-        hbox.addWidget(self.saveConfigButton)
-        hbox.addWidget(self.processButton)
-        # hbox.addItem(spacerItem)
+        self.hbox = QtWidgets.QHBoxLayout(self.configButtonsWidget)
+        self.hbox.addWidget(QtWidgets.QLabel("Config File:"))
+        self.hbox.addWidget(self.openConfigButton)
+        self.hbox.addWidget(self.saveConfigButton)
+        self.hbox.addWidget(self.newProjButton)
+        self.hbox.addStretch()
 
+        # Loggers container
         self.loggersGroup = QtWidgets.QGroupBox("Campaign Loggers")
         self.loggersGroup.setFixedWidth(180)
         self.vbox = QtWidgets.QVBoxLayout(self.loggersGroup)
@@ -78,47 +104,53 @@ class ConfigModule(QtWidgets.QWidget):
         self.vbox.addWidget(QtWidgets.QLabel("Logger Header Details"))
         self.vbox.addWidget(self.columnsList)
 
+        # Setup container
         self.setupTabs = QtWidgets.QTabWidget()
         self.setupTabs.addTab(self.campaignTab, "Campaign Info")
         self.setupTabs.addTab(self.loggerPropsTab, "Logger File Properties")
         self.setupTabs.addTab(self.analysisTab, "Screening Setup")
-        self.setupTabs.addTab(self.tfTab, "Transfer Functions Setup")
+        self.setupTabs.addTab(self.tfSettingsTab, "Transfer Functions Setup")
 
-        # # Run analysis group
-        # self.runWidget = QtWidgets.QWidget()
-        #
-        # self.runGroup = QtWidgets.QGroupBox("Selected Analysis")
-        # self.statsChkBox = QtWidgets.QCheckBox("Statistical Analysis")
-        # self.spectralChkBox = QtWidgets.QCheckBox("Spectral Analysis")
-        #
-        # self.vbox2 = QtWidgets.QVBoxLayout(self.runGroup)
-        # self.vbox2.addWidget(self.statsChkBox)
-        # self.vbox2.addWidget(self.spectralChkBox)
-        #
-        # self.processButton = QtWidgets.QPushButton("Process")
-        #
-        # self.vbox1 = QtWidgets.QVBoxLayout(self.runWidget)
-        # self.vbox1.addWidget(self.runGroup)
-        # self.vbox1.addWidget(self.processButton)
+        # Process buttons container
+        self.vboxRun = QtWidgets.QVBoxLayout()
+        self.vboxRun.addItem(self.spacer)
+        self.vboxRun.addWidget(self.processButton)
+        self.vboxRun.addItem(self.spacer)
+        self.vboxRun.addWidget(self.calcSeascatterButton)
+        self.vboxRun.addItem(self.spacer)
+        self.vboxRun.addWidget(self.calcTFButton)
+        self.vboxRun.addItem(self.spacer)
+        self.vboxRun.addWidget(self.calcFatigueButton)
+        self.vboxRun.addStretch()
 
         # LAYOUT
-        self.layout = QtWidgets.QGridLayout(self)
-        self.layout.addWidget(self.configButtonsWidget, 0, 0, 1, 2, QtCore.Qt.AlignLeft)
-        self.layout.addWidget(self.loggersGroup, 1, 0)
-        self.layout.addWidget(self.setupTabs, 1, 1)
-        self.layout.addWidget(self.newProjButton, 2, 0, QtCore.Qt.AlignLeft)
+        self.hbox1 = QtWidgets.QHBoxLayout()
+        self.hbox1.addWidget(self.loggersGroup)
+        self.hbox1.addWidget(self.setupTabs)
+        self.hbox1.addLayout(self.vboxRun)
+
+        self.vbox1 = QtWidgets.QVBoxLayout()
+        self.vbox1.addWidget(self.configButtonsWidget)
+        self.vbox1.addLayout(self.hbox1)
+
+        self.layout = QtWidgets.QHBoxLayout(self)
+        self.layout.addLayout(self.vbox1)
+        # self.layout.addLayout(self.vboxRun)
 
     def _connect_signals(self):
-        self.loadConfigButton.clicked.connect(self.on_load_config_clicked)
+        self.openConfigButton.clicked.connect(self.on_open_config_clicked)
         self.saveConfigButton.clicked.connect(self.on_save_config_clicked)
+        self.newProjButton.clicked.connect(self.on_new_project_clicked)
         self.addLoggerButton.clicked.connect(self.on_add_logger_clicked)
         self.remLoggerButton.clicked.connect(self.on_remove_logger_clicked)
         self.loggersList.itemClicked.connect(self.on_logger_selected)
         self.loggersList.itemChanged.connect(self.on_logger_item_edited)
-        self.newProjButton.clicked.connect(self.on_new_project_clicked)
-        self.processButton.clicked.connect(self.on_process_clicked)
+        self.processButton.clicked.connect(self.on_process_screening_clicked)
+        self.calcSeascatterButton.clicked.connect(self.on_calc_seascatter_clicked)
+        self.calcTFButton.clicked.connect(self.on_calc_transfer_functions_clicked)
+        self.calcFatigueButton.clicked.connect(self.on_calc_fatigue_clicked)
 
-    def on_load_config_clicked(self):
+    def on_open_config_clicked(self):
         """Load config JSON file."""
 
         filename, _ = QtWidgets.QFileDialog.getOpenFileName(
@@ -153,8 +185,9 @@ class ConfigModule(QtWidgets.QWidget):
                 self.parent.error(f"{msg}:\n{e}\n{sys.exc_info()[0]}")
                 logging.exception(e)
 
-        # Update control object in DataLab instance
+        # Update control and transfer functions objects in parent DataLab object
         self.parent.control = self.control
+        self.parent.tf = self.tf
 
     def on_save_config_clicked(self):
         """Save project configuration settings as a dictionary to a JSON file."""
@@ -194,6 +227,36 @@ class ConfigModule(QtWidgets.QWidget):
 
             # Update control object in DataLab instance
             self.parent.control = self.control
+
+    def on_new_project_clicked(self):
+        """Clear project control object and all config dashboard values."""
+
+        # Create new control and transfer functions objects and map to associated child widget objects
+        self.control = Control()
+        self.tf = TransferFunctions()
+        self.campaignTab.control = self.control
+        self.loggerPropsTab.control = self.control
+        self.analysisTab.control = self.control
+        self.tfSettingsTab.tf = self.tf
+
+        # Update control and transfer functions objects in parent DataLab instance
+        if self.parent is not None:
+            self.parent.control = self.control
+            self.parent.tf = self.tf
+
+        # Clear logger combo box
+        # Note: This will trigger the clearing of the logger properties, stats and spectral dashboards
+        self.loggersList.clear()
+        self.columnsList.clear()
+
+        # Clear campaign data dashboard and update window title to include config file path
+        self.campaignTab.clear_dashboard()
+        self.loggerPropsTab.clear_dashboard()
+        self.analysisTab.clear_dashboard()
+        self.tfSettingsTab.clear_dashboard()
+
+        # Reset window title
+        self._set_window_title()
 
     def on_add_logger_clicked(self):
         """Add new logger to list. Initial logger name format is 'Logger n'."""
@@ -301,42 +364,26 @@ class ConfigModule(QtWidgets.QWidget):
                 item.setFlags(item.flags() & ~QtCore.Qt.ItemIsSelectable)
                 self.columnsList.addItem(item)
 
-    def on_new_project_clicked(self):
-        """Clear project control object and all config dashboard values."""
+    def on_process_screening_clicked(self):
+        self.parent.process_screening()
 
-        # Create new control object and map to campaign, logger properties and analysis tabs
-        self.control = Control()
-        self.campaignTab.control = self.control
-        self.loggerPropsTab.control = self.control
-        self.analysisTab.control = self.control
+    def on_calc_seascatter_clicked(self):
+        pass
 
-        # Clear logger combo box
-        # Note: This will trigger the clearing of the logger properties, stats and spectral dashboards
-        self.loggersList.clear()
-        self.columnsList.clear()
+    def on_calc_transfer_functions_clicked(self):
+        self.parent.calc_transfer_functions()
 
-        # Clear campaign data dashboard and update window title to include config file path
-        self.campaignTab.clear_dashboard()
-        self.loggerPropsTab.clear_dashboard()
-        self.analysisTab.clear_dashboard()
-        self.tfTab.clear_dashboard()
-
-        # Reset window title
-        self._set_window_title()
-
-    def on_process_clicked(self):
-        """Run DataLab processing engine - call function in main DataLab class."""
-
-        self.parent.analyse_config_setup(self.control)
+    def on_calc_fatigue_clicked(self):
+        self.parent.calc_fatigue()
 
     def _set_dashboards(self):
         """Set dashboard values with data in control object after loading JSON file."""
 
-        # First need to map the newly loaded control object to campaignTab and loggerTab
+        # Map the loaded control and transfer objects to the associated tab widget objects
         self.campaignTab.control = self.control
         self.loggerPropsTab.control = self.control
         self.analysisTab.control = self.control
-        self.tfTab.tf = self.tf
+        self.tfSettingsTab.tf = self.tf
 
         # Set campaign data to dashboard
         self.campaignTab.set_campaign_dashboard()
@@ -360,10 +407,13 @@ class ConfigModule(QtWidgets.QWidget):
             self.set_logger_header_list(logger)
 
         # Set transfer functions dashboard
-        self.tfTab.set_tf_dashboard(self.tf)
+        self.tfSettingsTab.set_tf_dashboard()
 
     def _set_window_title(self, filename=None):
         """Update main window title with config filename."""
+
+        if self.parent is None:
+            return
 
         if filename:
             self.parent.setWindowTitle(
@@ -394,9 +444,10 @@ class CampaignInfoTab(QtWidgets.QWidget):
         self._connect_signals()
 
     def _init_ui(self):
-        # DEFINE WIDGETS
+        # WIDGETS
         self.editButton = QtWidgets.QPushButton("Edit Data")
         self.editButton.setShortcut("Ctrl+E")
+        self.editButton.setToolTip("Ctrl+E")
         self.projNum = QtWidgets.QLabel("-")
         self.projNum.setFixedWidth(40)
         self.projName = QtWidgets.QLabel("-")
@@ -495,7 +546,7 @@ class EditCampaignInfoDialog(QtWidgets.QDialog):
             QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed
         )
 
-        # DEFINE WIDGETS
+        # WIDGETS
         self.projNum = QtWidgets.QLineEdit()
         self.projNum.setFixedWidth(40)
         self.projName = QtWidgets.QLineEdit()
@@ -583,9 +634,10 @@ class LoggerPropertiesTab(QtWidgets.QWidget):
     def _init_ui(self):
         """Create widget layout."""
 
-        # DEFINE WIDGETS
+        # WIDGETS
         self.editButton = QtWidgets.QPushButton("Edit Data")
         self.editButton.setShortcut("Ctrl+E")
+        self.editButton.setToolTip("Ctrl+E")
         self.loggerID = QtWidgets.QLabel("-")
         self.fileFormat = QtWidgets.QLabel("-")
         self.loggerPath = QtWidgets.QLabel("-")
@@ -730,7 +782,7 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
             QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed
         )
 
-        # DEFINE WIDGETS
+        # WIDGETS
         self.loggerID = QtWidgets.QLineEdit()
         self.loggerPath = QtWidgets.QTextEdit()
         self.loggerPath.setFixedHeight(40)
@@ -1090,9 +1142,10 @@ class StatsAndSpectralSettingsTab(QtWidgets.QWidget):
     def _init_ui(self):
         """Create widget layout."""
 
-        # DEFINE WIDGETS
+        # WIDGETS
         self.editButton = QtWidgets.QPushButton("Edit Data")
         self.editButton.setShortcut("Ctrl+E")
+        self.editButton.setToolTip("Ctrl+E")
         self.columns = QtWidgets.QLabel("-")
         self.unitConvs = QtWidgets.QLabel("-")
         self.channelNames = QtWidgets.QLabel("-")
@@ -1440,7 +1493,7 @@ class EditStatsAndSpectralDialog(QtWidgets.QDialog):
         int_validator.setBottom(1)
         dbl_validator = QtGui.QDoubleValidator()
 
-        # DEFINE WIDGETS
+        # WIDGETS
         self.columns = QtWidgets.QLineEdit()
         self.columns.setToolTip("Column numbers to process, separated by a space.\n"
                                 "E.g. 2 3 4 5 (column 1 (time index) does not need to be included).")
@@ -1716,9 +1769,10 @@ class TransferFunctionsTab(QtWidgets.QWidget):
         self._connect_signals()
 
     def _init_ui(self):
-        # DEFINE WIDGETS
+        # WIDGETS
         self.editButton = QtWidgets.QPushButton("Edit Data")
         self.editButton.setShortcut("Ctrl+E")
+        self.editButton.setToolTip("Ctrl+E")
         self.loggerDispPath = QtWidgets.QLabel("-")
         self.loggerRotPath = QtWidgets.QLabel("-")
         self.locBMPath = QtWidgets.QLabel("-")
@@ -1785,11 +1839,10 @@ class TransferFunctionsTab(QtWidgets.QWidget):
         editInfo.set_dialog_data()
         editInfo.show()
 
-    def set_tf_dashboard(self, tf):
+    def set_tf_dashboard(self):
         """Set config tab campaign info."""
 
-        self.tf = tf
-
+        tf = self.tf
         self.loggerDispPath.setText(tf.disp_dir)
         self.loggerRotPath.setText(tf.rot_dir)
         self.locBMPath.setText(tf.bm_dir)
@@ -1824,7 +1877,7 @@ class EditTransferFunctionsDialog(QtWidgets.QDialog):
         self._connect_signals()
 
     def _init_ui(self):
-        self.setWindowTitle("Set Paths to FEA Time Traces")
+        self.setWindowTitle("Edit Transfer Functions Settings")
 
         # Sizing policy
         policy = QtWidgets.QSizePolicy(
@@ -1832,7 +1885,7 @@ class EditTransferFunctionsDialog(QtWidgets.QDialog):
         )
         self.setFixedHeight(500)
 
-        # DEFINE WIDGETS
+        # WIDGETS
         self.loggerDispPath = QtWidgets.QPlainTextEdit()
         self.loggerDispPath.setFixedHeight(40)
         # self.loggerDispPath.setMinimumWidth(300)
@@ -1851,6 +1904,17 @@ class EditTransferFunctionsDialog(QtWidgets.QDialog):
         self.locNames = QtWidgets.QPlainTextEdit()
         self.percOcc = QtWidgets.QPlainTextEdit()
         self.percOcc.setFixedWidth(80)
+        self.percOcc.setToolTip("Optional: To calculate a weighted-average transfer function per location,\n"
+                                "input a list of sea state percentage occurrence values, e.g.\n"
+                                "19.040\n"
+                                "10.134\n"
+                                "20.049\n"
+                                "17.022\n"
+                                "14.644\n"
+                                "10.374\n"
+                                "5.448\n"
+                                "3.289\n"
+                                )
         self.buttonBox = QtWidgets.QDialogButtonBox(
             QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel
         )
@@ -1965,7 +2029,7 @@ class EditTransferFunctionsDialog(QtWidgets.QDialog):
 
         self._set_tf_data()
         if self.parent is not None:
-            self.parent.set_tf_dashboard(self.tf)
+            self.parent.set_tf_dashboard()
 
     def _set_tf_data(self):
         """Assign values to the transfer functions object."""
@@ -2008,13 +2072,17 @@ class EditTransferFunctionsDialog(QtWidgets.QDialog):
             self.tf.perc_occ = []
 
     def on_detect_clicked(self):
-        root = r"C:\Users\dickinsc\PycharmProjects\DataLab\demo_data\3. Transfer Functions"
-        self.tf.bm_dir = os.path.join(root, "Hot Spots BM Z")
-        self.tf.disp_dir = os.path.join(root, "Loggers Disp Y")
-        self.tf.rot_dir = os.path.join(root, "Loggers Rot Z")
+        """
+        Analyse FEA time series files to detect the number of logger, locations and sea states processed,
+        and the logger and location names.
+        """
 
         self.tf.get_files()
+
+        # Check files exist
         num_ss = self.tf.get_number_of_seastates()
+        if num_ss == 0:
+            return
 
         # Get number of loggers from displacement time series
         df = self.tf.read_2httrace_csv(self.tf.disp_files[0])
@@ -2076,14 +2144,14 @@ class EditTransferFunctionsDialog(QtWidgets.QDialog):
 if __name__ == "__main__":
     # For testing widget layout
     app = QtWidgets.QApplication(sys.argv)
-    # win = ConfigModule()
+    win = ConfigModule()
     # win = CampaignInfoTab()
     # win = LoggerPropertiesTab()
     # win = StatsAndSpectralSettingsTab()
     # win = EditCampaignInfoDialog()
     # win = EditLoggerPropertiesDialog()
     # win = EditStatsAndSpectralDialog()
-    win = TransferFunctionsTab()
+    # win = TransferFunctionsTab()
     # win = EditTransferFunctionsDialog()
     win.show()
     app.exit(app.exec_())

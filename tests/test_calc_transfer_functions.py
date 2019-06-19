@@ -4,8 +4,7 @@ __author__ = "Craig Dickinson"
 import pytest
 import os
 
-from app.core.calc_transfer_functions import TransferFunctions, get_header_row, read_seastate_time_traces, \
-    find_nearest_window
+from app.core.calc_transfer_functions import TransferFunctions
 
 
 def setup():
@@ -15,6 +14,7 @@ def setup():
     tf.disp_dir = os.path.join(root, "Loggers Disp Y")
     tf.rot_dir = os.path.join(root, "Loggers Rot Z")
     tf.get_files()
+    tf.get_number_of_seastates()
 
     return tf
 
@@ -23,24 +23,24 @@ tf = setup()
 
 
 def test_get_header_row():
-    header_row = get_header_row(tf.bm_files[0])
+    header_row = tf.get_header_row(tf.bm_files[0])
     assert header_row == 4
 
 
 def test_read_loc_bm_time_traces_shape():
-    df = read_seastate_time_traces(tf.bm_files)
+    df = tf.read_seastate_time_traces(tf.bm_files)
     assert df.shape[0] == 36002
     assert df.shape[1] == 24
 
 
 def test_read_logger_disp_time_traces_shape():
-    df = read_seastate_time_traces(tf.disp_files)
+    df = tf.read_seastate_time_traces(tf.disp_files)
     assert df.shape[0] == 36002
     assert df.shape[1] == 16
 
 
 def test_read_logger_rot_time_traces_shape():
-    df = read_seastate_time_traces(tf.rot_files)
+    df = tf.read_seastate_time_traces(tf.rot_files)
     assert df.shape[0] == 36002
     assert df.shape[1] == 16
 
@@ -82,7 +82,7 @@ def test_find_nearest_window():
 
     hs_i = 2
     tp_i = 9.5
-    win = find_nearest_window(windows, hs, tp, hs_i, tp_i)
+    win = tf.find_nearest_window(windows, hs, tp, hs_i, tp_i)
     assert win == 5
 
 
