@@ -40,7 +40,7 @@ class Control(object):
     def __init__(self):
         """Initialise control file properties."""
 
-        # Control file name to read from
+        # Control filename to read from
         self.control_file = ""
         self.config_file = ""
 
@@ -53,8 +53,13 @@ class Control(object):
         self.campaign_name = ""
         self.project_path = ""
 
-        # Output settings
-        self.output_folder = ""
+        # Output folders and paths
+        self.report_output_folder = "Screening Report"
+        self.stats_output_folder = "Statistics"
+        self.spect_output_folder = "Spectrograms"
+        self.report_output_path = ""
+        self.stats_output_path = ""
+        self.spect_output_path = ""
 
         # Selected stats output file formats
         self.stats_to_h5 = True
@@ -89,7 +94,7 @@ class Control(object):
         self.get_project_name()
         self.get_campaign_name()
         self.get_output_folder()
-        self.ensure_dir_exists(self.output_folder)
+        self._ensure_dir_exists(self.stats_output_folder)
         self.process_logger_names()
         self.add_loggers()
 
@@ -124,11 +129,20 @@ class Control(object):
         """Extract output name from control data."""
 
         key = "*OUTPUT_FOLDER"
-        _, self.output_folder = self.get_key_data(key, self.data)
-        if self.output_folder == "":
+        _, self.stats_output_folder = self.get_key_data(key, self.data)
+        if self.stats_output_folder == "":
             raise InputError("No output folder name found in control file")
 
-    def ensure_dir_exists(self, directory):
+    def set_up_output_folders(self):
+        """Construct file paths for output folders and create folders if required."""
+
+        path = self.project_path
+        self.report_output_path = os.path.join(path, self.report_output_folder)
+        self.stats_output_path = os.path.join(path, self.stats_output_folder)
+        self.spect_output_path = os.path.join(path, self.spect_output_folder)
+
+    @staticmethod
+    def _ensure_dir_exists(directory):
         """Create directory (and intermediate directories) if do not exist."""
 
         if directory != "" and os.path.exists(directory) is False:
@@ -246,7 +260,7 @@ class Control(object):
                 self.get_user_headers(logger, logger_data)
 
                 # Check at least one header specification has been made
-                self.check_header_specification(logger)
+                logger.check_header_specification()
 
             # Get stats format
             self.read_or_copy_stats_format(logger, logger_data)
@@ -255,7 +269,7 @@ class Control(object):
             logger.process_filenames()
 
             # Select only files within specified datetime range
-            logger.select_files_in_datetime_range(logger.stats_start, logger.stats_end)
+            logger.select_files_in_datetime_range(logger.process_start, logger.process_end)
 
             # Select first logger file to detect additional properties and checks on
             test_file = logger.files[0]
@@ -272,7 +286,7 @@ class Control(object):
             logger.expected_data_points = logger.freq * logger.duration
 
             # Make any user defined units and channels override any detected
-            logger.user_header_override()
+            logger.check_for_user_headers()
 
             # Check header lengths match number of columns
             logger.check_headers()
@@ -302,7 +316,7 @@ class Control(object):
 
         i = slice_array[index]
         if index < len(slice_array) - 1:
-            return data[i : slice_array[index + 1]]
+            return data[i: slice_array[index + 1]]
         else:
             return data[i:]
 
@@ -458,19 +472,6 @@ class Control(object):
         if i > -1:
             logger.user_channel_units = units_str.split()
 
-    def check_header_specification(self, logger):
-        """Check channel names and units have been specified in control file."""
-
-        # Check something has been entered for channel names
-        if logger.channel_header_row == 0 and len(logger.user_channel_names) == 0:
-            msg = "Channel names not specified for logger " + logger.logger_id
-            raise InputError(msg)
-
-        # Check something has been entered for units
-        if logger.units_header_row == 0 and len(logger.user_channel_units) == 0:
-            msg = "Units not specified for logger " + logger.logger_id
-            raise InputError(msg)
-
     def read_or_copy_stats_format(self, logger, data):
         """Read file format from control file or copy from another logger."""
 
@@ -518,7 +519,7 @@ class Control(object):
 
         # TODO: Sort this out for topside data where not all columns are present
         #  Check stats columns make sense
-        m = max(logger.requested_cols)
+        m = max(logger.cols_to_process)
         if m > len(header):
             msg = "Error in *STATS_COLUMNS for logger " + logger.logger_id
             msg += "\n Number of columns detected is less than " + str(m)
@@ -664,7 +665,7 @@ class Control(object):
             msg = key + " data not found for " + logger.logger_id
             raise InputError(msg)
 
-        logger.requested_cols = list(map(int, stats_col_str.split()))
+        logger.cols_to_process = list(map(int, stats_col_str.split()))
 
         # Get unit conversion factors (optional)
         key = "*STATS_UNIT_CONV_FACTORS"
@@ -690,20 +691,20 @@ class Control(object):
         # Get start date if specified
         # TODO: Once have start and end dates should create list of expected filenames sequence to check missing files
         key = "*STATS_START"
-        i, stats_start_str = self.get_key_data(key, data)
+        i, process_start_str = self.get_key_data(key, data)
         if i != -1:
             try:
-                logger.stats_start = parse(stats_start_str, yearfirst=True)
+                logger.process_start = parse(process_start_str, yearfirst=True)
             except ValueError:
                 msg = key + " format not recognised for " + logger.logger_id
                 raise InputError(msg)
 
         # Get end date if specified
         key = "*STATS_END"
-        i, stats_end_str = self.get_key_data(key, data)
+        i, process_end_str = self.get_key_data(key, data)
         if i != -1:
             try:
-                logger.stats_end = parse(stats_end_str, yearfirst=True)
+                logger.process_end = parse(process_end_str, yearfirst=True)
             except ValueError:
                 msg = key + " format not recognised for " + logger.logger_id
                 raise InputError(msg)
@@ -728,11 +729,11 @@ class Control(object):
 
         # Attributes to copy
         names = [
-            "requested_cols",
+            "cols_to_process",
             "unit_conv_factors",
             "stats_interval",
-            "stats_start",
-            "stats_end",
+            "process_start",
+            "process_end",
         ]
 
         # Copy attributes from reference logger
@@ -762,7 +763,7 @@ class Control(object):
             text_upper = text.upper().strip()
             if text_upper.startswith(key.upper()):
                 # Return the rest of the line and row number if found
-                key_data = text[len(key) :].strip()
+                key_data = text[len(key):].strip()
                 return line, key_data
 
         # Return empty string and negative row number if not found

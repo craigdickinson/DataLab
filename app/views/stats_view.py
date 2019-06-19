@@ -37,10 +37,10 @@ variance_channels_combo = [
 ]
 
 motion_types = ["Surge/Sway/Heave", "Roll/Pitch/Yaw"]
-
-vessel_trans = ["AccSurge", "AccSway", "AccHeave"]
-
-vessel_rots = ["AccRoll", "AccPitch", "AccYaw"]
+vessel_trans = ["Surge", "Sway", "Heave"]
+vessel_rots = ["Roll", "Pitch", "Yaw"]
+# vessel_trans = ["AccSurge", "AccSway", "AccHeave"]
+# vessel_rots = ["AccRoll", "AccPitch", "AccYaw"]
 
 # Dictionary of stats combo items and stats file column name pairs
 dict_stats = {
@@ -333,9 +333,6 @@ class StatsWidget(QtWidgets.QWidget):
         self.channel_name = ""
         self.stat = ""
 
-        # Plot data and settings
-        self.project = "21239 Total WoS - Glendronach Well Monitoring Campaign"
-
         # Container to hold plot data for each subplot
         self.subplots = [PlotAxesData()]
 
@@ -358,6 +355,9 @@ class StatsWidget(QtWidgets.QWidget):
         # X-axis values type
         self.xaxis_type = "Timestamps"
 
+        self.share_pri_yaxes = True
+        self.share_sec_yaxes = True
+
         # Set layout and initialise combo boxes
         self._init_ui()
         self._init_combos()
@@ -379,7 +379,8 @@ class StatsWidget(QtWidgets.QWidget):
         # selection.setSizePolicy(policy)
 
         # Load/clear buttons and datasets and channels lists
-        self.loadStatsButton = QtWidgets.QPushButton("Load Statistics")
+        self.openStatsButton = QtWidgets.QPushButton("Open Statistics")
+        self.openStatsButton.setToolTip("Open logger stats (*.h5;*.csv;*.xlsx) (F3)")
         self.clearDatasetsButton = QtWidgets.QPushButton("Clear Datasets")
         self.datasetList = QtWidgets.QListWidget()
         self.channelsLabel = QtWidgets.QLabel("Available Channels")
@@ -411,10 +412,17 @@ class StatsWidget(QtWidgets.QWidget):
         self.form.addRow(QtWidgets.QLabel("Channel:"), self.channelCombo)
         self.form.addRow(QtWidgets.QLabel("Stat:"), self.statCombo)
 
+        # Plot settings group
         # X axis datetime interval options
         self.plotSettingsGroup = QtWidgets.QGroupBox("Plot Settings")
         self.xaxisIntervals = QtWidgets.QComboBox()
         self.xaxisType = QtWidgets.QComboBox()
+
+        # Check boxes to set whether pri/sec y-axes are shared
+        self.sharePriYAxesChkBox = QtWidgets.QCheckBox('Share pri y-axis')
+        self.sharePriYAxesChkBox.setChecked(True)
+        self.shareSecYAxesChkBox = QtWidgets.QCheckBox('Share sec y-axis')
+        self.shareSecYAxesChkBox.setChecked(True)
 
         # Plot settings button
         self.settingsButton = QtWidgets.QPushButton("Plot Settings")
@@ -424,11 +432,13 @@ class StatsWidget(QtWidgets.QWidget):
         self.grid.addWidget(self.xaxisType, 0, 1)
         self.grid.addWidget(QtWidgets.QLabel("X-axis interval:"), 1, 0)
         self.grid.addWidget(self.xaxisIntervals, 1, 1)
-        self.grid.addWidget(self.settingsButton, 2, 0, 1, 2)
+        self.grid.addWidget(self.sharePriYAxesChkBox, 2, 0, 1, 2)
+        self.grid.addWidget(self.shareSecYAxesChkBox, 3, 0, 1, 2)
+        self.grid.addWidget(self.settingsButton, 4, 0, 1, 2)
 
         # Combine selection widgets
         self.vbox = QtWidgets.QVBoxLayout(self.selectionContainer)
-        self.vbox.addWidget(self.loadStatsButton)
+        self.vbox.addWidget(self.openStatsButton)
         self.vbox.addWidget(self.clearDatasetsButton)
         self.vbox.addWidget(QtWidgets.QLabel("Loaded Datasets"))
         self.vbox.addWidget(self.datasetList)
@@ -482,6 +492,8 @@ class StatsWidget(QtWidgets.QWidget):
         self.statCombo.currentIndexChanged.connect(self.on_stat_combo_changed)
         self.xaxisType.currentIndexChanged.connect(self.on_xaxis_type_changed)
         self.xaxisIntervals.currentIndexChanged.connect(self.on_xaxis_interval_changed)
+        self.sharePriYAxesChkBox.toggled.connect(self.on_share_yaxes1_changed)
+        self.shareSecYAxesChkBox.toggled.connect(self.on_share_yaxes2_changed)
 
     @staticmethod
     def _get_plot_numbers_list(n):
@@ -644,12 +656,42 @@ class StatsWidget(QtWidgets.QWidget):
         self._set_xaxis()
         self.canvas.draw()
 
+    def on_share_yaxes1_changed(self):
+        """Redraw subplots with shared or unshared primary axes and replot current data."""
+
+        if self.sharePriYAxesChkBox.isChecked() is True:
+            self.share_pri_yaxes = True
+        else:
+            self.share_pri_yaxes = False
+
+        try:
+            # Create new number of subplots and replot all current plot data
+            self._create_subplots()
+            self._plot_all_stored_data()
+        except Exception as e:
+            msg = "Unexpected error plotting stats"
+            self.parent.error(f"{msg}:\n{e}\n{sys.exc_info()[0]}")
+            logging.exception(e)
+
+    def on_share_yaxes2_changed(self):
+        """Redraw subplots with shared or unshared secondary axes and replot current data."""
+
+        if self.shareSecYAxesChkBox.isChecked() is True:
+            self.share_sec_yaxes = True
+        else:
+            self.share_sec_yaxes = False
+
+        try:
+            # Create new number of subplots and replot all current plot data
+            self._create_subplots()
+            self._plot_all_stored_data()
+        except Exception as e:
+            msg = "Unexpected error plotting stats"
+            self.parent.error(f"{msg}:\n{e}\n{sys.exc_info()[0]}")
+            logging.exception(e)
+
     def _create_subplots(self):
         """Create figure with required number of subplots."""
-
-        # TODO: Make as user settings
-        share_pri_y_axes = True
-        share_sec_y_axes = True
 
         self.fig.clf()
 
@@ -657,7 +699,7 @@ class StatsWidget(QtWidgets.QWidget):
         ax1 = self.fig.add_subplot(self.num_plots, 1, 1)
 
         # Create remaining subplots with a shared x-axis to ax1 then prepend ax1 to axes list
-        if share_pri_y_axes is True:
+        if self.share_pri_yaxes is True:
             sharey_ax = ax1
         else:
             sharey_ax = None
@@ -674,7 +716,7 @@ class StatsWidget(QtWidgets.QWidget):
 
         for ax in sec_axes:
             # Share secondary axes with first subplot
-            if share_sec_y_axes is True:
+            if self.share_sec_yaxes is True:
                 if ax != ax0:
                     ax0.get_shared_x_axes().join(ax0, ax)
                     ax0.get_shared_y_axes().join(ax0, ax)
@@ -834,7 +876,7 @@ class StatsWidget(QtWidgets.QWidget):
             # print('removing channels')
             return
 
-        print("Updating plot")
+        # print("Updating plot")
         i = self.plot_i
         subplot = self.subplots[i]
 
@@ -1111,7 +1153,7 @@ class VesselStatsWidget(QtWidgets.QWidget):
         selection.setFixedWidth(160)
         vbox = QtWidgets.QVBoxLayout(selection)
 
-        self.loadStatsButton = QtWidgets.QPushButton("Load Statistics")
+        self.openStatsButton = QtWidgets.QPushButton("Open Statistics")
         self.clearDatasetsButton = QtWidgets.QPushButton("Clear Datasets")
         lbl1 = QtWidgets.QLabel("Loaded Datasets")
         lbl2 = QtWidgets.QLabel("Channels (echo)")
@@ -1146,7 +1188,7 @@ class VesselStatsWidget(QtWidgets.QWidget):
         vbox2.addWidget(self.stats2Combo)
 
         # Combine selection widgets
-        vbox.addWidget(self.loadStatsButton)
+        vbox.addWidget(self.openStatsButton)
         vbox.addWidget(self.clearDatasetsButton)
         vbox.addWidget(lbl1)
         vbox.addWidget(self.datasetList)
@@ -1342,7 +1384,7 @@ class VesselStatsWidget(QtWidgets.QWidget):
         # Get axis 1 plot data
         # Get vessel motions data from vessel data frame - it is required that the vessel dataset is called "VESSEL"
         for i in range(len(self.datasets)):
-            if self.datasets[i].logger_id == "VESSEL":
+            if self.datasets[i].logger_id.upper() == "VESSEL":
                 df_vessel = self.datasets[i].df
                 df_vessel = df_vessel.xs(key=stat1_col, axis=1, level=1)
                 df_vessel = df_vessel[motion_cols]
@@ -1388,7 +1430,7 @@ class VesselStatsWidget(QtWidgets.QWidget):
             channel = dict_labels[channel]
 
         # # Construct label - prepend logger name unless channel source is the vessel (which would be superfluous)
-        if logger_id != "VESSEL":
+        if logger_id.upper() != "VESSEL":
             label = " ".join((stat, logger_id, channel))
         else:
             label = " ".join((stat, channel))
@@ -1421,7 +1463,7 @@ class VesselStatsWidget(QtWidgets.QWidget):
         if "vessel_data" in self.plot_data:
             df_vessel = self.plot_data["vessel_data"]
             col = df_vessel.columns[0]
-            motion = col[0][3:]
+            motion = col[0]
             units = col[1]
             self.ax1.plot(
                 df_vessel[col], "r", lw=linewidth, label=motion + " Acceleration"
@@ -1430,7 +1472,7 @@ class VesselStatsWidget(QtWidgets.QWidget):
             self.ax1.set_ylabel(label)
 
             col = df_vessel.columns[1]
-            motion = col[0][3:]
+            motion = col[0]
             units = col[1]
             self.ax2.plot(
                 df_vessel[col], "g", lw=linewidth, label=motion + " Acceleration"
@@ -1439,7 +1481,7 @@ class VesselStatsWidget(QtWidgets.QWidget):
             self.ax2.set_ylabel(label)
 
             col = df_vessel.columns[2]
-            motion = col[0][3:]
+            motion = col[0]
             units = col[1]
             self.ax3.plot(
                 df_vessel[col], "purple", lw=linewidth, label=motion + " Acceleration"

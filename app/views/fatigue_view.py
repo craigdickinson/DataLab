@@ -44,10 +44,10 @@ class FatigueProcessingWidget(QtWidgets.QWidget):
         setupWidget.setFixedWidth(180)
         vboxSetup = QtWidgets.QVBoxLayout(setupWidget)
 
-        self.loadWCFATFileButton = QtWidgets.QPushButton("Load 2HWCFAT Damage File")
-        self.loadWCFATFileButton.setToolTip("Load 2HWCFAT fatigue damage (.dmg) file")
-        self.loadFATLASAFile = QtWidgets.QPushButton("Load 2HFATLASA Damage File")
-        self.loadFATLASAFile.setToolTip("Load 2HFATLASA max fatigue damage (.csv) file")
+        self.openWCFATFileButton = QtWidgets.QPushButton("Open 2HWCFAT Damage File")
+        self.openWCFATFileButton.setToolTip("Open 2HWCFAT fatigue damage (.dmg) file")
+        self.openFATLASAFile = QtWidgets.QPushButton("Open 2HFATLASA Damage File")
+        self.openFATLASAFile.setToolTip("Open 2HFATLASA max fatigue damage (.csv) file")
         self.fatigueLocsList = QtWidgets.QListWidget()
         self.fatigueLocsList.setFixedHeight(150)
         self.damLogScale = QtWidgets.QCheckBox("Fatigue damage log scale")
@@ -56,8 +56,8 @@ class FatigueProcessingWidget(QtWidgets.QWidget):
         self.damRatePerEvent.setChecked(False)
 
         # Add setup widgets
-        vboxSetup.addWidget(self.loadWCFATFileButton)
-        vboxSetup.addWidget(self.loadFATLASAFile)
+        vboxSetup.addWidget(self.openWCFATFileButton)
+        vboxSetup.addWidget(self.openFATLASAFile)
         vboxSetup.addWidget(QtWidgets.QLabel("Assessed Fatigue Locations"))
         vboxSetup.addWidget(self.fatigueLocsList)
         vboxSetup.addWidget(self.damLogScale)

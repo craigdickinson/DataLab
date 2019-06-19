@@ -1,4 +1,5 @@
 import logging
+import os
 import sys
 
 import matplotlib.pyplot as plt
@@ -7,26 +8,26 @@ import pandas as pd
 from PyQt5 import QtCore, QtWidgets
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
-from scipy import signal
 
 # from gui.gui_zoom_pan_factory import ZoomPan
-from app.core.read_files import read_fugro_csv, read_pulse_acc, read_logger_hdf5
-from app.core.signal_filtering import filter_signal
+from app.core.read_files import read_fugro_csv, read_logger_hdf5, read_pulse_acc
+from app.core.signal_processing import calc_psd, filter_signal
 
 # "2H blue"
 color_2H = np.array([0, 49, 80]) / 255
 
 
-class TimeSeriesPlotWidget(QtWidgets.QWidget):
+class RawDataDashboard(QtWidgets.QWidget):
     """Create raw time series plots widget."""
 
     def __init__(self, parent=None):
-        super(TimeSeriesPlotWidget, self).__init__(parent)
+        super(RawDataDashboard, self).__init__(parent)
 
         # So can access parent class
         self.parent = parent
         plt.style.use("seaborn")
 
+        self.root = ""
         self.files_list = []
         self.logger_id = ""
         # self.project = 'Project Title'
@@ -79,8 +80,8 @@ class TimeSeriesPlotWidget(QtWidgets.QWidget):
         self.psd_ylim = (0.0, 1.0)
 
         # Low and high frequency cut-offs
-        self.apply_low_cutoff = True
-        self.apply_high_cutoff = True
+        self.apply_low_cutoff = False
+        self.apply_high_cutoff = False
         self.low_cutoff = 0.05
         self.high_cutoff = 0.5
 
@@ -108,8 +109,8 @@ class TimeSeriesPlotWidget(QtWidgets.QWidget):
         vboxSetup = QtWidgets.QVBoxLayout(setupWidget)
 
         # Load file
-        self.loadFileButton = QtWidgets.QPushButton("Load Raw Logger File")
-        self.loadFileButton.setToolTip("Load raw logger file")
+        self.openRawButton = QtWidgets.QPushButton("Open Raw Logger File")
+        self.openRawButton.setToolTip("Open raw logger data (*.csv;*.acc) (F2)")
 
         # Files list
         filesLabel = QtWidgets.QLabel("Logger Files")
@@ -138,7 +139,7 @@ class TimeSeriesPlotWidget(QtWidgets.QWidget):
         self.replotButton = QtWidgets.QPushButton("Replot")
 
         # Add setup widgets
-        vboxSetup.addWidget(self.loadFileButton)
+        vboxSetup.addWidget(self.openRawButton)
         vboxSetup.addWidget(filesLabel)
         vboxSetup.addWidget(self.filesList)
         vboxSetup.addWidget(channelsLabel)
@@ -159,6 +160,10 @@ class TimeSeriesPlotWidget(QtWidgets.QWidget):
         self.fig, (self.ax1, self.ax2) = plt.subplots(2)
         self.canvas = FigureCanvas(self.fig)
         navbar = NavigationToolbar(self.canvas, self)
+
+        # Initial plot titles
+        self.ax1.set_title("Time Series", size=12)
+        self.ax2.set_title("Power Spectral Density", size=12)
 
         # Add plot widgets
         vboxPlot.addWidget(navbar)
@@ -188,25 +193,28 @@ class TimeSeriesPlotWidget(QtWidgets.QWidget):
             return
 
         filename = self.filesList.currentItem().text()
+        file = os.path.join(self.root, filename)
 
         try:
-            self.load_file(filename)
+            self.load_file(file)
         except ValueError as e:
             self.parent.error(f"Error: {e}")
+            logging.exception(e)
         except Exception as e:
             msg = "Unexpected error loading logger file"
             self.parent.error(f"{msg}:\n{e}\n{sys.exc_info()[0]}")
-            logging.exception(msg)
+            logging.exception(e)
 
     def on_file_double_clicked(self):
         self.on_replot_clicked()
 
-    def load_file(self, filename):
+    def load_file(self, file):
         """Load logger file, update widget and plot first channel."""
 
-        self.df = self.read_logger_file(filename)
+        self.df = self.read_logger_file(file)
 
         # Store logger ID (assume the first portion of the filename)
+        filename = os.path.basename(file)
         self.logger_id = filename.split("_")[0]
 
         # Store channel names and units - ignore column 1 (Timestamps)
@@ -239,17 +247,18 @@ class TimeSeriesPlotWidget(QtWidgets.QWidget):
         i = files_list.index(file_name)
         self.filesList.setCurrentRow(i)
 
-    def read_logger_file(self, filename):
+    @staticmethod
+    def read_logger_file(file):
         """Read a raw logger file."""
 
-        ext = filename.split(".")[-1].lower()
+        ext = file.split(".")[-1].lower()
 
         if ext == "csv":
-            df = read_fugro_csv(filename)
+            df = read_fugro_csv(file)
         elif ext == "acc":
-            df = read_pulse_acc(filename)
+            df = read_pulse_acc(file)
         elif ext == "h5":
-            df = read_logger_hdf5(filename)
+            df = read_logger_hdf5(file)
         else:
             raise FileNotFoundError(f"No files with the extension {ext} found.")
 
@@ -357,7 +366,7 @@ class TimeSeriesPlotWidget(QtWidgets.QWidget):
         except Exception as e:
             msg = "Unexpected error processing loggers"
             self.parent.error(f"{msg}:\n{e}\n{sys.exc_info()[0]}")
-            logging.exception(msg)
+            logging.exception(e)
 
         # Titles and legend
         self.plot_title(self.fig, self.df_plot)
@@ -571,9 +580,11 @@ class TimeSeriesPlotWidget(QtWidgets.QWidget):
             # Note the default Welch parameters are equivalent to running
             # f, pxx = signal.welch(df.T, fs=fs)
             # TODO: Make PSD calc a core script
-            f, pxx = signal.welch(
-                df.T, fs=fs, window=window, nperseg=nperseg, noverlap=noverlap
-            )
+            # f, pxx = signal.welch(
+            #     df.T, fs=fs, window=window, nperseg=nperseg, noverlap=noverlap
+            # )
+            f, pxx = calc_psd(data=df.T.values, fs=fs, window=window, nperseg=nperseg, noverlap=noverlap)
+
         except Exception as e:
             raise ValueError(f"Could not calculate PSD\n{e}")
 
@@ -752,7 +763,7 @@ class TimeSeriesPlotWidget(QtWidgets.QWidget):
     #         except Exception as e:
     #             msg = 'Unexpected error on plotting logger file'
     #             self.parent.error(f'{msg}:\n{e}\n{sys.exc_info()[0]}')
-    #             logging.exception(msg)
+    #             logging.exception(e)
     #
     # def extend_backward(self):
     #     df_plot = self.df_plot
@@ -936,18 +947,20 @@ class LoggerPlotSettings(QtWidgets.QDialog):
         hbox.addWidget(framePSD)
 
         # Low/high cut-off frequencies group
-        freqCutoffsGroup = QtWidgets.QGroupBox("Frequency Cut-offs")
+        freqCutoffsGroup = QtWidgets.QGroupBox("Cut-off Frequencies")
         freqCutoffsGroup.setSizePolicy(policy)
         grid = QtWidgets.QGridLayout(freqCutoffsGroup)
 
         self.lowCutoff = QtWidgets.QLineEdit("0.05")
         self.lowCutoff.setFixedWidth(50)
+        self.lowCutoff.setEnabled(False)
         self.highCutoff = QtWidgets.QLineEdit("0.50")
         self.highCutoff.setFixedWidth(50)
+        self.highCutoff.setEnabled(False)
         self.lowFreqChkBox = QtWidgets.QCheckBox("Apply cut-off")
-        self.lowFreqChkBox.setChecked(True)
+        self.lowFreqChkBox.setChecked(False)
         self.highFreqChkBox = QtWidgets.QCheckBox("Apply cut-off")
-        self.highFreqChkBox.setChecked(True)
+        self.highFreqChkBox.setChecked(False)
         grid.addWidget(QtWidgets.QLabel("Low freq cut-off (Hz):"), 0, 0)
         grid.addWidget(self.lowCutoff, 0, 1)
         grid.addWidget(self.lowFreqChkBox, 0, 2)
@@ -1264,8 +1277,8 @@ class LoggerPlotSettings(QtWidgets.QDialog):
 # For testing layout
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
-    win = TimeSeriesPlotWidget()
-    # win = LoggerPlotSettings()
+    # win = RawDataDashboard()
+    win = LoggerPlotSettings()
     win.show()
     sys.exit(app.exec_())
 

@@ -7,7 +7,7 @@ import pandas as pd
 from PyQt5 import QtCore, QtGui, QtWidgets
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 
-from app.core import calc_seascatter_diagram
+from app.core.calc_seascatter_diagram import calc_seascatter_diagram
 
 
 class SeascatterDiagram(QtWidgets.QWidget):
@@ -171,7 +171,7 @@ class SeascatterDiagram(QtWidgets.QWidget):
                 item = QtWidgets.QTableWidgetItem(val)
                 item.setTextAlignment(QtCore.Qt.AlignCenter)
 
-                # Set scaled background colour to seastate values but not the totals
+                # Apply scaled background colour to sea state values but not the totals
                 if (i < len(df_scatter.index) - 1) & (j < len(df_scatter.columns) - 1):
                     item.setBackground(QtGui.QColor(0, 0, 255, 255 * frac))
 
@@ -218,7 +218,7 @@ class SeascatterDiagram(QtWidgets.QWidget):
         self.canvas.draw()
 
     def export_scatter_diagram(self, filename):
-        """Export seastate scatter diagram to Export."""
+        """Export sea state scatter diagram to Excel."""
 
         writer = pd.ExcelWriter(filename, engine="xlsxwriter")
 

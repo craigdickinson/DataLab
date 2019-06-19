@@ -14,7 +14,7 @@ import pandas as pd
 from PyQt5.QtCore import QThread, pyqtSignal
 
 from app.core.calc_stats import LoggerStats
-from app.core.datalab_control import Control
+from app.core.control import Control
 from app.core.data_screen import DataScreen
 from app.core.data_screen_report import DataScreenReport
 from app.core.spectrograms import Spectrogram
@@ -40,7 +40,7 @@ def parse_args(args):
     return parser.parse_args(args)
 
 
-class DataLab(QThread):
+class Screening(QThread):
     """Class for main DataLab program. Defined as a thread object for use with gui."""
 
     # Signal to report processing progress to progress bar class
@@ -93,7 +93,7 @@ class DataLab(QThread):
         )
 
         # Create output stats to workbook object
-        stats_out = StatsOutput(output_dir=self.control.output_folder)
+        stats_out = StatsOutput(output_dir=self.control.stats_output_path)
 
         # Get total number of files to process
         logger_ids = []
@@ -124,22 +124,29 @@ class DataLab(QThread):
 
             # Number of data points processed per sample
             stats_sample_length = int(logger.stats_interval * logger.freq)
-            spectral_sample_length = int(logger.spectral_interval * logger.freq)
+            spect_sample_length = int(logger.spect_interval * logger.freq)
 
             # Spectrograms object
             if logger.process_spectral is True:
-                spectrogram = Spectrogram(
+                spect_unfiltered = Spectrogram(
                     logger_id=logger.logger_id,
-                    num_chan=len(logger.spectral_cols),
-                    output_dir=self.control.output_folder,
+                    output_dir=self.control.spect_output_path,
                 )
-                spectrogram.set_freq(
-                    n=spectral_sample_length, T=logger.spectral_interval
+                spect_unfiltered.set_freq(
+                    n=spect_sample_length, T=logger.spect_interval
+                )
+
+                spect_filtered = Spectrogram(
+                    logger_id=logger.logger_id,
+                    output_dir=self.control.spect_output_path,
+                )
+                spect_filtered.set_freq(
+                    n=spect_sample_length, T=logger.spect_interval
                 )
 
             # Initialise sample pandas data frame for logger
             df_stats_sample = pd.DataFrame()
-            df_spectral_sample = pd.DataFrame()
+            df_spect_sample = pd.DataFrame()
             n = len(data_screen[i].files)
 
             # Expose each sample here; that way it can be sent to different processing modules
@@ -162,7 +169,7 @@ class DataLab(QThread):
                 # Data munging/wrangling to prepare dataset for processing
                 df = data_screen[i].munge_data(df)
 
-                # Data Screening module
+                # Data screening module
                 # Perform basic screening checks on file - check file has expected number of data points
                 data_screen[i].screen_data(file_num=j, df=df)
 
@@ -173,7 +180,7 @@ class DataLab(QThread):
                     # Initialise with stats and spectral data frames both pointing to the same source data frame
                     # (note this does not create an actual copy of the data in memory)
                     df_stats = df.copy()
-                    df_spectral = df.copy()
+                    df_spect = df.copy()
 
                     # Stats processing module
                     if logger.process_stats is True:
@@ -186,48 +193,54 @@ class DataLab(QThread):
                                 type="stats",
                             )
 
-                            # Carry out processing of sample if of desired length
+                            # Processing sample if meets required length
                             # TODO: Allowing short sample length (revisit)
                             # if len(sample_df) == data_screen[i].sample_length:
                             if len(df_stats_sample) <= stats_sample_length:
-                                # Calculate statistics on original sample dataset
-                                logger_stats[i].calc_stats(
-                                    df_stats_sample, logger.unit_conv_factors
-                                )
+                                # Calculate stats on unfiltered sample
+                                if logger.process_type != "Filtered only":
+                                    logger_stats[i].calc_stats(df_stats_sample)
 
-                                # Apply filters to sample data if filters were set
-                                if data_screen[i].apply_filters is True:
-                                    df_filtered = data_screen[i].filter_sample_data(
-                                        df_stats_sample
-                                    )
-
-                                    # Calculate statistics on filtered sample data
-                                    logger_stats_filtered[i].calc_stats(
-                                        df_filtered, logger.unit_conv_factors
-                                    )
+                                # Apply low/high pass filtering and calculate stats
+                                if logger.process_type != "Unfiltered only":
+                                    # Check valid filters were set
+                                    if data_screen[i].apply_filters is True:
+                                        df_filtered = data_screen[i].filter_data(
+                                            df_stats_sample
+                                        )
+                                        logger_stats_filtered[i].calc_stats(df_filtered)
 
                                 # Clear sample data frame so as ready for next sample set
                                 df_stats_sample = pd.DataFrame()
 
                     # Spectrograms processing module
                     if logger.process_spectral is True:
-                        while len(df_spectral) > 0:
+                        while len(df_spect) > 0:
                             # Extract sample data frame from main dataset
-                            df_spectral_sample, df_spectral = data_screen[
-                                i
-                            ].sample_data(
-                                df_spectral_sample,
-                                df_spectral,
-                                spectral_sample_length,
+                            df_spect_sample, df_spect = data_screen[i].sample_data(
+                                df_spect_sample,
+                                df_spect,
+                                spect_sample_length,
                                 type="spectral",
                             )
 
                             # Calculate spectrograms
-                            if len(df_spectral_sample) <= spectral_sample_length:
-                                spectrogram.add_data(df_spectral_sample)
+                            if len(df_spect_sample) <= spect_sample_length:
+                                # Calculate stats on unfiltered sample
+                                if logger.process_type != "Filtered only":
+                                    spect_unfiltered.add_data(df_spect_sample)
+
+                                # Apply low/high pass filtering and calculate stats
+                                if logger.process_type != "Unfiltered only":
+                                    # Check valid filters were set
+                                    if data_screen[i].apply_filters is True:
+                                        df_filtered = data_screen[i].filter_data(
+                                            df_spect_sample
+                                        )
+                                        spect_filtered.add_data(df_filtered)
 
                                 # Clear sample data frame so as ready for next sample set
-                                df_spectral_sample = pd.DataFrame()
+                                df_spect_sample = pd.DataFrame()
 
                 # Emit file number signal to gui
                 dict_progress = dict(
@@ -253,8 +266,8 @@ class DataLab(QThread):
                 logger.logger_id, data_screen[i].dict_bad_files
             )
 
-            # If processing selected logger stats
             if logger.process_stats is True:
+
                 # Create and store a data frame of logger stats
                 stats_out.compile_stats(
                     logger,
@@ -264,7 +277,7 @@ class DataLab(QThread):
                     logger_stats_filtered[i],
                 )
 
-                # Export stats in selected file formats
+                # Export stats to requested file formats
                 if self.control.stats_to_h5 is True:
                     stats_out.write_to_hdf5()
                 if self.control.stats_to_csv is True:
@@ -272,23 +285,26 @@ class DataLab(QThread):
                 if self.control.stats_to_xlsx is True:
                     stats_out.write_to_excel()
 
-            # Plot spectrograms
             if logger.process_spectral is True:
-                spectrogram.add_timestamps(dates=data_screen[i].spectral_sample_start)
-                # spectrogram.plot_spectrogram()
+                # Create dictionary of True/False flags of file formats to write
+                dict_formats_to_write = dict(h5=self.control.spect_to_h5,
+                                             csv=self.control.spect_to_csv,
+                                             xlsx=self.control.spect_to_xlsx,
+                                             )
 
-                if self.control.spect_to_h5 is True:
-                    spectrogram.write_to_hdf5()
-                if self.control.spect_to_csv is True:
-                    spectrogram.write_to_csv()
-                if self.control.spect_to_xlsx is True:
-                    spectrogram.write_to_excel()
+                # Export spectrograms to requested file formats
+                if spect_unfiltered.spectrograms:
+                    spect_unfiltered.add_timestamps(dates=data_screen[i].spect_sample_start)
+                    spect_unfiltered.export_spectrograms_data(dict_formats_to_write)
+                if spect_filtered.spectrograms:
+                    spect_filtered.add_timestamps(dates=data_screen[i].spect_sample_start)
+                    spect_filtered.export_spectrograms_data(dict_formats_to_write, filtered=True)
 
         # Save data screen report workbook
         data_report.write_bad_filenames()
         data_report.write_bad_files()
         data_report.save_workbook(
-            self.control.output_folder, "Data Screening Report.xlsx"
+            self.control.report_output_path, "Data Screening Report.xlsx"
         )
 
         # Store data screen objects list for gui
@@ -313,7 +329,7 @@ if __name__ == "__main__":
     f = "controlfile_fugro_slim.dat"
     f = os.path.join(direc, f)
     # f = ''
-    datalab = DataLab(datfile=f)
+    datalab = Screening(datfile=f)
 
     try:
         datalab.analyse_control_file()

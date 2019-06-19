@@ -8,9 +8,11 @@ import os
 import sys
 
 from PyQt5 import QtCore, QtGui, QtWidgets
+from PyQt5.QtCore import pyqtSlot
 from dateutil.parser import parse
 
-from app.core.datalab_control import Control, InputError
+from app.core.calc_transfer_functions import TransferFunctions
+from app.core.control import Control, InputError
 from app.core.custom_date import get_datetime_format
 from app.core.fugro_csv_properties import (
     detect_fugro_logger_properties,
@@ -18,11 +20,11 @@ from app.core.fugro_csv_properties import (
     set_general_csv_file_format,
 )
 from app.core.logger_properties import LoggerError, LoggerProperties
+from app.core.project_config import ProjectConfigJSONFile
 from app.core.pulse_acc_properties import (
     detect_pulse_logger_properties,
     set_pulse_acc_file_format,
 )
-from app.core.project_config import ProjectConfigJSONFile
 
 
 class ConfigModule(QtWidgets.QWidget):
@@ -33,38 +35,67 @@ class ConfigModule(QtWidgets.QWidget):
 
         self.parent = parent
         self.skip_on_logger_item_edited = False
-
-        # JSON config class - hold config data dictionary
-        self.config = ProjectConfigJSONFile()
         self.control = Control()
-        self.init_ui()
-        self.connect_signals()
+        self.tf = TransferFunctions()
+        self._init_ui()
+        self._connect_signals()
 
-    def init_ui(self):
-        self.layout = QtWidgets.QGridLayout(self)
-
-        # Container for load and save buttons and logger select drop down
-        self.configButtonsWidget = QtWidgets.QWidget()
-
-        self.loadConfigButton = QtWidgets.QPushButton("&Load")
-        self.saveConfigButton = QtWidgets.QPushButton("&Save")
-        # spacerItem = QtWidgets.QSpacerItem(40, 1)
-
-        hbox = QtWidgets.QHBoxLayout(self.configButtonsWidget)
-        hbox.addWidget(QtWidgets.QLabel("Config File:"))
-        hbox.addWidget(self.loadConfigButton)
-        hbox.addWidget(self.saveConfigButton)
-        # hbox.addItem(spacerItem)
-
-        # Loggers list group
-        self.loggersGroup = QtWidgets.QGroupBox("Campaign Loggers")
-        self.loggersGroup.setFixedWidth(180)
-
+    def _init_ui(self):
+        # WIDGETS
+        self.openConfigButton = QtWidgets.QPushButton("Open")
+        self.openConfigButton.setToolTip("Load config (*.json) file (Ctrl+O)")
+        self.saveConfigButton = QtWidgets.QPushButton("Save")
+        self.saveConfigButton.setToolTip("Export project settings to config (*.json) file (Ctrl+S)")
+        self.newProjButton = QtWidgets.QPushButton("New Project")
+        self.newProjButton.setShortcut("Ctrl+N")
+        self.newProjButton.setToolTip("Clear all settings (Ctrl+N)")
         self.addLoggerButton = QtWidgets.QPushButton("Add Logger")
+        self.addLoggerButton.setShortcut("Ctrl+A")
+        self.addLoggerButton.setToolTip("Ctrl+A")
         self.remLoggerButton = QtWidgets.QPushButton("Remove Logger")
+        self.remLoggerButton.setShortcut("Ctrl+Del")
+        self.remLoggerButton.setToolTip("Ctrl+Del")
         self.loggersList = QtWidgets.QListWidget()
         self.columnsList = QtWidgets.QListWidget()
 
+        # Process buttons
+        h = 30
+        self.processButton = QtWidgets.QPushButton("Process Screening")
+        self.processButton.setFixedHeight(h)
+        self.processButton.setToolTip("Screen loggers and calculate stats and spectral data (F6)")
+
+        self.calcSeascatterButton = QtWidgets.QPushButton("Create Seascatter")
+        self.calcSeascatterButton.setFixedHeight(h)
+        self.calcSeascatterButton.setToolTip("Create Hs-Tp seascatter diagram (F7)")
+
+        self.calcTFButton = QtWidgets.QPushButton("Calculate Transfer Functions")
+        self.calcTFButton.setFixedHeight(h)
+        self.calcTFButton.setToolTip("Calculate frequency-dependent transfer functions (F8)")
+
+        self.calcFatigueButton = QtWidgets.QPushButton("Calculate Fatigue")
+        self.calcFatigueButton.setFixedHeight(h)
+        self.calcFatigueButton.setToolTip("Run spectral fatigue analysis (F9)")
+        self.spacer = QtWidgets.QSpacerItem(1, 20)
+
+        # Config tab widgets
+        self.campaignTab = CampaignInfoTab(self, self.control)
+        self.loggerPropsTab = LoggerPropertiesTab(self, self.control)
+        self.analysisTab = StatsAndSpectralSettingsTab(self, self.control)
+        self.tfSettingsTab = TransferFunctionsTab(self, self.tf)
+
+        # CONTAINERS
+        # Config buttons container
+        self.configButtonsWidget = QtWidgets.QWidget()
+        self.hbox = QtWidgets.QHBoxLayout(self.configButtonsWidget)
+        self.hbox.addWidget(QtWidgets.QLabel("Config File:"))
+        self.hbox.addWidget(self.openConfigButton)
+        self.hbox.addWidget(self.saveConfigButton)
+        self.hbox.addWidget(self.newProjButton)
+        self.hbox.addStretch()
+
+        # Loggers container
+        self.loggersGroup = QtWidgets.QGroupBox("Campaign Loggers")
+        self.loggersGroup.setFixedWidth(180)
         self.vbox = QtWidgets.QVBoxLayout(self.loggersGroup)
         self.vbox.addWidget(self.addLoggerButton)
         self.vbox.addWidget(self.remLoggerButton)
@@ -73,53 +104,53 @@ class ConfigModule(QtWidgets.QWidget):
         self.vbox.addWidget(QtWidgets.QLabel("Logger Header Details"))
         self.vbox.addWidget(self.columnsList)
 
-        # Config tab widgets
+        # Setup container
         self.setupTabs = QtWidgets.QTabWidget()
-        self.campaignTab = CampaignInfoTab(self, self.control)
-        self.loggerPropsTab = LoggerPropertiesTab(self, self.control)
-        self.analysisTab = StatsAndSpectralSettingsTab(self, self.control)
-
         self.setupTabs.addTab(self.campaignTab, "Campaign Info")
         self.setupTabs.addTab(self.loggerPropsTab, "Logger File Properties")
-        self.setupTabs.addTab(self.analysisTab, "Statistical and Spectral Analysis")
+        self.setupTabs.addTab(self.analysisTab, "Screening Setup")
+        self.setupTabs.addTab(self.tfSettingsTab, "Transfer Functions Setup")
 
-        self.newProjButton = QtWidgets.QPushButton("&New Project")
+        # Process buttons container
+        self.vboxRun = QtWidgets.QVBoxLayout()
+        self.vboxRun.addItem(self.spacer)
+        self.vboxRun.addWidget(self.processButton)
+        self.vboxRun.addItem(self.spacer)
+        self.vboxRun.addWidget(self.calcSeascatterButton)
+        self.vboxRun.addItem(self.spacer)
+        self.vboxRun.addWidget(self.calcTFButton)
+        self.vboxRun.addItem(self.spacer)
+        self.vboxRun.addWidget(self.calcFatigueButton)
+        self.vboxRun.addStretch()
 
-        # Run analysis group
-        self.runWidget = QtWidgets.QWidget()
+        # LAYOUT
+        self.hbox1 = QtWidgets.QHBoxLayout()
+        self.hbox1.addWidget(self.loggersGroup)
+        self.hbox1.addWidget(self.setupTabs)
+        self.hbox1.addLayout(self.vboxRun)
 
-        self.runGroup = QtWidgets.QGroupBox("Selected Analysis")
-        self.statsChkBox = QtWidgets.QCheckBox("Statistical Analysis")
-        self.spectralChkBox = QtWidgets.QCheckBox("Spectral Analysis")
+        self.vbox1 = QtWidgets.QVBoxLayout()
+        self.vbox1.addWidget(self.configButtonsWidget)
+        self.vbox1.addLayout(self.hbox1)
 
-        self.vbox2 = QtWidgets.QVBoxLayout(self.runGroup)
-        self.vbox2.addWidget(self.statsChkBox)
-        self.vbox2.addWidget(self.spectralChkBox)
+        self.layout = QtWidgets.QHBoxLayout(self)
+        self.layout.addLayout(self.vbox1)
+        # self.layout.addLayout(self.vboxRun)
 
-        self.processButton = QtWidgets.QPushButton("Process")
-
-        self.vbox1 = QtWidgets.QVBoxLayout(self.runWidget)
-        self.vbox1.addWidget(self.runGroup)
-        self.vbox1.addWidget(self.processButton)
-
-        # Main layout
-        self.layout.addWidget(self.configButtonsWidget, 0, 0, 1, 2, QtCore.Qt.AlignLeft)
-        self.layout.addWidget(self.loggersGroup, 1, 0)
-        self.layout.addWidget(self.setupTabs, 1, 1)
-        self.layout.addWidget(self.newProjButton, 2, 0, QtCore.Qt.AlignLeft)
-        self.layout.addWidget(self.runWidget, 1, 2, QtCore.Qt.AlignTop)
-
-    def connect_signals(self):
-        self.loadConfigButton.clicked.connect(self.load_config_file)
-        self.saveConfigButton.clicked.connect(self.save_config_file)
-        self.addLoggerButton.clicked.connect(self.add_logger)
-        self.remLoggerButton.clicked.connect(self.remove_logger)
+    def _connect_signals(self):
+        self.openConfigButton.clicked.connect(self.on_open_config_clicked)
+        self.saveConfigButton.clicked.connect(self.on_save_config_clicked)
+        self.newProjButton.clicked.connect(self.on_new_project_clicked)
+        self.addLoggerButton.clicked.connect(self.on_add_logger_clicked)
+        self.remLoggerButton.clicked.connect(self.on_remove_logger_clicked)
         self.loggersList.itemClicked.connect(self.on_logger_selected)
         self.loggersList.itemChanged.connect(self.on_logger_item_edited)
-        self.newProjButton.clicked.connect(self.new_project)
-        self.processButton.clicked.connect(self.run_analysis)
+        self.processButton.clicked.connect(self.on_process_screening_clicked)
+        self.calcSeascatterButton.clicked.connect(self.on_calc_seascatter_clicked)
+        self.calcTFButton.clicked.connect(self.on_calc_transfer_functions_clicked)
+        self.calcFatigueButton.clicked.connect(self.on_calc_fatigue_clicked)
 
-    def load_config_file(self):
+    def on_open_config_clicked(self):
         """Load config JSON file."""
 
         filename, _ = QtWidgets.QFileDialog.getOpenFileName(
@@ -128,18 +159,24 @@ class ConfigModule(QtWidgets.QWidget):
 
         if filename:
             try:
-                # Read JSON file and store data in config object
-                data = self.config.load_config_data(filename)
+                # JSON config class - holds config data dictionary
+                config = ProjectConfigJSONFile()
 
-                # Create new control object to hold setup data
-                self.control = Control()
+                # Connect warning signal
+                config.signal_warning.connect(self.warning)
+
+                # Read JSON file and store data in config object
+                config.load_config_data(filename)
+
+                # Map JSON data to new control object to hold logger and screening settings
+                self.control = config.map_json_to_control(Control())
+
+                # Map JSON data to new control object to hold transfer functions settings
+                self.tf = config.map_json_to_transfer_functions(TransferFunctions())
 
                 # Assign config data to control object and project dashboard
-                self.control = self.map_campaign_json_section(data, self.control)
-                self.control = self.map_loggers_json_section(data, self.control)
-                self.control = self.map_general_settings(data, self.control)
-                self.set_dashboards()
-                self.set_window_title(filename)
+                self._set_dashboards()
+                self._set_window_title(filename)
             except InputError as e:
                 self.parent.error(str(e))
                 logging.exception(e)
@@ -148,7 +185,11 @@ class ConfigModule(QtWidgets.QWidget):
                 self.parent.error(f"{msg}:\n{e}\n{sys.exc_info()[0]}")
                 logging.exception(e)
 
-    def save_config_file(self):
+        # Update control and transfer functions objects in parent DataLab object
+        self.parent.control = self.control
+        self.parent.tf = self.tf
+
+    def on_save_config_clicked(self):
         """Save project configuration settings as a dictionary to a JSON file."""
 
         if self.control.project_num == "":
@@ -161,11 +202,12 @@ class ConfigModule(QtWidgets.QWidget):
 
         # Compile configuration data into a dictionary and save as a json file
         try:
-            self.config = ProjectConfigJSONFile()
-            self.config.add_campaign_data(self.control)
-            self.config.add_logger_data(self.control.loggers)
-            self.config.add_general_data(self.control)
-            self.config.save_config(
+            config = ProjectConfigJSONFile()
+            config.add_campaign_data(self.control)
+            config.add_loggers_data(self.control.loggers)
+            config.add_general_data(self.control)
+            config.add_transfer_functions_data(self.tf)
+            config.save_config(
                 proj_num=self.control.project_num,
                 proj_name=self.control.project_name,
                 proj_path=self.control.project_path,
@@ -173,17 +215,50 @@ class ConfigModule(QtWidgets.QWidget):
         except Exception as e:
             msg = "Unexpected error saving project config"
             self.parent.error(f"{msg}:\n{e}\n{sys.exc_info()[0]}")
-            logging.exception(msg)
+            logging.exception(e)
 
         # Check file created
-        if os.path.exists(self.config.full_path):
-            # Update config dashboard with config file name and inform user
-            self.control.config_file = self.config.filename
-            self.campaignTab.configFile.setText(self.config.filename)
-            msg = f"Project config settings saved to:\n{self.config.full_path}"
+        if os.path.exists(config.full_path):
+            # Update config dashboard with config filename and inform user
+            self.control.config_file = config.filename
+            self.campaignTab.configFile.setText(config.filename)
+            msg = f"Project config settings saved to:\n{config.full_path}"
             QtWidgets.QMessageBox.information(self, "Save Project Config", msg)
 
-    def add_logger(self):
+            # Update control object in DataLab instance
+            self.parent.control = self.control
+
+    def on_new_project_clicked(self):
+        """Clear project control object and all config dashboard values."""
+
+        # Create new control and transfer functions objects and map to associated child widget objects
+        self.control = Control()
+        self.tf = TransferFunctions()
+        self.campaignTab.control = self.control
+        self.loggerPropsTab.control = self.control
+        self.analysisTab.control = self.control
+        self.tfSettingsTab.tf = self.tf
+
+        # Update control and transfer functions objects in parent DataLab instance
+        if self.parent is not None:
+            self.parent.control = self.control
+            self.parent.tf = self.tf
+
+        # Clear logger combo box
+        # Note: This will trigger the clearing of the logger properties, stats and spectral dashboards
+        self.loggersList.clear()
+        self.columnsList.clear()
+
+        # Clear campaign data dashboard and update window title to include config file path
+        self.campaignTab.clear_dashboard()
+        self.loggerPropsTab.clear_dashboard()
+        self.analysisTab.clear_dashboard()
+        self.tfSettingsTab.clear_dashboard()
+
+        # Reset window title
+        self._set_window_title()
+
+    def on_add_logger_clicked(self):
         """Add new logger to list. Initial logger name format is 'Logger n'."""
 
         n = self.loggersList.count()
@@ -207,9 +282,9 @@ class ConfigModule(QtWidgets.QWidget):
 
         # Open logger properties edit widget
         self.setupTabs.setCurrentWidget(self.loggerPropsTab)
-        self.loggerPropsTab.show_edit_dialog()
+        self.loggerPropsTab.on_edit_clicked()
 
-    def remove_logger(self):
+    def on_remove_logger_clicked(self):
         """Remove selected logger."""
 
         if self.loggersList.count() == 0:
@@ -236,7 +311,7 @@ class ConfigModule(QtWidgets.QWidget):
             self.loggersList.takeItem(i)
 
             if self.loggersList.count() == 0:
-                self.new_project()
+                self.on_new_project_clicked()
 
     def on_logger_selected(self):
         """Update dashboard data pertaining to selected logger."""
@@ -289,390 +364,26 @@ class ConfigModule(QtWidgets.QWidget):
                 item.setFlags(item.flags() & ~QtCore.Qt.ItemIsSelectable)
                 self.columnsList.addItem(item)
 
-    def new_project(self):
-        """Clear project control object and all config dashboard values."""
+    def on_process_screening_clicked(self):
+        self.parent.process_screening()
 
-        # Create new control object and map to campaign, logger properties and analysis tabs
-        self.config = ProjectConfigJSONFile()
-        self.control = Control()
-        self.campaignTab.control = self.control
-        self.loggerPropsTab.control = self.control
-        self.analysisTab.control = self.control
+    def on_calc_seascatter_clicked(self):
+        pass
 
-        # Clear logger combo box
-        # Note: This will trigger the clearing of the logger properties, stats and spectral dashboards
-        self.loggersList.clear()
-        self.columnsList.clear()
+    def on_calc_transfer_functions_clicked(self):
+        self.parent.calc_transfer_functions()
 
-        # Clear campaign data dashboard and update window title to include config file path
-        self.campaignTab.clear_dashboard()
-        self.loggerPropsTab.clear_dashboard()
-        self.analysisTab.clear_dashboard()
+    def on_calc_fatigue_clicked(self):
+        self.parent.calc_fatigue()
 
-        # Reset window title
-        self.set_window_title()
-
-    def run_analysis(self):
-        """Run DataLab processing engine - call function in main DataLab class."""
-
-        self.parent.analyse_config_setup(self.control)
-
-    def map_campaign_json_section(self, data, control):
-        """Map the config campaign section to the control object."""
-
-        key = "campaign"
-        if key in data.keys():
-            data = data[key]
-        else:
-            msg = f"'{key}' key not found in config file"
-            self.parent.warning(msg)
-            return control
-
-        control.project_num = self.get_key_value(
-            logger_id=key,
-            data=data,
-            key="project_number",
-            attr=self.control.project_num,
-        )
-        control.project_name = self.get_key_value(
-            logger_id=key, data=data, key="project_name", attr=control.project_name
-        )
-        control.campaign_name = self.get_key_value(
-            logger_id=key, data=data, key="campaign_name", attr=control.campaign_name
-        )
-        control.project_path = self.get_key_value(
-            logger_id=key, data=data, key="project_location", attr=control.project_path
-        )
-        control.output_folder = os.path.join(control.project_path, "Output")
-        control.config_file = self.config.filename
-
-        return control
-
-    def map_loggers_json_section(self, data, control):
-        """Map the config loggers section to the control object for all logger."""
-
-        key = "loggers"
-        if key in data.keys():
-            data = data[key]
-        else:
-            msg = f"'{key}' key not found in config file"
-            self.parent.warning(msg)
-            return control
-
-        for logger_id, dict_logger in data.items():
-            # Create new logger properties object and assign attributes from JSON dictionary
-            logger = LoggerProperties()
-            logger.logger_id = logger_id
-
-            # Logger properties
-            logger = self.map_logger_props(logger, dict_logger)
-
-            # Logger columns to process settings
-            logger = self.map_logger_requested_cols_settings(logger, dict_logger)
-
-            # Logger stats settings
-            logger = self.map_logger_stats_settings(logger, dict_logger)
-
-            # Logger spectral settings
-            logger = self.map_logger_spectral_settings(logger, dict_logger)
-
-            # Finally, assign logger to control object
-            control.logger_ids.append(logger_id)
-            control.logger_ids_upper.append(logger_id.upper())
-            control.loggers.append(logger)
-
-        return control
-
-    def map_general_settings(self, data, control):
-        """Map the general settings section to the control object."""
-
-        key = "general"
-        if key in data.keys():
-            data = data[key]
-        else:
-            msg = f"'{key}' key not found in config file"
-            self.parent.warning(msg)
-            return control
-
-        control.stats_to_h5 = self.get_key_value(
-            logger_id=key, data=data, key="stats_to_h5", attr=control.stats_to_h5
-        )
-        control.stats_to_csv = self.get_key_value(
-            logger_id=key, data=data, key="stats_to_csv", attr=control.stats_to_csv
-        )
-        control.stats_to_xlsx = self.get_key_value(
-            logger_id=key, data=data, key="stats_to_xlsx", attr=control.stats_to_xlsx
-        )
-        control.spect_to_h5 = self.get_key_value(
-            logger_id=key, data=data, key="spectral_to_h5", attr=control.spect_to_h5
-        )
-        control.spect_to_csv = self.get_key_value(
-            logger_id=key, data=data, key="spectral_to_csv", attr=control.spect_to_csv
-        )
-        control.spect_to_xlsx = self.get_key_value(
-            logger_id=key, data=data, key="spectral_to_xlsx", attr=control.spect_to_xlsx
-        )
-
-        return control
-
-    def map_logger_props(self, logger, dict_logger):
-        """Retrieve logger properties from JSON dictionary and map to logger object."""
-
-        logger.file_format = self.get_key_value(
-            logger_id=logger.logger_id,
-            data=dict_logger,
-            key="file_format",
-            attr=logger.file_format,
-        )
-        logger.logger_path = self.get_key_value(
-            logger_id=logger.logger_id,
-            data=dict_logger,
-            key="logger_path",
-            attr=logger.logger_path,
-        )
-        logger.file_timestamp_format = self.get_key_value(
-            logger_id=logger.logger_id,
-            data=dict_logger,
-            key="file_timestamp_format",
-            attr=logger.file_timestamp_format,
-        )
-        logger.timestamp_format = self.get_key_value(
-            logger_id=logger.logger_id,
-            data=dict_logger,
-            key="data_timestamp_format",
-            attr=logger.timestamp_format,
-        )
-        logger.datetime_format = self.get_key_value(
-            logger_id=logger.logger_id,
-            data=dict_logger,
-            key="data_datetime_format",
-            attr=logger.datetime_format,
-        )
-        logger.file_ext = self.get_key_value(
-            logger_id=logger.logger_id,
-            data=dict_logger,
-            key="file_ext",
-            attr=logger.file_ext,
-        )
-        logger.file_delimiter = self.get_key_value(
-            logger_id=logger.logger_id,
-            data=dict_logger,
-            key="file_delimiter",
-            attr=logger.file_delimiter,
-        )
-        logger.num_headers = self.get_key_value(
-            logger_id=logger.logger_id,
-            data=dict_logger,
-            key="num_header_rows",
-            attr=logger.num_headers,
-        )
-        logger.num_columns = self.get_key_value(
-            logger_id=logger.logger_id,
-            data=dict_logger,
-            key="num_columns",
-            attr=logger.num_columns,
-        )
-        logger.channel_header_row = self.get_key_value(
-            logger_id=logger.logger_id,
-            data=dict_logger,
-            key="channel_header_row",
-            attr=logger.channel_header_row,
-        )
-        logger.units_header_row = self.get_key_value(
-            logger_id=logger.logger_id,
-            data=dict_logger,
-            key="units_header_row",
-            attr=logger.units_header_row,
-        )
-        logger.freq = self.get_key_value(
-            logger_id=logger.logger_id,
-            data=dict_logger,
-            key="logging_freq",
-            attr=logger.freq,
-        )
-        logger.duration = self.get_key_value(
-            logger_id=logger.logger_id,
-            data=dict_logger,
-            key="logging_duration",
-            attr=logger.duration,
-        )
-        logger.all_channel_names = self.get_key_value(
-            logger_id=logger.logger_id,
-            data=dict_logger,
-            key="all_channel_names",
-            attr=logger.all_channel_names,
-        )
-        logger.all_channel_units = self.get_key_value(
-            logger_id=logger.logger_id,
-            data=dict_logger,
-            key="all_channel_units",
-            attr=logger.all_channel_units,
-        )
-
-        return logger
-
-    def map_logger_requested_cols_settings(self, logger, dict_logger):
-        """Retrieve logger requested columns settings from JSON dictionary and map to logger object."""
-
-        logger.requested_cols = self.get_key_value(
-            logger_id=logger.logger_id,
-            data=dict_logger,
-            key="requested_columns",
-            attr=logger.requested_cols,
-        )
-        logger.unit_conv_factors = self.get_key_value(
-            logger_id=logger.logger_id,
-            data=dict_logger,
-            key="unit_convs",
-            attr=logger.unit_conv_factors,
-        )
-        logger.user_channel_names = self.get_key_value(
-            logger_id=logger.logger_id,
-            data=dict_logger,
-            key="user_channel_names",
-            attr=logger.user_channel_names,
-        )
-        logger.user_channel_units = self.get_key_value(
-            logger_id=logger.logger_id,
-            data=dict_logger,
-            key="user_channel_units",
-            attr=logger.user_channel_units,
-        )
-        return logger
-
-    def map_logger_stats_settings(self, logger, dict_logger):
-        """Retrieve logger stats settings from JSON dictionary and map to logger object."""
-
-        logger.process_stats = self.get_key_value(
-            logger_id=logger.logger_id,
-            data=dict_logger,
-            key="process_stats",
-            attr=logger.process_stats,
-        )
-        logger.stats_interval = self.get_key_value(
-            logger_id=logger.logger_id,
-            data=dict_logger,
-            key="stats_interval",
-            attr=logger.stats_interval,
-        )
-        stats_start = self.get_key_value(
-            logger_id=logger.logger_id,
-            data=dict_logger,
-            key="stats_start",
-            attr=logger.stats_start,
-        )
-        if stats_start is None:
-            logger.stats_start = None
-        else:
-            try:
-                # Need to convert stats start to datetime
-                logger.stats_start = parse(stats_start, yearfirst=True)
-            except ValueError:
-                self.parent.warning(
-                    f"stats_start datetime format not recognised for logger {logger.logger_id}"
-                )
-
-        stats_end = self.get_key_value(
-            logger_id=logger.logger_id,
-            data=dict_logger,
-            key="stats_end",
-            attr=logger.stats_end,
-        )
-        if stats_end is None:
-            logger.stats_end = None
-        else:
-            try:
-                # Need to convert stats end to datetime
-                logger.stats_end = parse(stats_end, yearfirst=True)
-            except ValueError:
-                self.parent.warning(
-                    f"stats_end datetime format not recognised for logger {logger.logger_id}"
-                )
-
-        logger.stats_low_cutoff_freq = self.get_key_value(
-            logger_id=logger.logger_id,
-            data=dict_logger,
-            key="stats_low_cutoff_freq",
-            attr=logger.stats_low_cutoff_freq,
-        )
-        logger.stats_high_cutoff_freq = self.get_key_value(
-            logger_id=logger.logger_id,
-            data=dict_logger,
-            key="stats_high_cutoff_freq",
-            attr=logger.stats_high_cutoff_freq,
-        )
-
-        return logger
-
-    def map_logger_spectral_settings(self, logger, dict_logger):
-        """Retrieve logger spectral settings from JSON dictionary and map to logger object."""
-
-        logger.process_spectral = self.get_key_value(
-            logger_id=logger.logger_id,
-            data=dict_logger,
-            key="process_spectral",
-            attr=logger.process_spectral,
-        )
-        logger.spectral_interval = self.get_key_value(
-            logger_id=logger.logger_id,
-            data=dict_logger,
-            key="spectral_interval",
-            attr=logger.spectral_interval,
-        )
-        spectral_start = self.get_key_value(
-            logger_id=logger.logger_id,
-            data=dict_logger,
-            key="spectral_start",
-            attr=logger.spectral_start,
-        )
-        if spectral_start is None:
-            logger.spectral_start = None
-        else:
-            try:
-                # Need to convert spectral start to datetime
-                logger.spectral_start = parse(spectral_start, yearfirst=True)
-            except ValueError:
-                self.parent.warning(
-                    f"spectral_start datetime format not recognised for logger {logger.logger_id}"
-                )
-
-        spectral_end = self.get_key_value(
-            logger_id=logger.logger_id,
-            data=dict_logger,
-            key="spectral_end",
-            attr=logger.spectral_end,
-        )
-        if spectral_end is None:
-            logger.spectral_end = None
-        else:
-            try:
-                # Need to convert spectral end to datetime
-                logger.spectral_end = parse(spectral_end, yearfirst=True)
-            except ValueError:
-                self.parent.warning(
-                    f"spectral_end datetime format not recognised for {logger.logger_id}"
-                )
-
-        return logger
-
-    def get_key_value(self, logger_id, data, key, attr=None):
-        """Assign data from a JSON key to control object attribute."""
-
-        if key in data.keys():
-            return data[key]
-        else:
-            self.parent.warning(
-                f"{key} key not found in config file for {logger_id} logger"
-            )
-            return attr
-
-    def set_dashboards(self):
+    def _set_dashboards(self):
         """Set dashboard values with data in control object after loading JSON file."""
 
-        # First need to map the newly loaded control object to campaignTab and loggerTab
+        # Map the loaded control and transfer objects to the associated tab widget objects
         self.campaignTab.control = self.control
         self.loggerPropsTab.control = self.control
         self.analysisTab.control = self.control
+        self.tfSettingsTab.tf = self.tf
 
         # Set campaign data to dashboard
         self.campaignTab.set_campaign_dashboard()
@@ -695,8 +406,14 @@ class ConfigModule(QtWidgets.QWidget):
             self.analysisTab.set_analysis_dashboard(logger)
             self.set_logger_header_list(logger)
 
-    def set_window_title(self, filename=None):
+        # Set transfer functions dashboard
+        self.tfSettingsTab.set_tf_dashboard()
+
+    def _set_window_title(self, filename=None):
         """Update main window title with config filename."""
+
+        if self.parent is None:
+            return
 
         if filename:
             self.parent.setWindowTitle(
@@ -704,6 +421,11 @@ class ConfigModule(QtWidgets.QWidget):
             )
         else:
             self.parent.setWindowTitle(f"DataLab {self.parent.version}")
+
+    @pyqtSlot(str)
+    def warning(self, msg):
+        print(f"Warning: {msg}")
+        return QtWidgets.QMessageBox.information(self, "Warning", msg)
 
 
 class CampaignInfoTab(QtWidgets.QWidget):
@@ -718,25 +440,14 @@ class CampaignInfoTab(QtWidgets.QWidget):
 
         self.parent = parent
         self.control = control
+        self._init_ui()
+        self._connect_signals()
 
-        # Trick to get Pycharm's intellisense to detect the ControlFile class
-        # try:
-        #     if isinstance(self.control, ControlFile):
-        #         pass
-        # except:
-        #     pass
-
-        self.init_ui()
-        self.connect_signals()
-
-    def init_ui(self):
+    def _init_ui(self):
+        # WIDGETS
         self.editButton = QtWidgets.QPushButton("Edit Data")
         self.editButton.setShortcut("Ctrl+E")
-
-        # Campaign details group
-        self.projGroup = QtWidgets.QGroupBox("Project and Campaign Info")
-        self.projGroup.setMinimumWidth(500)
-
+        self.editButton.setToolTip("Ctrl+E")
         self.projNum = QtWidgets.QLabel("-")
         self.projNum.setFixedWidth(40)
         self.projName = QtWidgets.QLabel("-")
@@ -745,6 +456,9 @@ class CampaignInfoTab(QtWidgets.QWidget):
         self.projPath.setWordWrap(True)
         self.configFile = QtWidgets.QLabel("-")
 
+        # CONTAINERS
+        self.projGroup = QtWidgets.QGroupBox("Project and Campaign Info")
+        self.projGroup.setMinimumWidth(500)
         self.form = QtWidgets.QFormLayout(self.projGroup)
         self.form.addRow(QtWidgets.QLabel("Project number:"), self.projNum)
         self.form.addRow(QtWidgets.QLabel("Project name:"), self.projName)
@@ -752,7 +466,7 @@ class CampaignInfoTab(QtWidgets.QWidget):
         self.form.addRow(QtWidgets.QLabel("Project location:"), self.projPath)
         self.form.addRow(QtWidgets.QLabel("Config file name:"), self.configFile)
 
-        # Construct layout
+        # LAYOUT
         self.vbox = QtWidgets.QVBoxLayout()
         self.vbox.addWidget(self.editButton, stretch=0, alignment=QtCore.Qt.AlignLeft)
         self.vbox.addWidget(self.projGroup)
@@ -783,10 +497,12 @@ class CampaignInfoTab(QtWidgets.QWidget):
         # item = self.tableInput.item(0, 0)
         # print(item.text())
 
-    def connect_signals(self):
-        self.editButton.clicked.connect(self.show_edit_dialog)
+    def _connect_signals(self):
+        self.editButton.clicked.connect(self.on_edit_clicked)
 
-    def show_edit_dialog(self):
+    def on_edit_clicked(self):
+        """Open campaign settings edit dialog."""
+
         editInfo = EditCampaignInfoDialog(self, self.control)
         editInfo.show()
 
@@ -809,6 +525,99 @@ class CampaignInfoTab(QtWidgets.QWidget):
         self.configFile.setText("-")
 
 
+class EditCampaignInfoDialog(QtWidgets.QDialog):
+    """Edit window for project and campaign data."""
+
+    def __init__(self, parent=None, control=Control()):
+        super(EditCampaignInfoDialog, self).__init__(parent)
+
+        self.parent = parent
+        self.control = control
+        self._init_ui()
+        self._connect_signals()
+        self.set_dialog_data()
+
+    def _init_ui(self):
+        self.setWindowTitle("Edit General Campaign Data")
+        self.setFixedSize(500, 250)
+
+        # Sizing policy
+        policy = QtWidgets.QSizePolicy(
+            QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed
+        )
+
+        # WIDGETS
+        self.projNum = QtWidgets.QLineEdit()
+        self.projNum.setFixedWidth(40)
+        self.projName = QtWidgets.QLineEdit()
+        self.campaignName = QtWidgets.QLineEdit()
+        self.projPath = QtWidgets.QLineEdit()
+        self.projPath.setToolTip("If not input the current working directory will be used.")
+        self.browseButton = QtWidgets.QPushButton("Browse")
+        self.browseButton.setSizePolicy(policy)
+        self.buttonBox = QtWidgets.QDialogButtonBox(
+            QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel
+        )
+
+        # CONTAINERS
+        self.formWidget = QtWidgets.QWidget()
+        self.form = QtWidgets.QFormLayout(self.formWidget)
+        self.form.addRow(QtWidgets.QLabel("Project number:"), self.projNum)
+        self.form.addRow(QtWidgets.QLabel("Project name:"), self.projName)
+        self.form.addRow(QtWidgets.QLabel("Campaign name:"), self.campaignName)
+        self.form.addRow(QtWidgets.QLabel("Project location:"), self.projPath)
+        self.form.addRow(QtWidgets.QLabel(""), self.browseButton)
+
+        # LAYOUT
+        self.layout = QtWidgets.QVBoxLayout(self)
+        self.layout.addWidget(self.formWidget)
+        self.layout.addWidget(self.buttonBox)
+
+    def _connect_signals(self):
+        self.browseButton.clicked.connect(self.set_project_path)
+        self.buttonBox.accepted.connect(self.accept)
+        self.buttonBox.accepted.connect(self.on_ok_clicked)
+        self.buttonBox.rejected.connect(self.reject)
+
+    def set_dialog_data(self):
+        """Set dialog data with campaign info from control object."""
+
+        control = self.control
+
+        self.projNum.setText(control.project_num)
+        self.projName.setText(control.project_name)
+        self.campaignName.setText(control.campaign_name)
+        self.projPath.setText(control.project_path)
+
+    def on_ok_clicked(self):
+        """Assign values to the control object and update the dashboard."""
+
+        self.set_control_data()
+        if self.parent is not None:
+            self.parent.set_campaign_dashboard()
+
+    def set_control_data(self):
+        """Assign values to the control object."""
+
+        control = self.control
+        control.project_num = self.projNum.text()
+        control.project_name = self.projName.text()
+        control.campaign_name = self.campaignName.text()
+
+        if self.projPath.text() == "":
+            control.project_path = os.getcwd()
+        else:
+            control.project_path = self.projPath.text()
+
+    def set_project_path(self):
+        """Set location of project root directory."""
+
+        dir_path = QtWidgets.QFileDialog.getExistingDirectory(self, "Project Location")
+
+        if dir_path:
+            self.projPath.setText(dir_path)
+
+
 class LoggerPropertiesTab(QtWidgets.QWidget):
     """Widget tabs for logger properties and analyis settings."""
 
@@ -819,19 +628,16 @@ class LoggerPropertiesTab(QtWidgets.QWidget):
 
         self.parent = parent
         self.control = control
-        self.init_ui()
-        self.connect_signals()
+        self._init_ui()
+        self._connect_signals()
 
-    def init_ui(self):
+    def _init_ui(self):
         """Create widget layout."""
 
+        # WIDGETS
         self.editButton = QtWidgets.QPushButton("Edit Data")
         self.editButton.setShortcut("Ctrl+E")
-
-        # Logger properties group
-        self.loggerPropsGroup = QtWidgets.QGroupBox("Logger Properties")
-        self.loggerPropsGroup.setMinimumWidth(500)
-
+        self.editButton.setToolTip("Ctrl+E")
         self.loggerID = QtWidgets.QLabel("-")
         self.fileFormat = QtWidgets.QLabel("-")
         self.loggerPath = QtWidgets.QLabel("-")
@@ -847,6 +653,10 @@ class LoggerPropertiesTab(QtWidgets.QWidget):
         self.loggingFreq = QtWidgets.QLabel("-")
         self.loggingDuration = QtWidgets.QLabel("-")
 
+        # CONTAINERS
+        # Logger properties group
+        self.loggerPropsGroup = QtWidgets.QGroupBox("Logger Properties")
+        self.loggerPropsGroup.setMinimumWidth(500)
         self.form = QtWidgets.QFormLayout(self.loggerPropsGroup)
         self.form.addRow(QtWidgets.QLabel("Logger ID:"), self.loggerID)
         self.form.addRow(QtWidgets.QLabel("File type:"), self.fileFormat)
@@ -866,7 +676,7 @@ class LoggerPropertiesTab(QtWidgets.QWidget):
             QtWidgets.QLabel("Logging duration (s):"), self.loggingDuration
         )
 
-        # Construct layout
+        # LAYOUT
         self.vbox = QtWidgets.QVBoxLayout()
         self.vbox.addWidget(self.editButton, stretch=0, alignment=QtCore.Qt.AlignLeft)
         self.vbox.addWidget(self.loggerPropsGroup)
@@ -876,10 +686,10 @@ class LoggerPropertiesTab(QtWidgets.QWidget):
         self.hbox.addLayout(self.vbox)
         self.hbox.addStretch()
 
-    def connect_signals(self):
-        self.editButton.clicked.connect(self.show_edit_dialog)
+    def _connect_signals(self):
+        self.editButton.clicked.connect(self.on_edit_clicked)
 
-    def show_edit_dialog(self):
+    def on_edit_clicked(self):
         """Open logger properties edit form."""
 
         if self.parent.loggersList.count() == 0:
@@ -932,429 +742,6 @@ class LoggerPropertiesTab(QtWidgets.QWidget):
         self.loggingDuration.setText("-")
 
 
-class StatsAndSpectralSettingsTab(QtWidgets.QWidget):
-    """GUI screen to control project setup."""
-
-    def __init__(self, parent=None, control=Control()):
-        super(StatsAndSpectralSettingsTab, self).__init__(parent)
-
-        self.parent = parent
-        self.control = control
-        self.logger = None
-        self.init_ui()
-        self.connect_signals()
-
-    def init_ui(self):
-        """Create widget layout."""
-
-        self.editButton = QtWidgets.QPushButton("Edit Data")
-        self.editButton.setShortcut("Ctrl+E")
-
-        # Processed columns group
-        self.colsGroup = QtWidgets.QGroupBox("Processed Columns")
-
-        self.columns = QtWidgets.QLabel("-")
-        self.unitConvs = QtWidgets.QLabel("-")
-        self.channelNames = QtWidgets.QLabel("-")
-        self.channelUnits = QtWidgets.QLabel("-")
-
-        self.colsForm = QtWidgets.QFormLayout(self.colsGroup)
-        self.colsForm.addRow(QtWidgets.QLabel("Requested columns:"), self.columns)
-        self.colsForm.addRow(
-            QtWidgets.QLabel("Unit conversion factors:"), self.unitConvs
-        )
-        self.colsForm.addRow(
-            QtWidgets.QLabel("Channel names override (optional):"), self.channelNames
-        )
-        self.colsForm.addRow(
-            QtWidgets.QLabel("Channel units override (optional):"), self.channelUnits
-        )
-
-        # Stats settings group
-        self.statsGroup = QtWidgets.QGroupBox("Statistical Analysis Settings")
-        self.statsGroup.setFixedWidth(250)
-
-        self.processStatsChkBox = QtWidgets.QCheckBox("Include in processing")
-        self.processStatsChkBox.setChecked(True)
-        self.statsInterval = QtWidgets.QLabel("-")
-        self.statsStart = QtWidgets.QLabel("-")
-        self.statsEnd = QtWidgets.QLabel("-")
-
-        # Low and high cut-off frequencies
-        self.lowCutoff = QtWidgets.QLabel("-")
-        self.highCutoff = QtWidgets.QLabel("-")
-
-        self.statsForm = QtWidgets.QFormLayout(self.statsGroup)
-        self.statsForm.addRow(self.processStatsChkBox, QtWidgets.QLabel(""))
-        self.statsForm.addRow(QtWidgets.QLabel("Interval (s):"), self.statsInterval)
-        self.statsForm.addRow(QtWidgets.QLabel("Start timestamp:"), self.statsStart)
-        self.statsForm.addRow(QtWidgets.QLabel("End timestamp:"), self.statsEnd)
-        self.statsForm.addRow(
-            QtWidgets.QLabel("Low frequency cut-off (Hz):"), self.lowCutoff
-        )
-        self.statsForm.addRow(
-            QtWidgets.QLabel("High frequency cut-off (Hz):"), self.highCutoff
-        )
-
-        # Stats output file formats group
-        policy = QtWidgets.QSizePolicy(
-            QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed
-        )
-
-        self.statsOutputGroup = QtWidgets.QGroupBox("Stats File Formats to Output")
-        self.statsOutputGroup.setSizePolicy(policy)
-
-        self.statsH5 = QtWidgets.QCheckBox(".h5 (recommended - fast read/write)")
-        self.statsH5.setChecked(True)
-        self.statsCSV = QtWidgets.QCheckBox(".csv")
-        self.statsXLSX = QtWidgets.QCheckBox(".xlsx")
-        self.vbox = QtWidgets.QVBoxLayout(self.statsOutputGroup)
-        self.vbox.addWidget(self.statsH5)
-        self.vbox.addWidget(self.statsCSV)
-        self.vbox.addWidget(self.statsXLSX)
-
-        # Spectral settings group
-        self.spectralGroup = QtWidgets.QGroupBox("Spectral Analysis Settings")
-        self.spectralGroup.setFixedWidth(250)
-
-        self.processSpectralChkBox = QtWidgets.QCheckBox("Include in processing")
-        self.processSpectralChkBox.setChecked(True)
-        self.spectralInterval = QtWidgets.QLabel("-")
-        self.spectralStart = QtWidgets.QLabel("-")
-        self.spectralEnd = QtWidgets.QLabel("-")
-
-        self.spectralForm = QtWidgets.QFormLayout(self.spectralGroup)
-        self.spectralForm.addRow(self.processSpectralChkBox, QtWidgets.QLabel(""))
-        self.spectralForm.addRow(
-            QtWidgets.QLabel("Interval (s):"), self.spectralInterval
-        )
-        self.spectralForm.addRow(
-            QtWidgets.QLabel("Start timestamp:"), self.spectralStart
-        )
-        self.spectralForm.addRow(QtWidgets.QLabel("End timestamp:"), self.spectralEnd)
-
-        # Spectral output file formats group
-        policy = QtWidgets.QSizePolicy(
-            QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed
-        )
-
-        self.spectOutputGroup = QtWidgets.QGroupBox("Spectral File Formats to Output")
-        self.spectOutputGroup.setSizePolicy(policy)
-
-        self.spectH5 = QtWidgets.QCheckBox(".h5 (recommended - fast read/write)")
-        self.spectH5.setChecked(True)
-        self.spectCSV = QtWidgets.QCheckBox(".csv")
-        self.spectXLSX = QtWidgets.QCheckBox(".xlsx")
-        self.vbox = QtWidgets.QVBoxLayout(self.spectOutputGroup)
-        self.vbox.addWidget(self.spectH5)
-        self.vbox.addWidget(self.spectCSV)
-        self.vbox.addWidget(self.spectXLSX)
-
-        # Spacer widgets to separate the group boxes a bit
-        spacer = QtWidgets.QSpacerItem(1, 15)
-
-        # Construct layout
-        self.hboxStats = QtWidgets.QHBoxLayout()
-        self.hboxStats.setAlignment(QtCore.Qt.AlignLeft)
-        self.hboxStats.addWidget(self.statsGroup)
-        self.hboxStats.addWidget(self.statsOutputGroup, alignment=QtCore.Qt.AlignTop)
-
-        self.hboxSpect = QtWidgets.QHBoxLayout()
-        self.hboxSpect.setAlignment(QtCore.Qt.AlignLeft)
-        self.hboxSpect.addWidget(self.spectralGroup)
-        self.hboxSpect.addWidget(self.spectOutputGroup, alignment=QtCore.Qt.AlignTop)
-
-        self.vbox = QtWidgets.QVBoxLayout()
-        self.vbox.addWidget(self.editButton, stretch=0, alignment=QtCore.Qt.AlignLeft)
-        self.vbox.addWidget(self.colsGroup)
-        self.vbox.addItem(spacer)
-        self.vbox.addLayout(self.hboxStats)
-        self.vbox.addItem(spacer)
-        self.vbox.addLayout(self.hboxSpect)
-        self.vbox.addStretch()
-
-        self.hbox = QtWidgets.QHBoxLayout(self)
-        self.hbox.addLayout(self.vbox)
-        self.hbox.addStretch()
-
-    def connect_signals(self):
-        self.editButton.clicked.connect(self.show_edit_dialog)
-        self.processStatsChkBox.toggled.connect(self.on_process_stats_check_box_toggled)
-        self.processSpectralChkBox.toggled.connect(
-            self.on_process_spectral_check_box_toggled
-        )
-        self.statsH5.toggled.connect(self.on_stats_h5_toggled)
-        self.statsCSV.toggled.connect(self.on_stats_csv_toggled)
-        self.statsXLSX.toggled.connect(self.on_stats_xlsx_toggled)
-        self.spectH5.toggled.connect(self.on_spect_h5_toggled)
-        self.spectCSV.toggled.connect(self.on_spect_csv_toggled)
-        self.spectXLSX.toggled.connect(self.on_spect_xlsx_toggled)
-
-    def show_edit_dialog(self):
-        """Open logger stats edit form."""
-
-        if self.parent.loggersList.count() == 0:
-            msg = f"No loggers exist to edit. Add a logger first."
-            return QtWidgets.QMessageBox.information(
-                self, "Edit Logger Statistics and Spectral Analysis Settings", msg
-            )
-
-        # Retrieve selected logger object
-        logger_idx = self.parent.loggersList.currentRow()
-        logger = self.control.loggers[logger_idx]
-
-        # Edit stats dialog class
-        editStatsSettings = EditStatsAndSpectralDialog(self, logger, logger_idx)
-        editStatsSettings.show()
-
-    def on_process_stats_check_box_toggled(self):
-        """Set include in processing state in logger object."""
-
-        if self.parent.loggersList.count() > 0:
-            self.logger.process_stats = self.processStatsChkBox.isChecked()
-
-    def on_process_spectral_check_box_toggled(self):
-        """Set include in processing state in logger object."""
-
-        if self.parent.loggersList.count() > 0:
-            self.logger.process_spectral = self.processSpectralChkBox.isChecked()
-
-    def on_stats_h5_toggled(self):
-        if self.parent.loggersList.count() > 0:
-            if self.statsH5.isChecked():
-                self.control.stats_to_h5 = True
-            else:
-                self.control.stats_to_h5 = False
-
-    def on_stats_csv_toggled(self):
-        if self.parent.loggersList.count() > 0:
-            if self.statsCSV.isChecked():
-                self.control.stats_to_csv = True
-            else:
-                self.control.stats_to_csv = False
-
-    def on_stats_xlsx_toggled(self):
-        if self.parent.loggersList.count() > 0:
-            if self.statsXLSX.isChecked():
-                self.control.stats_to_xlsx = True
-            else:
-                self.control.stats_to_xlsx = False
-
-    def on_spect_h5_toggled(self):
-        if self.parent.loggersList.count() > 0:
-            if self.spectH5.isChecked():
-                self.control.spect_to_h5 = True
-            else:
-                self.control.spect_to_h5 = False
-
-    def on_spect_csv_toggled(self):
-        if self.parent.loggersList.count() > 0:
-            if self.spectCSV.isChecked():
-                self.control.spect_to_csv = True
-            else:
-                self.control.spect_to_csv = False
-
-    def on_spect_xlsx_toggled(self):
-        if self.parent.loggersList.count() > 0:
-            if self.spectXLSX.isChecked():
-                self.control.spect_to_xlsx = True
-            else:
-                self.control.spect_to_xlsx = False
-
-    def set_analysis_dashboard(self, logger):
-        """Set dashboard with logger stats and spectral settings from logger object."""
-
-        self.logger = logger
-
-        # Process check states
-        self.processStatsChkBox.setChecked(logger.process_stats)
-        self.processSpectralChkBox.setChecked(logger.process_spectral)
-
-        # Columns
-        cols_str = " ".join([str(i) for i in logger.requested_cols])
-        self.columns.setText(cols_str)
-
-        # Unit conversion factors
-        unit_conv_factors_str = " ".join([str(i) for i in logger.unit_conv_factors])
-        self.unitConvs.setText(unit_conv_factors_str)
-
-        # Channel names
-        channel_items_str = " ".join([i for i in logger.user_channel_names])
-        self.channelNames.setText(channel_items_str)
-
-        # Channel units
-        units_items_str = " ".join([i for i in logger.user_channel_units])
-        self.channelUnits.setText(units_items_str)
-
-        # Stats interval
-        self.statsInterval.setText(str(logger.stats_interval))
-
-        # Stats start
-        if logger.stats_start is None:
-            stats_start = "Not used"
-        else:
-            stats_start = logger.stats_start.strftime("%Y-%m-%d %H:%M")
-        self.statsStart.setText(stats_start)
-
-        # Stats end
-        if logger.stats_end is None:
-            stats_end = "Not used"
-        else:
-            stats_end = logger.stats_end.strftime("%Y-%m-%d %H:%M")
-        self.statsEnd.setText(stats_end)
-
-        # Stats low cut-off freq
-        if logger.stats_low_cutoff_freq is None:
-            self.lowCutoff.setText("None")
-        else:
-            self.lowCutoff.setText(f"{logger.stats_low_cutoff_freq:.2f}")
-
-        # Stats high cut-off freq
-        if logger.stats_high_cutoff_freq is None:
-            self.highCutoff.setText("None")
-        else:
-            self.highCutoff.setText(f"{logger.stats_high_cutoff_freq:.2f}")
-
-        # Selected stats file formats to output
-        if self.control.stats_to_h5 is True:
-            self.statsH5.setChecked(True)
-        else:
-            self.statsH5.setChecked(False)
-
-        if self.control.stats_to_csv is True:
-            self.statsCSV.setChecked(True)
-        else:
-            self.statsCSV.setChecked(False)
-
-        if self.control.stats_to_xlsx is True:
-            self.statsXLSX.setChecked(True)
-        else:
-            self.statsXLSX.setChecked(False)
-
-        # Spectral interval
-        self.spectralInterval.setText(str(logger.spectral_interval))
-
-        # Spectral start
-        if logger.spectral_start is None:
-            spectral_start = "Not used"
-        else:
-            spectral_start = logger.spectral_start.strftime("%Y-%m-%d %H:%M")
-        self.spectralStart.setText(spectral_start)
-
-        # Spectral end
-        if logger.spectral_end is None:
-            spectral_end = "Not used"
-        else:
-            spectral_end = logger.spectral_end.strftime("%Y-%m-%d %H:%M")
-        self.spectralEnd.setText(spectral_end)
-
-    def clear_dashboard(self):
-        """Initialise all values in stats and spectral analysis dashboard."""
-
-        self.columns.setText("-")
-        self.unitConvs.setText("-")
-        self.channelNames.setText("-")
-        self.channelUnits.setText("-")
-        self.statsInterval.setText("-")
-        self.statsStart.setText("-")
-        self.statsEnd.setText("-")
-        self.lowCutoff.setText("-")
-        self.highCutoff.setText("-")
-        self.spectralInterval.setText("-")
-        self.spectralStart.setText("-")
-        self.spectralEnd.setText("-")
-
-
-class EditCampaignInfoDialog(QtWidgets.QDialog):
-    """Edit window for project and campaign data."""
-
-    def __init__(self, parent=None, control=Control()):
-        super(EditCampaignInfoDialog, self).__init__(parent)
-
-        self.parent = parent
-        self.control = control
-        self.init_ui()
-        self.connect_signals()
-        self.set_dialog_data()
-
-    def init_ui(self):
-        self.setWindowTitle("Edit General Campaign Data")
-        self.setFixedSize(500, 250)
-
-        self.layout = QtWidgets.QVBoxLayout(self)
-        self.formWidget = QtWidgets.QWidget()
-        self.form = QtWidgets.QFormLayout(self.formWidget)
-        self.projNum = QtWidgets.QLineEdit()
-        self.projNum.setFixedWidth(40)
-        self.projName = QtWidgets.QLineEdit()
-        self.campaignName = QtWidgets.QLineEdit()
-        self.projPath = QtWidgets.QLineEdit()
-        self.projPath.setToolTip("If not input the current working directory will be used.")
-        self.browseButton = QtWidgets.QPushButton("Browse")
-        policy = QtWidgets.QSizePolicy(
-            QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed
-        )
-        self.browseButton.setSizePolicy(policy)
-
-        # Place widgets
-        self.form.addRow(QtWidgets.QLabel("Project number:"), self.projNum)
-        self.form.addRow(QtWidgets.QLabel("Project name:"), self.projName)
-        self.form.addRow(QtWidgets.QLabel("Campaign name:"), self.campaignName)
-        self.form.addRow(QtWidgets.QLabel("Project location:"), self.projPath)
-        self.form.addRow(QtWidgets.QLabel(""), self.browseButton)
-
-        self.buttonBox = QtWidgets.QDialogButtonBox(
-            QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel
-        )
-
-        self.layout.addWidget(self.formWidget)
-        self.layout.addWidget(self.buttonBox)
-
-    def connect_signals(self):
-        self.browseButton.clicked.connect(self.set_project_path)
-        self.buttonBox.accepted.connect(self.accept)
-        self.buttonBox.accepted.connect(self.on_ok_clicked)
-        self.buttonBox.rejected.connect(self.reject)
-
-    def set_dialog_data(self):
-        """Set dialog data with campaign info from control object."""
-
-        control = self.control
-
-        self.projNum.setText(control.project_num)
-        self.projName.setText(control.project_name)
-        self.campaignName.setText(control.campaign_name)
-        self.projPath.setText(control.project_path)
-
-    def on_ok_clicked(self):
-        """Assign values to the control object and update the dashboard."""
-
-        self.set_control_data()
-        self.parent.set_campaign_dashboard()
-
-    def set_control_data(self):
-        """Assign values to the control object."""
-
-        control = self.control
-        control.project_num = self.projNum.text()
-        control.project_name = self.projName.text()
-        control.campaign_name = self.campaignName.text()
-
-        if self.projPath.text() == "":
-            control.project_path = os.getcwd()
-        else:
-            control.project_path = self.projPath.text()
-
-    def set_project_path(self):
-        """Set location of project root directory."""
-
-        file_path = QtWidgets.QFileDialog.getExistingDirectory(self, "Project Location")
-
-        if file_path:
-            self.projPath.setText(file_path)
-            os.chdir(file_path)
-
-
 class EditLoggerPropertiesDialog(QtWidgets.QDialog):
     delims_gui_to_logger = {"comma": ",", "space": " "}
     delims_logger_to_gui = {",": "comma", " ": "space", "": ""}
@@ -1377,32 +764,30 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
         self.all_channel_names = []
         self.all_channel_units = []
 
-        self.init_ui()
-        self.connect_signals()
+        self._init_ui()
+        self._connect_signals()
         self.set_dialog_data()
 
-    def init_ui(self):
+    def _init_ui(self):
         self.setWindowTitle("Edit Logger File Properties")
         self.setMinimumWidth(500)
 
-        self.layout = QtWidgets.QVBoxLayout(self)
-        # self.layout.addStretch()
+        # Define input box validators
+        int_validator = QtGui.QIntValidator()
+        int_validator.setBottom(1)
+        dbl_validator = QtGui.QDoubleValidator()
 
-        # Logger details group
-        self.loggerDetails = QtWidgets.QGroupBox("Logger Details")
-        self.detailsForm = QtWidgets.QFormLayout(self.loggerDetails)
+        # Sizing policy
+        policy = QtWidgets.QSizePolicy(
+            QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed
+        )
+
+        # WIDGETS
         self.loggerID = QtWidgets.QLineEdit()
         self.loggerPath = QtWidgets.QTextEdit()
         self.loggerPath.setFixedHeight(40)
         self.browseButton = QtWidgets.QPushButton("Browse")
-
-        self.detailsForm.addRow(QtWidgets.QLabel("Logger ID:"), self.loggerID)
-        self.detailsForm.addRow(QtWidgets.QLabel("Logger path:"), self.loggerPath)
-        self.detailsForm.addRow(QtWidgets.QLabel(""), self.browseButton)
-
-        # Logger type group
-        self.loggerType = QtWidgets.QGroupBox("Logger Type")
-        self.typeForm = QtWidgets.QFormLayout(self.loggerType)
+        self.browseButton.setSizePolicy(policy)
         self.fileFormat = QtWidgets.QComboBox()
         self.fileFormat.setFixedWidth(100)
         self.fileFormat.addItems(self.file_types)
@@ -1414,11 +799,43 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
         self.fileDelimiter.addItems(self.delimiters)
         self.numHeaderRows = QtWidgets.QLineEdit()
         self.numHeaderRows.setFixedWidth(30)
+        self.numHeaderRows.setValidator(int_validator)
         self.channelHeaderRow = QtWidgets.QLineEdit()
         self.channelHeaderRow.setFixedWidth(30)
+        self.channelHeaderRow.setValidator(int_validator)
         self.unitsHeaderRow = QtWidgets.QLineEdit()
         self.unitsHeaderRow.setFixedWidth(30)
+        self.unitsHeaderRow.setValidator(int_validator)
+        self.detectButton = QtWidgets.QPushButton("Detect Properties")
+        self.detectButton.setSizePolicy(policy)
+        self.dataTimestampFormat = QtWidgets.QLineEdit()
+        self.numColumns = QtWidgets.QLineEdit()
+        self.numColumns.setFixedWidth(30)
+        self.numColumns.setValidator(int_validator)
+        self.loggingFreq = QtWidgets.QLineEdit()
+        self.loggingFreq.setFixedWidth(30)
+        self.loggingFreq.setValidator(int_validator)
+        self.loggingDuration = QtWidgets.QLineEdit()
+        self.loggingDuration.setFixedWidth(50)
+        self.loggingDuration.setValidator(dbl_validator)
+        # self.assignButton = QtWidgets.QPushButton('Assign')
+        self.buttonBox = QtWidgets.QDialogButtonBox(
+            QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel
+        )
+        # self.buttons.addButton(self.assignButton, QtWidgets.QDialogButtonBox.AcceptRole)
+        # self.buttons.addButton(QtWidgets.QDialogButtonBox.Cancel)
 
+        # CONTAINERS
+        # Logger details group
+        self.loggerDetails = QtWidgets.QGroupBox("Logger Details")
+        self.detailsForm = QtWidgets.QFormLayout(self.loggerDetails)
+        self.detailsForm.addRow(QtWidgets.QLabel("Logger ID:"), self.loggerID)
+        self.detailsForm.addRow(QtWidgets.QLabel("Logger path:"), self.loggerPath)
+        self.detailsForm.addRow(QtWidgets.QLabel(""), self.browseButton)
+
+        # Logger type group
+        self.loggerType = QtWidgets.QGroupBox("Logger Type")
+        self.typeForm = QtWidgets.QFormLayout(self.loggerType)
         self.typeForm.addRow(QtWidgets.QLabel("File format:"), self.fileFormat)
         self.typeForm.addRow(
             QtWidgets.QLabel("File timestamp format:"), self.fileTimestampFormat
@@ -1436,16 +853,6 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
         # Logger properties group
         self.loggerProps = QtWidgets.QGroupBox("Logger Properties")
         self.propsForm = QtWidgets.QFormLayout(self.loggerProps)
-
-        self.detectButton = QtWidgets.QPushButton("Detect Properties")
-        self.dataTimestampFormat = QtWidgets.QLineEdit()
-        self.numColumns = QtWidgets.QLineEdit()
-        self.numColumns.setFixedWidth(30)
-        self.loggingFreq = QtWidgets.QLineEdit()
-        self.loggingFreq.setFixedWidth(30)
-        self.loggingDuration = QtWidgets.QLineEdit()
-        self.loggingDuration.setFixedWidth(50)
-
         self.propsForm.addRow(self.detectButton, QtWidgets.QLabel(""))
         self.propsForm.addRow(
             QtWidgets.QLabel("Timestamp format:"), self.dataTimestampFormat
@@ -1460,47 +867,20 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
             QtWidgets.QLabel("Logging duration (s):"), self.loggingDuration
         )
 
-        # Set button sizing policy
-        policy = QtWidgets.QSizePolicy(
-            QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed
-        )
-        self.browseButton.setSizePolicy(policy)
-        self.detectButton.setSizePolicy(policy)
-
-        # Define input box validators
-        int_validator = QtGui.QIntValidator()
-        int_validator.setBottom(1)
-        dbl_validator = QtGui.QDoubleValidator()
-
-        # Apply validators
-        self.numHeaderRows.setValidator(int_validator)
-        self.numColumns.setValidator(int_validator)
-        self.channelHeaderRow.setValidator(int_validator)
-        self.unitsHeaderRow.setValidator(int_validator)
-        self.loggingFreq.setValidator(int_validator)
-        self.loggingDuration.setValidator(dbl_validator)
-
-        # Button box
-        # self.assignButton = QtWidgets.QPushButton('Assign')
-        self.buttonBox = QtWidgets.QDialogButtonBox(
-            QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel
-        )
-        # self.buttons.addButton(self.assignButton, QtWidgets.QDialogButtonBox.AcceptRole)
-        # self.buttons.addButton(QtWidgets.QDialogButtonBox.Cancel)
-
-        # Assemble widget containers
+        # LAYOUT
+        self.layout = QtWidgets.QVBoxLayout(self)
         self.layout.addWidget(self.loggerDetails)
         self.layout.addWidget(self.loggerType)
         self.layout.addWidget(self.loggerProps)
         self.layout.addWidget(self.buttonBox, stretch=0, alignment=QtCore.Qt.AlignRight)
 
-    def connect_signals(self):
+    def _connect_signals(self):
         self.buttonBox.accepted.connect(self.on_ok_clicked)
         self.buttonBox.accepted.connect(self.accept)
         self.buttonBox.rejected.connect(self.reject)
-        self.browseButton.clicked.connect(self.set_logger_path)
+        self.browseButton.clicked.connect(self.on_browse_path_clicked)
         self.fileFormat.currentIndexChanged.connect(self.on_file_format_changed)
-        self.detectButton.clicked.connect(self.detect_properties)
+        self.detectButton.clicked.connect(self.on_detect_props_clicked)
 
     def set_dialog_data(self):
         """Set dialog data with logger properties from control object."""
@@ -1550,8 +930,8 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
             self.channelHeaderRow.setEnabled(True)
             self.unitsHeaderRow.setEnabled(True)
 
-    def set_logger_path(self):
-        """Set location of project root directory."""
+    def on_browse_path_clicked(self):
+        """Set location of logger directory."""
 
         logger_path = QtWidgets.QFileDialog.getExistingDirectory(
             self, "Logger Location"
@@ -1608,7 +988,7 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
         self.channelHeaderRow.setText(str(test_logger.channel_header_row))
         self.unitsHeaderRow.setText(str(test_logger.units_header_row))
 
-    def detect_properties(self):
+    def on_detect_props_clicked(self):
         """Detect standard logger properties for selected file format."""
 
         logger_id = self.loggerID.text()
@@ -1646,21 +1026,19 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
                 test_logger.units_header_row = int(self.unitsHeaderRow.text())
 
             # Set detected file properties to dialog
-            self.set_detected_file_props_to_dialog(test_logger)
+            self._set_detected_file_props_to_dialog(test_logger)
         except LoggerError as e:
-            QtWidgets.QMessageBox.warning(self, "Error", str(e))
+            self.warning(str(e))
             logging.exception(e)
         except FileNotFoundError as e:
-            QtWidgets.QMessageBox.warning(self, "Error", str(e))
+            self.warning(str(e))
             logging.exception(e)
         except Exception as e:
             msg = "Unexpected error detecting logger file properties"
-            QtWidgets.QMessageBox.critical(
-                self, "Error", f"{msg}:\n{e}\n{sys.exc_info()[0]}"
-            )
+            self.error(f"{msg}:\n{e}\n{sys.exc_info()[0]}")
             logging.exception(e)
 
-    def set_detected_file_props_to_dialog(self, test_logger):
+    def _set_detected_file_props_to_dialog(self, test_logger):
         """
         Set the following detected (if found) logger properties to the edit dialog:
             sampling frequency
@@ -1683,21 +1061,21 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
         """Assign logger properties to the control object and update the dashboard."""
 
         try:
-            self.set_control_data()
-            self.detect_header()
-            self.parent.set_logger_dashboard(self.logger)
-            self.parent.parent.update_logger_id_list(
-                self.logger.logger_id, self.logger_idx
-            )
-            self.parent.parent.set_logger_header_list(self.logger)
+            self._set_control_data()
+            self._detect_header()
+
+            if self.parent is not None:
+                self.parent.set_logger_dashboard(self.logger)
+                self.parent.parent.update_logger_id_list(
+                    self.logger.logger_id, self.logger_idx
+                )
+                self.parent.parent.set_logger_header_list(self.logger)
         except Exception as e:
             msg = "Unexpected error assigning logger properties"
-            QtWidgets.QMessageBox.critical(
-                self, "Error", f"{msg}:\n{e}\n{sys.exc_info()[0]}"
-            )
+            self.error(f"{msg}:\n{e}\n{sys.exc_info()[0]}")
             logging.exception(e)
 
-    def set_control_data(self):
+    def _set_control_data(self):
         """Assign values to the control object."""
 
         logger = self.logger
@@ -1723,20 +1101,373 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
         logger.freq = int(self.loggingFreq.text())
         logger.duration = float(self.loggingDuration.text())
 
-    def detect_header(self):
+    def _detect_header(self):
         """Store all channel and units names from a test file, if present. Header info will then be set in the gui."""
 
         try:
             self.logger.get_all_channel_and_unit_names()
         except FileNotFoundError as e:
-            QtWidgets.QMessageBox.warning(self, "Error", str(e))
+            self.warning(str(e))
             logging.exception(e)
         except Exception as e:
             msg = "Unexpected error detecting logger file properties"
-            QtWidgets.QMessageBox.critical(
-                self, "Error", f"{msg}:\n{e}\n{sys.exc_info()[0]}"
-            )
+            self.error(f"{msg}:\n{e}\n{sys.exc_info()[0]}")
             logging.exception(e)
+
+    def warn_info(self, msg):
+        print(f"Warning: {msg}")
+        return QtWidgets.QMessageBox.information(self, "Warning", msg)
+
+    def warning(self, msg):
+        print(f"Warning: {msg}")
+        return QtWidgets.QMessageBox.warning(self, "Warning", msg)
+
+    def error(self, msg):
+        print(f"Error: {msg}")
+        return QtWidgets.QMessageBox.critical(self, "Error", msg)
+
+
+class StatsAndSpectralSettingsTab(QtWidgets.QWidget):
+    """GUI screen to control project setup."""
+
+    def __init__(self, parent=None, control=Control()):
+        super(StatsAndSpectralSettingsTab, self).__init__(parent)
+
+        self.parent = parent
+        self.control = control
+        self.logger = None
+        self._init_ui()
+        self._connect_signals()
+
+    def _init_ui(self):
+        """Create widget layout."""
+
+        # WIDGETS
+        self.editButton = QtWidgets.QPushButton("Edit Data")
+        self.editButton.setShortcut("Ctrl+E")
+        self.editButton.setToolTip("Ctrl+E")
+        self.columns = QtWidgets.QLabel("-")
+        self.unitConvs = QtWidgets.QLabel("-")
+        self.channelNames = QtWidgets.QLabel("-")
+        self.channelUnits = QtWidgets.QLabel("-")
+        self.processStart = QtWidgets.QLabel("-")
+        self.processEnd = QtWidgets.QLabel("-")
+        self.processType = QtWidgets.QLabel("-")
+        self.lowCutoff = QtWidgets.QLabel("-")
+        self.highCutoff = QtWidgets.QLabel("-")
+        self.processStatsChkBox = QtWidgets.QCheckBox("Include in processing")
+        self.processStatsChkBox.setChecked(True)
+        self.statsInterval = QtWidgets.QLabel("-")
+        self.processSpectChkBox = QtWidgets.QCheckBox("Include in processing")
+        self.processSpectChkBox.setChecked(True)
+        self.spectInterval = QtWidgets.QLabel("-")
+        self.statsFolder = QtWidgets.QLabel()
+        self.spectFolder = QtWidgets.QLabel()
+        self.statsH5 = QtWidgets.QCheckBox(".h5 (recommended - fast read/write)")
+        self.statsH5.setChecked(True)
+        self.statsCSV = QtWidgets.QCheckBox(".csv")
+        self.statsXLSX = QtWidgets.QCheckBox(".xlsx")
+        self.spectH5 = QtWidgets.QCheckBox(".h5 (recommended - fast read/write)")
+        self.spectH5.setChecked(True)
+        self.spectCSV = QtWidgets.QCheckBox(".csv")
+        self.spectXLSX = QtWidgets.QCheckBox(".xlsx")
+
+        # Define sizing policy
+        policy = QtWidgets.QSizePolicy(
+            QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed
+        )
+
+        # CONTAINERS
+        # Columns to process group
+        self.colsGroup = QtWidgets.QGroupBox("Columns to Process Settings")
+        self.colsForm = QtWidgets.QFormLayout(self.colsGroup)
+        self.colsForm.addRow(QtWidgets.QLabel("Column numbers to process:"), self.columns)
+        self.colsForm.addRow(
+            QtWidgets.QLabel("Unit conversion factors:"), self.unitConvs
+        )
+        self.colsForm.addRow(
+            QtWidgets.QLabel("Channel names override (optional):"), self.channelNames
+        )
+        self.colsForm.addRow(
+            QtWidgets.QLabel("Channel units override (optional):"), self.channelUnits
+        )
+
+        # Processing date range group
+        self.dateRangeGroup = QtWidgets.QGroupBox("Processing Date Range")
+        self.dateRangeForm = QtWidgets.QFormLayout(self.dateRangeGroup)
+        self.dateRangeForm.addRow(QtWidgets.QLabel("Start timestamp:"), self.processStart)
+        self.dateRangeForm.addRow(QtWidgets.QLabel("End timestamp:"), self.processEnd)
+
+        # Filters group
+        self.filtersGroup = QtWidgets.QGroupBox("Frequency Filters")
+        self.filtersForm = QtWidgets.QFormLayout(self.filtersGroup)
+        self.filtersForm.addRow(QtWidgets.QLabel("Screen on:"), self.processType)
+        self.filtersForm.addRow(
+            QtWidgets.QLabel("Low cut-off frequency (Hz):"), self.lowCutoff
+        )
+        self.filtersForm.addRow(
+            QtWidgets.QLabel("High cut-off frequency (Hz):"), self.highCutoff
+        )
+
+        # Stats settings group
+        self.statsGroup = QtWidgets.QGroupBox("Statistical Analysis Settings")
+        self.statsGroup.setFixedWidth(250)
+        self.statsForm = QtWidgets.QFormLayout(self.statsGroup)
+        self.statsForm.addRow(self.processStatsChkBox, QtWidgets.QLabel(""))
+        self.statsForm.addRow(QtWidgets.QLabel("Output folder:"), self.statsFolder)
+        self.statsForm.addRow(QtWidgets.QLabel("Sample length (s):"), self.statsInterval)
+
+        # Spectral settings group
+        self.spectGroup = QtWidgets.QGroupBox("Spectral Analysis Settings")
+        self.spectGroup.setFixedWidth(250)
+        self.spectForm = QtWidgets.QFormLayout(self.spectGroup)
+        self.spectForm.addRow(self.processSpectChkBox, QtWidgets.QLabel(""))
+        self.spectForm.addRow(QtWidgets.QLabel("Output folder:"), self.spectFolder)
+        self.spectForm.addRow(
+            QtWidgets.QLabel("Sample length (s):"), self.spectInterval
+        )
+
+        # Stats output file formats group
+        self.statsOutputGroup = QtWidgets.QGroupBox("Stats File Formats to Output")
+        self.statsOutputGroup.setSizePolicy(policy)
+        self.vbox = QtWidgets.QVBoxLayout(self.statsOutputGroup)
+        self.vbox.addWidget(self.statsH5)
+        self.vbox.addWidget(self.statsCSV)
+        self.vbox.addWidget(self.statsXLSX)
+
+        # Spectral output file formats group
+        self.spectOutputGroup = QtWidgets.QGroupBox("Spectral File Formats to Output")
+        self.spectOutputGroup.setSizePolicy(policy)
+        self.vbox = QtWidgets.QVBoxLayout(self.spectOutputGroup)
+        self.vbox.addWidget(self.spectH5)
+        self.vbox.addWidget(self.spectCSV)
+        self.vbox.addWidget(self.spectXLSX)
+
+        # LAYOUT
+        # Spacer widgets to separate the group boxes a bit
+        spacer = QtWidgets.QSpacerItem(1, 15)
+
+        self.hboxStats = QtWidgets.QHBoxLayout()
+        self.hboxStats.setAlignment(QtCore.Qt.AlignLeft)
+        self.hboxStats.addWidget(self.statsGroup)
+        self.hboxStats.addWidget(self.statsOutputGroup, alignment=QtCore.Qt.AlignTop)
+
+        self.hboxSpect = QtWidgets.QHBoxLayout()
+        self.hboxSpect.setAlignment(QtCore.Qt.AlignLeft)
+        self.hboxSpect.addWidget(self.spectGroup)
+        self.hboxSpect.addWidget(self.spectOutputGroup, alignment=QtCore.Qt.AlignTop)
+
+        self.vbox = QtWidgets.QVBoxLayout()
+        self.vbox.addWidget(self.editButton, stretch=0, alignment=QtCore.Qt.AlignLeft)
+        self.vbox.addWidget(self.colsGroup)
+        # self.vbox.addItem(spacer)
+        self.vbox.addWidget(self.dateRangeGroup)
+        # self.vbox.addItem(spacer)
+        self.vbox.addWidget(self.filtersGroup)
+        # self.vbox.addItem(spacer)
+        self.vbox.addLayout(self.hboxStats)
+        # self.vbox.addItem(spacer)
+        self.vbox.addLayout(self.hboxSpect)
+        self.vbox.addStretch()
+
+        self.hbox = QtWidgets.QHBoxLayout(self)
+        self.hbox.addLayout(self.vbox)
+        self.hbox.addStretch()
+
+    def _connect_signals(self):
+        self.editButton.clicked.connect(self.on_edit_clicked)
+        self.processStatsChkBox.toggled.connect(self.on_process_stats_check_box_toggled)
+        self.processSpectChkBox.toggled.connect(
+            self.on_process_spect_check_box_toggled
+        )
+        self.statsH5.toggled.connect(self.on_stats_h5_toggled)
+        self.statsCSV.toggled.connect(self.on_stats_csv_toggled)
+        self.statsXLSX.toggled.connect(self.on_stats_xlsx_toggled)
+        self.spectH5.toggled.connect(self.on_spect_h5_toggled)
+        self.spectCSV.toggled.connect(self.on_spect_csv_toggled)
+        self.spectXLSX.toggled.connect(self.on_spect_xlsx_toggled)
+
+    def on_edit_clicked(self):
+        """Open logger screening edit dialog."""
+
+        if self.parent.loggersList.count() == 0:
+            msg = f"No loggers exist to edit. Add a logger first."
+            return QtWidgets.QMessageBox.information(
+                self, "Edit Logger Statistics and Spectral Analysis Settings", msg
+            )
+
+        # Retrieve selected logger object
+        logger_idx = self.parent.loggersList.currentRow()
+        logger = self.control.loggers[logger_idx]
+
+        # Edit stats dialog class
+        editStatsSettings = EditStatsAndSpectralDialog(self, logger, logger_idx)
+        editStatsSettings.show()
+
+    def on_process_stats_check_box_toggled(self):
+        """Set include in processing state in logger object."""
+
+        if self.parent.loggersList.count() > 0:
+            self.logger.process_stats = self.processStatsChkBox.isChecked()
+
+    def on_process_spect_check_box_toggled(self):
+        """Set include in processing state in logger object."""
+
+        if self.parent.loggersList.count() > 0:
+            self.logger.process_spectral = self.processSpectChkBox.isChecked()
+
+    def on_stats_h5_toggled(self):
+        if self.parent.loggersList.count() > 0:
+            if self.statsH5.isChecked():
+                self.control.stats_to_h5 = True
+            else:
+                self.control.stats_to_h5 = False
+
+    def on_stats_csv_toggled(self):
+        if self.parent.loggersList.count() > 0:
+            if self.statsCSV.isChecked():
+                self.control.stats_to_csv = True
+            else:
+                self.control.stats_to_csv = False
+
+    def on_stats_xlsx_toggled(self):
+        if self.parent.loggersList.count() > 0:
+            if self.statsXLSX.isChecked():
+                self.control.stats_to_xlsx = True
+            else:
+                self.control.stats_to_xlsx = False
+
+    def on_spect_h5_toggled(self):
+        if self.parent.loggersList.count() > 0:
+            if self.spectH5.isChecked():
+                self.control.spect_to_h5 = True
+            else:
+                self.control.spect_to_h5 = False
+
+    def on_spect_csv_toggled(self):
+        if self.parent.loggersList.count() > 0:
+            if self.spectCSV.isChecked():
+                self.control.spect_to_csv = True
+            else:
+                self.control.spect_to_csv = False
+
+    def on_spect_xlsx_toggled(self):
+        if self.parent.loggersList.count() > 0:
+            if self.spectXLSX.isChecked():
+                self.control.spect_to_xlsx = True
+            else:
+                self.control.spect_to_xlsx = False
+
+    def set_analysis_dashboard(self, logger):
+        """Set dashboard with logger stats and spectral settings from logger object."""
+
+        self.logger = logger
+
+        # Process check states
+        self.processStatsChkBox.setChecked(logger.process_stats)
+        self.processSpectChkBox.setChecked(logger.process_spectral)
+
+        # Columns
+        cols_str = " ".join([str(i) for i in logger.cols_to_process])
+        self.columns.setText(cols_str)
+
+        # Unit conversion factors
+        unit_conv_factors_str = " ".join([str(i) for i in logger.unit_conv_factors])
+        self.unitConvs.setText(unit_conv_factors_str)
+
+        # Channel names
+        channel_items_str = " ".join([i for i in logger.user_channel_names])
+        self.channelNames.setText(channel_items_str)
+
+        # Channel units
+        units_items_str = " ".join([i for i in logger.user_channel_units])
+        self.channelUnits.setText(units_items_str)
+
+        # Start datetime
+        if logger.process_start is None:
+            process_start = "First file"
+        else:
+            process_start = logger.process_start.strftime("%Y-%m-%d %H:%M")
+        self.processStart.setText(process_start)
+
+        # End datetime
+        if logger.process_end is None:
+            process_end = "Last file"
+        else:
+            process_end = logger.process_end.strftime("%Y-%m-%d %H:%M")
+        self.processEnd.setText(process_end)
+
+        # Low cut-off frequency
+        if logger.low_cutoff_freq is None:
+            self.lowCutoff.setText("None")
+        else:
+            self.lowCutoff.setText(f"{logger.low_cutoff_freq:.2f}")
+
+        # High cut-off frequency
+        if logger.high_cutoff_freq is None:
+            self.highCutoff.setText("None")
+        else:
+            self.highCutoff.setText(f"{logger.high_cutoff_freq:.2f}")
+
+        # Screen on
+        self.processType.setText(logger.process_type)
+
+        # Stats and spectral interval
+        self.statsInterval.setText(str(logger.stats_interval))
+        self.spectInterval.setText(str(logger.spect_interval))
+
+        # Output folders
+        self.statsFolder.setText(self.parent.control.stats_output_folder)
+        self.spectFolder.setText(self.parent.control.spect_output_folder)
+
+        # Selected stats file formats to output
+        if self.control.stats_to_h5 is True:
+            self.statsH5.setChecked(True)
+        else:
+            self.statsH5.setChecked(False)
+
+        if self.control.stats_to_csv is True:
+            self.statsCSV.setChecked(True)
+        else:
+            self.statsCSV.setChecked(False)
+
+        if self.control.stats_to_xlsx is True:
+            self.statsXLSX.setChecked(True)
+        else:
+            self.statsXLSX.setChecked(False)
+
+        # Selected spectral file formats to output
+        if self.control.spect_to_h5 is True:
+            self.spectH5.setChecked(True)
+        else:
+            self.spectH5.setChecked(False)
+
+        if self.control.spect_to_csv is True:
+            self.spectCSV.setChecked(True)
+        else:
+            self.spectCSV.setChecked(False)
+
+        if self.control.spect_to_xlsx is True:
+            self.spectXLSX.setChecked(True)
+        else:
+            self.spectXLSX.setChecked(False)
+
+    def clear_dashboard(self):
+        """Initialise all values in stats and spectral analysis dashboard."""
+
+        self.columns.setText("-")
+        self.unitConvs.setText("-")
+        self.channelNames.setText("-")
+        self.channelUnits.setText("-")
+        self.processStart.setText("-")
+        self.processEnd.setText("-")
+        self.lowCutoff.setText("-")
+        self.highCutoff.setText("-")
+        self.processType.setText("-")
+        self.statsInterval.setText("-")
+        self.spectInterval.setText("-")
+        self.statsFolder.setText("Statsitics")
+        self.spectFolder.setText("Spectrograms")
 
 
 class EditStatsAndSpectralDialog(QtWidgets.QDialog):
@@ -1757,23 +1488,62 @@ class EditStatsAndSpectralDialog(QtWidgets.QDialog):
         self.setWindowTitle("Edit Logger Statistics and Spectral Analysis Settings")
         self.setMinimumWidth(500)
 
-        self.layout = QtWidgets.QVBoxLayout(self)
+        # Define input validators
+        int_validator = QtGui.QIntValidator()
+        int_validator.setBottom(1)
+        dbl_validator = QtGui.QDoubleValidator()
 
-        # Processed columns group
-        self.colsGroup = QtWidgets.QGroupBox("Processed Columns")
+        # WIDGETS
         self.columns = QtWidgets.QLineEdit()
+        self.columns.setToolTip("Column numbers to process, separated by a space.\n"
+                                "E.g. 2 3 4 5 (column 1 (time index) does not need to be included).")
         self.unitConvs = QtWidgets.QLineEdit()
+        self.unitConvs.setToolTip("Column unit conversion factors, separated by a space.\n"
+                                  "E.g. 0.001 0.001 57.29578 57.29578.")
         self.channelNames = QtWidgets.QLineEdit()
-        msg = "Optional: Add custom channel names separated by a space (e.g. AccelX AccelY AngRateX AngRateY)"
-        self.channelNames.setToolTip(msg)
+        self.channelNames.setToolTip("Custom channel names, separated by a space.\n"
+                                     "E.g. AccelX AccelY AngRateX AngRateY.")
         self.channelUnits = QtWidgets.QLineEdit()
-        msg = "Optional: Add custom channel units separated by a space (e.g. m/s^2 m/s^2 deg/s deg/s)"
-        self.channelUnits.setToolTip(msg)
+        self.channelUnits.setToolTip("Custom channel units, separated by a space.\n"
+                                     "E.g. m/s^2 m/s^2 deg/s deg/s.")
+        self.processStart = QtWidgets.QLineEdit()
+        self.processStart.setToolTip("If blank, the timestamps of the first file "
+                                     "will be used (if detected).")
+        self.processStart.setFixedWidth(100)
+        self.processEnd = QtWidgets.QLineEdit()
+        self.processEnd.setToolTip("If blank, the timestamp of the last file "
+                                   "will be used (if detected).")
+        self.processEnd.setFixedWidth(100)
+        self.processType = QtWidgets.QComboBox()
+        self.processType.addItems(["Both unfiltered and filtered",
+                                   "Unfiltered only",
+                                   "Filtered only",
+                                   ])
+        self.processType.setFixedWidth(160)
+        self.lowCutoff = QtWidgets.QLineEdit()
+        self.lowCutoff.setFixedWidth(40)
+        self.lowCutoff.setValidator(dbl_validator)
+        self.highCutoff = QtWidgets.QLineEdit()
+        self.highCutoff.setFixedWidth(40)
+        self.highCutoff.setValidator(dbl_validator)
+        self.statsFolder = QtWidgets.QLineEdit()
+        self.statsFolder.setFixedWidth(210)
+        self.statsInterval = QtWidgets.QLineEdit()
+        self.statsInterval.setFixedWidth(40)
+        self.statsInterval.setValidator(int_validator)
+        self.spectFolder = QtWidgets.QLineEdit()
+        self.spectFolder.setFixedWidth(210)
+        self.spectInterval = QtWidgets.QLineEdit()
+        self.spectInterval.setFixedWidth(40)
+        self.spectInterval.setValidator(int_validator)
 
+        # CONTAINERS
+        # Columns to process settings group
+        self.colsGroup = QtWidgets.QGroupBox("Columns to Process Settings")
         self.colsForm = QtWidgets.QFormLayout(self.colsGroup)
-        self.colsForm.addRow(QtWidgets.QLabel("Requested columns:"), self.columns)
+        self.colsForm.addRow(QtWidgets.QLabel("Column numbers to process:"), self.columns)
         self.colsForm.addRow(
-            QtWidgets.QLabel("Unit conversion factors:"), self.unitConvs
+            QtWidgets.QLabel("Unit conversion factors (optional):"), self.unitConvs
         )
         self.colsForm.addRow(
             QtWidgets.QLabel("Channel names override (optional):"), self.channelNames
@@ -1782,74 +1552,48 @@ class EditStatsAndSpectralDialog(QtWidgets.QDialog):
             QtWidgets.QLabel("Channel units override (optional):"), self.channelUnits
         )
 
+        # Processing date range group
+        self.dateRangeGroup = QtWidgets.QGroupBox("Processing Date Range")
+        self.dateRangeForm = QtWidgets.QFormLayout(self.dateRangeGroup)
+        self.dateRangeForm.addRow(QtWidgets.QLabel("Start timestamp:"), self.processStart)
+        self.dateRangeForm.addRow(QtWidgets.QLabel("End timestamp:"), self.processEnd)
+
+        # Filters group
+        self.filtersGroup = QtWidgets.QGroupBox("Frequency Filters")
+        self.filtersForm = QtWidgets.QFormLayout(self.filtersGroup)
+        self.filtersForm.addRow(QtWidgets.QLabel("Screen on:"), self.processType)
+        self.filtersForm.addRow(
+            QtWidgets.QLabel("Low cut-off frequency (Hz):"), self.lowCutoff
+        )
+        self.filtersForm.addRow(
+            QtWidgets.QLabel("High cut-off frequency (Hz):"), self.highCutoff
+        )
+
         # Stats settings group
-        self.statsGroup = QtWidgets.QGroupBox("Logger Statistics Settings")
-        self.statsInterval = QtWidgets.QLineEdit()
-        self.statsInterval.setFixedWidth(40)
-        self.statsStart = QtWidgets.QLineEdit()
-        self.statsStart.setFixedWidth(100)
-        self.statsEnd = QtWidgets.QLineEdit()
-        self.statsEnd.setFixedWidth(100)
-
-        # Filtered low and high cut-off frequencies
-        self.lowCutoff = QtWidgets.QLineEdit()
-        self.lowCutoff.setFixedWidth(40)
-        self.highCutoff = QtWidgets.QLineEdit()
-        self.highCutoff.setFixedWidth(40)
-
-        # Define input validators
-        int_validator = QtGui.QIntValidator()
-        int_validator.setBottom(1)
-        dbl_validator = QtGui.QDoubleValidator()
-
-        # Apply validators
-        self.statsInterval.setValidator(int_validator)
-        self.lowCutoff.setValidator(dbl_validator)
-        self.highCutoff.setValidator(dbl_validator)
-
+        self.statsGroup = QtWidgets.QGroupBox("Statistics Screening Settings")
         self.statsForm = QtWidgets.QFormLayout(self.statsGroup)
-        self.statsForm.addRow(QtWidgets.QLabel("Interval (s):"), self.statsInterval)
-        self.statsForm.addRow(QtWidgets.QLabel("Start timestamp:"), self.statsStart)
-        self.statsForm.addRow(QtWidgets.QLabel("End timestamp:"), self.statsEnd)
-        self.statsForm.addRow(
-            QtWidgets.QLabel("Low frequency cut-off (Hz):"), self.lowCutoff
-        )
-        self.statsForm.addRow(
-            QtWidgets.QLabel("High frequency cut-off (Hz):"), self.highCutoff
-        )
+        self.statsForm.addRow(QtWidgets.QLabel("Output folder:"), self.statsFolder)
+        self.statsForm.addRow(QtWidgets.QLabel("Sample length (s):"), self.statsInterval)
 
         # Spectral settings group
-        self.spectralGroup = QtWidgets.QGroupBox("Logger Spectral Settings")
-        self.spectralForm = QtWidgets.QFormLayout(self.spectralGroup)
-        self.spectralInterval = QtWidgets.QLineEdit()
-        self.spectralInterval.setFixedWidth(40)
-        self.spectralStart = QtWidgets.QLineEdit()
-        self.spectralStart.setFixedWidth(100)
-        self.spectralEnd = QtWidgets.QLineEdit()
-        self.spectralEnd.setFixedWidth(100)
-
-        # Define input validators
-        int_validator = QtGui.QIntValidator()
-        int_validator.setBottom(1)
-
-        # Apply validators
-        self.spectralInterval.setValidator(int_validator)
-
-        self.spectralForm.addRow(
-            QtWidgets.QLabel("Interval (s):"), self.spectralInterval
+        self.spectGroup = QtWidgets.QGroupBox("Spectral Screening Settings")
+        self.spectForm = QtWidgets.QFormLayout(self.spectGroup)
+        self.spectForm.addRow(QtWidgets.QLabel("Output folder:"), self.spectFolder)
+        self.spectForm.addRow(
+            QtWidgets.QLabel("Sample length (s):"), self.spectInterval
         )
-        self.spectralForm.addRow(
-            QtWidgets.QLabel("Start timestamp:"), self.spectralStart
-        )
-        self.spectralForm.addRow(QtWidgets.QLabel("End timestamp:"), self.spectralEnd)
 
         self.buttonBox = QtWidgets.QDialogButtonBox(
             QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel
         )
 
+        # LAYOUT
+        self.layout = QtWidgets.QVBoxLayout(self)
         self.layout.addWidget(self.colsGroup)
+        self.layout.addWidget(self.dateRangeGroup)
+        self.layout.addWidget(self.filtersGroup)
         self.layout.addWidget(self.statsGroup)
-        self.layout.addWidget(self.spectralGroup)
+        self.layout.addWidget(self.spectGroup)
         self.layout.addWidget(self.buttonBox, stretch=0, alignment=QtCore.Qt.AlignRight)
 
     def _connect_signals(self):
@@ -1862,9 +1606,8 @@ class EditStatsAndSpectralDialog(QtWidgets.QDialog):
 
         logger = self.logger
 
-        # Processed columns group
-        # Columns
-        cols_str = " ".join([str(i) for i in logger.requested_cols])
+        # Columns to process
+        cols_str = " ".join([str(i) for i in logger.cols_to_process])
         self.columns.setText(cols_str)
 
         # Unit conversion factors
@@ -1879,59 +1622,50 @@ class EditStatsAndSpectralDialog(QtWidgets.QDialog):
         units_items_str = " ".join([i for i in logger.user_channel_units])
         self.channelUnits.setText(units_items_str)
 
-        # Stats settings group
-        # Stats interval
-        self.statsInterval.setText(str(logger.stats_interval))
-
-        # Stats start
-        if logger.stats_start is None:
-            stats_start = "Not used"
+        # Process start
+        if logger.process_start is None:
+            process_start = "First file"
         else:
-            stats_start = logger.stats_start.strftime("%Y-%m-%d %H:%M")
-        self.statsStart.setText(stats_start)
+            process_start = logger.process_start.strftime("%Y-%m-%d %H:%M")
+        self.processStart.setText(process_start)
 
-        # Stats end
-        if logger.stats_end is None:
-            stats_end = "Not used"
+        # Process end
+        if logger.process_end is None:
+            process_end = "Last file"
         else:
-            stats_end = logger.stats_end.strftime("%Y-%m-%d %H:%M")
-        self.statsEnd.setText(stats_end)
+            process_end = logger.process_end.strftime("%Y-%m-%d %H:%M")
+        self.processEnd.setText(process_end)
 
-        # Low cut-off freq
-        if logger.stats_low_cutoff_freq is None:
+        # Low cut-off frequency
+        if logger.low_cutoff_freq is None:
             self.lowCutoff.setText("None")
         else:
-            self.lowCutoff.setText(f"{logger.stats_low_cutoff_freq:.2f}")
+            self.lowCutoff.setText(f"{logger.low_cutoff_freq:.2f}")
 
-        # High cut-off freq
-        if logger.stats_high_cutoff_freq is None:
+        # High cut-off frequency
+        if logger.high_cutoff_freq is None:
             self.highCutoff.setText("None")
         else:
-            self.highCutoff.setText(f"{logger.stats_high_cutoff_freq:.2f}")
+            self.highCutoff.setText(f"{logger.high_cutoff_freq:.2f}")
 
-        # Spectral settings group
-        # Spectral interval
-        self.spectralInterval.setText(str(logger.spectral_interval))
+        # Data to screen on
+        self.processType.setCurrentText(logger.process_type)
 
-        # Spectral start
-        if logger.spectral_start is None:
-            spectral_start = "Not used"
-        else:
-            spectral_start = logger.spectral_start.strftime("%Y-%m-%d %H:%M")
-        self.spectralStart.setText(spectral_start)
+        # Stats and spectral sample length
+        self.statsInterval.setText(str(logger.stats_interval))
+        self.spectInterval.setText(str(logger.spect_interval))
 
-        # Spectral end
-        if logger.spectral_end is None:
-            spectral_end = "Not used"
-        else:
-            spectral_end = logger.spectral_end.strftime("%Y-%m-%d %H:%M")
-        self.spectralEnd.setText(spectral_end)
+        # Folders - global control settings
+        if self.parent is not None:
+            self.statsFolder.setText(self.parent.control.stats_output_folder)
+            self.spectFolder.setText(self.parent.control.spect_output_folder)
 
     def on_ok_clicked(self):
         """Assign logger stats settings to the control object and update the dashboard."""
 
         self._set_control_data()
-        self.parent.set_analysis_dashboard(self.logger)
+        if self.parent is not None:
+            self.parent.set_analysis_dashboard(self.logger)
 
     def _set_control_data(self):
         """Assign values to the control object."""
@@ -1941,9 +1675,10 @@ class EditStatsAndSpectralDialog(QtWidgets.QDialog):
         # Processed columns group
         # Convert strings to lists
         try:
-            logger.requested_cols = list(map(int, self.columns.text().split()))
+            logger.cols_to_process = list(map(int, self.columns.text().split()))
         except ValueError:
-            msg = "Only integer column numbers are allowed.\nSeparate each number with a space, e.g. 2 3 4 5."
+            msg = "Only integer column numbers are allowed.\n" \
+                  "Separate each number with a space, e.g. 2 3 4 5."
             QtWidgets.QMessageBox.information(
                 self, "Invalid Requested Columns Input", msg
             )
@@ -1951,7 +1686,8 @@ class EditStatsAndSpectralDialog(QtWidgets.QDialog):
         try:
             logger.unit_conv_factors = list(map(float, self.unitConvs.text().split()))
         except ValueError:
-            msg = "Unit conversion factors must be numeric.\nSeparate each input with a space, e.g. 0.001 0.001."
+            msg = "Unit conversion factors must be numeric.\n" \
+                  "Separate each input with a space, e.g. 0.001 0.001 57.29578 57.29578."
             QtWidgets.QMessageBox.information(
                 self, "Invalid Unit Conversion Factors Input", msg
             )
@@ -1959,80 +1695,463 @@ class EditStatsAndSpectralDialog(QtWidgets.QDialog):
         logger.user_channel_names = self.channelNames.text().split()
         logger.user_channel_units = self.channelUnits.text().split()
 
-        # Stats settings group
-        logger.stats_interval = int(self.statsInterval.text())
-
-        stats_start = self.statsStart.text()
-        if stats_start == "" or stats_start == "Not used":
-            logger.stats_start = None
+        process_start = self.processStart.text()
+        if process_start == "" or process_start == "First file":
+            logger.process_start = self.get_timestamp_in_filename(logger, file_idx=0)
         else:
             try:
-                logger.stats_start = parse(stats_start, yearfirst=True)
+                logger.process_start = parse(process_start, yearfirst=True)
             except ValueError:
                 msg = "Stats start datetime format not recognised; timestamp unchanged"
                 QtWidgets.QMessageBox.information(self, "Stats Start Input", msg)
 
-        stats_end = self.statsEnd.text()
-        if stats_end == "" or stats_end == "Not used":
-            logger.stats_end = None
+        process_end = self.processEnd.text()
+        if process_end == "" or process_end == "Last file":
+            logger.process_end = self.get_timestamp_in_filename(logger, file_idx=-1)
         else:
             try:
-                logger.stats_end = parse(stats_end, yearfirst=True)
+                logger.process_end = parse(process_end, yearfirst=True)
             except ValueError:
                 msg = "Stats end datetime format not recognised; timestamp unchanged"
                 QtWidgets.QMessageBox.information(self, "Stats End Input", msg)
 
-        # Stats low cut-off freq
+        # Low cut-off freq
         try:
-            logger.stats_low_cutoff_freq = float(self.lowCutoff.text())
-            if logger.stats_low_cutoff_freq == 0:
-                logger.stats_low_cutoff_freq = None
+            logger.low_cutoff_freq = float(self.lowCutoff.text())
+            if logger.low_cutoff_freq == 0:
+                logger.low_cutoff_freq = None
         except:
-            logger.stats_low_cutoff_freq = None
+            logger.low_cutoff_freq = None
 
-        # Stats high cut-off freq
+        # High cut-off freq
         try:
-            logger.stats_high_cutoff_freq = float(self.highCutoff.text())
-            if logger.stats_high_cutoff_freq == 0:
-                logger.stats_high_cutoff_freq = None
+            logger.high_cutoff_freq = float(self.highCutoff.text())
+            if logger.high_cutoff_freq == 0:
+                logger.high_cutoff_freq = None
         except:
-            logger.stats_high_cutoff_freq = None
+            logger.high_cutoff_freq = None
+
+        # Store combo box index of data to screen on selection
+        logger.process_type = self.processType.currentText()
+
+        # Stats settings group
+        logger.stats_interval = int(self.statsInterval.text())
 
         # Spectral settings group
-        logger.spectral_interval = int(self.spectralInterval.text())
+        logger.spect_interval = int(self.spectInterval.text())
 
-        spectral_start = self.spectralStart.text()
-        if spectral_start == "" or spectral_start == "Not used":
-            logger.spectral_start = None
-        else:
+        # Output folders - store as global control settings
+        if self.parent is not None:
+            self.parent.control.stats_output_folder = self.statsFolder
+            self.parent.control.spect_output_folder = self.spectFolder
+
+    @staticmethod
+    def get_timestamp_in_filename(logger, file_idx):
+        """Attempt to retrieve the timestamp embedded in the filename of the file in the parsed list index."""
+
+        try:
+            # Process filenames to get list of files and extract the datetimes embedded in each filename
+            logger.process_filenames()
+            return logger.file_timestamps[file_idx]
+        except:
+            return None
+
+
+class TransferFunctionsTab(QtWidgets.QWidget):
+    """Tab to display transfer functions settings."""
+
+    def __init__(self, parent=None, tf=TransferFunctions()):
+        super(TransferFunctionsTab, self).__init__(parent)
+
+        self.parent = parent
+        self.tf = tf
+        self._init_ui()
+        self._connect_signals()
+
+    def _init_ui(self):
+        # WIDGETS
+        self.editButton = QtWidgets.QPushButton("Edit Data")
+        self.editButton.setShortcut("Ctrl+E")
+        self.editButton.setToolTip("Ctrl+E")
+        self.loggerDispPath = QtWidgets.QLabel("-")
+        self.loggerRotPath = QtWidgets.QLabel("-")
+        self.locBMPath = QtWidgets.QLabel("-")
+        self.numLoggers = QtWidgets.QLabel("-")
+        self.numLocs = QtWidgets.QLabel("-")
+        self.numSeastates = QtWidgets.QLabel("-")
+        self.loggerNames = QtWidgets.QLabel("-")
+        self.locNames = QtWidgets.QLabel("-")
+        self.percOcc = QtWidgets.QLabel("-")
+
+        # CONTAINERS
+        self.pathsGroup = QtWidgets.QGroupBox("FEA Time Series Locations")
+        self.pathsGroup.setMinimumWidth(500)
+        self.form1 = QtWidgets.QFormLayout(self.pathsGroup)
+        self.form1.addRow(QtWidgets.QLabel("Logger displacements directory:"), self.loggerDispPath)
+        self.form1.addRow(QtWidgets.QLabel("Logger rotations directory:"), self.loggerRotPath)
+        self.form1.addRow(QtWidgets.QLabel("Location bending moments directory:"), self.locBMPath)
+
+        self.detailsGroup = QtWidgets.QGroupBox("FEA Details")
+        self.form2 = QtWidgets.QFormLayout(self.detailsGroup)
+        self.form2.addRow(QtWidgets.QLabel("Number of FEA loggers detected:"), self.numLoggers)
+        self.form2.addRow(QtWidgets.QLabel("Number of FEA locations detected:"), self.numLocs)
+        self.form2.addRow(QtWidgets.QLabel("Number of FEA sea states detected:"), self.numSeastates)
+
+        self.group1 = QtWidgets.QGroupBox("Logger Names")
+        self.vbox1 = QtWidgets.QVBoxLayout(self.group1)
+        self.vbox1.addWidget(self.loggerNames, alignment=QtCore.Qt.AlignTop)
+
+        self.group2 = QtWidgets.QGroupBox("Location Names")
+        self.vbox2 = QtWidgets.QVBoxLayout(self.group2)
+        self.vbox2.addWidget(self.locNames, alignment=QtCore.Qt.AlignTop)
+
+        self.group3 = QtWidgets.QGroupBox("Sea State Percentage Occurrences")
+        self.vbox3 = QtWidgets.QVBoxLayout(self.group3)
+        self.vbox3.addWidget(self.percOcc, alignment=QtCore.Qt.AlignTop)
+
+        self.vbox = QtWidgets.QVBoxLayout()
+        self.vbox.addWidget(self.detailsGroup)
+        self.vbox.addWidget(self.group1)
+        self.vbox.addWidget(self.group2)
+
+        self.hbox = QtWidgets.QHBoxLayout()
+        self.hbox.addLayout(self.vbox)
+        self.hbox.addWidget(self.group3)
+
+        # LAYOUT
+        self.layout1 = QtWidgets.QVBoxLayout()
+        self.layout1.addWidget(self.editButton, stretch=0, alignment=QtCore.Qt.AlignLeft)
+        self.layout1.addWidget(self.pathsGroup)
+        self.layout1.addLayout(self.hbox)
+        self.layout1.addStretch()
+
+        self.layout2 = QtWidgets.QHBoxLayout(self)
+        self.layout2.addLayout(self.layout1)
+        self.layout2.addStretch()
+
+    def _connect_signals(self):
+        self.editButton.clicked.connect(self.on_edit_clicked)
+
+    def on_edit_clicked(self):
+        """Show edit transfer functions settings dialog."""
+
+        editInfo = EditTransferFunctionsDialog(self, self.tf)
+        editInfo.set_dialog_data()
+        editInfo.show()
+
+    def set_tf_dashboard(self):
+        """Set config tab campaign info."""
+
+        tf = self.tf
+        self.loggerDispPath.setText(tf.disp_dir)
+        self.loggerRotPath.setText(tf.rot_dir)
+        self.locBMPath.setText(tf.bm_dir)
+        self.numLoggers.setText(str(tf.num_loggers))
+        self.numLocs.setText(str(tf.num_locs))
+        self.numSeastates.setText(str(tf.num_ss))
+        self.loggerNames.setText("\n".join(tf.logger_names))
+        self.locNames.setText("\n".join(tf.loc_names))
+        self.percOcc.setText("\n".join(map(str, tf.perc_occ)))
+
+    def clear_dashboard(self):
+        """Initialise all values in transfer functions dashboard."""
+
+        self.loggerDispPath.setText("-")
+        self.loggerRotPath.setText("-")
+        self.locBMPath.setText("-")
+        self.numLoggers.setText("-")
+        self.numLocs.setText("-")
+        self.numSeastates.setText("-")
+        self.loggerNames.setText("-")
+        self.locNames.setText("-")
+        self.percOcc.setText("-")
+
+
+class EditTransferFunctionsDialog(QtWidgets.QDialog):
+    def __init__(self, parent=None, tf=TransferFunctions()):
+        super(EditTransferFunctionsDialog, self).__init__(parent)
+
+        self.parent = parent
+        self.tf = tf
+        self._init_ui()
+        self._connect_signals()
+
+    def _init_ui(self):
+        self.setWindowTitle("Edit Transfer Functions Settings")
+
+        # Sizing policy
+        policy = QtWidgets.QSizePolicy(
+            QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Expanding
+        )
+        self.setFixedHeight(500)
+
+        # WIDGETS
+        self.loggerDispPath = QtWidgets.QPlainTextEdit()
+        self.loggerDispPath.setFixedHeight(40)
+        # self.loggerDispPath.setMinimumWidth(300)
+        self.loggerRotPath = QtWidgets.QPlainTextEdit()
+        self.loggerRotPath.setFixedHeight(40)
+        self.locBMPath = QtWidgets.QPlainTextEdit()
+        self.locBMPath.setFixedHeight(40)
+        self.setDispPathButton = QtWidgets.QPushButton("Browse")
+        self.setRotPathButton = QtWidgets.QPushButton("Browse")
+        self.setBMPathButton = QtWidgets.QPushButton("Browse")
+        self.detectProps = QtWidgets.QPushButton("Detect Loggers and Locations")
+        self.numLoggers = QtWidgets.QLabel("-")
+        self.numLocs = QtWidgets.QLabel("-")
+        self.numSeastates = QtWidgets.QLabel("-")
+        self.loggerNames = QtWidgets.QPlainTextEdit()
+        self.locNames = QtWidgets.QPlainTextEdit()
+        self.percOcc = QtWidgets.QPlainTextEdit()
+        self.percOcc.setFixedWidth(80)
+        self.percOcc.setToolTip("Optional: To calculate a weighted-average transfer function per location,\n"
+                                "input a list of sea state percentage occurrence values, e.g.\n"
+                                "19.040\n"
+                                "10.134\n"
+                                "20.049\n"
+                                "17.022\n"
+                                "14.644\n"
+                                "10.374\n"
+                                "5.448\n"
+                                "3.289\n"
+                                )
+        self.buttonBox = QtWidgets.QDialogButtonBox(
+            QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel
+        )
+
+        # CONTAINERS
+        self.pathsGroup = QtWidgets.QGroupBox("FEA Time Series Locations")
+        self.form1 = QtWidgets.QFormLayout()
+        self.form1.addRow(QtWidgets.QLabel("Logger displacements directory:"), self.loggerDispPath)
+        self.form1.addRow(QtWidgets.QLabel("Logger rotations directory:"), self.loggerRotPath)
+        self.form1.addRow(QtWidgets.QLabel("Location bending moments directory:"), self.locBMPath)
+
+        self.vboxButtons = QtWidgets.QVBoxLayout()
+        self.grid = QtWidgets.QGridLayout(self.pathsGroup)
+        self.grid.addWidget(QtWidgets.QLabel("Logger displacements directory:"), 0, 0, alignment=QtCore.Qt.AlignTop)
+        self.grid.addWidget(QtWidgets.QLabel("Logger rotations directory:"), 1, 0, alignment=QtCore.Qt.AlignTop)
+        self.grid.addWidget(QtWidgets.QLabel("Location bending moments directory:"), 2, 0, alignment=QtCore.Qt.AlignTop)
+        self.grid.addWidget(self.loggerDispPath, 0, 1)
+        self.grid.addWidget(self.loggerRotPath, 1, 1)
+        self.grid.addWidget(self.locBMPath, 2, 1)
+        self.grid.addWidget(self.setDispPathButton, 0, 2, alignment=QtCore.Qt.AlignTop)
+        self.grid.addWidget(self.setRotPathButton, 1, 2, alignment=QtCore.Qt.AlignTop)
+        self.grid.addWidget(self.setBMPathButton, 2, 2, alignment=QtCore.Qt.AlignTop)
+
+        self.detailsGroup = QtWidgets.QGroupBox("FEA Details")
+        self.form2 = QtWidgets.QFormLayout(self.detailsGroup)
+        self.form2.addRow(QtWidgets.QLabel("Number of FEA loggers detected:"), self.numLoggers)
+        self.form2.addRow(QtWidgets.QLabel("Number of FEA locations detected:"), self.numLocs)
+        self.form2.addRow(QtWidgets.QLabel("Number of FEA sea states detected:"), self.numSeastates)
+
+        # self.grid2 = QtWidgets.QGridLayout()
+        # self.grid2.addWidget(QtWidgets.QLabel("Loggers Time Series"), 0, 0)
+        # self.grid2.addWidget(self.loggerNames, 1, 0)
+        # self.grid2.addWidget(QtWidgets.QLabel("Locations Time Series"), 0, 1)
+        # self.grid2.addWidget(self.locNames, 1, 1)
+        # self.grid2.addWidget(QtWidgets.QLabel("Percentage Occurrences"), 0, 2)
+        # self.grid2.addWidget(self.percOcc, 1, 2)
+
+        self.vbox1 = QtWidgets.QVBoxLayout()
+        self.vbox1.addWidget(QtWidgets.QLabel("Loggers Time Series"))
+        self.vbox1.addWidget(self.loggerNames)
+        self.vbox1.addWidget(QtWidgets.QLabel("Locations Time Series"))
+        self.vbox1.addWidget(self.locNames)
+
+        self.vbox2 = QtWidgets.QVBoxLayout()
+        self.vbox2.addWidget(QtWidgets.QLabel("Sea State Percentage Occurrences"))
+        self.vbox2.addWidget(self.percOcc)
+
+        self.hbox = QtWidgets.QHBoxLayout()
+        # self.hbox.addLayout(self.grid2)
+        self.hbox.addLayout(self.vbox1)
+        self.hbox.addLayout(self.vbox2)
+        self.hbox.addStretch()
+        self.hbox.addWidget(self.buttonBox, alignment=QtCore.Qt.AlignBottom)
+
+        # LAYOUT
+        self.layout = QtWidgets.QVBoxLayout(self)
+        self.layout.addWidget(self.pathsGroup)
+        self.layout.addWidget(self.detectProps, stretch=0, alignment=QtCore.Qt.AlignLeft)
+        self.layout.addWidget(self.detailsGroup)
+        self.layout.addLayout(self.hbox)
+
+    def _connect_signals(self):
+        self.setDispPathButton.clicked.connect(self.on_set_disp_path_clicked)
+        self.setRotPathButton.clicked.connect(self.on_set_rot_path_clicked)
+        self.setBMPathButton.clicked.connect(self.on_set_bm_path_clicked)
+        self.detectProps.clicked.connect(self.on_detect_clicked)
+        self.buttonBox.accepted.connect(self.accept)
+        self.buttonBox.accepted.connect(self.on_ok_clicked)
+        self.buttonBox.rejected.connect(self.reject)
+
+        # Connect warning signal to warning message box
+        try:
+            # Disconnect any existing connection to prevent repeated triggerings
+            self.tf.signal_warning.disconnect()
+        except:
+            pass
+        self.tf.signal_warning.connect(self.warning)
+
+    def set_dialog_data(self):
+        self.loggerDispPath.setPlainText(self.tf.disp_dir)
+        self.loggerRotPath.setPlainText(self.tf.rot_dir)
+        self.locBMPath.setPlainText(self.tf.bm_dir)
+        self.numLoggers.setText(str(self.tf.num_loggers))
+        self.numLocs.setText(str(self.tf.num_locs))
+        self.numSeastates.setText(str(self.tf.num_ss))
+
+        # Convert list items to strings separated by newlines
+        self.loggerNames.setPlainText("\n".join(self.tf.logger_names))
+        self.locNames.setPlainText("\n".join(self.tf.loc_names))
+        self.percOcc.setPlainText("\n".join(list(map(str, self.tf.perc_occ))))
+
+    def on_set_disp_path_clicked(self):
+        dir_path = QtWidgets.QFileDialog.getExistingDirectory(self, "Logger Displacements Folder")
+
+        if dir_path:
+            self.loggerDispPath.setPlainText(dir_path)
+
+    def on_set_rot_path_clicked(self):
+        dir_path = QtWidgets.QFileDialog.getExistingDirectory(self, "Logger Rotations Folder")
+
+        if dir_path:
+            self.loggerRotPath.setPlainText(dir_path)
+
+    def on_set_bm_path_clicked(self):
+        dir_path = QtWidgets.QFileDialog.getExistingDirectory(self, "Location Bending Moments Folder")
+
+        if dir_path:
+            self.locBMPath.setPlainText(dir_path)
+
+    def on_ok_clicked(self):
+        """Store time traces paths in transfer functions class."""
+
+        self._set_tf_data()
+        if self.parent is not None:
+            self.parent.set_tf_dashboard()
+
+    def _set_tf_data(self):
+        """Assign values to the transfer functions object."""
+
+        self.tf.disp_dir = self.loggerDispPath.toPlainText()
+        self.tf.rot_dir = self.loggerRotPath.toPlainText()
+        self.tf.bm_dir = self.locBMPath.toPlainText()
+
+        try:
+            self.tf.num_loggers = int(self.numLoggers.text())
+        except:
+            self.tf.num_loggers = 0
+
+        try:
+            self.tf.num_locs = int(self.numLocs.text())
+        except:
+            self.tf.num_locs = 0
+
+        try:
+            self.tf.num_ss = int(self.numSeastates.text())
+        except:
+            self.tf.num_ss = 0
+
+        # Convert to lists
+        self.tf.logger_names = [i.strip() for i in self.loggerNames.toPlainText().split("\n")]
+        self.tf.loc_names = [i.strip() for i in self.locNames.toPlainText().split("\n")]
+
+        perc_occ = self.percOcc.toPlainText()
+        if perc_occ:
             try:
-                logger.spectral_start = parse(spectral_start, yearfirst=True)
-            except ValueError:
-                msg = (
-                    "Spectral start datetime format not recognised; timestamp unchanged"
+                # Convert values to float
+                self.tf.perc_occ = list(map(float, self.percOcc.toPlainText().split("\n")))
+            except ValueError as e:
+                msg = "Percentage occurrences must be numeric."
+                QtWidgets.QMessageBox.information(
+                    self, "Invalid Percentage Occurrences Input", msg
                 )
-                QtWidgets.QMessageBox.information(self, "Spectral Start Input", msg)
-
-        spectral_end = self.spectralEnd.text()
-        if spectral_end == "" or spectral_end == "Not used":
-            logger.spectral_end = None
+                logging.exception(e)
         else:
-            try:
-                logger.spectral_end = parse(spectral_end, yearfirst=True)
-            except ValueError:
-                msg = "Spectral end datetime format not recognised; timestamp unchanged"
-                QtWidgets.QMessageBox.information(self, "Spectral End Input", msg)
+            self.tf.perc_occ = []
+
+    def on_detect_clicked(self):
+        """
+        Analyse FEA time series files to detect the number of logger, locations and sea states processed,
+        and the logger and location names.
+        """
+
+        self.tf.get_files()
+
+        # Check files exist
+        num_ss = self.tf.get_number_of_seastates()
+        if num_ss == 0:
+            return
+
+        # Get number of loggers from displacement time series
+        df = self.tf.read_2httrace_csv(self.tf.disp_files[0])
+        num_loggers = len(df.columns)
+        loggers = [c for c in df.columns]
+
+        # Get number of locations from bending moment time series
+        df = self.tf.read_2httrace_csv(self.tf.bm_files[0])
+        num_locs = len(df.columns)
+        locs = [c for c in df.columns]
+
+        # Data munging on logger and location names
+        loggers = self.munge_logger_cols(loggers)
+        locs = self.munge_location_cols(locs)
+
+        # Populate dialog with detected properties
+        self.numLoggers.setText(str(num_loggers))
+        self.numLocs.setText(str(num_locs))
+        self.numSeastates.setText(str(num_ss))
+
+        # Convert list items to strings separated by newlines
+        self.loggerNames.setPlainText("\n".join(loggers))
+        self.locNames.setPlainText("\n".join(locs))
+
+    @staticmethod
+    def munge_logger_cols(loggers):
+        """
+        Perform formatting of logger columns from 2HTTrace output.
+        Remove underscores and remove possible suffix "DispY".
+        """
+
+        loggers = [i.strip().replace("_", " ") for i in loggers]
+        loggers = [i.rsplit(" ", 1)[0]
+                   if i.lower().endswith("dispy")
+                   else i for i in
+                   loggers]
+        return loggers
+
+    @staticmethod
+    def munge_location_cols(locations):
+        """
+        Perform formatting of location columns from 2HTTrace output.
+        Remove underscores and remove possible suffixes "After" and "Before".
+        """
+
+        locations = [i.strip().replace("_", " ") for i in locations]
+        locations = [i.rsplit(" ", 1)[0]
+                     if i.lower().endswith("after") or i.lower().endswith("before")
+                     else i for i in
+                     locations]
+        return locations
+
+    @pyqtSlot(str)
+    def warning(self, msg):
+        print(f"Warning: {msg}")
+        return QtWidgets.QMessageBox.information(self, "Warning", msg)
 
 
 if __name__ == "__main__":
     # For testing widget layout
     app = QtWidgets.QApplication(sys.argv)
-    # win = ConfigModule()
-    win = CampaignInfoTab()
+    win = ConfigModule()
+    # win = CampaignInfoTab()
     # win = LoggerPropertiesTab()
     # win = StatsAndSpectralSettingsTab()
     # win = EditCampaignInfoDialog()
     # win = EditLoggerPropertiesDialog()
     # win = EditStatsAndSpectralDialog()
+    # win = TransferFunctionsTab()
+    # win = EditTransferFunctionsDialog()
     win.show()
     app.exit(app.exec_())

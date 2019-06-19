@@ -10,7 +10,7 @@ import unittest
 
 import pytest
 
-from app.core.datalab_control import Control
+from app.core.control import Control
 
 
 def example_control_file():
@@ -202,9 +202,9 @@ class TestControlFile(unittest.TestCase):
         # self.assertEqual(logger0.num_columns, 5)
         self.assertEqual(logger0.channel_header_row, 2)
         self.assertEqual(logger0.units_header_row, 3)
-        self.assertEqual(logger0.requested_cols, [2, 3, 4, 5])
-        self.assertEqual(logger0.stats_start, dt.datetime(2015, 7, 1, 0, 0))
-        self.assertEqual(logger0.stats_end, dt.datetime(2016, 7, 1, 0, 0))
+        self.assertEqual(logger0.cols_to_process, [2, 3, 4, 5])
+        self.assertEqual(logger0.process_start, dt.datetime(2015, 7, 1, 0, 0))
+        self.assertEqual(logger0.process_end, dt.datetime(2016, 7, 1, 0, 0))
 
         self.assertEqual(logger1.logger_path, "tests/test_data/dd09b")
         self.assertEqual(logger1.file_timestamp_format, "xxxxxxYYYYxmmDDxHHMM")
@@ -214,7 +214,7 @@ class TestControlFile(unittest.TestCase):
         # self.assertEqual(logger1.num_columns, 5)
         self.assertEqual(logger1.channel_header_row, 2)
         self.assertEqual(logger1.units_header_row, 3)
-        self.assertEqual(logger1.requested_cols, [2, 3, 4, 5])
+        self.assertEqual(logger1.cols_to_process, [2, 3, 4, 5])
 
         self.assertEqual(logger2.channel_header_row, 2)
 

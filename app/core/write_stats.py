@@ -39,7 +39,7 @@ class StatsOutput(object):
         self.wb.remove(ws)
 
     def compile_stats(
-        self, logger, sample_start, sample_end, logger_stats, logger_stats_filt
+            self, logger, sample_start, sample_end, logger_stats, logger_stats_filt
     ):
         """
         Compile statistics into data frame for exporting and for use by gui.
@@ -63,25 +63,27 @@ class StatsOutput(object):
         # Create headers
         channels = logger.channel_names
         channels_header_unfilt = [x for chan in channels for x in [chan] * 4]
+        channels_header_filt = [x for chan in channels for x in [f"{chan} (filtered)"] * 4]
         stats_header = ["min", "max", "mean", "std"] * len(channels)
         units_header = [x for unit in logger.channel_units for x in [unit] * 4]
 
-        # Join original and filtered stats columns
-        if filtered_stats is not None:
+        # If both unfiltered and filtered stats generated, join unfiltered and filtered stats columns
+        if unfiltered_stats and filtered_stats:
             # Join unfiltered and filtered stats arrays
             self.stats = np.hstack((unfiltered_stats, filtered_stats))
 
             # Create headers containing unfiltered and filtered channels
-            channel_header_filt = [
-                x for chan in channels for x in [f"{chan} (filtered)"] * 4
-            ]
-            channels_header = channels_header_unfilt + channel_header_filt
+            channels_header = channels_header_unfilt + channels_header_filt
             stats_header *= 2
             units_header *= 2
-        # Use only unfiltered stats columns
-        else:
+        # Filtered stats not generated
+        elif unfiltered_stats:
             self.stats = unfiltered_stats
             channels_header = channels_header_unfilt
+        # unfiltered stats not generated
+        elif filtered_stats:
+            self.stats = filtered_stats
+            channels_header = channels_header_filt
 
         # Create pandas multi-index header
         header = self._create_header(channels_header, stats_header, units_header)
@@ -94,10 +96,12 @@ class StatsOutput(object):
             self.stats, sample_start, sample_end, header
         )
 
-        # Reorder stats data frame columns to preferred order of (channel, channel (filtered)) pairs
-        cols = self._reorder_columns(df)
-        df = df[cols]
-        self.df_stats = self.df_stats[["Start", "End"] + cols]
+        # If unfiltered and filtered processed reorder stats data frame columns to
+        # preferred order of (channel, channel (filtered)) pairs
+        if unfiltered_stats and filtered_stats:
+            cols = self._reorder_columns(df)
+            df = df[cols]
+            self.df_stats = self.df_stats[["Start", "End"] + cols]
 
         # Add stats data frame to dictionary for internal use by the gui
         self.dict_stats[self.logger_id] = df
@@ -111,7 +115,7 @@ class StatsOutput(object):
         """
 
         if len(logger_stats.min) == 0:
-            return None
+            return []
 
         num_pts = len(logger_stats.min)
 
@@ -136,6 +140,9 @@ class StatsOutput(object):
     def _create_header(channel_header, stats_header, units_header):
         """Create multi-index header of channel names, stats, and units to use in stats data frame."""
 
+        if not len(channel_header) == len(stats_header) == len(units_header):
+            raise ValueError("Cannot create stats results header. Length of header rows is not equal.")
+
         header = pd.MultiIndex.from_arrays(
             [channel_header, stats_header, units_header],
             names=["channels", "stats", "units"],
@@ -144,11 +151,7 @@ class StatsOutput(object):
 
     @staticmethod
     def _create_stats_dataframe(stats, sample_start, header):
-        """Create statistics data frame."""
-
-        df = pd.DataFrame(data=stats, index=sample_start, columns=header)
-
-        return df
+        return pd.DataFrame(data=stats, index=sample_start, columns=header)
 
     @staticmethod
     def _create_export_stats_dataframe(stats, sample_start, sample_end, header):
@@ -173,7 +176,7 @@ class StatsOutput(object):
         channels = df.columns.unique(0)
         n = len(channels)
         channels_unfilt = channels[: n // 2]
-        channels_filt = channels[n // 2 :]
+        channels_filt = channels[n // 2:]
         new_cols = [col for pair in zip(channels_unfilt, channels_filt) for col in pair]
 
         return new_cols
@@ -181,14 +184,22 @@ class StatsOutput(object):
     def write_to_hdf5(self):
         """Write stats to HDF5 file."""
 
+        # Create directory if does not exist
+        self._ensure_dir_exists(self.output_dir)
+
+        logger_id = replace_space_with_underscore(self.logger_id)
         file_name = os.path.join(self.output_dir, "Statistics.h5")
-        self.df_stats.to_hdf(file_name, self.logger_id)
+        self.df_stats.to_hdf(file_name, logger_id)
 
     def write_to_csv(self):
         """Write stats to csv file."""
 
+        # Create directory if does not exist
+        self._ensure_dir_exists(self.output_dir)
+
+        logger_id = replace_space_with_underscore(self.logger_id)
         file_name = os.path.join(
-            self.output_dir, "Statistics_" + self.logger_id + ".csv"
+            self.output_dir, "Statistics_" + logger_id + ".csv"
         )
         self.df_stats.to_csv(file_name, index=False)
 
@@ -207,7 +218,8 @@ class StatsOutput(object):
         channels_header = channels_header[:2] + channels
 
         # Create worksheet for logger
-        ws = self.wb.create_sheet(title=self.logger_id)
+        logger_id = replace_space_with_underscore(self.logger_id)
+        ws = self.wb.create_sheet(title=logger_id)
 
         # Write headers
         ws.append(channels_header)
@@ -230,11 +242,27 @@ class StatsOutput(object):
         for col in range(1, 3):
             ws.column_dimensions[get_column_letter(col)].width = 20
 
+    @staticmethod
+    def _ensure_dir_exists(directory):
+        """Create directory (and intermediate directories) if do not exist."""
+
+        if directory != "" and os.path.exists(directory) is False:
+            os.makedirs(directory)
+
     def save_workbook(self):
         """Save workbook once all worksheets have been created."""
 
         try:
+            # Create directory if does not exist
+            self._ensure_dir_exists(self.output_dir)
+
             fname = "Statistics.xlsx"
             self.wb.save(os.path.join(self.output_dir, fname))
         except:
             print("\n\nFailed to save " + fname)
+
+
+def replace_space_with_underscore(input_str):
+    """Replace any spaces with underscores in string."""
+
+    return "_".join(input_str.split(" "))

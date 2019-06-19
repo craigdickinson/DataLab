@@ -10,7 +10,7 @@ import pandas as pd
 
 from app.core.logger_properties import LoggerProperties
 from app.core.read_files import read_pulse_acc_single_header_format
-from app.core.signal_filtering import filter_signal
+from app.core.signal_processing import filter_signal
 
 
 class DataScreen(object):
@@ -36,15 +36,15 @@ class DataScreen(object):
         # Data completeness
         self.data_completeness = np.array([])
 
-        # Lists for sample start and end times
+        # Lists for sample start and end datetimes
         self.stats_sample_start = []
         self.stats_sample_end = []
-        self.spectral_sample_start = []
-        self.spectral_sample_end = []
+        self.spect_sample_start = []
+        self.spect_sample_end = []
 
         # Interval to calculate stats over
         self.stats_sample_length = 0
-        self.spectral_sample_length = 0
+        self.spect_sample_length = 0
 
         # File read properties
         self.file_format = "General-csv"
@@ -52,6 +52,7 @@ class DataScreen(object):
         self.header_row = 0
         self.skip_rows = []
         self.use_cols = []
+        self.unit_conv_factors = []
 
         # Apply bandpass signal filtering flag
         self.apply_filters = True
@@ -73,21 +74,24 @@ class DataScreen(object):
         self.delim = self.logger.file_delimiter
         self.header_row = self.logger.channel_header_row - 1
 
-        # No header row specified
-        if self.header_row < 0:
-            self.header_row = None
-
         # Additional header rows to skip - only using the first header row for data frame column names
         self.skip_rows = [
             i for i in range(self.logger.num_headers) if i > self.header_row
         ]
 
+        # No header row specified
+        if self.header_row < 0:
+            self.header_row = None
+
         # Set requested columns to process
-        self.use_cols = set([0] + [c - 1 for c in self.logger.requested_cols])
+        self.use_cols = set([0] + [c - 1 for c in self.logger.cols_to_process])
+
+        # Unit conversion factors
+        self.unit_conv_factors = logger.unit_conv_factors
 
         # Flags to set whether bandpass filtering is to be applied
-        low_cutoff = self.logger.stats_low_cutoff_freq
-        high_cutoff = self.logger.stats_high_cutoff_freq
+        low_cutoff = self.logger.low_cutoff_freq
+        high_cutoff = self.logger.high_cutoff_freq
 
         if low_cutoff is None and high_cutoff is None:
             self.apply_filters = False
@@ -134,6 +138,10 @@ class DataScreen(object):
 
         # Convert any non-numeric data to NaN
         df.iloc[:, 1:] = df.iloc[:, 1:].apply(pd.to_numeric, errors="coerce")
+
+        # Apply any unit conversions
+        if len(self.unit_conv_factors) == len(df.columns) - 1:
+            df.iloc[:, 1:] = np.multiply(df.iloc[:, 1:], self.unit_conv_factors)
 
         return df
 
@@ -227,12 +235,12 @@ class DataScreen(object):
                     self.stats_sample_start.append(df_sample.iloc[0, 0])
                     self.stats_sample_end.append(df_sample.iloc[-1, 0])
                 elif type == "spectral":
-                    self.spectral_sample_start.append(df_sample.iloc[0, 0])
-                    self.spectral_sample_end.append(df_sample.iloc[-1, 0])
+                    self.spect_sample_start.append(df_sample.iloc[0, 0])
+                    self.spect_sample_end.append(df_sample.iloc[-1, 0])
 
         return df_sample, df
 
-    def filter_sample_data(self, df_sample):
+    def filter_data(self, df_sample):
         """Filter out low frequencies (drift) and high frequencies (noise)."""
 
         df = df_sample.copy()
@@ -249,7 +257,7 @@ class DataScreen(object):
 
         # Apply bandpass filter
         df_filtered = filter_signal(
-            df, self.logger.stats_low_cutoff_freq, self.logger.stats_high_cutoff_freq
+            df, self.logger.low_cutoff_freq, self.logger.high_cutoff_freq
         )
 
         if not df_filtered.empty:

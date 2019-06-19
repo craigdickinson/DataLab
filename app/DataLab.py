@@ -1,7 +1,7 @@
 __author__ = "Craig Dickinson"
 __program__ = "DataLab"
-__version__ = "0.37"
-__date__ = "10 June 2019"
+__version__ = "0.49"
+__date__ = "19 June 2019"
 
 import logging
 import os
@@ -14,8 +14,8 @@ from PyQt5 import QtCore, QtWidgets
 from PyQt5.QtCore import pyqtSignal, pyqtSlot
 
 # import datalab_gui_layout
-from app.core.datalab_control import InputError
-from app.core.datalab_main import DataLab
+from app.core.control import InputError
+from app.core.screening import Screening
 from app.core.logger_properties import LoggerError
 from app.core.read_files import (
     read_spectrograms_csv,
@@ -31,8 +31,15 @@ from app.views.processing_progress_view import ProcessingProgressBar
 from app.views.stats_view import StatsDataset
 
 
-class DataLabApp(DataLabGui):
-    """Main class for DataLab program. Takes as arg the ui class."""
+# if hasattr(QtCore.Qt, 'AA_EnableHighDpiScaling'):
+#     QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling, True)
+#
+# if hasattr(QtCore.Qt, 'AA_UseHighDpiPixmaps'):
+#     QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_UseHighDpiPixmaps, True)
+
+
+class DataLab(DataLabGui):
+    """Main class for DataLab program. Subclasses the ui class."""
 
     def __init__(self):
         super().__init__()
@@ -40,34 +47,42 @@ class DataLabApp(DataLabGui):
         self.version = __version__
         self.setWindowTitle(f"DataLab {self.version}")
 
-        # Set root path because path is changed when using file tree
-        self.root = os.getcwd()
-        self.datalab = None
-
-        self.update_tool_buttons("config")
+        self.set_active_tool_button("config")
         self._connect_signals()
         self._connect_child_signals()
+        self.view_proj_config_mod()
+
+        # Dummy placeholder for Screening class (main processor)
+        self.datalab = None
+
+        # Mapping of control setup object
+        self.control = self.projConfigModule.control
+
+        # Mapping of transfer functions object
+        self.tf = self.projConfigModule.tf
 
     def _connect_signals(self):
         """Connect widget signals to methods/actions."""
 
         # File menu
-        self.loadConfigFile.triggered.connect(self.projConfigModule.load_config_file)
-        self.openLoggerFile.triggered.connect(self.load_logger_file)
-        self.openLoggerStats.triggered.connect(self.load_stats_file_from_file_menu)
-        self.openSpectrograms.triggered.connect(self.load_spectrograms_file)
+        self.loadConfigAction.triggered.connect(self.projConfigModule.on_open_config_clicked)
+        self.openLoggerFileAction.triggered.connect(self.load_logger_file)
+        self.openLoggerStatsAction.triggered.connect(self.load_stats_file_from_file_menu)
+        self.openSpectrogramsAction.triggered.connect(self.load_spectrograms_file)
 
         # View menu
-        self.showPlotScreen.triggered.connect(self.view_mod_stats_screening)
+        # self.showPlotScreen.triggered.connect(self.view_mod_stats_screening)
 
         # Process menu
-        # self.calcStats.triggered.connect(self.process_control_file)
-        self.genScatterDiag.triggered.connect(self.gen_scatter_diag)
+        self.processScreeningAction.triggered.connect(self.process_screening)
+        self.calcSeascatterAction.triggered.connect(self.gen_scatter_diag)
+        self.calcTFAction.triggered.connect(self.calc_transfer_functions)
+        self.calcFatigueAction.triggered.connect(self.calc_fatigue)
 
-        # Plot menu
-        self.add2HIcon.triggered.connect(self.add_2h_icon)
-        self.loggerPlotSettings.triggered.connect(self.open_logger_plot_settings)
-        self.spectPlotSettings.triggered.connect(self.open_spect_plot_settings)
+        # Plot settings menu
+        # self.add2HIcon.triggered.connect(self.add_2h_icon)
+        self.loggerPlotSettingsAction.triggered.connect(self.open_logger_plot_settings)
+        self.spectPlotSettingsAction.triggered.connect(self.open_spect_plot_settings)
 
         # Export menu
         self.exportScatterDiag.triggered.connect(self.save_scatter_diagram)
@@ -83,17 +98,17 @@ class DataLabApp(DataLabGui):
         self.statsScreeningButton.clicked.connect(self.view_mod_stats_screening)
         self.spectralScreeningButton.clicked.connect(self.view_mod_spectral_screening)
         self.seascatterButton.clicked.connect(self.view_mod_seascatter)
-        self.transFuncsButton.clicked.connect(self.view_mod_transfer_funcs)
+        self.transFuncsButton.clicked.connect(self.view_mod_transfer_functions)
         self.fatigueButton.clicked.connect(self.view_mod_fatigue)
 
     def _connect_child_signals(self):
-        self.timeSeriesTab.loadFileButton.clicked.connect(self.load_logger_file)
-        self.statsTab.loadStatsButton.clicked.connect(self.load_stats_file)
-        self.vesselStatsTab.loadStatsButton.clicked.connect(self.load_stats_file)
-        self.spectrogramTab.loadDatasetButton.clicked.connect(
+        self.rawDataTab.openRawButton.clicked.connect(self.load_logger_file)
+        self.statsTab.openStatsButton.clicked.connect(self.load_stats_file)
+        self.vesselStatsTab.openStatsButton.clicked.connect(self.load_stats_file)
+        self.spectrogramTab.openSpectButton.clicked.connect(
             self.load_spectrograms_file
         )
-        self.fatigueTab.loadWCFATFileButton.clicked.connect(
+        self.fatigueTab.openWCFATFileButton.clicked.connect(
             self.load_wcfat_results_file
         )
 
@@ -111,9 +126,22 @@ class DataLabApp(DataLabGui):
         print(f"Error: {message}")
         self._message_warning("Error", message)
 
+    @pyqtSlot(str)
     def warning(self, message):
         print(f"Warning: {message}")
         self._message_information("Warning", message)
+
+    def show_about(self):
+        """Show program version info message box."""
+
+        msg = f"Program: {__program__}\nVersion: {__version__}\nDate: {__date__}"
+        self._message_information("About", msg)
+
+    def show_help(self):
+        """Show program overview and instructions message box."""
+
+        msg = f"Instructions for using {__program__}:\n\n"
+        self._message_information("Help", msg)
 
     def load_logger_file(self):
         """Load raw logger time series file."""
@@ -123,24 +151,27 @@ class DataLabApp(DataLabGui):
         )
 
         if self.ts_file:
-            fpath = "/".join(self.ts_file.split("/")[:-1])
-            filename = self.ts_file.split("/")[-1]
-            ext = filename.split(".")[-1]
-            os.chdir(fpath)
-            files_list = glob("*." + ext)
+            root = os.path.dirname(self.ts_file)
+            self.rawDataTab.root = root
+            filename = os.path.basename(self.ts_file)
+            ext = os.path.splitext(self.ts_file)[1]
+            files_list = glob(root + "/*" + ext)
+            files = [os.path.basename(f) for f in files_list]
 
             try:
                 # Populate files list widget and read file
-                self.timeSeriesTab.update_files_list(files_list, filename)
-                self.timeSeriesTab.load_file(filename)
+                self.rawDataTab.update_files_list(files, filename)
+                self.rawDataTab.load_file(self.ts_file)
             except FileNotFoundError as e:
                 self.error(str(e))
+                logging.exception(e)
             except ValueError as e:
                 self.error(str(e))
+                logging.exception(e)
             except Exception as e:
                 msg = "Unexpected error processing loggers"
                 self.error(f"{msg}:\n{e}\n{sys.exc_info()[0]}")
-                logging.exception(msg)
+                logging.exception(e)
 
             self.view_mod_raw_data()
 
@@ -254,8 +285,8 @@ class DataLabApp(DataLabGui):
         """Show raw data plot settings window."""
 
         # Set current parameters from time series plot widget class
-        self.timeSeriesTab.plotSettings.get_params()
-        self.timeSeriesTab.plotSettings.show()
+        self.rawDataTab.plotSettings.get_params()
+        self.rawDataTab.plotSettings.show()
 
     def open_spect_plot_settings(self):
         """Show spectrogram plot settings window."""
@@ -276,85 +307,75 @@ class DataLabApp(DataLabGui):
         else:
             self.plot_2h.remove_2H_icon()
 
-    def show_about(self):
-        """Show program version info message box."""
+    # def show_error_msg(self, msg):
+    #     self.errorBar.setAutoFillBackground(True)
+    #     self.errorBar.setStyleSheet("background:rgba(255,255,0,255)")
+    #     self.errorLabel.setText(msg)
+    #     self.errorBar.show()
 
-        msg = f"Program: {__program__}\nVersion: {__version__}\nDate: {__date__}"
-        self._message_information("About", msg)
-
-    def show_help(self):
-        """Show program overview and instructions message box."""
-
-        msg = f"Instructions for using {__program__}:\n\n"
-        self._message_information("Help", msg)
-
-    def show_error_msg(self, msg):
-        self.errorBar.setAutoFillBackground(True)
-        self.errorBar.setStyleSheet("background:rgba(255,255,0,255)")
-        self.errorLabel.setText(msg)
-        self.errorBar.show()
-
-    def clear_error_msg(self):
-        self.errorLabel.setStyleSheet("background:rgba(0,0,0,0)")
-        self.errorLabel.setText("")
-        self.errorBar.hide()
-
-    def view_proj_config_mod(self):
-        self.update_tool_buttons("config")
-        self.modulesWidget.setCurrentWidget(self.projConfigModule)
+    # def clear_error_msg(self):
+    #     self.errorLabel.setStyleSheet("background:rgba(0,0,0,0)")
+    #     self.errorLabel.setText("")
+    #     self.errorBar.hide()
 
     def view_mod_raw_data(self):
-        self.update_tool_buttons("raw")
+        self.set_active_tool_button("raw")
         self.modulesWidget.setCurrentWidget(self.rawDataModule)
 
+    def view_proj_config_mod(self):
+        self.set_active_tool_button("config")
+        self.modulesWidget.setCurrentWidget(self.projConfigModule)
+
     def view_mod_data_quality(self):
-        self.update_tool_buttons("quality")
+        self.set_active_tool_button("quality")
         self.modulesWidget.setCurrentWidget(self.dataQualityModule)
 
     def view_mod_stats_screening(self):
-        self.update_tool_buttons("stats")
+        self.set_active_tool_button("stats")
         self.modulesWidget.setCurrentWidget(self.statsScreeningModule)
 
     def view_mod_spectral_screening(self):
-        self.update_tool_buttons("spectral")
+        self.set_active_tool_button("spectral")
         self.modulesWidget.setCurrentWidget(self.spectralScreeningModule)
 
     def view_mod_seascatter(self):
-        self.update_tool_buttons("seascatter")
+        self.set_active_tool_button("seascatter")
         self.modulesWidget.setCurrentWidget(self.seascatterModule)
 
-    def view_mod_transfer_funcs(self):
-        self.update_tool_buttons("tf")
+    def view_mod_transfer_functions(self):
+        self.set_active_tool_button("tf")
         self.modulesWidget.setCurrentWidget(self.transFuncsModule)
 
     def view_mod_fatigue(self):
-        self.update_tool_buttons("fatigue")
+        self.set_active_tool_button("fatigue")
         self.modulesWidget.setCurrentWidget(self.fatigueModule)
 
     def view_tab_stats(self):
-        self.update_tool_buttons("stats")
+        self.set_active_tool_button("stats")
         self.modulesWidget.setCurrentWidget(self.statsScreeningModule)
         self.statsScreeningModule.setCurrentWidget(self.statsTab)
 
     def view_tab_vessel_stats(self):
-        self.update_tool_buttons("stats")
+        self.set_active_tool_button("stats")
         self.modulesWidget.setCurrentWidget(self.statsScreeningModule)
         self.statsScreeningModule.setCurrentWidget(self.vesselStatsTab)
 
     def view_tab_spectrogram(self):
-        self.update_tool_buttons("spectral")
+        self.set_active_tool_button("spectral")
         self.modulesWidget.setCurrentWidget(self.spectralScreeningModule)
         self.statsScreeningModule.setCurrentWidget(self.spectrogramTab)
 
     def view_tab_seascatter(self):
-        self.update_tool_buttons("seascatter")
+        self.set_active_tool_button("seascatter")
         self.modulesWidget.setCurrentWidget(self.seascatterModule)
 
-    def update_tool_buttons(self, active_button):
+    def set_active_tool_button(self, active_button):
         """Format selected module button."""
 
         # button_style = 'font-weight: bold'
-        active_style = "background-color: blue; color: white"
+        # active_style = "background-color: blue; color: white"
+        # active_style = "background-color: rgb(0,49,80); color: white"
+        active_style = "background-color: rgb(0,112,192); color: white"
         inactive_style = "background-color: none; color: none"
 
         # Reset all button colours
@@ -393,32 +414,38 @@ class DataLabApp(DataLabGui):
         qr.moveCenter(cp)
         self.move(qr.topLeft())
 
-    def analyse_config_setup(self, control):
-        """Run statistical and spectral analysis in config setup."""
+    def process_screening(self):
+        """Screen loggers and process statistical and spectral analysis."""
+
+        self.analyse_screening_setup()
+        self.run_screening()
+
+    def analyse_screening_setup(self):
+        """Prepare and checking screening setup."""
+
+        control = self.control
 
         # Check project path exists
         if control.project_path == "":
-            self.warning("Cannot process: Project location not set")
-            return
+            return self.warning("Cannot process: Project location not set")
 
         # Check at least one logger exists
         if not control.loggers:
-            self.warning("Cannot process: No loggers exist in setup")
-            return
+            return self.warning("Cannot process: No loggers exist in setup")
 
         # First get all raw data filenames for all loggers to be processed and perform some screening checks
         try:
             # Check all ids are unique
             control.check_logger_ids(control.logger_ids)
 
-            # Create output folder if necessary
-            control.ensure_dir_exists(control.output_folder)
+            # Set up output folders
+            control.set_up_output_folders()
 
             # Get raw filenames, check timestamps and select files in processing datetime range
             for logger in control.loggers:
                 logger.process_filenames()
                 logger.select_files_in_datetime_range(
-                    logger.stats_start, logger.stats_end
+                    logger.process_start, logger.process_end
                 )
                 logger.expected_data_points = logger.freq * logger.duration
 
@@ -431,15 +458,19 @@ class DataLabApp(DataLabGui):
 
                 # Check requested channels exist
                 if logger.process_stats is True or logger.process_spectral is True:
-                    channels, units = logger.check_requested_columns_exist()
-                    logger.channel_names = channels
-                    logger.channel_units = units
+                    # Connect warning signal to warning message box in DataLab class
+                    try:
+                        # Disconnect any existing connection to prevent repeated triggerings
+                        logger.signal_warning.disconnect()
+                    except:
+                        pass
+                    logger.signal_warning.connect(self.warning)
 
-                # Make any user defined units and channels override any detected
-                logger.user_header_override()
+                    # Set user-defined channel names and units if supplied
+                    logger.set_processed_columns_headers()
 
-                # Check headers length match number of columns
-                logger.check_headers()
+                    # Check number of headers match number of columns to process
+                    logger.check_headers()
         except InputError as e:
             self.error(str(e))
             return logging.exception(e)
@@ -449,18 +480,16 @@ class DataLabApp(DataLabGui):
         except Exception as e:
             msg = "Unexpected error on preparing config setup"
             self.error(f"{msg}:\n{e}\n{sys.exc_info()[0]}")
-            return logging.exception(msg)
+            return logging.exception(e)
 
-        self.run_analysis(control)
-
-    def run_analysis(self, control):
+    def run_screening(self):
         """Run statistical and spectral analysis in config setup."""
 
         # Run processing on QThread worker - prevents GUI lock up
         try:
             # Create datalab object, map control data and process
-            datalab = DataLab(no_dat=True)
-            datalab.control = control
+            datalab = Screening(self, no_dat=True)
+            datalab.control = self.control
 
             # Create worker thread, connect signals to methods in this class and start, which this calls worker.run()
             self.worker = ControlFileWorker(datalab, parent=self)
@@ -470,8 +499,9 @@ class DataLabApp(DataLabGui):
         except Exception as e:
             msg = "Unexpected error on processing config setup"
             self.error(f"{msg}:\n{e}\n{sys.exc_info()[0]}")
-            logging.exception(msg)
+            logging.exception(e)
 
+    @pyqtSlot(object)
     def set_datalab_output_to_gui(self, datalab):
         """Map results from processing to the GUI."""
 
@@ -520,7 +550,7 @@ class DataLabApp(DataLabGui):
             except Exception as e:
                 msg = "Unexpected error generating seascatter diagram"
                 self.error(f"{msg}:\n{e}\n{sys.exc_info()[0]}")
-                logging.exception(msg)
+                logging.exception(e)
 
         self.view_tab_seascatter()
 
@@ -532,7 +562,7 @@ class DataLabApp(DataLabGui):
         """
 
         for dataset in datasets:
-            if dataset.logger_id == "VESSEL":
+            if dataset.logger_id.upper() == "VESSEL":
                 return dataset.df
         return False
 
@@ -547,6 +577,27 @@ class DataLabApp(DataLabGui):
             )
             if fname:
                 self.seascatterModule.export_scatter_diagram(fname)
+
+    def calc_transfer_functions(self):
+        """Calculate frequency-dependent transfer functions."""
+
+        try:
+            self.transFuncsTab.tf = self.tf
+            status = self.transFuncsTab.tf.process_transfer_functions()
+
+            if status is True:
+                self.transFuncsTab.plot_transfer_functions()
+                self.view_mod_transfer_functions()
+                msg = "Frequency-dependent transfer functions calculated successfully.\n" \
+                      "Note: User needs to manually export to CSV."
+                self._message_information("Calculate Transfer Functions", msg)
+        except Exception as e:
+            msg = "Unexpected error processing loggers"
+            self.error(f"{msg}:\n{e}\n{sys.exc_info()[0]}")
+            logging.exception(e)
+
+    def calc_fatigue(self):
+        pass
 
 
 class ControlFileWorker(QtCore.QThread):
@@ -592,13 +643,16 @@ class ControlFileWorker(QtCore.QThread):
             t = str(timedelta(seconds=round(time() - t0)))
             self.signal_complete.emit(t, self.datalab.total_files)
             self.signal_datalab.emit(self.datalab)
+        except ValueError as e:
+            self.signal_error.emit(str(e))
+            logging.exception(e)
         except ZeroDivisionError as e:
             self.signal_error.emit(str(e))
             logging.exception(e)
         except Exception as e:
             msg = "Unexpected error processing control file"
             self.signal_error.emit(f"{msg}:\n{e}\n{sys.exc_info()[0]}")
-            logging.exception(msg)
+            logging.exception(e)
         finally:
             self.parent.setEnabled(True)
 
@@ -626,6 +680,6 @@ if __name__ == "__main__":
     os.chdir(r'C:\Users\dickinsc\PycharmProjects\DataLab\demo_data\2. Project Configs')
     app = QtWidgets.QApplication(sys.argv)
     # win = QtDesignerGui()
-    win = DataLabApp()
+    win = DataLab()
     win.show()
     sys.exit(app.exec_())

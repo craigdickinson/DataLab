@@ -1,8 +1,8 @@
 """
-Created on 22 Sep 2016
-
-@author: bowdenc
+Class to calculate and hold logger statistics.
 """
+__author__ = "Craig Dickinson"
+
 import numpy as np
 
 
@@ -17,7 +17,7 @@ class LoggerStats(object):
         self.std = []
         self.mean = []
 
-    def calc_stats(self, df_sample, unit_conv_factors):
+    def calc_stats(self, df_sample):
         """
         Calculate basic stats.
         Assumes at least two columns and first column is time.
@@ -31,16 +31,8 @@ class LoggerStats(object):
         ave = data.mean()
         std = data.std()
 
-        # Apply unit conversion factors if provided (i.e. if list is not empty)
-        if unit_conv_factors:
-            c = unit_conv_factors
-            mn = np.multiply(mn, c)
-            mx = np.multiply(mx, c)
-            ave = np.multiply(ave, c)
-            std = np.multiply(std, c)
-
         # Append to internal list
-        self.min.append([mn[i] for i in range(len(mn))])
-        self.max.append([mx[i] for i in range(len(mx))])
-        self.mean.append([ave[i] for i in range(len(ave))])
-        self.std.append([std[i] for i in range(len(std))])
+        self.min.append(mn.values)
+        self.max.append(mx.values)
+        self.mean.append(ave.values)
+        self.std.append(std.values)

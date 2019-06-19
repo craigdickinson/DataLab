@@ -66,8 +66,6 @@ class ProcessingProgressBar(QtWidgets.QDialog):
 
     @pyqtSlot(dict)
     def update_progress_bar(self, dict_progress):
-        # str, int, int, int, int, int
-        # self, logger, logger_i, file_i, n, file_num, total_num_files
         """Update progress bar window."""
 
         logger_ids = dict_progress["logger_ids"]

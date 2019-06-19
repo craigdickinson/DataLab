@@ -74,7 +74,8 @@ class SpectrogramWidget(QtWidgets.QWidget):
         selection.setFixedWidth(170)
         grid = QtWidgets.QGridLayout(selection)
 
-        self.loadDatasetButton = QtWidgets.QPushButton("Load Dataset")
+        self.openSpectButton = QtWidgets.QPushButton("Open Spectrograms")
+        self.openSpectButton.setToolTip("Open logger spectrograms (*.h5;*.csv;*.xlsx) (F4)")
         lbl = QtWidgets.QLabel("Loaded Datasets")
         self.datasetList = QtWidgets.QListWidget()
         self.datasetList.setFixedHeight(100)
@@ -90,7 +91,7 @@ class SpectrogramWidget(QtWidgets.QWidget):
         self.calcNatFreqButton = QtWidgets.QPushButton("Estimate Nat. Freq.")
         self.clearDatasetsButton = QtWidgets.QPushButton("Clear Datasets")
 
-        grid.addWidget(self.loadDatasetButton, 0, 0)
+        grid.addWidget(self.openSpectButton, 0, 0)
         grid.addWidget(self.clearDatasetsButton, 1, 0)
         grid.addWidget(lbl, 2, 0)
         grid.addWidget(self.datasetList, 3, 0)
@@ -262,7 +263,7 @@ class SpectrogramWidget(QtWidgets.QWidget):
         except Exception as e:
             msg = "Unexpected error loading plotting spectrogram"
             self.parent.error(f"{msg}:\n{e}\n{sys.exc_info()[0]}")
-            logging.exception(msg)
+            logging.exception(e)
 
     def create_plots(self):
         """Create spectrograms plots dashboard."""
@@ -361,7 +362,7 @@ class SpectrogramWidget(QtWidgets.QWidget):
         # ticks = np.linspace(self.zmin, self.zmax, 8, endpoint=True)
         # im = ax1.contourf(self.freqs, self.timestamps, self.z, levels=ticks, cmap=cmap)
 
-        # Maximise figure space before applying colour bar as colour bar will not move if applied after
+        # Maximise figure space before applying colour bar as colour bar will not reposition if applied after
         self.fig.tight_layout(
             rect=[0, 0.1, 1, 0.92]
         )  # (rect=[left, bottom, right, top])
@@ -375,6 +376,7 @@ class SpectrogramWidget(QtWidgets.QWidget):
         else:
             log10 = ""
 
+        # TODO: Store and read units!
         units = r"$\mathregular{(mm/s^2)^2/Hz}$"
         label = f"{log10}PSD ({units})".lstrip()
         self.cbar.set_label(label)

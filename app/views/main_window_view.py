@@ -7,7 +7,7 @@ from PyQt5 import QtWidgets
 from views.data_screening_view import DataQualityReport
 from views.fatigue_view import FatigueProcessingWidget
 from views.project_config_view import ConfigModule
-from views.raw_data_view import TimeSeriesPlotWidget
+from views.raw_data_view import RawDataDashboard
 from views.seascatter_view import SeascatterDiagram
 from views.spectral_view import SpectrogramWidget
 from views.stats_view import PlotStyle2H, StatsWidget, VesselStatsWidget
@@ -20,9 +20,9 @@ class DataLabGui(QtWidgets.QMainWindow):
     def __init__(self):
         super().__init__()
 
-        self.init_ui()
+        self._init_ui()
 
-    def init_ui(self):
+    def _init_ui(self):
         """Initialise gui."""
 
         self.setGeometry(50, 50, 1400, 800)
@@ -33,16 +33,16 @@ class DataLabGui(QtWidgets.QMainWindow):
         self.statusbar = self.statusBar()
 
         # Create menu bar and tool bar
-        self.menu_bar()
-        self.tool_bar()
-
-        # Project config module
-        self.projConfigModule = ConfigModule(self)
+        self._menu_bar()
+        self._tool_bar()
 
         # Raw data inspection module
         self.rawDataModule = QtWidgets.QTabWidget()
-        self.timeSeriesTab = TimeSeriesPlotWidget(self)
-        self.rawDataModule.addTab(self.timeSeriesTab, "Time Series")
+        self.rawDataTab = RawDataDashboard(self)
+        self.rawDataModule.addTab(self.rawDataTab, "Time Series")
+
+        # Project config module
+        self.projConfigModule = ConfigModule(self)
 
         # Data quality screening report module
         self.dataQualityModule = DataQualityReport(self)
@@ -64,9 +64,9 @@ class DataLabGui(QtWidgets.QMainWindow):
 
         # Transfer functions module
         self.transFuncsModule = QtWidgets.QTabWidget()
-        self.transferFuncsTab = TransferFunctionsWidget(self)
+        self.transFuncsTab = TransferFunctionsWidget(self)
         self.transFuncsModule.addTab(
-            self.transferFuncsTab, "2HFATLASA Transfer Functions"
+            self.transFuncsTab, "2HFATLASA Transfer Functions"
         )
 
         # Fatigue processing module
@@ -75,8 +75,8 @@ class DataLabGui(QtWidgets.QMainWindow):
         self.fatigueModule.addTab(self.fatigueTab, "2HFATLASA")
 
         # Add stacked widgets
-        self.modulesWidget.addWidget(self.projConfigModule)
         self.modulesWidget.addWidget(self.rawDataModule)
+        self.modulesWidget.addWidget(self.projConfigModule)
         self.modulesWidget.addWidget(self.dataQualityModule)
         self.modulesWidget.addWidget(self.statsScreeningModule)
         self.modulesWidget.addWidget(self.spectralScreeningModule)
@@ -87,97 +87,118 @@ class DataLabGui(QtWidgets.QMainWindow):
         # 2H plotting class
         self.plot_2h = PlotStyle2H(self.statsTab.canvas, self.statsTab.fig)
 
-    def menu_bar(self):
+    def _menu_bar(self):
         """Create menu bar."""
 
         # Menu bar
         menubar = self.menuBar()
 
-        # Primary menus
-        menuFile = menubar.addMenu("&File")
-        menuView = menubar.addMenu("&View")
-        menuProcess = menubar.addMenu("&Process")
-        menuLogic = menubar.addMenu("&Applied Logic")
-        menuPlotSettings = menubar.addMenu("&Plot Settings")
-        menuExport = menubar.addMenu("&Export")
-        menuAbout = menubar.addMenu("&Help")
+        # Menus
+        self.menuFile = menubar.addMenu("&File")
+        # self.menuView = menubar.addMenu("&View")
+        self.menuProcess = menubar.addMenu("&Process")
+        # self.menuLogic = menubar.addMenu("&Applied Logic")
+        self.menuPlotSettings = menubar.addMenu("Plot &Settings")
+        self.menuExport = menubar.addMenu("&Export")
+        self.menuAbout = menubar.addMenu("&Help")
 
         # File menu
-        # Open submenu
-        openMenu = menuFile.addMenu("&Open")
-        self.loadConfigFile = QtWidgets.QAction("Config File")
-        self.loadConfigFile.setShortcut("Ctrl+Shift+C")
-        self.loadConfigFile.setStatusTip("Load config file (*.json)")
-        self.openLoggerFile = QtWidgets.QAction("Logger File")
-        self.openLoggerFile.setShortcut("Ctrl+O")
-        self.openLoggerStats = QtWidgets.QAction("Logger Stats")
-        self.openLoggerStats.setShortcut("Ctrl+Shift+O")
-        self.openSpectrograms = QtWidgets.QAction("Spectrograms")
-        self.openSpectrograms.setShortcut("Ctrl+Shift+S")
-        openMenu.addAction(self.loadConfigFile)
-        openMenu.addAction(self.openLoggerFile)
-        openMenu.addAction(self.openLoggerStats)
-        openMenu.addAction(self.openSpectrograms)
+        self.loadConfigAction = QtWidgets.QAction("Load Config File")
+        self.loadConfigAction.setShortcut("Ctrl+O")
+        self.saveConfigAction = QtWidgets.QAction("Save Config File")
+        self.saveConfigAction.setShortcut("Ctrl+S")
+        self.openLoggerFileAction = QtWidgets.QAction("Open Logger File")
+        self.openLoggerFileAction.setShortcut("F2")
+        self.openLoggerStatsAction = QtWidgets.QAction("Open Logger Stats")
+        self.openLoggerStatsAction.setShortcut("F3")
+        self.openSpectrogramsAction = QtWidgets.QAction("Open Logger Spectrograms")
+        self.openSpectrogramsAction.setShortcut("F4")
+        self.openSeascatterAction = QtWidgets.QAction("Open Transfer Functions")
+        self.openSeascatterAction.setShortcut("F5")
+
+        self.menuFile.addAction(self.loadConfigAction)
+        self.menuFile.addAction(self.saveConfigAction)
+        self.menuFile.addSeparator()
+        self.menuFile.addAction(self.openLoggerFileAction)
+        self.menuFile.addAction(self.openLoggerStatsAction)
+        self.menuFile.addAction(self.openSpectrogramsAction)
 
         # View menu
-        self.showControlScreen = QtWidgets.QAction("Control/Processing")
-        self.showPlotScreen = QtWidgets.QAction("Plots")
-        menuView.addAction(self.showControlScreen)
-        menuView.addAction(self.showPlotScreen)
+        # self.showPlotScreen = QtWidgets.QAction("Plots")
+        # self.menuView.addAction(self.showPlotScreen)
 
         # Process menu
-        self.calcStats = QtWidgets.QAction("Calculate Statistics")
-        self.calcStats.setShortcut("Ctrl+R")
-        self.calcStats.setStatusTip("Run Control File (*.dat)")
-        self.genScatterDiag = QtWidgets.QAction("Generate Seascatter Diagram")
-        menuProcess.addAction(self.calcStats)
-        menuProcess.addAction(self.genScatterDiag)
+        self.processScreeningAction = QtWidgets.QAction("Process Screening")
+        self.processScreeningAction.setShortcut("F6")
+        self.calcSeascatterAction = QtWidgets.QAction("Create Seascatter")
+        self.calcSeascatterAction.setShortcut("F7")
+        self.calcTFAction = QtWidgets.QAction("Calculate Transfer Functions")
+        self.calcTFAction.setShortcut("F8")
+        self.calcFatigueAction = QtWidgets.QAction("Calculate Fatigue")
+        self.calcFatigueAction.setShortcut("F9")
+
+        self.menuProcess.addAction(self.processScreeningAction)
+        self.menuProcess.addAction(self.calcSeascatterAction)
+        self.menuProcess.addAction(self.calcTFAction)
+        self.menuProcess.addAction(self.calcFatigueAction)
 
         # Applied logic menu
-        self.filter = QtWidgets.QAction("Apply Low/High Pass Filter")
-        self.spikeRemoval = QtWidgets.QAction("Spike Removal")
-        menuLogic.addAction(self.filter)
-        menuLogic.addAction(self.spikeRemoval)
+        # self.filter = QtWidgets.QAction("Apply Low/High Pass Filter")
+        # self.spikeRemoval = QtWidgets.QAction("Spike Removal")
+        # menuLogic.addAction(self.filter)
+        # menuLogic.addAction(self.spikeRemoval)
 
         # Plot settings menu
-        self.add2HIcon = QtWidgets.QAction("Add 2H Icon")
-        self.add2HIcon.setCheckable(True)
-        self.loggerPlotSettings = QtWidgets.QAction("Logger Plot Settings")
-        self.loggerPlotSettings.setShortcut("Ctrl+S")
-        self.spectPlotSettings = QtWidgets.QAction("Spectrogram Plot Settings")
-        menuPlotSettings.addAction(self.add2HIcon)
-        menuPlotSettings.addAction(self.loggerPlotSettings)
-        menuPlotSettings.addAction(self.spectPlotSettings)
+        # self.add2HIcon = QtWidgets.QAction("Add 2H Icon")
+        # self.add2HIcon.setCheckable(True)
+        self.loggerPlotSettingsAction = QtWidgets.QAction("Logger Plot Settings")
+        self.loggerPlotSettingsAction.setShortcut("Alt+1")
+        self.spectPlotSettingsAction = QtWidgets.QAction("Spectrogram Plot Settings")
+        self.spectPlotSettingsAction.setShortcut("Alt+3")
+
+        # self.menuPlotSettings.addAction(self.add2HIcon)
+        self.menuPlotSettings.addAction(self.loggerPlotSettingsAction)
+        self.menuPlotSettings.addAction(self.spectPlotSettingsAction)
 
         # Export menu
         self.exportScatterDiag = QtWidgets.QAction("Export Seascatter Diagram")
         self.exportScatterDiag.setStatusTip("Export seascatter diagram to Excel")
-        menuExport.addAction(self.exportScatterDiag)
+        self.menuExport.addAction(self.exportScatterDiag)
 
         # Help menu
         self.showHelp = QtWidgets.QAction("Help")
+        self.showHelp.setShortcut("F1")
+        self.showHelp.setToolTip("DataLab instructions (F1)")
         self.showAbout = QtWidgets.QAction("About")
-        menuAbout.addAction(self.showHelp)
-        menuAbout.addAction(self.showAbout)
+        self.menuAbout.addAction(self.showHelp)
+        self.menuAbout.addAction(self.showAbout)
 
-    def tool_bar(self):
+    def _tool_bar(self):
         """Create toolbar with button to show dashboards."""
 
         self.toolBar = self.addToolBar("Modules")
         self.toolBar.setStyleSheet("QToolBar{spacing:5px}")
 
-        self.projConfigButton = QtWidgets.QPushButton("Project Config")
-        self.rawDataButton = QtWidgets.QPushButton("Raw Data")
-        self.dataQualityButton = QtWidgets.QPushButton("Data Quality Report")
-        self.statsScreeningButton = QtWidgets.QPushButton("Statistics Screening")
-        self.spectralScreeningButton = QtWidgets.QPushButton("Spectral Screening")
-        self.seascatterButton = QtWidgets.QPushButton("Seascatter Diagram")
-        self.transFuncsButton = QtWidgets.QPushButton("Transfer Functions")
-        self.fatigueButton = QtWidgets.QPushButton("Fatigue Analysis")
+        self.rawDataButton = QtWidgets.QPushButton("1. Inspect Raw Data")
+        self.rawDataButton.setShortcut("Ctrl+1")
+        self.projConfigButton = QtWidgets.QPushButton("2. Project Config")
+        self.projConfigButton.setShortcut("Ctrl+2")
+        self.dataQualityButton = QtWidgets.QPushButton("3. Data Quality Screening")
+        self.dataQualityButton.setShortcut("Ctrl+3")
+        self.statsScreeningButton = QtWidgets.QPushButton("4. Statistics Screening")
+        self.statsScreeningButton.setShortcut("Ctrl+4")
+        self.spectralScreeningButton = QtWidgets.QPushButton("5. Spectral Screening")
+        self.spectralScreeningButton.setShortcut("Ctrl+5")
+        self.seascatterButton = QtWidgets.QPushButton("6. Seascatter")
+        self.seascatterButton.setShortcut("Ctrl+6")
+        self.transFuncsButton = QtWidgets.QPushButton("7. Transfer Functions")
+        self.transFuncsButton.setShortcut("Ctrl+7")
+        self.fatigueButton = QtWidgets.QPushButton("8. Fatigue Analysis")
+        self.fatigueButton.setShortcut("Ctrl+8")
 
-        self.toolBar.addWidget(QtWidgets.QLabel("Modules:"))
-        self.toolBar.addWidget(self.projConfigButton)
+        self.toolBar.addWidget(QtWidgets.QLabel("Dashboards:"))
         self.toolBar.addWidget(self.rawDataButton)
+        self.toolBar.addWidget(self.projConfigButton)
         self.toolBar.addWidget(self.dataQualityButton)
         self.toolBar.addWidget(self.statsScreeningButton)
         self.toolBar.addWidget(self.spectralScreeningButton)
