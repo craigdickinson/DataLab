@@ -46,7 +46,7 @@ class SpectrogramWidget(QtWidgets.QWidget):
         # Initial axis limits upon loading a file
         self.init_xlim = (0.0, 3.0)
         self.xlim = (0.0, 3.0)
-        self.log_scale = True
+        self.log_scale = False
 
         # Placeholder for colorbar, plot line and label handles
         self.cbar = None

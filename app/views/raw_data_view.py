@@ -345,7 +345,7 @@ class RawDataDashboard(QtWidgets.QWidget):
 
         try:
             self.plot_time_series(self.df_plot, self.df_filtered)
-            self.plot_psd(self.df_plot[self.ts_xlim[0]: self.ts_xlim[1]])
+            self.plot_psd(self.df_plot[self.ts_xlim[0] : self.ts_xlim[1]])
         except ValueError as e:
             self.parent.error(str(e))
         except Exception as e:
@@ -422,7 +422,7 @@ class RawDataDashboard(QtWidgets.QWidget):
             self.ax1b.grid(True)
 
         # Event connection to refresh PSD plot upon change of time series x-axis limits
-        self.ax1.callbacks.connect("xlim_changed", self.on_xlims_change)
+        self.ax1.callbacks.connect("xlim_changed", self.on_xlims_changed)
 
         # Plot primary axis channel time series
         if self.plot_pri is True:
@@ -568,8 +568,13 @@ class RawDataDashboard(QtWidgets.QWidget):
             # f, pxx = signal.welch(
             #     df.T, fs=fs, window=window, nperseg=nperseg, noverlap=noverlap
             # )
-            f, pxx = calc_psd(data=df.T.values, fs=fs, window=window, nperseg=nperseg, noverlap=noverlap)
-
+            f, pxx = calc_psd(
+                data=df.T.values,
+                fs=fs,
+                window=window,
+                nperseg=nperseg,
+                noverlap=noverlap,
+            )
         except Exception as e:
             raise ValueError(f"Could not calculate PSD\n{e}")
 
@@ -599,7 +604,7 @@ class RawDataDashboard(QtWidgets.QWidget):
             weight="bold",
         )
 
-    def on_xlims_change(self, ax):
+    def on_xlims_changed(self, ax):
         # Convert to datetime
         # self.xmin, self.xmax = mdates.num2date(ax.get_xlim())
 
@@ -611,18 +616,20 @@ class RawDataDashboard(QtWidgets.QWidget):
             self.psd_xlim = tuple(round(x, 1) for x in self.ax2.get_xlim())
 
             # Update PSD plot and plot title with new timestamp range
-            df_slice = self.df_plot[self.ts_xlim[0]: self.ts_xlim[1]]
+            df_slice = self.df_plot[self.ts_xlim[0] : self.ts_xlim[1]]
             self.plot_psd(df_slice)
             self.plot_title(self.fig, df_slice)
             # print(f'updated xlims: {self.ts_xlim}')
 
-    def format_data(self, y):
+    @staticmethod
+    def format_data(y):
         """Formats data in plot coords box."""
 
         # return '%1.3f' % y
         return f"{y:1.3f}"
 
-    def manual_calc_psd(self, df, col, n):
+    @staticmethod
+    def manual_calc_psd(df, col, n):
         """Calculate PSD."""
 
         # Number of samples

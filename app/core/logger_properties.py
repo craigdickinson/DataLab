@@ -161,7 +161,7 @@ class LoggerProperties(QObject):
         # File timestamp format
         f = self.file_timestamp_format
 
-        # Get pos of Y, m, D, H, M and S strings
+        # Get pos of Y, m, D, H, M, S and ms strings
         self.year_span = get_date_code_span("Y", f)
         self.month_span = get_date_code_span("m", f)
         self.day_span = get_date_code_span("D", f)

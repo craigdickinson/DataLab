@@ -7,7 +7,7 @@ import pandas as pd
 from PyQt5 import QtCore, QtGui, QtWidgets
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 
-from app.core.calc_seascatter_diagram import calc_seascatter_diagram
+from app.core.calc_seascatter import calc_seascatter_diagram
 
 
 class SeascatterDiagram(QtWidgets.QWidget):

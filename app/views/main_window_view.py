@@ -20,6 +20,8 @@ class DataLabGui(QtWidgets.QMainWindow):
     def __init__(self):
         super().__init__()
 
+        # TODO: Consider initialising data objects (control, tf, etc) here in the program root
+        #  instead of declaring in subclasses to prevent forward/backwards object mapping
         self._init_ui()
 
     def _init_ui(self):
@@ -37,9 +39,7 @@ class DataLabGui(QtWidgets.QMainWindow):
         self._tool_bar()
 
         # Raw data inspection module
-        self.rawDataModule = QtWidgets.QTabWidget()
-        self.rawDataTab = RawDataDashboard(self)
-        self.rawDataModule.addTab(self.rawDataTab, "Time Series")
+        self.rawDataModule = RawDataDashboard(self)
 
         # Project config module
         self.projConfigModule = ConfigModule(self)
@@ -103,8 +103,8 @@ class DataLabGui(QtWidgets.QMainWindow):
         self.menuAbout = menubar.addMenu("&Help")
 
         # File menu
-        self.loadConfigAction = QtWidgets.QAction("Load Config File")
-        self.loadConfigAction.setShortcut("Ctrl+O")
+        self.openConfigAction = QtWidgets.QAction("Load Config File")
+        self.openConfigAction.setShortcut("Ctrl+O")
         self.saveConfigAction = QtWidgets.QAction("Save Config File")
         self.saveConfigAction.setShortcut("Ctrl+S")
         self.openLoggerFileAction = QtWidgets.QAction("Open Logger File")
@@ -116,7 +116,7 @@ class DataLabGui(QtWidgets.QMainWindow):
         self.openSeascatterAction = QtWidgets.QAction("Open Transfer Functions")
         self.openSeascatterAction.setShortcut("F5")
 
-        self.menuFile.addAction(self.loadConfigAction)
+        self.menuFile.addAction(self.openConfigAction)
         self.menuFile.addAction(self.saveConfigAction)
         self.menuFile.addSeparator()
         self.menuFile.addAction(self.openLoggerFileAction)

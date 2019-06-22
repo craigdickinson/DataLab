@@ -1,8 +1,10 @@
 import json
 import os
-from dateutil.parser import parse
-from app.core.logger_properties import LoggerProperties
+
 from PyQt5.QtCore import QObject, pyqtSignal
+from dateutil.parser import parse
+
+from app.core.logger_properties import LoggerProperties
 
 
 class ProjectConfigJSONFile(QObject):
@@ -27,7 +29,7 @@ class ProjectConfigJSONFile(QObject):
 
     def map_json_to_control(self, control):
         """
-        Take JSON config dictionary and map to a control class object.
+        Take JSON config dictionary and map to a Control class object.
         :param control: Instance of Control class.
         :return: Populated control object.
         """
@@ -39,9 +41,21 @@ class ProjectConfigJSONFile(QObject):
 
         return control
 
+    def map_json_to_seascatter(self, scatter):
+        """
+        Take JSON config dictionary and map to a Seascatter class object.
+        :param scatter: Instance of Seascatter class.
+        :return: Populated scatter object.
+        """
+
+        data = self.data
+        scatter = self._map_seascatter_dict(data, scatter)
+
+        return scatter
+
     def map_json_to_transfer_functions(self, tf):
         """
-        Take JSON config dictionary and map to a transfer functions class object.
+        Take JSON config dictionary and map to a TransferFunctions class object.
         :param tf: Instance of TransferFunctions class.
         :return: Populated tf object.
         """
@@ -63,10 +77,7 @@ class ProjectConfigJSONFile(QObject):
             return control
 
         control.project_num = self._get_key_value(
-            section=key,
-            data=data,
-            key="project_number",
-            attr=control.project_num,
+            section=key, data=data, key="project_number", attr=control.project_num
         )
         control.project_name = self._get_key_value(
             section=key, data=data, key="project_name", attr=control.project_name
@@ -233,7 +244,6 @@ class ProjectConfigJSONFile(QObject):
             key="user_channel_units",
             attr=logger.user_channel_units,
         )
-
         process_start = self._get_key_value(
             section=logger.logger_id,
             data=dict_logger,
@@ -263,9 +273,17 @@ class ProjectConfigJSONFile(QObject):
                 # Need to convert process end to datetime
                 logger.process_end = parse(process_end, yearfirst=True)
             except ValueError:
-                msg = f"Process end format not recognised for logger {logger.logger_id}."
+                msg = (
+                    f"Process end format not recognised for logger {logger.logger_id}."
+                )
                 self.signal_warning.emit(msg)
 
+        logger.process_type = self._get_key_value(
+            section=logger.logger_id,
+            data=dict_logger,
+            key="process_type",
+            attr=logger.process_type,
+        )
         logger.low_cutoff_freq = self._get_key_value(
             section=logger.logger_id,
             data=dict_logger,
@@ -277,12 +295,6 @@ class ProjectConfigJSONFile(QObject):
             data=dict_logger,
             key="high_cutoff_freq",
             attr=logger.high_cutoff_freq,
-        )
-        logger.process_type = self._get_key_value(
-            section=logger.logger_id,
-            data=dict_logger,
-            key="process_type",
-            attr=logger.process_type,
         )
         logger.process_stats = self._get_key_value(
             section=logger.logger_id,
@@ -325,7 +337,10 @@ class ProjectConfigJSONFile(QObject):
             section=key, data=data, key="stats_folder", attr=control.stats_output_folder
         )
         control.spect_output_folder = self._get_key_value(
-            section=key, data=data, key="spectral_folder", attr=control.spect_output_folder
+            section=key,
+            data=data,
+            key="spectral_folder",
+            attr=control.spect_output_folder,
         )
         control.stats_to_h5 = self._get_key_value(
             section=key, data=data, key="stats_to_h5", attr=control.stats_to_h5
@@ -347,6 +362,32 @@ class ProjectConfigJSONFile(QObject):
         )
 
         return control
+
+    def _map_seascatter_dict(self, data, scatter):
+        """Map the seascatter settings section to the transfer function object."""
+
+        key = "seascatter"
+        if key in data.keys():
+            data = data[key]
+        else:
+            msg = f"'{key}' key not found in config file."
+            self.signal_warning.emit(msg)
+            return scatter
+
+        scatter.metocean_logger = self._get_key_value(
+            section=key,
+            data=data,
+            key="metocean_logger_id",
+            attr=scatter.metocean_logger,
+        )
+        scatter.hs_col = self._get_key_value(
+            section=key, data=data, key="hs_column", attr=scatter.hs_col
+        )
+        scatter.tp_col = self._get_key_value(
+            section=key, data=data, key="tp_column", attr=scatter.tp_col
+        )
+
+        return scatter
 
     def _map_transfer_functions_dict(self, data, tf):
         """Map the transfer functions settings section to the transfer function object."""
@@ -395,11 +436,11 @@ class ProjectConfigJSONFile(QObject):
         if key in data.keys():
             return data[key]
         else:
-            msg = f"'{key}' key not found in config file for {section} logger."
+            msg = f"'{key}' key not found in config file for {section} dictionary."
             self.signal_warning.emit(msg)
             return attr
 
-    def add_campaign_data(self, control):
+    def add_campaign_settings(self, control):
         """Add project and campaign details."""
 
         d = dict()
@@ -410,7 +451,7 @@ class ProjectConfigJSONFile(QObject):
 
         self.data["campaign"] = d
 
-    def add_loggers_data(self, loggers):
+    def add_loggers_settings(self, loggers):
         """Add properties of all loggers."""
 
         if not loggers:
@@ -430,7 +471,7 @@ class ProjectConfigJSONFile(QObject):
             # Add logger props dictionary to loggers dictionary
             self.data["loggers"][logger.logger_id] = dict_props
 
-    def add_general_data(self, control):
+    def add_general_settings(self, control):
         """Add general settings."""
 
         d = dict()
@@ -445,7 +486,17 @@ class ProjectConfigJSONFile(QObject):
 
         self.data["general"] = d
 
-    def add_transfer_functions_data(self, tf):
+    def add_seascatter_settings(self, scatter):
+        """Add seascatter settings."""
+
+        d = dict()
+        d["metocean_logger_id"] = scatter.metocean_logger
+        d["hs_column"] = scatter.hs_col
+        d["tp_column"] = scatter.tp_col
+
+        self.data["seascatter"] = d
+
+    def add_transfer_functions_settings(self, tf):
         """Add transfer functions settings."""
 
         d = dict()
@@ -498,7 +549,9 @@ class ProjectConfigJSONFile(QObject):
         if logger.process_start is None:
             dict_props["process_start"] = None
         else:
-            dict_props["process_start"] = logger.process_start.strftime("%Y-%m-%d %H:%M")
+            dict_props["process_start"] = logger.process_start.strftime(
+                "%Y-%m-%d %H:%M"
+            )
 
         # Process end
         if logger.process_end is None:
@@ -506,12 +559,12 @@ class ProjectConfigJSONFile(QObject):
         else:
             dict_props["process_end"] = logger.process_end.strftime("%Y-%m-%d %H:%M")
 
+        # Data type to screen on
+        dict_props["process_type"] = logger.process_type
+
         # Stats low and high cut-off frequencies
         dict_props["low_cutoff_freq"] = logger.low_cutoff_freq
         dict_props["high_cutoff_freq"] = logger.high_cutoff_freq
-
-        # Data type to screen on
-        dict_props["process_type"] = logger.process_type
 
         # Stats settings group
         dict_props["process_stats"] = logger.process_stats
