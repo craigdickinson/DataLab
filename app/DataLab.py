@@ -1,7 +1,7 @@
 __author__ = "Craig Dickinson"
 __program__ = "DataLab"
-__version__ = "0.51"
-__date__ = "22 June 2019"
+__version__ = "0.52"
+__date__ = "23 June 2019"
 
 import logging
 import os
@@ -140,7 +140,8 @@ class DataLab(DataLabGui):
     def show_help(self):
         """Show program overview and instructions message box."""
 
-        msg = f"Instructions for using {__program__}:\n\n"
+        msg = f"Instructions for using {__program__}:\n\n" \
+            "Worst help, ever! To do..."
         self._message_information("Help", msg)
 
     def load_logger_file(self):
@@ -549,7 +550,7 @@ class DataLab(DataLabGui):
         if df_vessel is False:
             logger = self.scatter.metocean_logger
 
-            if logger=="":
+            if logger == "":
                 msg = (
                     "No logger set in seascatter settings tab.\n\n"
                     "Input seascatter settings and generate or load the required statistics dataset "
@@ -582,7 +583,6 @@ class DataLab(DataLabGui):
             )
             if filename:
                 self.seascatterModule.export_scatter_diagram(filename)
-
 
     def calc_transfer_functions(self):
         """Calculate frequency-dependent transfer functions."""

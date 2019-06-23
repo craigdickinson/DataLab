@@ -460,49 +460,23 @@ class SpectroPlotSettings(QtWidgets.QDialog):
     def _init_ui(self):
         self.setWindowTitle("Spectrogram Plot Settings")
 
-        # Widget sizing policy - prevent expansion
         policy = QtWidgets.QSizePolicy(
             QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed
         )
 
-        # Layout
-        # self.setFixedSize(400, 300)
-        mainLayout = QtWidgets.QVBoxLayout(self)
-        mainLayout.addStretch()
-
-        # Title and axes labels form
-        form = QtWidgets.QWidget()
-        layout = QtWidgets.QFormLayout(form)
+        # WIDGETS
+        # Title
         self.optProject = QtWidgets.QLineEdit()
 
-        layout.addRow(QtWidgets.QLabel("Project title:"), self.optProject)
-
         # Frequency axis limits
-        frameFreq = QtWidgets.QGroupBox("Frequency Axis")
-        grid = QtWidgets.QGridLayout(frameFreq)
         self.optFreqMin = QtWidgets.QLineEdit("0")
         self.optFreqMax = QtWidgets.QLineEdit("3")
         self.optFreqMin.setFixedWidth(50)
         self.optFreqMax.setFixedWidth(50)
-        grid.addWidget(QtWidgets.QLabel("Min:"), 0, 0)
-        grid.addWidget(self.optFreqMin, 0, 1)
-        grid.addWidget(QtWidgets.QLabel("Max:"), 1, 0)
-        grid.addWidget(self.optFreqMax, 1, 1)
-
-        # Combine axis limits frames
-        axesLimits = QtWidgets.QWidget()
-        axesLimits.setSizePolicy(policy)
-        vbox = QtWidgets.QHBoxLayout(axesLimits)
-        vbox.addWidget(frameFreq)
 
         # PSD log scale checkbox
         self.logScale = QtWidgets.QCheckBox("PSD log scale")
         self.logScale.setChecked(False)
-
-        # Combine PSD x-axis and log scale
-        psdOpts = QtWidgets.QWidget()
-        vbox = QtWidgets.QVBoxLayout(psdOpts)
-        vbox.addWidget(self.logScale)
 
         # Button box
         self.buttonBox = QtWidgets.QDialogButtonBox(
@@ -512,11 +486,29 @@ class SpectroPlotSettings(QtWidgets.QDialog):
             | QtWidgets.QDialogButtonBox.Reset
         )
 
-        # Final layout
-        mainLayout.addWidget(form)
-        mainLayout.addWidget(axesLimits)
-        mainLayout.addWidget(psdOpts)
-        mainLayout.addWidget(self.buttonBox, stretch=0, alignment=QtCore.Qt.AlignRight)
+        # CONTAINERS
+        # Title and axes labels form
+        self.form = QtWidgets.QFormLayout()
+        self.form.addRow(QtWidgets.QLabel("Project title:"), self.optProject)
+
+        # Frequency axis limits
+        self.frameFreq = QtWidgets.QGroupBox("Frequency Axis")
+        self.frameFreq.setSizePolicy(policy)
+        self.form2 = QtWidgets.QFormLayout(self.frameFreq)
+        self.form2.addRow(QtWidgets.QLabel("Min:"), self.optFreqMin)
+        self.form2.addRow(QtWidgets.QLabel("Max:"), self.optFreqMax)
+
+        # Combine PSD x-axis and log scale
+        self.vbox = QtWidgets.QVBoxLayout()
+        self.vbox.addWidget(self.logScale)
+
+        # LAYOUT
+        self.layout = QtWidgets.QVBoxLayout(self)
+        self.layout.addLayout(self.form)
+        self.layout.addWidget(self.frameFreq)
+        self.layout.addLayout(self.vbox)
+        self.layout.addStretch()
+        self.layout.addWidget(self.buttonBox, stretch=0, alignment=QtCore.Qt.AlignRight)
 
     def _connect_signals(self):
         self.buttonBox.accepted.connect(self.accept)
@@ -581,5 +573,6 @@ class SpectroPlotSettings(QtWidgets.QDialog):
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
     win = SpectrogramWidget()
+    # win = SpectroPlotSettings()
     win.show()
     sys.exit(app.exec_())

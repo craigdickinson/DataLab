@@ -100,7 +100,7 @@ class StatsDataset:
         self.df.set_index(col, inplace=True)
 
 
-class PlotAxesData:
+class AxesPlotData:
     def __init__(self):
         """
         Class to hold plot data for primary and secondary axes of a subplot
@@ -334,7 +334,7 @@ class StatsWidget(QtWidgets.QWidget):
         self.stat = ""
 
         # Container to hold plot data for each subplot
-        self.subplots = [PlotAxesData()]
+        self.subplots = [AxesPlotData()]
 
         # Container for StatsDataset objects
         self.datasets = []
@@ -355,8 +355,10 @@ class StatsWidget(QtWidgets.QWidget):
         # X-axis values type
         self.xaxis_type = "Timestamps"
 
-        self.share_pri_yaxes = True
-        self.share_sec_yaxes = True
+        # Shared axes flags
+        self.equal_pri_sec_yaxis = True
+        self.share_subplot_yaxes1 = True
+        self.share_subplot_yaxes2 = True
 
         # Set layout and initialise combo boxes
         self._init_ui()
@@ -368,35 +370,21 @@ class StatsWidget(QtWidgets.QWidget):
         self.canvas.draw()
 
     def _init_ui(self):
-        # Main layout
-        self.layout = QtWidgets.QHBoxLayout(self)
-
-        # Selection layout
-        self.selectionContainer = QtWidgets.QWidget()
-        self.selectionContainer.setFixedWidth(200)
-
-        # policy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed)
-        # selection.setSizePolicy(policy)
-
-        # Load/clear buttons and datasets and channels lists
+        # WIDGETS
+        # Buttons and datasets and channels lists
         self.openStatsButton = QtWidgets.QPushButton("Open Statistics")
         self.openStatsButton.setToolTip("Open logger stats (*.h5;*.csv;*.xlsx) (F3)")
         self.clearDatasetsButton = QtWidgets.QPushButton("Clear Datasets")
         self.datasetList = QtWidgets.QListWidget()
         self.channelsLabel = QtWidgets.QLabel("Available Channels")
         self.channelsList = QtWidgets.QListWidget()
+        self.settingsButton = QtWidgets.QPushButton("Plot Settings")
 
         # Number of plots
         self.numPlotsCombo = QtWidgets.QComboBox()
         self.numPlotsCombo.setFixedWidth(40)
-        self.numPlotsContainer = QtWidgets.QWidget()
-        self.numPlotsForm = QtWidgets.QFormLayout(self.numPlotsContainer)
-        self.numPlotsForm.addRow(
-            QtWidgets.QLabel("Number of plots:"), self.numPlotsCombo
-        )
 
-        # Plot selection group
-        self.plotGroup = QtWidgets.QGroupBox("Select Plot Data")
+        # Plot selection
         self.plotNumCombo = QtWidgets.QComboBox()
         self.plotNumCombo.setFixedWidth(40)
         self.axisCombo = QtWidgets.QComboBox()
@@ -405,6 +393,34 @@ class StatsWidget(QtWidgets.QWidget):
         self.channelCombo = QtWidgets.QComboBox()
         self.statCombo = QtWidgets.QComboBox()
 
+        # X axis datetime interval options
+        self.xaxisIntervalsCombo = QtWidgets.QComboBox()
+        self.xaxisTypeCombo = QtWidgets.QComboBox()
+
+        # Check box to set whether pri and sec y-axis limits should be equal or not
+        self.equalPriSecYAxisChkBox = QtWidgets.QCheckBox("Equal pri-sec y-axis limits")
+        self.equalPriSecYAxisChkBox.setChecked(True)
+
+        # Check boxes to set whether pri/sec y-axes are shared both across subplots
+        self.shareSubplotYAxes1ChkBox = QtWidgets.QCheckBox("Shared subplot pri y-axis")
+        self.shareSubplotYAxes1ChkBox.setChecked(True)
+        self.shareSubplotYAxes2ChkBox = QtWidgets.QCheckBox("Shared subplot sec y-axis")
+        self.shareSubplotYAxes2ChkBox.setChecked(True)
+
+        # Plot figure, canvas and navbar
+        self.fig = plt.figure()
+        self.canvas = FigureCanvas(self.fig)
+        self.navbar = NavigationToolbar(self.canvas, self)
+
+        # CONTAINERS
+        # Number of plots
+        self.numPlotsForm = QtWidgets.QFormLayout()
+        self.numPlotsForm.addRow(
+            QtWidgets.QLabel("Number of plots:"), self.numPlotsCombo
+        )
+
+        # Plot selection group
+        self.plotGroup = QtWidgets.QGroupBox("Select Plot Data")
         self.form = QtWidgets.QFormLayout(self.plotGroup)
         self.form.addRow(QtWidgets.QLabel("Plot:"), self.plotNumCombo)
         self.form.addRow(QtWidgets.QLabel("Axis:"), self.axisCombo)
@@ -413,54 +429,42 @@ class StatsWidget(QtWidgets.QWidget):
         self.form.addRow(QtWidgets.QLabel("Stat:"), self.statCombo)
 
         # Plot settings group
-        # X axis datetime interval options
         self.plotSettingsGroup = QtWidgets.QGroupBox("Plot Settings")
-        self.xaxisIntervals = QtWidgets.QComboBox()
-        self.xaxisType = QtWidgets.QComboBox()
+        self.form2 = QtWidgets.QFormLayout()
+        self.form2.addRow(QtWidgets.QLabel("X-axis type:"), self.xaxisTypeCombo)
+        self.form2.addRow(QtWidgets.QLabel("X-axis interval:"), self.xaxisIntervalsCombo)
+        self.vbox = QtWidgets.QVBoxLayout()
+        self.vbox.addWidget(self.equalPriSecYAxisChkBox)
+        self.vbox.addWidget(self.shareSubplotYAxes1ChkBox)
+        self.vbox.addWidget(self.shareSubplotYAxes2ChkBox)
+        # self.vbox.addWidget(self.settingsButton)
+        self.vboxSettings = QtWidgets.QVBoxLayout(self.plotSettingsGroup)
+        self.vboxSettings.addLayout(self.form2)
+        self.vboxSettings.addLayout(self.vbox)
 
-        # Check boxes to set whether pri/sec y-axes are shared
-        self.sharePriYAxesChkBox = QtWidgets.QCheckBox('Share pri y-axis')
-        self.sharePriYAxesChkBox.setChecked(True)
-        self.shareSecYAxesChkBox = QtWidgets.QCheckBox('Share sec y-axis')
-        self.shareSecYAxesChkBox.setChecked(True)
+        # Selection container
+        self.selectionContainer = QtWidgets.QWidget()
+        self.selectionContainer.setFixedWidth(200)
+        self.vboxSel = QtWidgets.QVBoxLayout(self.selectionContainer)
+        self.vboxSel.addWidget(self.openStatsButton)
+        self.vboxSel.addWidget(self.clearDatasetsButton)
+        self.vboxSel.addWidget(QtWidgets.QLabel("Loaded Datasets"))
+        self.vboxSel.addWidget(self.datasetList)
+        self.vboxSel.addWidget(self.channelsLabel)
+        self.vboxSel.addWidget(self.channelsList)
+        self.vboxSel.addLayout(self.numPlotsForm)
+        self.vboxSel.addWidget(self.plotGroup)
+        self.vboxSel.addWidget(self.plotSettingsGroup)
 
-        # Plot settings button
-        self.settingsButton = QtWidgets.QPushButton("Plot Settings")
-
-        self.grid = QtWidgets.QGridLayout(self.plotSettingsGroup)
-        self.grid.addWidget(QtWidgets.QLabel("X-axis type:"), 0, 0)
-        self.grid.addWidget(self.xaxisType, 0, 1)
-        self.grid.addWidget(QtWidgets.QLabel("X-axis interval:"), 1, 0)
-        self.grid.addWidget(self.xaxisIntervals, 1, 1)
-        self.grid.addWidget(self.sharePriYAxesChkBox, 2, 0, 1, 2)
-        self.grid.addWidget(self.shareSecYAxesChkBox, 3, 0, 1, 2)
-        self.grid.addWidget(self.settingsButton, 4, 0, 1, 2)
-
-        # Combine selection widgets
-        self.vbox = QtWidgets.QVBoxLayout(self.selectionContainer)
-        self.vbox.addWidget(self.openStatsButton)
-        self.vbox.addWidget(self.clearDatasetsButton)
-        self.vbox.addWidget(QtWidgets.QLabel("Loaded Datasets"))
-        self.vbox.addWidget(self.datasetList)
-        self.vbox.addWidget(self.channelsLabel)
-        self.vbox.addWidget(self.channelsList)
-        self.vbox.addWidget(self.numPlotsContainer)
-        self.vbox.addWidget(self.plotGroup)
-        self.vbox.addWidget(self.plotSettingsGroup)
-
-        # Create plot figure, canvas widget to display figure and navbar
-        self.plotWidget = QtWidgets.QWidget()
-        self.fig = plt.figure()
-        self.canvas = FigureCanvas(self.fig)
-        self.navbar = NavigationToolbar(self.canvas, self)
-
-        self.plotLayout = QtWidgets.QVBoxLayout(self.plotWidget)
+        # Plot figure
+        self.plotLayout = QtWidgets.QVBoxLayout()
         self.plotLayout.addWidget(self.navbar)
         self.plotLayout.addWidget(self.canvas)
 
-        # Add widgets to main layout
+        # LAYOUT
+        self.layout = QtWidgets.QHBoxLayout(self)
         self.layout.addWidget(self.selectionContainer)
-        self.layout.addWidget(self.plotWidget)
+        self.layout.addLayout(self.plotLayout)
 
     def _init_combos(self):
         """Populate combo boxes and store initial selections."""
@@ -475,11 +479,11 @@ class StatsWidget(QtWidgets.QWidget):
         self.stat = self.statCombo.currentText()
         self.loggerCombo.addItem("-")
         self.channelCombo.addItem("-")
-        self.xaxisType.addItems(["Duration", "Timestamps"])
-        self.xaxisType.setCurrentIndex(1)
+        self.xaxisTypeCombo.addItems(["Duration", "Timestamps"])
+        self.xaxisTypeCombo.setCurrentIndex(1)
         date_intervals = ["14 days", "7 days", "1 day", "12 hours"]
-        self.xaxisIntervals.addItems(date_intervals)
-        self.xaxisIntervals.setCurrentIndex(1)
+        self.xaxisIntervalsCombo.addItems(date_intervals)
+        self.xaxisIntervalsCombo.setCurrentIndex(1)
 
     def _connect_signals(self):
         self.clearDatasetsButton.clicked.connect(self.on_clear_datasets_clicked)
@@ -490,10 +494,11 @@ class StatsWidget(QtWidgets.QWidget):
         self.loggerCombo.currentIndexChanged.connect(self.on_logger_combo_changed)
         self.channelCombo.currentIndexChanged.connect(self.on_channel_combo_changed)
         self.statCombo.currentIndexChanged.connect(self.on_stat_combo_changed)
-        self.xaxisType.currentIndexChanged.connect(self.on_xaxis_type_changed)
-        self.xaxisIntervals.currentIndexChanged.connect(self.on_xaxis_interval_changed)
-        self.sharePriYAxesChkBox.toggled.connect(self.on_share_yaxes1_changed)
-        self.shareSecYAxesChkBox.toggled.connect(self.on_share_yaxes2_changed)
+        self.xaxisTypeCombo.currentIndexChanged.connect(self.on_xaxis_type_changed)
+        self.xaxisIntervalsCombo.currentIndexChanged.connect(self.on_xaxis_interval_changed)
+        self.equalPriSecYAxisChkBox.toggled.connect(self.on_equal_pri_sec_yaxis_toggled)
+        self.shareSubplotYAxes1ChkBox.toggled.connect(self.on_share_subplot_yaxes1_toggled)
+        self.shareSubplotYAxes2ChkBox.toggled.connect(self.on_share_subplot_yaxes2_toggled)
 
     @staticmethod
     def _get_plot_numbers_list(n):
@@ -595,13 +600,13 @@ class StatsWidget(QtWidgets.QWidget):
     def on_xaxis_type_changed(self):
         """Set x-axis type: timestamps or duration."""
 
-        self.xaxis_type = self.xaxisType.currentText()
+        self.xaxis_type = self.xaxisTypeCombo.currentText()
 
         # Disable the x-axis interval combo box if x-axis type is not set to Timestamps
         if self.xaxis_type == "Timestamps":
-            self.xaxisIntervals.setEnabled(True)
+            self.xaxisIntervalsCombo.setEnabled(True)
         else:
-            self.xaxisIntervals.setEnabled(False)
+            self.xaxisIntervalsCombo.setEnabled(False)
 
         # Update subplots stored data and replot
         for subplot in self.subplots:
@@ -634,7 +639,7 @@ class StatsWidget(QtWidgets.QWidget):
     def on_xaxis_interval_changed(self):
         """Set x-axis datetime interval."""
 
-        date_interval = self.xaxisIntervals.currentText()
+        date_interval = self.xaxisIntervalsCombo.currentText()
 
         if date_interval == "14 days":
             self.date_locator = "days"
@@ -656,13 +661,23 @@ class StatsWidget(QtWidgets.QWidget):
         self._set_xaxis()
         self.canvas.draw()
 
-    def on_share_yaxes1_changed(self):
+    def on_equal_pri_sec_yaxis_toggled(self):
+        if self.equalPriSecYAxisChkBox.isChecked() is True:
+            self.equal_pri_sec_yaxis = True
+            self._set_equal_pri_sec_yaxes_limits()
+            self.canvas.draw()
+        else:
+            self.equal_pri_sec_yaxis = False
+            self._set_max_data_yaxes_limits()
+            self.canvas.draw()
+
+    def on_share_subplot_yaxes1_toggled(self):
         """Redraw subplots with shared or unshared primary axes and replot current data."""
 
-        if self.sharePriYAxesChkBox.isChecked() is True:
-            self.share_pri_yaxes = True
+        if self.shareSubplotYAxes1ChkBox.isChecked() is True:
+            self.share_subplot_yaxes1 = True
         else:
-            self.share_pri_yaxes = False
+            self.share_subplot_yaxes1 = False
 
         try:
             # Create new number of subplots and replot all current plot data
@@ -673,13 +688,13 @@ class StatsWidget(QtWidgets.QWidget):
             self.parent.error(f"{msg}:\n{e}\n{sys.exc_info()[0]}")
             logging.exception(e)
 
-    def on_share_yaxes2_changed(self):
+    def on_share_subplot_yaxes2_toggled(self):
         """Redraw subplots with shared or unshared secondary axes and replot current data."""
 
-        if self.shareSecYAxesChkBox.isChecked() is True:
-            self.share_sec_yaxes = True
+        if self.shareSubplotYAxes2ChkBox.isChecked() is True:
+            self.share_subplot_yaxes2 = True
         else:
-            self.share_sec_yaxes = False
+            self.share_subplot_yaxes2 = False
 
         try:
             # Create new number of subplots and replot all current plot data
@@ -698,12 +713,13 @@ class StatsWidget(QtWidgets.QWidget):
         # Create first subplot
         ax1 = self.fig.add_subplot(self.num_plots, 1, 1)
 
-        # Create remaining subplots with a shared x-axis to ax1 then prepend ax1 to axes list
-        if self.share_pri_yaxes is True:
+        # Set whether primary y-axis is to be shared across subplots
+        if self.share_subplot_yaxes1 is True:
             sharey_ax = ax1
         else:
             sharey_ax = None
 
+        # Create remaining subplots list with a shared x-axis to ax1 then prepend ax1 to axes list
         pri_axes = [
             self.fig.add_subplot(self.num_plots, 1, i + 1, sharex=ax1, sharey=sharey_ax)
             for i in range(1, self.num_plots)
@@ -716,7 +732,7 @@ class StatsWidget(QtWidgets.QWidget):
 
         for ax in sec_axes:
             # Share secondary axes with first subplot
-            if self.share_sec_yaxes is True:
+            if self.share_subplot_yaxes2 is True:
                 if ax != ax0:
                     ax0.get_shared_x_axes().join(ax0, ax)
                     ax0.get_shared_y_axes().join(ax0, ax)
@@ -752,7 +768,7 @@ class StatsWidget(QtWidgets.QWidget):
 
         self.logger_i = 0
         self.channel_i = 0
-        self.subplots = [PlotAxesData() for _ in range(self.num_plots)]
+        self.subplots = [AxesPlotData() for _ in range(self.num_plots)]
         self._create_subplots()
         self.fig.tight_layout()
         self.canvas.draw()
@@ -801,7 +817,7 @@ class StatsWidget(QtWidgets.QWidget):
         # Create required additional subplot objects
         if n > m:
             for i in range(n - m):
-                self.subplots.append(PlotAxesData())
+                self.subplots.append(AxesPlotData())
         # Delete excess subplot objects
         elif n < m:
             for i in range(m - n):
@@ -932,6 +948,8 @@ class StatsWidget(QtWidgets.QWidget):
         self._set_xaxis()
         self._set_title()
         self._set_yaxes_and_gridlines(subplot)
+        if self.equal_pri_sec_yaxis is True:
+            self._set_equal_pri_sec_yaxes_limits()
         # self._add_subplot_legend(subplot, num_plots=self.num_plots)
         self._adjust_fig_layout()
         self.canvas.draw()
@@ -968,11 +986,82 @@ class StatsWidget(QtWidgets.QWidget):
                 self._set_yaxes_and_gridlines(subplot)
                 # self._add_subplot_legend(subplot, num_plots=self.num_plots)
 
+            if self.equal_pri_sec_yaxis is True:
+                self._set_equal_pri_sec_yaxes_limits()
             self._adjust_fig_layout()
         else:
             self.fig.tight_layout()
 
         self.canvas.draw()
+
+    def _set_equal_pri_sec_yaxes_limits(self):
+        """Set primary and secondary axis y-axis limits to be equal for each subplot."""
+        # TODO: Some more refinement required when subplot sharing is active
+
+        for subplot in self.subplots:
+            df1 = subplot.df_1
+            df2 = subplot.df_2
+
+            # Process only if both axes contain data
+            if df1.empty or df2.empty:
+                continue
+
+            # Get data limits, get global min and max and apply to both axes
+            ymin1 = df1.values.min()
+            ymax1 = df1.values.max()
+            ymin2 = df2.values.min()
+            ymax2 = df2.values.max()
+
+            # Subplot overall min/max
+            ymin = min(ymin1, ymin2)
+            ymax = max(ymax1, ymax2)
+
+            subplot.ax1.set_ylim(ymin, ymax)
+            subplot.ax2.set_ylim(ymin, ymax)
+
+    def _set_max_data_yaxes_limits(self):
+        """Remove equal primary and secondary y-axis limits."""
+        # TODO: Some more refinement required when subplot sharing is active
+
+        # Check if any subplot axes is set
+        if self.share_subplot_yaxes1 is True or self.share_subplot_yaxes2 is True:
+            apply_global_limits = True
+        else:
+            apply_global_limits = False
+
+        glob_ymin1 = np.inf
+        glob_ymax1 = -np.inf
+        glob_ymin2 = np.inf
+        glob_ymax2 = -np.inf
+        for subplot in self.subplots:
+            df1 = subplot.df_1
+            df2 = subplot.df_2
+
+            if not df1.empty:
+                ymin = df1.values.min()
+                ymax = df1.values.max()
+
+                if apply_global_limits is False:
+                    subplot.ax1.set_ylim(ymin, ymax)
+                else:
+                    glob_ymin1 = min(glob_ymin1, ymin)
+                    glob_ymax1 = max(glob_ymax1, ymax)
+
+            if not df2.empty:
+                ymin = df2.values.min()
+                ymax = df2.values.max()
+
+                if apply_global_limits is False:
+                    subplot.ax2.set_ylim(ymin, ymax)
+                else:
+                    glob_ymin2 = min(glob_ymin2, ymin)
+                    glob_ymax2 = max(glob_ymax2, ymax)
+
+        # Apply global subplots min/max
+        if apply_global_limits is True:
+            for subplot in self.subplots:
+                subplot.ax1.set_ylim(glob_ymin1, glob_ymax1)
+                subplot.ax2.set_ylim(glob_ymin2, glob_ymax2)
 
     def _set_title(self):
         """Set main plot title."""
@@ -1026,7 +1115,7 @@ class StatsWidget(QtWidgets.QWidget):
         else:
             xlabel_size = 11
 
-        if self.xaxisType.currentText() == "Timestamps":
+        if self.xaxisTypeCombo.currentText() == "Timestamps":
             ax.set_xlabel("", size=xlabel_size)
 
             if self.date_locator == "days":
@@ -1069,9 +1158,9 @@ class StatsWidget(QtWidgets.QWidget):
         """
 
         if num_plots > 2:
-            fontsize = 9
-        else:
             fontsize = 10
+        else:
+            fontsize = 11
 
         ncol = 4
         lines = subplot.handles_1 + subplot.handles_2
@@ -1150,7 +1239,7 @@ class VesselStatsWidget(QtWidgets.QWidget):
 
         # Selection layout
         selection = QtWidgets.QWidget()
-        selection.setFixedWidth(160)
+        selection.setFixedWidth(200)
         vbox = QtWidgets.QVBoxLayout(selection)
 
         self.openStatsButton = QtWidgets.QPushButton("Open Statistics")
@@ -1666,15 +1755,13 @@ if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
 
     # Create dummy dataset
-    start_dates = ["2017-03-10 00:00:00", "2017-03-10 00:10:00", "2017-03-10 00:20:00"]
-
-    start_dates = [datetime.strptime(t, "%Y-%m-%d %H:%M:%S") for t in start_dates]
-
-    data = [[j + i * 10 for j in range(16)] for i in range(3)]
-    data = np.random.randn(3, 4)
-    df = pd.DataFrame(data=data, index=start_dates)
-    dataset = StatsDataset(logger_id="test", df=df)
-    dataset_names = ["test"]
+    # start_dates = ["2017-03-10 00:00:00", "2017-03-10 00:10:00", "2017-03-10 00:20:00"]
+    # start_dates = [datetime.strptime(t, "%Y-%m-%d %H:%M:%S") for t in start_dates]
+    # data = [[j + i * 10 for j in range(16)] for i in range(3)]
+    # data = np.random.randn(3, 4)
+    # df = pd.DataFrame(data=data, index=start_dates)
+    # dataset = StatsDataset(logger_id="test", df=df)
+    # dataset_names = ["test"]
 
     w = StatsWidget()
     w.show()

@@ -265,6 +265,10 @@ class ConfigModule(QtWidgets.QWidget):
         if self.parent is not None:
             self.parent.set_window_title()
 
+        # Select campaign tab and open setup dialog
+        self.setupTabs.setCurrentWidget(self.campaignTab)
+        self.campaignTab.on_edit_clicked()
+
     def on_add_logger_clicked(self):
         """Add new logger to list. Initial logger name format is 'Logger n'."""
 
@@ -287,7 +291,7 @@ class ConfigModule(QtWidgets.QWidget):
         self.loggerPropsTab.set_logger_dashboard(logger)
         self.screeningTab.set_analysis_dashboard(logger)
 
-        # Open logger properties edit widget
+        # Select logger properties tab and open edit dialog
         self.setupTabs.setCurrentWidget(self.loggerPropsTab)
         self.loggerPropsTab.on_edit_clicked()
 
@@ -772,7 +776,7 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
 
         self._init_ui()
         self._connect_signals()
-        self.set_dialog_data()
+        self._set_dialog_data()
 
     def _init_ui(self):
         self.setWindowTitle("Edit Logger File Properties")
@@ -907,7 +911,7 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
         self.fileFormat.currentIndexChanged.connect(self.on_file_format_changed)
         self.detectButton.clicked.connect(self.on_detect_props_clicked)
 
-    def set_dialog_data(self):
+    def _set_dialog_data(self):
         """Set dialog data with logger properties from control object."""
 
         # Logger properties object of selected logger

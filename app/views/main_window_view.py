@@ -21,7 +21,7 @@ class DataLabGui(QtWidgets.QMainWindow):
         super().__init__()
 
         # TODO: Consider initialising data objects (control, tf, etc) here in the program root
-        #  instead of declaring in subclasses to prevent forward/backwards object mapping
+        #  instead of declaring in subclasses to prevent mixed forward/backwards object mapping
         self._init_ui()
 
     def _init_ui(self):
