@@ -410,7 +410,7 @@ class StatsWidget(QtWidgets.QWidget):
         # Plot figure, canvas and navbar
         self.fig = plt.figure()
         self.canvas = FigureCanvas(self.fig)
-        self.navbar = NavigationToolbar(self.canvas, self)
+        navbar = NavigationToolbar(self.canvas, self)
 
         # CONTAINERS
         # Number of plots
@@ -458,7 +458,7 @@ class StatsWidget(QtWidgets.QWidget):
 
         # Plot figure
         self.plotLayout = QtWidgets.QVBoxLayout()
-        self.plotLayout.addWidget(self.navbar)
+        self.plotLayout.addWidget(navbar)
         self.plotLayout.addWidget(self.canvas)
 
         # LAYOUT
@@ -1234,18 +1234,12 @@ class VesselStatsWidget(QtWidgets.QWidget):
         self.skip_plot = False
 
     def init_ui(self):
-        # Main layout
-        layout = QtWidgets.QHBoxLayout(self)
-
-        # Selection layout
-        selection = QtWidgets.QWidget()
-        selection.setFixedWidth(200)
-        vbox = QtWidgets.QVBoxLayout(selection)
-
+        # WIDGETS
+        # Selection controls
         self.openStatsButton = QtWidgets.QPushButton("Open Statistics")
         self.clearDatasetsButton = QtWidgets.QPushButton("Clear Datasets")
-        lbl1 = QtWidgets.QLabel("Loaded Datasets")
-        lbl2 = QtWidgets.QLabel("Channels (echo)")
+        self.lbl1 = QtWidgets.QLabel("Loaded Datasets")
+        self.lbl2 = QtWidgets.QLabel("Channels (echo)")
         self.datasetList = QtWidgets.QListWidget()
         self.channelsList = QtWidgets.QListWidget()
         self.vesselMotionsCombo = QtWidgets.QComboBox()
@@ -1258,51 +1252,54 @@ class VesselStatsWidget(QtWidgets.QWidget):
         self.axis2Logger = QtWidgets.QComboBox()
         self.axis2Channel = QtWidgets.QComboBox()
 
-        # Primary axis controls
-        statsWidget = QtWidgets.QGroupBox("Primary Axis")
-        vbox1 = QtWidgets.QVBoxLayout(statsWidget)
-        vbox1.addWidget(QtWidgets.QLabel("Motions:"))
-        vbox1.addWidget(self.vesselMotionsCombo)
-        vbox1.addWidget(QtWidgets.QLabel("Statistic:"))
-        vbox1.addWidget(self.stats1Combo)
-
-        # Secondary axis controls
-        axis2Group = QtWidgets.QGroupBox("Secondary Axis")
-        vbox2 = QtWidgets.QVBoxLayout(axis2Group)
-        vbox2.addWidget(QtWidgets.QLabel("Logger:"))
-        vbox2.addWidget(self.axis2Logger)
-        vbox2.addWidget(QtWidgets.QLabel("Channel:"))
-        vbox2.addWidget(self.axis2Channel)
-        vbox2.addWidget(QtWidgets.QLabel("Statistic:"))
-        vbox2.addWidget(self.stats2Combo)
-
-        # Combine selection widgets
-        vbox.addWidget(self.openStatsButton)
-        vbox.addWidget(self.clearDatasetsButton)
-        vbox.addWidget(lbl1)
-        vbox.addWidget(self.datasetList)
-        vbox.addWidget(lbl2)
-        vbox.addWidget(self.channelsList)
-        vbox.addWidget(statsWidget)
-        vbox.addWidget(axis2Group)
-        vbox.addWidget(self.plotSettings)
-        vbox.addWidget(self.replotButton)
-
-        # Plot layout
-        plot = QtWidgets.QWidget()
-        plotLayout = QtWidgets.QVBoxLayout(plot)
-
         # Create plot figure, canvas widget to display figure and navbar
         self.fig = plt.figure()
         self.canvas = FigureCanvas(self.fig)
         navbar = NavigationToolbar(self.canvas, self)
 
-        plotLayout.addWidget(navbar)
-        plotLayout.addWidget(self.canvas)
+        # CONTAINERS
+        # Primary axis controls
+        self.statsWidget = QtWidgets.QGroupBox("Primary Axis")
+        self.vbox1 = QtWidgets.QVBoxLayout(self.statsWidget)
+        self.vbox1.addWidget(QtWidgets.QLabel("Motions:"))
+        self.vbox1.addWidget(self.vesselMotionsCombo)
+        self.vbox1.addWidget(QtWidgets.QLabel("Statistic:"))
+        self.vbox1.addWidget(self.stats1Combo)
 
-        # Add widgets to main layout
-        layout.addWidget(selection)
-        layout.addWidget(plot)
+        # Secondary axis controls
+        self.axis2Group = QtWidgets.QGroupBox("Secondary Axis")
+        self.vbox2 = QtWidgets.QVBoxLayout(self.axis2Group)
+        self.vbox2.addWidget(QtWidgets.QLabel("Logger:"))
+        self.vbox2.addWidget(self.axis2Logger)
+        self.vbox2.addWidget(QtWidgets.QLabel("Channel:"))
+        self.vbox2.addWidget(self.axis2Channel)
+        self.vbox2.addWidget(QtWidgets.QLabel("Statistic:"))
+        self.vbox2.addWidget(self.stats2Combo)
+
+        # Selection layout
+        self.selection = QtWidgets.QWidget()
+        self.selection.setFixedWidth(200)
+        self.vbox = QtWidgets.QVBoxLayout(self.selection)
+        self.vbox.addWidget(self.openStatsButton)
+        self.vbox.addWidget(self.clearDatasetsButton)
+        self.vbox.addWidget(self.lbl1)
+        self.vbox.addWidget(self.datasetList)
+        self.vbox.addWidget(self.lbl2)
+        self.vbox.addWidget(self.channelsList)
+        self.vbox.addWidget(self.statsWidget)
+        self.vbox.addWidget(self.axis2Group)
+        self.vbox.addWidget(self.plotSettings)
+        self.vbox.addWidget(self.replotButton)
+
+        # Plot layout
+        self.plotLayout = QtWidgets.QVBoxLayout()
+        self.plotLayout.addWidget(navbar)
+        self.plotLayout.addWidget(self.canvas)
+
+        # LAYOUT
+        self.layout = QtWidgets.QHBoxLayout(self)
+        self.layout.addWidget(self.selection)
+        self.layout.addLayout(self.plotLayout)
 
     def connect_signals(self):
         self.clearDatasetsButton.clicked.connect(self.clear_datasets)
@@ -1763,7 +1760,8 @@ if __name__ == "__main__":
     # dataset = StatsDataset(logger_id="test", df=df)
     # dataset_names = ["test"]
 
-    w = StatsWidget()
+    # w = StatsWidget()
+    w = VesselStatsWidget()
     w.show()
     # w.datasets.append(dataset)
     # w.update_stats_datasets_list(dataset_names)

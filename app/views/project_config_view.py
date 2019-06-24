@@ -278,6 +278,8 @@ class ConfigModule(QtWidgets.QWidget):
         # Create logger properties object and append to loggers list in control object
         logger = LoggerProperties(logger_id)
         self.control.loggers.append(logger)
+        self.control.logger_ids.append(logger_id)
+        self.control.logger_ids_upper.append(logger_id.upper())
 
         # Initialise logger file as a Fugro logger format
         set_fugro_csv_file_format(logger)
@@ -316,7 +318,10 @@ class ConfigModule(QtWidgets.QWidget):
         if response == QtWidgets.QMessageBox.Yes:
             # Remove logger from control object
             logger = self.control.loggers[i]
+            logger_id = logger.logger_id
             self.control.loggers.remove(logger)
+            self.control.logger_ids.remove(logger_id)
+            self.control.logger_ids_upper.remove(logger_id.upper())
 
             # Remove logger from loggers list
             self.loggersList.takeItem(i)
@@ -1764,10 +1769,16 @@ class EditStatsAndSpectralDialog(QtWidgets.QDialog):
         logger.process_type = self.processType.currentText()
 
         # Stats settings group
-        logger.stats_interval = int(self.statsInterval.text())
+        if self.statsInterval.text() == "":
+            logger.stats_interval = 0
+        else:
+            logger.stats_interval = int(self.statsInterval.text())
 
         # Spectral settings group
-        logger.spect_interval = int(self.spectInterval.text())
+        if self.spectInterval.text() == "":
+            logger.spect_interval = 0
+        else:
+            logger.spect_interval = int(self.spectInterval.text())
 
         # Output folders - store as global control settings
         if self.parent is not None:
@@ -1854,6 +1865,8 @@ class EditSeascatterDialog(QtWidgets.QDialog):
     def __init__(self, parent=None, control=Control(), scatter=Seascatter()):
         super(EditSeascatterDialog, self).__init__(parent)
 
+        self.cols = []
+
         self.parent = parent
         self.control = control
         self.scatter = scatter
@@ -1866,7 +1879,11 @@ class EditSeascatterDialog(QtWidgets.QDialog):
         # WIDGETS
         self.loggerCombo = QtWidgets.QComboBox()
         self.hsColCombo = QtWidgets.QComboBox()
+        msg = "Select the Hs column number that was set up in the screening tab."
+        self.hsColCombo.setToolTip(msg)
         self.tpColCombo = QtWidgets.QComboBox()
+        msg = "Select the Tp column number that was set up in the screening tab."
+        self.tpColCombo.setToolTip(msg)
 
         self.buttonBox = QtWidgets.QDialogButtonBox(
             QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel
@@ -1898,17 +1915,27 @@ class EditSeascatterDialog(QtWidgets.QDialog):
         if logger_ids:
             self.loggerCombo.addItems(logger_ids)
 
+            logger = self.scatter.metocean_logger
+            hs_col = self.scatter.hs_col
+            tp_col = self.scatter.tp_col
+
+            try:
+                self.loggerCombo.setCurrentText(logger)
+                self.hsColCombo.setCurrentText(str(hs_col))
+                self.tpColCombo.setCurrentText(str(tp_col))
+            except:
+                pass
+
     def on_logger_combo_changed(self):
         i = self.loggerCombo.currentIndex()
         if i == -1:
             return
 
-        logger = self.control.loggers[i]
-        cols = logger.cols_to_process
+        self.cols = self.control.loggers[i].cols_to_process
         self.hsColCombo.clear()
-        self.hsColCombo.addItems(map(str, cols))
+        self.hsColCombo.addItems(map(str, self.cols))
         self.tpColCombo.clear()
-        self.tpColCombo.addItems(map(str, cols))
+        self.tpColCombo.addItems(map(str, self.cols))
 
     def on_ok_clicked(self):
         """Store time traces paths in transfer functions class."""
@@ -1923,6 +1950,10 @@ class EditSeascatterDialog(QtWidgets.QDialog):
         self.scatter.metocean_logger = self.loggerCombo.currentText()
         self.scatter.hs_col = int(self.hsColCombo.currentText())
         self.scatter.tp_col = int(self.tpColCombo.currentText())
+
+        # Store the list index of the selected columns, which is the info actually needed to retrieve the stats data
+        self.scatter.hs_col_idx = self.cols.index(self.scatter.hs_col)
+        self.scatter.tp_col_idx = self.cols.index(self.scatter.tp_col)
 
     @pyqtSlot(str)
     def warning(self, msg):

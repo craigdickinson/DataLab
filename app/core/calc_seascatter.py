@@ -1,3 +1,4 @@
+import numpy as np
 import pandas as pd
 from PyQt5 import QtWidgets
 
@@ -7,6 +8,8 @@ class Seascatter(object):
         self.metocean_logger = ""
         self.hs_col = 0
         self.tp_col = 0
+        self.hs_col_idx = 0
+        self.tp_col_idx = 0
 
     def check_metocean_dataset_loaded(self, datasets):
         """
@@ -19,6 +22,22 @@ class Seascatter(object):
             if dataset.logger_id.upper() == self.metocean_logger.upper():
                 return dataset.df
         return False
+
+    def get_hs_tp_data(self, df):
+        """Retrieve mean Hs and Tp columns from data frame."""
+
+        try:
+            # Select the mean stats
+            df = df.xs("mean", axis=1, level=1)
+
+            # TODO: This won't be correct if both unfiltered and filtered stats exist in data frame!
+            hs = df.iloc[:, self.hs_col_idx].values
+            tp = df.iloc[:, self.tp_col_idx].values
+        except:
+            hs = np.array([])
+            tp = np.array([])
+
+        return hs, tp
 
     # def save_scatter_diagram(self):
     #     """Export seascatter diagram to Excel."""
@@ -33,11 +52,10 @@ class Seascatter(object):
     #             self.seascatterModule.export_scatter_diagram(filename)
 
 
-def calc_seascatter_diagram(df, hs_bins, tp_bins):
+def calc_seascatter_diagram(hs, tp, hs_bins, tp_bins):
     """Create seascatter diagram data frame."""
 
-    # df = pd.DataFrame(np.vstack((hs, tp)).T, columns=['Hs', 'Tp'])
-    df.columns = ["Hs", "Tp"]
+    df = pd.DataFrame(np.vstack((hs, tp)).T, columns=['Hs', 'Tp'])
 
     # Drop events that are nan
     df_nan = df[df["Hs"].isnull() & df["Tp"].isnull()]
