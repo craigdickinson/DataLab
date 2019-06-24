@@ -105,8 +105,7 @@ class ProjectConfigJSONFile(QObject):
 
         for logger_id, dict_logger in data.items():
             # Create new logger properties object and assign attributes from JSON dictionary
-            logger = LoggerProperties()
-            logger.logger_id = logger_id
+            logger = LoggerProperties(logger_id)
 
             # Logger properties
             logger = self._map_logger_props(logger, dict_logger)
@@ -386,6 +385,12 @@ class ProjectConfigJSONFile(QObject):
         scatter.tp_col = self._get_key_value(
             section=key, data=data, key="tp_column", attr=scatter.tp_col
         )
+        scatter.hs_col_idx = self._get_key_value(
+            section=key, data=data, key="hs_col_idx", attr=scatter.hs_col_idx
+        )
+        scatter.tp_col_idx = self._get_key_value(
+            section=key, data=data, key="tp_col_idx", attr=scatter.tp_col_idx
+        )
 
         return scatter
 
@@ -493,6 +498,8 @@ class ProjectConfigJSONFile(QObject):
         d["metocean_logger_id"] = scatter.metocean_logger
         d["hs_column"] = scatter.hs_col
         d["tp_column"] = scatter.tp_col
+        d["hs_col_idx"] = scatter.hs_col_idx
+        d["tp_col_idx"] = scatter.tp_col_idx
 
         self.data["seascatter"] = d
 

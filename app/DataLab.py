@@ -1,7 +1,7 @@
 __author__ = "Craig Dickinson"
 __program__ = "DataLab"
-__version__ = "0.52"
-__date__ = "23 June 2019"
+__version__ = "0.53"
+__date__ = "24 June 2019"
 
 import logging
 import os
@@ -545,11 +545,11 @@ class DataLab(DataLabGui):
     def calc_seascatter(self):
         """Create seascatter diagram if vessel stats data is loaded."""
 
-        df_vessel = self.scatter.check_metocean_dataset_loaded(datasets=self.statsTab.datasets)
+        logger = self.scatter.metocean_logger
+        df_metocean = self.scatter.check_metocean_dataset_loaded(datasets=self.statsTab.datasets)
 
-        if df_vessel is False:
-            logger = self.scatter.metocean_logger
-
+        # Warn if the stats dataset user has specified is not in memory
+        if df_metocean is False:
             if logger == "":
                 msg = (
                     "No logger set in seascatter settings tab.\n\n"
@@ -565,8 +565,18 @@ class DataLab(DataLabGui):
             self.warning(msg)
         else:
             try:
-                self.seascatterModule.get_seascatter_dataset(df_vessel)
-                self.view_tab_seascatter()
+                hs, tp = self.scatter.get_hs_tp_data(df_metocean)
+
+                if hs.size == 0 and tp.size == 0:
+                    msg = (
+                        f"The specified Hs and Tp columns in the '{logger}' stats data do not exist.\n\n"
+                        "Check the correct columns have been input in the seascatter settings."
+                    )
+                    self.warning(msg)
+                else:
+                    self.seascatterModule.get_seascatter_dataset(hs, tp)
+                    self.seascatterModule.generate_scatter_diagram()
+                    self.view_tab_seascatter()
             except Exception as e:
                 msg = "Unexpected error generating seascatter diagram"
                 self.error(f"{msg}:\n{e}\n{sys.exc_info()[0]}")

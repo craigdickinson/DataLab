@@ -39,11 +39,7 @@ class FatigueProcessingWidget(QtWidgets.QWidget):
         self.connect_signals()
 
     def init_ui(self):
-        # Setup container
-        setupWidget = QtWidgets.QWidget()
-        setupWidget.setFixedWidth(180)
-        vboxSetup = QtWidgets.QVBoxLayout(setupWidget)
-
+        # WIDGETS
         self.openWCFATFileButton = QtWidgets.QPushButton("Open 2HWCFAT Damage File")
         self.openWCFATFileButton.setToolTip("Open 2HWCFAT fatigue damage (.dmg) file")
         self.openFATLASAFile = QtWidgets.QPushButton("Open 2HFATLASA Damage File")
@@ -55,31 +51,33 @@ class FatigueProcessingWidget(QtWidgets.QWidget):
         self.damRatePerEvent = QtWidgets.QCheckBox("Scale damage rate per event")
         self.damRatePerEvent.setChecked(False)
 
-        # Add setup widgets
-        vboxSetup.addWidget(self.openWCFATFileButton)
-        vboxSetup.addWidget(self.openFATLASAFile)
-        vboxSetup.addWidget(QtWidgets.QLabel("Assessed Fatigue Locations"))
-        vboxSetup.addWidget(self.fatigueLocsList)
-        vboxSetup.addWidget(self.damLogScale)
-        vboxSetup.addWidget(self.damRatePerEvent)
-
-        # Plot container
-        plotWidget = QtWidgets.QWidget()
-        vboxPlot = QtWidgets.QVBoxLayout(plotWidget)
-
         # Plot figure and canvas to display figure
         self.fig, (self.ax1, self.ax2) = plt.subplots(2, sharex=True)
         self.canvas = FigureCanvas(self.fig)
         navbar = NavigationToolbar(self.canvas, self)
 
-        # Add plot widgets
-        vboxPlot.addWidget(navbar)
-        vboxPlot.addWidget(self.canvas)
+        # CONTAINERS
+        # Setup container
+        self.setupWidget = QtWidgets.QWidget()
+        self.setupWidget.setFixedWidth(180)
+        self.vboxSetup = QtWidgets.QVBoxLayout(self.setupWidget)
+        self.vboxSetup.addWidget(self.openWCFATFileButton)
+        self.vboxSetup.addWidget(self.openFATLASAFile)
+        self.vboxSetup.addWidget(QtWidgets.QLabel("Assessed Fatigue Locations"))
+        self.vboxSetup.addWidget(self.fatigueLocsList)
+        self.vboxSetup.addWidget(self.damLogScale)
+        self.vboxSetup.addWidget(self.damRatePerEvent)
 
-        # Final layout
-        layout = QtWidgets.QGridLayout(self)
-        layout.addWidget(setupWidget, 0, 0, QtCore.Qt.AlignTop)
-        layout.addWidget(plotWidget, 0, 1)
+        # Plot container
+        self.plotWidget = QtWidgets.QWidget()
+        self.vboxPlot = QtWidgets.QVBoxLayout(self.plotWidget)
+        self.vboxPlot.addWidget(navbar)
+        self.vboxPlot.addWidget(self.canvas)
+
+        # LAYOUT
+        self.layout = QtWidgets.QGridLayout(self)
+        self.layout.addWidget(self.setupWidget, 0, 0, QtCore.Qt.AlignTop)
+        self.layout.addWidget(self.plotWidget, 0, 1)
 
     def connect_signals(self):
         self.fatigueLocsList.itemDoubleClicked.connect(
