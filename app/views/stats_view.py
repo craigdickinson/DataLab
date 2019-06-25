@@ -356,9 +356,9 @@ class StatsWidget(QtWidgets.QWidget):
         self.xaxis_type = "Timestamps"
 
         # Shared axes flags
-        self.equal_pri_sec_yaxis = True
-        self.share_subplot_yaxes1 = True
-        self.share_subplot_yaxes2 = True
+        self.equal_pri_sec_yaxis = False
+        self.share_subplot_yaxes1 = False
+        self.share_subplot_yaxes2 = False
 
         # Set layout and initialise combo boxes
         self._init_ui()
@@ -399,13 +399,13 @@ class StatsWidget(QtWidgets.QWidget):
 
         # Check box to set whether pri and sec y-axis limits should be equal or not
         self.equalPriSecYAxisChkBox = QtWidgets.QCheckBox("Equal pri-sec y-axis limits")
-        self.equalPriSecYAxisChkBox.setChecked(True)
+        self.equalPriSecYAxisChkBox.setChecked(False)
 
         # Check boxes to set whether pri/sec y-axes are shared both across subplots
         self.shareSubplotYAxes1ChkBox = QtWidgets.QCheckBox("Shared subplot pri y-axis")
-        self.shareSubplotYAxes1ChkBox.setChecked(True)
+        self.shareSubplotYAxes1ChkBox.setChecked(False)
         self.shareSubplotYAxes2ChkBox = QtWidgets.QCheckBox("Shared subplot sec y-axis")
-        self.shareSubplotYAxes2ChkBox.setChecked(True)
+        self.shareSubplotYAxes2ChkBox.setChecked(False)
 
         # Plot figure, canvas and navbar
         self.fig = plt.figure()
@@ -432,7 +432,9 @@ class StatsWidget(QtWidgets.QWidget):
         self.plotSettingsGroup = QtWidgets.QGroupBox("Plot Settings")
         self.form2 = QtWidgets.QFormLayout()
         self.form2.addRow(QtWidgets.QLabel("X-axis type:"), self.xaxisTypeCombo)
-        self.form2.addRow(QtWidgets.QLabel("X-axis interval:"), self.xaxisIntervalsCombo)
+        self.form2.addRow(
+            QtWidgets.QLabel("X-axis interval:"), self.xaxisIntervalsCombo
+        )
         self.vbox = QtWidgets.QVBoxLayout()
         self.vbox.addWidget(self.equalPriSecYAxisChkBox)
         self.vbox.addWidget(self.shareSubplotYAxes1ChkBox)
@@ -495,10 +497,16 @@ class StatsWidget(QtWidgets.QWidget):
         self.channelCombo.currentIndexChanged.connect(self.on_channel_combo_changed)
         self.statCombo.currentIndexChanged.connect(self.on_stat_combo_changed)
         self.xaxisTypeCombo.currentIndexChanged.connect(self.on_xaxis_type_changed)
-        self.xaxisIntervalsCombo.currentIndexChanged.connect(self.on_xaxis_interval_changed)
+        self.xaxisIntervalsCombo.currentIndexChanged.connect(
+            self.on_xaxis_interval_changed
+        )
         self.equalPriSecYAxisChkBox.toggled.connect(self.on_equal_pri_sec_yaxis_toggled)
-        self.shareSubplotYAxes1ChkBox.toggled.connect(self.on_share_subplot_yaxes1_toggled)
-        self.shareSubplotYAxes2ChkBox.toggled.connect(self.on_share_subplot_yaxes2_toggled)
+        self.shareSubplotYAxes1ChkBox.toggled.connect(
+            self.on_share_subplot_yaxes1_toggled
+        )
+        self.shareSubplotYAxes2ChkBox.toggled.connect(
+            self.on_share_subplot_yaxes2_toggled
+        )
 
     @staticmethod
     def _get_plot_numbers_list(n):
@@ -662,7 +670,7 @@ class StatsWidget(QtWidgets.QWidget):
         self.canvas.draw()
 
     def on_equal_pri_sec_yaxis_toggled(self):
-        if self.equalPriSecYAxisChkBox.isChecked() is True:
+        if self.equalPriSecYAxisChkBox.isChecked():
             self.equal_pri_sec_yaxis = True
             self._set_equal_pri_sec_yaxes_limits()
             self.canvas.draw()
@@ -674,7 +682,7 @@ class StatsWidget(QtWidgets.QWidget):
     def on_share_subplot_yaxes1_toggled(self):
         """Redraw subplots with shared or unshared primary axes and replot current data."""
 
-        if self.shareSubplotYAxes1ChkBox.isChecked() is True:
+        if self.shareSubplotYAxes1ChkBox.isChecked():
             self.share_subplot_yaxes1 = True
         else:
             self.share_subplot_yaxes1 = False
@@ -691,7 +699,7 @@ class StatsWidget(QtWidgets.QWidget):
     def on_share_subplot_yaxes2_toggled(self):
         """Redraw subplots with shared or unshared secondary axes and replot current data."""
 
-        if self.shareSubplotYAxes2ChkBox.isChecked() is True:
+        if self.shareSubplotYAxes2ChkBox.isChecked():
             self.share_subplot_yaxes2 = True
         else:
             self.share_subplot_yaxes2 = False
@@ -1038,8 +1046,8 @@ class StatsWidget(QtWidgets.QWidget):
             df2 = subplot.df_2
 
             if not df1.empty:
-                ymin = df1.values.min()
-                ymax = df1.values.max()
+                ymin = np.nanmin(df1.values)
+                ymax = np.nanmax(df1.values)
 
                 if apply_global_limits is False:
                     subplot.ax1.set_ylim(ymin, ymax)
@@ -1048,8 +1056,8 @@ class StatsWidget(QtWidgets.QWidget):
                     glob_ymax1 = max(glob_ymax1, ymax)
 
             if not df2.empty:
-                ymin = df2.values.min()
-                ymax = df2.values.max()
+                ymin = np.nanmin(df2.values)
+                ymax = np.nanmax(df2.values)
 
                 if apply_global_limits is False:
                     subplot.ax2.set_ylim(ymin, ymax)
@@ -1075,7 +1083,7 @@ class StatsWidget(QtWidgets.QWidget):
         if campaign_name == "":
             campaign_name = "Campaign Title"
 
-        title = f"{project_name}\n{campaign_name}"
+        title = f"{project_name} - {campaign_name}"
         self.fig.suptitle(title, **title_args)
 
     def _set_yaxes_and_gridlines(self, subplot):
@@ -1206,10 +1214,8 @@ class VesselStatsWidget(QtWidgets.QWidget):
         self.skip_update_plot = False
 
         # Plot data and settings
-        self.project = "21239 Total WoS - Glendronach Well Monitoring Campaign"
-        self.motions = ""
-        self.title = ""
         self.plot_data = {}
+        self.motions = ""
 
         # Container for StatsDataset objects
         self.datasets = []
@@ -1245,7 +1251,7 @@ class VesselStatsWidget(QtWidgets.QWidget):
         self.vesselMotionsCombo = QtWidgets.QComboBox()
         self.stats1Combo = QtWidgets.QComboBox()
         self.stats2Combo = QtWidgets.QComboBox()
-        self.plotSettings = QtWidgets.QPushButton("Plot Settings")
+        # self.plotSettings = QtWidgets.QPushButton("Plot Settings")
         self.replotButton = QtWidgets.QPushButton("Replot")
 
         # Plot drop-downs
@@ -1288,7 +1294,7 @@ class VesselStatsWidget(QtWidgets.QWidget):
         self.vbox.addWidget(self.channelsList)
         self.vbox.addWidget(self.statsWidget)
         self.vbox.addWidget(self.axis2Group)
-        self.vbox.addWidget(self.plotSettings)
+        # self.vbox.addWidget(self.plotSettings)
         self.vbox.addWidget(self.replotButton)
 
         # Plot layout
@@ -1302,15 +1308,15 @@ class VesselStatsWidget(QtWidgets.QWidget):
         self.layout.addLayout(self.plotLayout)
 
     def connect_signals(self):
-        self.clearDatasetsButton.clicked.connect(self.clear_datasets)
-        self.datasetList.currentItemChanged.connect(self.on_datasetList_change)
+        self.clearDatasetsButton.clicked.connect(self.on_clear_datasets_clicked)
+        self.datasetList.currentItemChanged.connect(self.on_dataset_list_changed)
         self.vesselMotionsCombo.currentIndexChanged.connect(
-            self.on_motions_combo_change
+            self.on_motions_combo_changed
         )
-        self.stats1Combo.currentIndexChanged.connect(self.on_stats1_combo_change)
-        self.axis2Logger.currentIndexChanged.connect(self.on_axis2logger_combo_change)
-        self.stats2Combo.currentIndexChanged.connect(self.on_stats2_combo_change)
-        self.replotButton.clicked.connect(self.replot)
+        self.stats1Combo.currentIndexChanged.connect(self.on_stats1_combo_changed)
+        self.axis2Logger.currentIndexChanged.connect(self.on_axis2_logger_combo_changed)
+        self.stats2Combo.currentIndexChanged.connect(self.on_stats2_combo_changed)
+        self.replotButton.clicked.connect(self.on_replot_clicked)
 
     def draw_axes(self):
         """(Re)construct a blank figure workspace."""
@@ -1337,52 +1343,54 @@ class VesselStatsWidget(QtWidgets.QWidget):
         self.axis2Channel.clear()
         self.axis2Channel.addItem("None")
 
-    def clear_datasets(self):
-        """Clear all stored spectrogram datasets and reset layout."""
+    def on_clear_datasets_clicked(self):
+        self.reset_dashboard()
 
-        # Set flag to prevent channel combo boxes repopulating when clear the dataset combo boxes
-        self.skip_logger_combo_change = True
-
-        self.datasets = []
-        self.datasetList.clear()
-        self.channelsList.clear()
-        self.init_logger_channel_combos()
-        self.skip_logger_combo_change = False
-
-    def on_datasetList_change(self):
+    def on_dataset_list_changed(self):
         self.update_channels_list()
 
-    def on_axis2logger_combo_change(self):
+    def on_axis2_logger_combo_changed(self):
         if self.skip_plot is False:
             self.update_channels_combo()
 
-    def on_motions_combo_change(self):
+    def on_motions_combo_changed(self):
         """Update plots for selected vessel motions."""
 
         if self.datasets:
             self.set_plot_data()
             self.update_plots()
 
-    def on_stats1_combo_change(self):
+    def on_stats1_combo_changed(self):
         """Update vessel motion plots for selected statistic."""
 
         if self.datasets:
             self.set_plot_data()
             self.update_plots()
 
-    def on_stats2_combo_change(self):
+    def on_stats2_combo_changed(self):
         """Update secondary axis plots for selected statistic."""
 
         if self.datasets:
             self.set_plot_data()
             self.update_plots()
 
-    def replot(self):
+    def on_replot_clicked(self):
         """Replot stats."""
 
         if self.datasets:
             self.set_plot_data()
             self.update_plots()
+
+    def reset_dashboard(self):
+        """Clear all stored stats datasets and reset layout."""
+
+        # Set flag to prevent channel combo boxes repopulating when clear the dataset combo boxes
+        self.skip_logger_combo_change = True
+        self.datasets = []
+        self.datasetList.clear()
+        self.channelsList.clear()
+        self.init_logger_channel_combos()
+        self.skip_logger_combo_change = False
 
     def update_stats_datasets_list(self, dataset_ids):
         """Populate loaded datasets list."""
@@ -1455,14 +1463,6 @@ class VesselStatsWidget(QtWidgets.QWidget):
         self.stat2 = self.stats2Combo.currentText()
         stat1_col = dict_stats[self.stat1]
         stat2_col = dict_stats[self.stat2]
-
-        # Plot title
-        if self.stat1 == "Std. Dev.":
-            stat = "Standard Deviation"
-        else:
-            stat = self.stat1
-
-        self.title = f"{self.project}\n{stat} Vessel Accelerations"
 
         # Dictionary to hold plot vessel motions data frame and axis 2 channel data frame, label and units
         plot_data = {}
@@ -1543,7 +1543,7 @@ class VesselStatsWidget(QtWidgets.QWidget):
         # Flags to check which axes are plotted to modify gridlines shown
         plot = False
         linewidth = 1
-        self.fig.suptitle(self.title)
+        self._set_title()
 
         # Plot vessel motions
         if "vessel_data" in self.plot_data:
@@ -1615,6 +1615,26 @@ class VesselStatsWidget(QtWidgets.QWidget):
             )  # (rect=[left, bottom, right, top])
 
         self.canvas.draw()
+
+    def _set_title(self):
+        """Set main plot title."""
+
+        # Attempt to retrieve title from project setup dashboard
+        project_name = self.parent.projConfigModule.control.project_name
+        campaign_name = self.parent.projConfigModule.control.campaign_name
+
+        if project_name == "":
+            project_name = "Project Title"
+        if campaign_name == "":
+            campaign_name = "Campaign Title"
+
+        if self.stat1 == "Std. Dev.":
+            stat = "Standard Deviation"
+        else:
+            stat = self.stat1
+
+        title = f"{project_name} - {campaign_name}\n{stat} Vessel Accelerations"
+        self.fig.suptitle(title, **title_args)
 
 
 class PlotStyle2H:

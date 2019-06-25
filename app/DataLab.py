@@ -1,7 +1,7 @@
 __author__ = "Craig Dickinson"
 __program__ = "DataLab"
-__version__ = "0.53"
-__date__ = "24 June 2019"
+__version__ = "0.54"
+__date__ = "25 June 2019"
 
 import logging
 import os
@@ -53,7 +53,7 @@ class DataLab(DataLabGui):
         self.view_proj_config_mod()
 
         # Dummy placeholder for Screening class (main processor)
-        self.datalab = None
+        self.screening = None
 
         # Map settings pbjects (control, seascatter, transfer functions)
         self.control = self.projConfigModule.control
@@ -64,10 +64,16 @@ class DataLab(DataLabGui):
         """Connect widget signals to methods/actions."""
 
         # File menu
-        self.openConfigAction.triggered.connect(self.projConfigModule.on_open_config_clicked)
-        self.saveConfigAction.triggered.connect(self.projConfigModule.on_save_config_clicked)
+        self.openConfigAction.triggered.connect(
+            self.projConfigModule.on_open_config_clicked
+        )
+        self.saveConfigAction.triggered.connect(
+            self.projConfigModule.on_save_config_clicked
+        )
         self.openLoggerFileAction.triggered.connect(self.load_logger_file)
-        self.openLoggerStatsAction.triggered.connect(self.load_stats_file_from_file_menu)
+        self.openLoggerStatsAction.triggered.connect(
+            self.load_stats_file_from_file_menu
+        )
         self.openSpectrogramsAction.triggered.connect(self.load_spectrograms_file)
 
         # View menu
@@ -85,7 +91,9 @@ class DataLab(DataLabGui):
         self.spectPlotSettingsAction.triggered.connect(self.open_spect_plot_settings)
 
         # Export menu
-        self.exportScatterDiag.triggered.connect(self.on_export_scatter_diagram_triggered)
+        self.exportScatterDiag.triggered.connect(
+            self.on_export_scatter_diagram_triggered
+        )
 
         # Help menu
         self.showHelp.triggered.connect(self.show_help)
@@ -105,9 +113,7 @@ class DataLab(DataLabGui):
         self.rawDataModule.openRawButton.clicked.connect(self.load_logger_file)
         self.statsTab.openStatsButton.clicked.connect(self.load_stats_file)
         self.vesselStatsTab.openStatsButton.clicked.connect(self.load_stats_file)
-        self.spectrogramTab.openSpectButton.clicked.connect(
-            self.load_spectrograms_file
-        )
+        self.spectrogramTab.openSpectButton.clicked.connect(self.load_spectrograms_file)
         self.fatigueTab.openWCFATFileButton.clicked.connect(
             self.load_wcfat_results_file
         )
@@ -140,8 +146,7 @@ class DataLab(DataLabGui):
     def show_help(self):
         """Show program overview and instructions message box."""
 
-        msg = f"Instructions for using {__program__}:\n\n" \
-            "Worst help, ever! To do..."
+        msg = f"Instructions for using {__program__}:\n\n" "Worst help, ever! To do..."
         self._message_information("Help", msg)
 
     def load_logger_file(self):
@@ -188,7 +193,7 @@ class DataLab(DataLabGui):
             stats_file, _ = QtWidgets.QFileDialog.getOpenFileName(
                 self,
                 caption="Open Logger Statistics File",
-                filter="Logger Statistics Files (*.h5 *.csv *.xlsx)",
+                filter="Logger Statistics Files (*.h5;*.csv;*.xlsx)",
             )
 
             if stats_file:
@@ -211,24 +216,22 @@ class DataLab(DataLabGui):
                 else:
                     plot_flag = True
 
-                # For each logger create a stats dataset object containing data, logger id, list of channels and
-                # pri/sec plot flags and add to stats plot class
-                for logger, df in dict_stats.items():
-                    dataset = StatsDataset(logger_id=logger, df=df)
+                # For each logger create a stats dataset object
+                for logger_id, df in dict_stats.items():
+                    dataset = StatsDataset(logger_id, df)
                     self.statsTab.datasets.append(dataset)
                     self.vesselStatsTab.datasets.append(dataset)
 
                 # Store dataset/logger names from dictionary keys
-                dataset_ids = list(dict_stats.keys())
-                self.statsTab.update_datasets_list(dataset_ids)
-                self.vesselStatsTab.update_stats_datasets_list(dataset_ids)
+                logger_ids = list(dict_stats.keys())
+                self.statsTab.update_datasets_list(logger_ids)
+                self.vesselStatsTab.update_stats_datasets_list(logger_ids)
 
                 # Plot stats
-                if plot_flag:
-                    # Select preset logger and channel index if no dataset previously exist and plot stats
+                if plot_flag is True:
+                    # Select preset logger and channel index if no dataset previously exist and plot stats tabs
                     self.statsTab.set_preset_logger_and_channel()
                     self.statsTab.update_plot()
-
                     self.vesselStatsTab.set_plot_data(init=True)
                     self.vesselStatsTab.update_plots()
 
@@ -246,7 +249,7 @@ class DataLab(DataLabGui):
         spect_file, _ = QtWidgets.QFileDialog.getOpenFileName(
             self,
             caption="Open Spectrogram File",
-            filter="Spectrogram Files (*.h5 *.csv *.xlsx)",
+            filter="Spectrogram Files (*.h5;*.csv;*.xlsx)",
         )
 
         if spect_file:
@@ -256,15 +259,15 @@ class DataLab(DataLabGui):
             # Read spreadsheet to data frame
             # TODO: Check that file read is valid
             if ext == "h5":
-                logger, df = read_spectrograms_hdf5(spect_file)
+                dataset_id, df = read_spectrograms_hdf5(spect_file)
             elif ext == "csv":
-                logger, df = read_spectrograms_csv(spect_file)
+                dataset_id, df = read_spectrograms_csv(spect_file)
             elif ext == "xlsx":
-                logger, df = read_spectrograms_excel(spect_file)
+                dataset_id, df = read_spectrograms_excel(spect_file)
 
             # Store spectrogram datasets and update plot tab
-            self.spectrogramTab.datasets[logger] = df
-            self.spectrogramTab.update_spect_datasets_list(logger)
+            self.spectrogramTab.datasets[dataset_id] = df
+            self.spectrogramTab.append_spect_to_datasets_list(dataset_id)
 
             # Show dashboard
             self.view_tab_spectrogram()
@@ -470,8 +473,8 @@ class DataLab(DataLabGui):
 
             # Get all channel names and units if not already stored in logger object
             if (
-                    len(logger.all_channel_names) == 0
-                    and len(logger.all_channel_units) == 0
+                len(logger.all_channel_names) == 0
+                and len(logger.all_channel_units) == 0
             ):
                 logger.get_all_channel_and_unit_names()
 
@@ -496,13 +499,15 @@ class DataLab(DataLabGui):
 
         # Run processing on QThread worker - prevents GUI lock up
         try:
-            # Create datalab object, map control data and process
-            datalab = Screening(self, no_dat=True)
-            datalab.control = self.control
+            # Create screening object, map control data and process
+            screening = Screening(self)
+            screening.control = self.control
 
             # Create worker thread, connect signals to methods in this class and start, which this calls worker.run()
-            self.worker = ControlFileWorker(datalab, parent=self)
-            self.worker.signal_datalab.connect(self.set_datalab_output_to_gui)
+            self.worker = ControlFileWorker(screening, parent=self)
+            self.worker.signal_screening_output_to_gui.connect(
+                self.set_screening_output_to_gui
+            )
             self.worker.signal_error.connect(self.error)
             self.worker.start()
         except Exception as e:
@@ -511,42 +516,52 @@ class DataLab(DataLabGui):
             logging.exception(e)
 
     @pyqtSlot(object)
-    def set_datalab_output_to_gui(self, datalab):
+    def set_screening_output_to_gui(self, screening):
         """Map results from processing to the GUI."""
 
-        # Store datalab object and update data quality report module
-        self.datalab = datalab
-        self.dataQualityModule.datalab = datalab
+        # Store screening object and update data quality report module
+        self.screening = screening
+        self.dataQualityModule.screening = screening
         self.dataQualityModule.set_data_quality_results()
 
-        # Clear any existing stats tab datasets
+        # Reset stats and spectrograms dashboards
         self.statsTab.reset_dashboard()
+        self.vesselStatsTab.reset_dashboard()
+        self.spectrogramTab.reset_dashboard()
 
-        # For each logger create stats dataset object containing data, logger id, list of channels and
-        # pri/sec plot flags and add to stats plot class
-        for logger, df in datalab.dict_stats.items():
-            dataset = StatsDataset(logger_id=logger, df=df)
-            self.statsTab.datasets.append(dataset)
+        # For each logger create a stats dataset object and append to stats and vessel stats objects
+        if screening.dict_stats:
+            for logger_id, df in screening.dict_stats.items():
+                dataset = StatsDataset(logger_id, df)
+                self.statsTab.datasets.append(dataset)
+                self.vesselStatsTab.datasets.append(dataset)
 
-        # Store dataset/logger names from dictionary keys
-        dataset_ids = list(datalab.dict_stats.keys())
-        self.statsTab.update_datasets_list(dataset_ids)
+            # Stats dataset ids
+            dataset_ids = list(screening.dict_stats.keys())
 
-        # Plot stats
-        # self.parent.statsTab.set_plot_data(init=True)
-        # self.parent.statsTab.filtered_ts = self.parent.statsTab.calc_filtered_data(self.df_plot)
-        self.statsTab.update_plot()
+            # Add dataset ids to stats tab and create initial plot
+            self.statsTab.update_datasets_list(dataset_ids)
+            self.statsTab.set_preset_logger_and_channel()
+            self.statsTab.update_plot()
 
-        # TODO: Load and plot spectrograms data
-        # Store spectrogram datasets and update plot tab
-        # self.parent.spectrogramTab.datasets[logger] = df
-        # self.parent.spectrogramTab.update_spect_datasets_list(logger)
+            # Add dataset ids to vessel stats tab and create initial plot
+            self.vesselStatsTab.update_stats_datasets_list(dataset_ids)
+            self.vesselStatsTab.set_plot_data(init=True)
+            self.vesselStatsTab.update_plots()
+
+        # Store spectrogram datasets to spectral dashboard and create an initial plot
+        if screening.dict_spectrograms:
+            self.spectrogramTab.datasets = screening.dict_spectrograms
+            dataset_ids = list(screening.dict_spectrograms.keys())
+            self.spectrogramTab.append_multiple_spect_to_datasets_list(dataset_ids)
 
     def calc_seascatter(self):
         """Create seascatter diagram if vessel stats data is loaded."""
 
         logger = self.scatter.metocean_logger
-        df_metocean = self.scatter.check_metocean_dataset_loaded(datasets=self.statsTab.datasets)
+        df_metocean = self.scatter.check_metocean_dataset_loaded(
+            datasets=self.statsTab.datasets
+        )
 
         # Warn if the stats dataset user has specified is not in memory
         if df_metocean is False:
@@ -583,13 +598,13 @@ class DataLab(DataLabGui):
                 logging.exception(e)
 
     def on_export_scatter_diagram_triggered(self):
-        """Export seascatter diagram to Excel."""
+        """Export sea scatter diagram to Excel."""
 
         if self.seascatterModule.df_scatter.empty:
-            self.warning("No seascatter diagram generated. Nothing to export!")
+            self.warning("No sea scatter diagram generated. Nothing to export!")
         else:
             filename, _ = QtWidgets.QFileDialog.getSaveFileName(
-                self, "Save Seascatter Diagram", filter="Excel Files (*.xlsx)"
+                self, "Save Sea Scatter Diagram", filter="Excel Files (*.xlsx)"
             )
             if filename:
                 self.seascatterModule.export_scatter_diagram(filename)
@@ -604,8 +619,7 @@ class DataLab(DataLabGui):
             if status is True:
                 self.transFuncsTab.plot_transfer_functions()
                 self.view_mod_transfer_functions()
-                msg = "Frequency-dependent transfer functions calculated successfully.\n" \
-                      "Note: User needs to manually export to CSV."
+                msg = "Frequency-dependent transfer functions calculated successfully."
                 self._message_information("Calculate Transfer Functions", msg)
         except Exception as e:
             msg = "Unexpected error processing loggers"
@@ -623,20 +637,20 @@ class ControlFileWorker(QtCore.QThread):
     # does not work with GUIs. The QObject still stays on the QMainWindow thread. Therefore, while the processing works,
     # the GUI freezes up and doesn't show the progress bar updating.
     # Also, cannot pass parents to QObjects, which isn't ideal.
-    signal_datalab = pyqtSignal(object)
+    signal_screening_output_to_gui = pyqtSignal(object)
     signal_error = pyqtSignal(str)
     signal_complete = pyqtSignal(str, int)
 
-    def __init__(self, datalab, parent=None):
+    def __init__(self, screening, parent=None):
         """Worker class to allow control file processing on a separate thread to the gui."""
         super(ControlFileWorker, self).__init__(parent)
 
         self.parent = parent
 
-        # DataLab processing object
-        self.datalab = datalab
+        # Screening processing object
+        self.screening = screening
 
-        logger_ids = self.datalab.control.logger_ids
+        logger_ids = self.screening.control.logger_ids
 
         # Initialise progress bar
         self.pb = ProcessingProgressBar(logger_ids=logger_ids)
@@ -644,7 +658,7 @@ class ControlFileWorker(QtCore.QThread):
 
     def connect_signals(self):
         self.pb.signal_quit_worker.connect(self.quit_worker)
-        self.datalab.signal_notify_progress.connect(self.pb.update_progress_bar)
+        self.screening.signal_notify_progress.connect(self.pb.update_progress_bar)
         self.signal_complete.connect(self.pb.on_processing_complete)
 
     def run(self):
@@ -655,10 +669,10 @@ class ControlFileWorker(QtCore.QThread):
             t0 = time()
 
             # Run DataLab processing; compute and write requested logger statistics and spectrograms
-            self.datalab.process_control_file()
+            self.screening.process_control_file()
             t = str(timedelta(seconds=round(time() - t0)))
-            self.signal_complete.emit(t, self.datalab.total_files)
-            self.signal_datalab.emit(self.datalab)
+            self.signal_complete.emit(t, self.screening.total_files)
+            self.signal_screening_output_to_gui.emit(self.screening)
         except ValueError as e:
             self.signal_error.emit(str(e))
             logging.exception(e)
@@ -693,7 +707,7 @@ class ControlFileWorker(QtCore.QThread):
 
 
 if __name__ == "__main__":
-    os.chdir(r'C:\Users\dickinsc\PycharmProjects\DataLab\demo_data\2. Project Configs')
+    # os.chdir(r'C:\Users\dickinsc\PycharmProjects\DataLab\demo_data\2. Project Configs')
     app = QtWidgets.QApplication(sys.argv)
     # win = QtDesignerGui()
     win = DataLab()

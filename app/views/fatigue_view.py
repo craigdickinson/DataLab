@@ -9,8 +9,11 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 
-# "2H blue"
+# 2H blue colour font
 color_2H = np.array([0, 49, 80]) / 255
+
+# Title style args
+title_args = dict(size=14, fontname="tahoma", color=color_2H, weight="bold")
 
 
 class FatigueProcessingWidget(QtWidgets.QWidget):
@@ -174,9 +177,6 @@ class FatigueProcessingWidget(QtWidgets.QWidget):
         ax1.cla()
         ax2.cla()
 
-        project = f"Total Glendronach Well Monitoring Campaign\n{fat_loc}"
-        self.fig.suptitle(project, fontname="tahoma", color=color_2H, weight="bold")
-
         # Fatigue damage rate plot
         ax1.plot(damage)
         ax1.set_ylabel(f"{log10}Fatigue Damage (1/{self.period})")
@@ -194,8 +194,25 @@ class FatigueProcessingWidget(QtWidgets.QWidget):
         ax2.xaxis.set_major_locator(mdates.DayLocator(interval=7))
 
         self.fig.autofmt_xdate()
+        self._set_title()
         self.fig.tight_layout(rect=[0, 0, 1, 0.9])
         self.canvas.draw()
+
+    def _set_title(self):
+        """Set plot title."""
+
+        # Attempt to retrieve title from project setup dashboard
+        project_name = self.parent.projConfigModule.control.project_name
+        campaign_name = self.parent.projConfigModule.control.campaign_name
+
+        if project_name == "":
+            project_name = "Project Title"
+        if campaign_name == "":
+            campaign_name = "Campaign Title"
+
+        fat_loc = self.fatigueLocsList.currentItem().text()
+        title = f"{project_name} - {campaign_name}\n{fat_loc}"
+        self.fig.suptitle(title, **title_args)
 
 
 # For testing layout

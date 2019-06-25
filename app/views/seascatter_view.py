@@ -145,14 +145,16 @@ class SeascatterDiagram(QtWidgets.QWidget):
         """Create and display seascatter diagram from Hs/Tp data."""
 
         # Generate seascatter diagram
-        self.df_scatter = calc_seascatter_diagram(self.hs, self.tp, self.hs_bins, self.tp_bins)
+        self.df_scatter = calc_seascatter_diagram(
+            self.hs, self.tp, self.hs_bins, self.tp_bins
+        )
 
-        # Apply seascatter to table and plot Hs/Tp distributions
+        # Apply sea scatter to table and plot Hs/Tp distributions
         self.set_scatter_table(self.df_scatter)
         self.plot_hs_tp_distribution()
 
     def set_scatter_table(self, df_scatter):
-        """Write seascatter diagram to table widget."""
+        """Write sea scatter diagram to table widget."""
 
         self.scatterTable.setRowCount(df_scatter.shape[0])
         self.scatterTable.setColumnCount(df_scatter.shape[1])
@@ -189,7 +191,7 @@ class SeascatterDiagram(QtWidgets.QWidget):
         self.scatterTable.setEditTriggers(QtWidgets.QTableWidget.NoEditTriggers)
 
     def plot_hs_tp_distribution(self):
-        """Plot distribution of Hs and Tp for generated seascatter diagram."""
+        """Plot distribution of Hs and Tp for generated sea scatter diagram."""
 
         # Calculate Hs and Tp bin midpoints (the data frame indexes are interval types)
         hs = self.df_scatter.iloc[:-1, -1]

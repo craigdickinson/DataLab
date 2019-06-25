@@ -18,7 +18,7 @@ def read_fugro_csv(filename):
         df.index = pd.to_datetime(df.index, format="%d-%b-%Y %H:%M:%S.%f")
     except:
         raise ValueError(
-            f"Could not load file {filename}. File must be of Fugro logger format."
+            f"Could not load file {filename}.\n\nCSV files must be of Fugro format (for now...)."
         )
 
     # Calculate time delta from t0 and convert to seconds (float)
@@ -243,8 +243,11 @@ def read_spectrograms_hdf5(filename):
     key = datasets[0]
     df = pd.read_hdf(filename, key=key)
     t1 = round(time() - t0)
-    print("Read hdf5 file time = {}".format(str(timedelta(seconds=t1))))
+    # print("Read hdf5 file time = {}".format(str(timedelta(seconds=t1))))
     key = key[1:]
+
+    # Replace _ with " "
+    key = " ".join(key.split("_"))
 
     return key, df
 
@@ -253,17 +256,20 @@ def read_spectrograms_csv(filename):
     """Read spectrograms data csv file."""
 
     t0 = time()
-    logger = filename.split("Spectrograms_Data_")[-1].split(".")[0]
+    key = filename.split("Spectrograms_Data_")[-1].split(".")[0]
     df = pd.read_csv(filename, index_col=0)
     df.index = pd.to_datetime(df.index, format="%Y-%m-%d %H:%M:%S")
 
     # Need to convert frequencies (header) from object/string to float
     df.columns = df.columns.astype(float)
 
-    t1 = round(time() - t0)
-    print("Read csv file time = {}".format(str(timedelta(seconds=t1))))
+    # Replace _ with " "
+    key = " ".join(key.split("_"))
 
-    return logger, df
+    t1 = round(time() - t0)
+    # print("Read csv file time = {}".format(str(timedelta(seconds=t1))))
+
+    return key, df
 
 
 def read_spectrograms_excel(filename):
@@ -271,13 +277,17 @@ def read_spectrograms_excel(filename):
 
     t0 = time()
     xl = pd.ExcelFile(filename)
-    logger = xl.sheet_names[0]
+    key = xl.sheet_names[0]
     df = pd.read_excel(xl, index_col=0)
     df.index = pd.to_datetime(df.index, format="%Y-%m-%d %H:%M:%S")
-    t1 = round(time() - t0)
-    print("Read xlsx file time = {}".format(str(timedelta(seconds=t1))))
 
-    return logger, df
+    # Replace _ with " "
+    key = " ".join(key.split("_"))
+
+    t1 = round(time() - t0)
+    # print("Read xlsx file time = {}".format(str(timedelta(seconds=t1))))
+
+    return key, df
 
 
 def read_wcfat_results(filename, locations=["LPH Weld", "HPH Weld", "BOP Connector"]):

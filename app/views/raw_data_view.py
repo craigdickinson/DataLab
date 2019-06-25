@@ -134,7 +134,7 @@ class RawDataDashboard(QtWidgets.QWidget):
         # CONTAINERS
         # Setup container
         self.setupWidget = QtWidgets.QWidget()
-        self.setupWidget.setFixedWidth(200)
+        self.setupWidget.setFixedWidth(230)
         self.vboxSetup = QtWidgets.QVBoxLayout(self.setupWidget)
         self.vboxSetup.addWidget(self.openRawButton)
         self.vboxSetup.addWidget(self.filesLabel)
@@ -426,7 +426,7 @@ class RawDataDashboard(QtWidgets.QWidget):
 
         # Plot primary axis channel time series
         if self.plot_pri is True:
-            self.ax1.plot(df.iloc[:, 0], c="dodgerblue", label=df.columns[0], lw=1)
+            self.ax1.plot(df.iloc[:, 0], c="blue", label=df.columns[0], lw=1, alpha=0.8)
             ylabel = f"{df.columns[0]} ({self.plot_units[0]})"
             self.ax1.set_ylabel(ylabel)
 
@@ -438,13 +438,16 @@ class RawDataDashboard(QtWidgets.QWidget):
                     ls="--",
                     label=f"{df.columns[0]} (Filtered)",
                     lw=1,
+                    alpha=0.8,
                 )
         else:
             self.ax1.yaxis.set_visible(False)
 
         # Plot secondary axis channel time series
         if self.plot_sec is True:
-            self.ax1b.plot(df.iloc[:, -1], c="purple", label=df.columns[-1], lw=1)
+            self.ax1b.plot(
+                df.iloc[:, -1], c="green", label=df.columns[-1], lw=1, alpha=0.8
+            )
             ylabel = f"{df.columns[-1]} ({self.plot_units[-1]})"
             self.ax1b.set_ylabel(ylabel)
             self.ax1b.yaxis.set_visible(True)
@@ -453,10 +456,11 @@ class RawDataDashboard(QtWidgets.QWidget):
             if not df_filtered.empty:
                 self.ax1b.plot(
                     df_filtered.iloc[:, -1],
-                    c="green",
+                    c="purple",
                     ls="--",
                     label=f"{df.columns[-1]} (Filtered)",
                     lw=1,
+                    alpha=0.8,
                 )
         else:
             self.ax1b.yaxis.set_visible(False)
@@ -518,7 +522,7 @@ class RawDataDashboard(QtWidgets.QWidget):
 
         # Plot primary axis channel PSD
         if self.plot_pri is True:
-            self.ax2.plot(f, pxx[0], c="dodgerblue")
+            self.ax2.plot(f, pxx[0], c="blue", alpha=0.8)
             channel = df.columns[0]
             units = self.plot_units[0]
             ylabel = (
@@ -531,7 +535,7 @@ class RawDataDashboard(QtWidgets.QWidget):
 
         # Plot secondary axis channel PSD
         if self.plot_sec is True:
-            self.ax2b.plot(f, pxx[-1], c="purple")
+            self.ax2b.plot(f, pxx[-1], c="green", alpha=0.8)
             channel = df.columns[-1]
             units = self.plot_units[-1]
             ylabel = (
@@ -1055,35 +1059,155 @@ class LoggerPlotSettings(QtWidgets.QDialog):
         self.layout.addWidget(self.freqCutoffsGroup)
         self.layout.addWidget(self.paramGroup)
         self.layout.addStretch()
-        self.layout.addWidget(self.buttonBox, stretch=0)
+        self.layout.addWidget(self.buttonBox)
 
     def _connect_signals(self):
-        self.lowFreqChkBox.toggled.connect(self.set_low_freq_cutoff_state)
-        self.highFreqChkBox.toggled.connect(self.set_high_freq_cutoff_state)
-        self.radioFreq.toggled.connect(self.switch_psd_xaxis)
-        self.radioDefault.toggled.connect(self.switch_welch_params)
-        self.radioWelch.toggled.connect(self.switch_welch_params)
+        self.lowFreqChkBox.toggled.connect(self.on_low_freq_cutoff_toggled)
+        self.highFreqChkBox.toggled.connect(self.on_high_freq_cutoff_toggled)
+        self.radioFreq.toggled.connect(self.on_psd_xaxis_type_toggled)
+        self.radioDefault.toggled.connect(self.on_psd_params_type_toggled)
+        self.radioWelch.toggled.connect(self.on_psd_params_type_toggled)
+        self.buttonBox.accepted.connect(self.on_ok_clicked)
         self.buttonBox.accepted.connect(self.accept)
-        self.buttonBox.accepted.connect(self.set_params)
         self.buttonBox.rejected.connect(self.reject)
         self.buttonBox.button(QtWidgets.QDialogButtonBox.Apply).clicked.connect(
-            self.set_params
+            self.on_ok_clicked
         )
         self.buttonBox.button(QtWidgets.QDialogButtonBox.Reset).clicked.connect(
             self.reset_values
         )
 
-    def set_low_freq_cutoff_state(self):
+    def on_psd_xaxis_type_toggled(self):
+        """Switch PSD x-axis limits in the options settings between frequency and period."""
+
+        try:
+            xmin, xmax = float(self.optPSDXmin.text()), float(self.optPSDXmax.text())
+        except ValueError as e:
+            print(f"Axis limits must be numeric - {e}")
+
+        # Default min axis to 0
+        self.optPSDXmin.setText("0.0")
+
+        # Set frequency axis - default xlim max to 1 Hz/20s if current xlim min is 0s or 0 Hz respectively
+        if self.radioFreq.isChecked():
+            if xmin == 0:
+                self.optPSDXmax.setText("1.0")
+            else:
+                self.optPSDXmax.setText(str(1 / xmin))
+        # Set period axis
+        else:
+            if xmin == 0:
+                self.optPSDXmax.setText("20.0")
+            else:
+                self.optPSDXmax.setText(str(1 / xmin))
+
+    def on_low_freq_cutoff_toggled(self):
         if self.lowFreqChkBox.isChecked():
             self.lowCutoff.setEnabled(True)
         else:
             self.lowCutoff.setEnabled(False)
 
-    def set_high_freq_cutoff_state(self):
+    def on_high_freq_cutoff_toggled(self):
         if self.highFreqChkBox.isChecked():
             self.highCutoff.setEnabled(True)
         else:
             self.highCutoff.setEnabled(False)
+
+    def on_psd_params_type_toggled(self):
+        """Switch between default and custom PSD parameters."""
+
+        self.optNumEnsembles.setEnabled(False)
+        self.optWindow.setEnabled(False)
+        self.optOverlap.setEnabled(False)
+
+        if self.radioDefault.isChecked():
+            self.optNumEnsembles.setText(str(self.parent.def_num_ensembles))
+            self.optNperseg.setText(str(self.parent.def_nperseg))
+            self.optWindow.setCurrentText(self.parent.def_window)
+            self.optOverlap.setText(str(self.parent.def_overlap))
+        elif self.radioWelch.isChecked():
+            self.optNumEnsembles.setText(str(self.parent.welch_num_ensembles))
+            self.optNperseg.setText(str(self.parent.welch_nperseg))
+            self.optWindow.setCurrentText(self.parent.welch_window)
+            self.optOverlap.setText(str(self.parent.welch_overlap))
+        else:
+            self.optNumEnsembles.setText(str(self.parent.cust_num_ensembles))
+            self.optNperseg.setText(str(self.parent.cust_nperseg))
+            self.optWindow.setCurrentText(self.parent.cust_window)
+            self.optOverlap.setText(str(self.parent.cust_overlap))
+            self.optNumEnsembles.setEnabled(True)
+            self.optWindow.setEnabled(True)
+            self.optOverlap.setEnabled(True)
+
+    def on_ok_clicked(self):
+        """Update time series widget class parameters with the plot settings and replot."""
+
+        self.parent.project = self.optProject.text()
+
+        # Check numeric parameters are of valid type
+        try:
+            # Assign axes limits
+            self.parent.ts_xlim = (
+                float(self.optTSXmin.text()),
+                float(self.optTSXmax.text()),
+            )
+            self.parent.psd_xlim = (
+                float(self.optPSDXmin.text()),
+                float(self.optPSDXmax.text()),
+            )
+
+            if self.lowFreqChkBox.isChecked():
+                self.parent.apply_low_cutoff = True
+                self.parent.low_cutoff = float(self.lowCutoff.text())
+            else:
+                self.parent.apply_low_cutoff = False
+
+            if self.highFreqChkBox.isChecked():
+                self.parent.apply_high_cutoff = True
+                self.parent.high_cutoff = float(self.highCutoff.text())
+            else:
+                self.parent.apply_high_cutoff = False
+
+            # Assign PSD parameters
+            self.parent.num_ensembles = float(self.optNumEnsembles.text())
+            self.parent.window = self.optWindow.currentText()
+            self.parent.overlap = float(self.optOverlap.text())
+
+            # Apply decimal formatting to axes limits
+            self.optTSXmin.setText(str(round(self.parent.ts_xlim[0], 1)))
+            self.optTSXmax.setText(str(round(self.parent.ts_xlim[1], 1)))
+            self.optPSDXmin.setText(str(round(self.parent.psd_xlim[0], 1)))
+            self.optPSDXmax.setText(str(round(self.parent.psd_xlim[1], 1)))
+        except ValueError as e:
+            # Notify error in main DataLab class
+            self.parent.parent.error(f"Non-numeric input entered: {e}")
+        else:
+            # Store custom PSD parameters
+            if self.radioCustom.isChecked():
+                self.parent.cust_num_ensembles = self.parent.num_ensembles
+                self.parent.cust_window = self.parent.window
+                self.parent.cust_overlap = self.parent.overlap
+
+            # Assign remaining settings to time series class
+            self.parent.plot_period = self.radioPeriod.isChecked()
+            self.parent.log_scale = self.logScale.isChecked()
+
+            if self.radioDefault.isChecked():
+                self.parent.psd_params_type = "default"
+            elif self.radioWelch.isChecked():
+                self.parent.psd_params_type = "welch"
+            else:
+                self.parent.psd_params_type = "custom"
+
+            # Check logger files have already been loaded
+            if self.parent.filesList.count() > 0:
+                # This flag stops the on_xlims_change event from processing
+                self.parent.ignore_on_xlim_change = True
+                self.parent.df_filtered = self.parent.calc_filtered_data(
+                    self.parent.df_plot
+                )
+                self.parent.update_plots()
+                self.parent.ignore_on_xlim_change = False
 
     def get_params(self):
         """Get plot parameters from the time series widget and assign to settings widget."""
@@ -1131,76 +1255,6 @@ class LoggerPlotSettings(QtWidgets.QDialog):
         # Get sampling frequency
         self.optFs.setText(str(self.parent.fs))
 
-    def set_params(self):
-        """Update time series widget class parameters with the plot settings and replot."""
-
-        self.parent.project = self.optProject.text()
-
-        # Check numeric parameters are of valid type
-        try:
-            # Assign axes limits
-            self.parent.ts_xlim = (
-                float(self.optTSXmin.text()),
-                float(self.optTSXmax.text()),
-            )
-            self.parent.psd_xlim = (
-                float(self.optPSDXmin.text()),
-                float(self.optPSDXmax.text()),
-            )
-
-            if self.lowFreqChkBox.isChecked():
-                self.parent.apply_low_cutoff = True
-                self.parent.low_cutoff = float(self.lowCutoff.text())
-            else:
-                self.parent.apply_low_cutoff = False
-
-            if self.highFreqChkBox.isChecked():
-                self.parent.apply_high_cutoff = True
-                self.parent.high_cutoff = float(self.highCutoff.text())
-            else:
-                self.parent.apply_high_cutoff = False
-
-            # Assign PSD parameters
-            self.parent.num_ensembles = float(self.optNumEnsembles.text())
-            self.parent.window = self.optWindow.currentText()
-            self.parent.overlap = float(self.optOverlap.text())
-
-            # Now apply decimal formatting to plot settings
-            self.optTSXmin.setText(str(round(self.parent.ts_xlim[0], 1)))
-            self.optTSXmax.setText(str(round(self.parent.ts_xlim[1], 1)))
-            self.optPSDXmin.setText(str(round(self.parent.psd_xlim[0], 1)))
-            self.optPSDXmax.setText(str(round(self.parent.psd_xlim[1], 1)))
-        except ValueError as e:
-            # Notify error in main DataLab class
-            self.parent.parent.error(f"Non-numeric input entered: {e}")
-        else:
-            # Store custom PSD parameters
-            if self.radioCustom.isChecked():
-                self.parent.cust_num_ensembles = self.parent.num_ensembles
-                self.parent.cust_window = self.parent.window
-                self.parent.cust_overlap = self.parent.overlap
-
-            # Assign remaining settings to time series class
-            self.parent.plot_period = self.radioPeriod.isChecked()
-            self.parent.log_scale = self.logScale.isChecked()
-
-            if self.radioDefault.isChecked():
-                self.parent.psd_params_type = "default"
-            elif self.radioWelch.isChecked():
-                self.parent.psd_params_type = "welch"
-            else:
-                self.parent.psd_params_type = "custom"
-
-            # Check a logger files has already been loaded
-            if self.parent.filesList.count() > 0:
-                # This flag stops the on_xlims_change event from processing
-                self.parent.ignore_on_xlim_change = True
-                self.parent.filtered_ts = self.parent.calc_filtered_data(
-                    self.parent.df_plot
-                )
-                self.parent.update_plots()
-                self.parent.ignore_on_xlim_change = False
-
     def reset_values(self):
         """Reset option settings to initial values set during file load."""
 
@@ -1211,56 +1265,6 @@ class LoggerPlotSettings(QtWidgets.QDialog):
         self.optPSDXmin.setText("0.0")
         self.optPSDXmax.setText("1.0")
         self.radioDefault.setChecked(True)
-
-    def switch_psd_xaxis(self):
-        """Switch PSD x-axis limits in the options settings between frequency and period."""
-
-        try:
-            xmin, xmax = float(self.optPSDXmin.text()), float(self.optPSDXmax.text())
-        except ValueError as e:
-            print(f"Axis limits must be numeric - {e}")
-
-        # Default min axis to 0
-        self.optPSDXmin.setText("0.0")
-
-        # Set frequency axis - default xlim max to 1 Hz/20s if current xlim min is 0s or 0 Hz respectively
-        if self.radioFreq.isChecked():
-            if xmin == 0:
-                self.optPSDXmax.setText("1.0")
-            else:
-                self.optPSDXmax.setText(str(1 / xmin))
-        # Set period axis
-        else:
-            if xmin == 0:
-                self.optPSDXmax.setText("20.0")
-            else:
-                self.optPSDXmax.setText(str(1 / xmin))
-
-    def switch_welch_params(self):
-        """Switch between default and and custom FFT parameters."""
-
-        self.optNumEnsembles.setEnabled(False)
-        self.optWindow.setEnabled(False)
-        self.optOverlap.setEnabled(False)
-
-        if self.radioDefault.isChecked():
-            self.optNumEnsembles.setText(str(self.parent.def_num_ensembles))
-            self.optNperseg.setText(str(self.parent.def_nperseg))
-            self.optWindow.setCurrentText(self.parent.def_window)
-            self.optOverlap.setText(str(self.parent.def_overlap))
-        elif self.radioWelch.isChecked():
-            self.optNumEnsembles.setText(str(self.parent.welch_num_ensembles))
-            self.optNperseg.setText(str(self.parent.welch_nperseg))
-            self.optWindow.setCurrentText(self.parent.welch_window)
-            self.optOverlap.setText(str(self.parent.welch_overlap))
-        else:
-            self.optNumEnsembles.setText(str(self.parent.cust_num_ensembles))
-            self.optNperseg.setText(str(self.parent.cust_nperseg))
-            self.optWindow.setCurrentText(self.parent.cust_window)
-            self.optOverlap.setText(str(self.parent.cust_overlap))
-            self.optNumEnsembles.setEnabled(True)
-            self.optWindow.setEnabled(True)
-            self.optOverlap.setEnabled(True)
 
 
 # For testing layout

@@ -39,23 +39,11 @@ class Seascatter(object):
 
         return hs, tp
 
-    # def save_scatter_diagram(self):
-    #     """Export seascatter diagram to Excel."""
-    #
-    #     if self.seascatterModule.df_scatter.empty:
-    #         self.warning("No seascatter diagram generated. Nothing to export!")
-    #     else:
-    #         filename, _ = QtWidgets.QFileDialog.getSaveFileName(
-    #             self, "Save Seascatter Diagram", filter="Excel Files (*.xlsx)"
-    #         )
-    #         if filename:
-    #             self.seascatterModule.export_scatter_diagram(filename)
-
 
 def calc_seascatter_diagram(hs, tp, hs_bins, tp_bins):
-    """Create seascatter diagram data frame."""
+    """Create sea scatter diagram data frame."""
 
-    df = pd.DataFrame(np.vstack((hs, tp)).T, columns=['Hs', 'Tp'])
+    df = pd.DataFrame(np.vstack((hs, tp)).T, columns=["Hs", "Tp"])
 
     # Drop events that are nan
     df_nan = df[df["Hs"].isnull() & df["Tp"].isnull()]

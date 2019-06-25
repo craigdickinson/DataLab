@@ -65,9 +65,7 @@ class DataLabGui(QtWidgets.QMainWindow):
         # Transfer functions module
         self.transFuncsModule = QtWidgets.QTabWidget()
         self.transFuncsTab = TransferFunctionsWidget(self)
-        self.transFuncsModule.addTab(
-            self.transFuncsTab, "2HFATLASA Transfer Functions"
-        )
+        self.transFuncsModule.addTab(self.transFuncsTab, "2HFATLASA Transfer Functions")
 
         # Fatigue processing module
         self.fatigueModule = QtWidgets.QTabWidget()
@@ -161,8 +159,8 @@ class DataLabGui(QtWidgets.QMainWindow):
         self.menuPlotSettings.addAction(self.spectPlotSettingsAction)
 
         # Export menu
-        self.exportScatterDiag = QtWidgets.QAction("Export Seascatter Diagram")
-        self.exportScatterDiag.setStatusTip("Export seascatter diagram to Excel")
+        self.exportScatterDiag = QtWidgets.QAction("Export Sea Scatter Diagram")
+        self.exportScatterDiag.setStatusTip("Export sea scatter diagram to Excel")
         self.menuExport.addAction(self.exportScatterDiag)
 
         # Help menu
@@ -189,7 +187,7 @@ class DataLabGui(QtWidgets.QMainWindow):
         self.statsScreeningButton.setShortcut("Ctrl+4")
         self.spectralScreeningButton = QtWidgets.QPushButton("5. Spectral Screening")
         self.spectralScreeningButton.setShortcut("Ctrl+5")
-        self.seascatterButton = QtWidgets.QPushButton("6. Seascatter")
+        self.seascatterButton = QtWidgets.QPushButton("6. Sea Scatter")
         self.seascatterButton.setShortcut("Ctrl+6")
         self.transFuncsButton = QtWidgets.QPushButton("7. Transfer Functions")
         self.transFuncsButton.setShortcut("Ctrl+7")

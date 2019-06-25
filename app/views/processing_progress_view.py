@@ -88,7 +88,9 @@ class ProcessingProgressBar(QtWidgets.QDialog):
 
         # Update progress label
         self.progLabel.setText(f"Processing file {filename} (file {file_i + 1} of {n})")
-        self.progLabel2.setText(f"Processed {total_file_count - 1} of {total_files} files in total")
+        self.progLabel2.setText(
+            f"Processed {total_file_count - 1} of {total_files} files in total"
+        )
 
         perc = total_file_count / total_files * 100
         self.pb.setValue(perc)
@@ -106,13 +108,15 @@ class ProcessingProgressBar(QtWidgets.QDialog):
         self.loggersList.item(i).setText(f"{logger[:pos]} - Complete")
 
         # Update progress label to indicate all files have been processed
-        self.progLabel2.setText(f"Processed {total_files} of {total_files} files in total")
+        self.progLabel2.setText(
+            f"Processed {total_files} of {total_files} files in total"
+        )
 
         # Write runtime
         self.procCompleteLabel.setText("Processing complete: elapsed time = " + t)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
     win = ProcessingProgressBar()
     win.show()

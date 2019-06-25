@@ -133,7 +133,10 @@ class TransferFunctions(QObject):
         h = self.df_disp.index[1] - self.df_disp.index[0]
 
         # Double differentiate node displacements to accelerations
-        acc = -(self.df_disp.shift(1) - 2 * self.df_disp + self.df_disp.shift(-1)) / h ** 2
+        acc = (
+            -(self.df_disp.shift(1) - 2 * self.df_disp + self.df_disp.shift(-1))
+            / h ** 2
+        )
 
         # Gravity component from node rotations
         g = 9.807
@@ -227,7 +230,10 @@ class TransferFunctions(QObject):
             # Append logger i derived TF for each location
             for j in range(self.num_locs):
                 data = self.loc_bm_psds[j].values / self.logger_acc_psds[i].values
-                cols = [f"{logger_name} {self.loc_names[j]} SS{k + 1}" for k in range(self.num_ss)]
+                cols = [
+                    f"{logger_name} {self.loc_names[j]} SS{k + 1}"
+                    for k in range(self.num_ss)
+                ]
                 df = pd.DataFrame(data, index=freq, columns=cols)
                 df.index.name = "Freq (Hz)"
                 self.trans_funcs[i].append(df)
@@ -247,7 +253,12 @@ class TransferFunctions(QObject):
 
             for j in range(self.num_locs):
                 # Multiply each column be percentage occurrence and average
-                df = self.trans_funcs[i][j].apply(lambda x: perc_occ * x, axis=1).sum(axis=1) / n
+                df = (
+                    self.trans_funcs[i][j]
+                    .apply(lambda x: perc_occ * x, axis=1)
+                    .sum(axis=1)
+                    / n
+                )
                 df_ave = pd.concat((df_ave, df), axis=1)
 
             df_ave.index.name = "Freq (Hz)"
@@ -273,7 +284,9 @@ class TransferFunctions(QObject):
                 df_ss = pd.DataFrame()
 
                 for k, loc in enumerate(self.loc_names):
-                    df_ss = pd.concat((df_ss, self.trans_funcs[i][k].iloc[:, j]), axis=1)
+                    df_ss = pd.concat(
+                        (df_ss, self.trans_funcs[i][k].iloc[:, j]), axis=1
+                    )
 
                 df_ss.columns = self.loc_names
                 df_ss.index.name = "Freq (Hz)"
@@ -340,7 +353,9 @@ class TransferFunctions(QObject):
         header_row = self.get_header_row(filename)
 
         # Read file and drop wave elevation column
-        df = pd.read_csv(filename, header=header_row, index_col=0, skip_blank_lines=False)
+        df = pd.read_csv(
+            filename, header=header_row, index_col=0, skip_blank_lines=False
+        )
         df = df.drop(df.columns[0], axis=1)
 
         return df
@@ -371,7 +386,9 @@ class TransferFunctions(QObject):
         tp_list = np.asarray(tp_list)
 
         # Make window sea state data frame
-        df = pd.DataFrame(np.vstack((windows, hs_list, tp_list)).T, columns=["Windows", "Hs", "Tp"])
+        df = pd.DataFrame(
+            np.vstack((windows, hs_list, tp_list)).T, columns=["Windows", "Hs", "Tp"]
+        )
 
         # Find nearest Tp
         i = np.abs(df["Tp"] - tp_i).idxmin()
@@ -388,9 +405,9 @@ class TransferFunctions(QObject):
 if __name__ == "__main__":
     tf = TransferFunctions()
     root = r"C:\Users\dickinsc\PycharmProjects\DataLab\demo_data\3. Transfer Functions"
-    tf.bm_dir = os.path.join(root, "Hot Spots BM Z")
-    tf.disp_dir = os.path.join(root, "Loggers Disp Y")
-    tf.rot_dir = os.path.join(root, "Loggers Rot Z")
+    tf.bm_dir = os.path.join(root, "Hot_Spots_BM_Z")
+    tf.disp_dir = os.path.join(root, "Loggers_Disp_Y")
+    tf.rot_dir = os.path.join(root, "Loggers_Rot_Z")
     tf.get_files()
     tf.get_number_of_seastates()
     tf.read_fea_time_traces()

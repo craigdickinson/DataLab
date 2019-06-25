@@ -37,6 +37,8 @@ class InputError(Error):
 class Control(object):
     """Contain and process input settings."""
 
+    # MANY FUNCTIONS HERE ARE DEPRECATED - TO REMOVE
+
     def __init__(self):
         """Initialise control file properties."""
 
@@ -269,7 +271,9 @@ class Control(object):
             logger.process_filenames()
 
             # Select only files within specified datetime range
-            logger.select_files_in_datetime_range(logger.process_start, logger.process_end)
+            logger.select_files_in_datetime_range(
+                logger.process_start, logger.process_end
+            )
 
             # Select first logger file to detect additional properties and checks on
             test_file = logger.files[0]
@@ -316,7 +320,7 @@ class Control(object):
 
         i = slice_array[index]
         if index < len(slice_array) - 1:
-            return data[i: slice_array[index + 1]]
+            return data[i : slice_array[index + 1]]
         else:
             return data[i:]
 
@@ -763,7 +767,7 @@ class Control(object):
             text_upper = text.upper().strip()
             if text_upper.startswith(key.upper()):
                 # Return the rest of the line and row number if found
-                key_data = text[len(key):].strip()
+                key_data = text[len(key) :].strip()
                 return line, key_data
 
         # Return empty string and negative row number if not found

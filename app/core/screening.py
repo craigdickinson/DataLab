@@ -46,7 +46,7 @@ class Screening(QThread):
     # Signal to report processing progress to progress bar class
     signal_notify_progress = pyqtSignal(dict)
 
-    def __init__(self, datfile="", no_dat=False):
+    def __init__(self, datfile="", no_dat=True):
         super().__init__()
 
         if no_dat is False:
@@ -59,8 +59,11 @@ class Screening(QThread):
         self.control = Control()
         self.logger_path = ""
         self.data_screen = []
-        self.dict_stats = {}
         self.total_files = 0
+
+        # Dictionaries to store all processed logger stats and spectrograms to load to gui after processing is complete
+        self.dict_stats = {}
+        self.dict_spectrograms = {}
 
     def analyse_control_file(self):
         """Read control file (*.dat) and extract and check input settings."""
@@ -140,9 +143,7 @@ class Screening(QThread):
                     logger_id=logger.logger_id,
                     output_dir=self.control.spect_output_path,
                 )
-                spect_filtered.set_freq(
-                    n=spect_sample_length, T=logger.spect_interval
-                )
+                spect_filtered.set_freq(n=spect_sample_length, T=logger.spect_interval)
 
             # Initialise sample pandas data frame for logger
             df_stats_sample = pd.DataFrame()
@@ -267,7 +268,6 @@ class Screening(QThread):
             )
 
             if logger.process_stats is True:
-
                 # Create and store a data frame of logger stats
                 stats_out.compile_stats(
                     logger,
@@ -287,18 +287,30 @@ class Screening(QThread):
 
             if logger.process_spectral is True:
                 # Create dictionary of True/False flags of file formats to write
-                dict_formats_to_write = dict(h5=self.control.spect_to_h5,
-                                             csv=self.control.spect_to_csv,
-                                             xlsx=self.control.spect_to_xlsx,
-                                             )
+                dict_formats_to_write = dict(
+                    h5=self.control.spect_to_h5,
+                    csv=self.control.spect_to_csv,
+                    xlsx=self.control.spect_to_xlsx,
+                )
 
                 # Export spectrograms to requested file formats
+                # TODO: Store data to dictionary to load to gui
                 if spect_unfiltered.spectrograms:
-                    spect_unfiltered.add_timestamps(dates=data_screen[i].spect_sample_start)
-                    spect_unfiltered.export_spectrograms_data(dict_formats_to_write)
+                    spect_unfiltered.add_timestamps(
+                        dates=data_screen[i].spect_sample_start
+                    )
+                    df_dict = spect_unfiltered.export_spectrograms_data(
+                        dict_formats_to_write
+                    )
+                    self.dict_spectrograms.update(df_dict)
                 if spect_filtered.spectrograms:
-                    spect_filtered.add_timestamps(dates=data_screen[i].spect_sample_start)
-                    spect_filtered.export_spectrograms_data(dict_formats_to_write, filtered=True)
+                    spect_filtered.add_timestamps(
+                        dates=data_screen[i].spect_sample_start
+                    )
+                    df_dict = spect_filtered.export_spectrograms_data(
+                        dict_formats_to_write, filtered=True
+                    )
+                    self.dict_spectrograms.update(df_dict)
 
         # Save data screen report workbook
         data_report.write_bad_filenames()
@@ -329,7 +341,7 @@ if __name__ == "__main__":
     f = "controlfile_fugro_slim.dat"
     f = os.path.join(direc, f)
     # f = ''
-    datalab = Screening(datfile=f)
+    datalab = Screening(datfile=f, no_dat=False)
 
     try:
         datalab.analyse_control_file()

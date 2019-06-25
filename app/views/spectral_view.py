@@ -17,6 +17,12 @@ from pandas.plotting import register_matplotlib_converters
 
 register_matplotlib_converters()
 
+# 2H blue colour font
+color_2H = np.array([0, 49, 80]) / 255
+
+# Title style args
+title_args = dict(size=14, fontname="tahoma", color=color_2H, weight="bold")
+
 
 class SpectrogramWidget(QtWidgets.QWidget):
     """Spectrogram plot tab widget. Creates layout and all contains plotting routines."""
@@ -32,7 +38,6 @@ class SpectrogramWidget(QtWidgets.QWidget):
         # plt.style.use('bmh')
 
         self.project = "Project Title"  # 'Total WoS Glendronach Well Monitoring'
-        self.logger_names = []
         self.datasets = {}
         self.nat_freqs = {}
         self.timestamps = []
@@ -68,7 +73,9 @@ class SpectrogramWidget(QtWidgets.QWidget):
     def _init_ui(self):
         # WIDGETS
         self.openSpectButton = QtWidgets.QPushButton("Open Spectrograms")
-        self.openSpectButton.setToolTip("Open logger spectrograms (*.h5;*.csv;*.xlsx) (F4)")
+        self.openSpectButton.setToolTip(
+            "Open logger spectrograms (*.h5;*.csv;*.xlsx) (F4)"
+        )
         self.lbl = QtWidgets.QLabel("Loaded Datasets")
         self.datasetList = QtWidgets.QListWidget()
         self.datasetList.setFixedHeight(100)
@@ -107,7 +114,7 @@ class SpectrogramWidget(QtWidgets.QWidget):
         # CONTAINERS
         # Selection layout
         self.selection = QtWidgets.QWidget()
-        self.selection.setFixedWidth(170)
+        self.selection.setFixedWidth(200)
         self.grid = QtWidgets.QGridLayout(self.selection)
         self.grid.addWidget(self.openSpectButton, 0, 0)
         self.grid.addWidget(self.clearDatasetsButton, 1, 0)
@@ -156,15 +163,7 @@ class SpectrogramWidget(QtWidgets.QWidget):
         self.fig.subplots_adjust(hspace=0.05)
 
     def on_clear_datasets_clicked(self):
-        """Clear all stored spectrogram datasets and reset layout."""
-        self.datasets = {}
-        self.nat_freqs = {}
-        self.timestamps = []
-        self.datasetList.clear()
-        self.timestampList.clear()
-        self.natFreq.setText("")
-        self._draw_axes()
-        self.canvas.draw()
+        self.reset_dashboard()
 
     def on_open_plot_settings_clicked(self):
         self.plotSettings.get_params()
@@ -246,13 +245,38 @@ class SpectrogramWidget(QtWidgets.QWidget):
         )
         # self.parent.statusbar.showMessage('')
 
-    def update_spect_datasets_list(self, logger):
-        """Populate loaded datasets list."""
+    def reset_dashboard(self):
+        """Clear all stored spectrogram datasets and reset layout."""
 
-        self.logger_names = logger
-        self.datasetList.addItem(logger)
+        self.datasets = {}
+        self.nat_freqs = {}
+        self.timestamps = []
+        self.datasetList.clear()
+        self.timestampList.clear()
+        self.natFreq.setText("")
+        self._draw_axes()
+        self.canvas.draw()
+
+    def append_spect_to_datasets_list(self, dataset_id):
+        """Add loaded spectrogram to datasets list."""
+
+        self.datasetList.addItem(dataset_id)
         n = self.datasetList.count()
         self.datasetList.setCurrentRow(n - 1)
+
+        # Get and plot data
+        try:
+            self.create_plots()
+        except Exception as e:
+            msg = "Unexpected error loading plotting spectrogram"
+            self.parent.error(f"{msg}:\n{e}\n{sys.exc_info()[0]}")
+            logging.exception(e)
+
+    def append_multiple_spect_to_datasets_list(self, dataset_ids):
+        """Add multiple spectrogram to datasets list."""
+
+        self.datasetList.addItems(dataset_ids)
+        self.datasetList.setCurrentRow(0)
 
         # Get and plot data
         try:
@@ -329,13 +353,6 @@ class SpectrogramWidget(QtWidgets.QWidget):
         ax2 = self.ax2
         ax1.grid(False)
 
-        # Plot title
-        channel = self.datasetList.currentItem().text()
-        title = (
-                "21239 Total WoS - Glendronach Well Monitoring Campaign\nSpectrogram: "
-                + channel
-        )
-
         f0 = self.freqs[0]
         f1 = self.freqs[-1]
         t0 = mdates.date2num(self.timestamps[0])
@@ -385,7 +402,7 @@ class SpectrogramWidget(QtWidgets.QWidget):
         ti = mdates.date2num(self.t)
         self.event_line, = ax1.plot([f0, f1], [ti, ti], "k--")
 
-        ax1.set_title(title)
+        self._set_title()
         ax1.margins(0)
         ax1.set_xlim(self.xlim)
         ax1.yaxis.set_major_formatter(mdates.DateFormatter("%d %b"))
@@ -445,6 +462,22 @@ class SpectrogramWidget(QtWidgets.QWidget):
         # Update plot data and label text
         self.psd_line.set_ydata(zi)
         self.label.set_text(label)
+
+    def _set_title(self):
+        """Set plot title."""
+
+        # Attempt to retrieve title from project setup dashboard
+        project_name = self.parent.projConfigModule.control.project_name
+        campaign_name = self.parent.projConfigModule.control.campaign_name
+
+        if project_name == "":
+            project_name = "Project Title"
+        if campaign_name == "":
+            campaign_name = "Campaign Title"
+
+        dataset = self.datasetList.currentItem().text()
+        title = f"{project_name} - {campaign_name}\n{dataset} Spectrogram"
+        self.ax1.set_title(title, **title_args)
 
 
 class SpectroPlotSettings(QtWidgets.QDialog):
@@ -511,11 +544,11 @@ class SpectroPlotSettings(QtWidgets.QDialog):
         self.layout.addWidget(self.buttonBox, stretch=0, alignment=QtCore.Qt.AlignRight)
 
     def _connect_signals(self):
+        self.buttonBox.accepted.connect(self.on_ok_clicked)
         self.buttonBox.accepted.connect(self.accept)
-        self.buttonBox.accepted.connect(self.set_params)
         self.buttonBox.rejected.connect(self.reject)
         self.buttonBox.button(QtWidgets.QDialogButtonBox.Apply).clicked.connect(
-            self.set_params
+            self.on_ok_clicked
         )
         self.buttonBox.button(QtWidgets.QDialogButtonBox.Reset).clicked.connect(
             self.reset_values
@@ -533,7 +566,7 @@ class SpectroPlotSettings(QtWidgets.QDialog):
         else:
             self.logScale.setChecked(False)
 
-    def set_params(self):
+    def on_ok_clicked(self):
         """Update spectrogram widget class parameters with the plot settings and replot."""
 
         self.parent.project = self.optProject.text()
