@@ -64,6 +64,8 @@ def example_control_file():
 
 
 class TestControlFile(unittest.TestCase):
+    """CONTROL DAT FILE IS DEPRECATED - TO REMOVE/REVISE."""
+
     def setUp(self):
         # Dummy input filename
         self.my_file = "my_file.dat"
@@ -104,7 +106,7 @@ class TestControlFile(unittest.TestCase):
         self.assertEqual(names, control.logger_ids)
 
     def test_slice_control_file_data(self):
-        """Test slice_data returns desired part of list based on a list of indices."""
+        """Test slice_data returns desired part of list based on a list of indexes."""
 
         # Line numbers of logger ids are: 5, 14, 33, 39. Ignoring blank lines and as 0-index list this is:
         logger_id_lines = [3, 11, 29, 34]
@@ -114,10 +116,10 @@ class TestControlFile(unittest.TestCase):
         for i in range(len(logger_id_lines)):
             if i < len(logger_id_lines) - 1:
                 logger_id_data.append(
-                    self.test_data[logger_id_lines[i]: logger_id_lines[i + 1]]
+                    self.test_data[logger_id_lines[i] : logger_id_lines[i + 1]]
                 )
             else:
-                logger_id_data.append(self.test_data[logger_id_lines[i]:])
+                logger_id_data.append(self.test_data[logger_id_lines[i] :])
 
         # Now test against ControlFile slice_data method
         control = Control()

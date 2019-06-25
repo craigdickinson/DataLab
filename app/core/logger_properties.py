@@ -161,7 +161,7 @@ class LoggerProperties(QObject):
         # File timestamp format
         f = self.file_timestamp_format
 
-        # Get pos of Y, m, D, H, M and S strings
+        # Get pos of Y, m, D, H, M, S and ms strings
         self.year_span = get_date_code_span("Y", f)
         self.month_span = get_date_code_span("m", f)
         self.day_span = get_date_code_span("D", f)
@@ -177,13 +177,13 @@ class LoggerProperties(QObject):
         self.file_timestamps = []
 
         for f in self.raw_filenames:
-            y = f[self.year_span[0]: self.year_span[1]]
-            m = f[self.month_span[0]: self.month_span[1]]
-            d = f[self.day_span[0]: self.day_span[1]]
-            h = f[self.hour_span[0]: self.hour_span[1]]
-            minute = f[self.min_span[0]: self.min_span[1]]
-            sec = f[self.sec_span[0]: self.sec_span[1]]
-            ms = f[self.ms_span[0]: self.ms_span[1]]
+            y = f[self.year_span[0] : self.year_span[1]]
+            m = f[self.month_span[0] : self.month_span[1]]
+            d = f[self.day_span[0] : self.day_span[1]]
+            h = f[self.hour_span[0] : self.hour_span[1]]
+            minute = f[self.min_span[0] : self.min_span[1]]
+            sec = f[self.sec_span[0] : self.sec_span[1]]
+            ms = f[self.ms_span[0] : self.ms_span[1]]
 
             # Date must contain y, m and d
             date_str = y + "-" + m + "-" + d
@@ -274,7 +274,9 @@ class LoggerProperties(QObject):
                 channels = header_lines[c - 1][1:]
             # If no channels header exists, create a dummy channels list
             else:
-                channels = [f"Column {i + 2}" for i in range(len(header_lines[c - 1][1:]))]
+                channels = [
+                    f"Column {i + 2}" for i in range(len(header_lines[c - 1][1:]))
+                ]
 
             if u > 0:
                 units = header_lines[u - 1][1:]
@@ -348,7 +350,9 @@ class LoggerProperties(QObject):
             dummy_cols = [f"Column {i}" for i in missing_cols]
 
             # Keep headers requested (append dummy channel names if exist)
-            self.channel_names = [all_channels[i - 2] for i in present_cols] + dummy_cols
+            self.channel_names = [
+                all_channels[i - 2] for i in present_cols
+            ] + dummy_cols
 
             if missing_cols:
                 warn_flag = True
@@ -390,14 +394,18 @@ class LoggerProperties(QObject):
         if self.process_stats is True or self.process_spectral is True:
             # Check length of channel header
             if len(self.channel_names) != len(self.cols_to_process):
-                msg = f"Number of channel names specified does not equal number of " \
+                msg = (
+                    f"Number of channel names specified does not equal number of "
                     f"channels to process for logger {self.logger_id}."
+                )
                 raise LoggerError(msg)
 
             # Check length of units header
             if len(self.channel_units) != len(self.cols_to_process):
-                msg = f"Number of units specified does not equal number of " \
+                msg = (
+                    f"Number of units specified does not equal number of "
                     f"channels to process for logger {self.logger_id}."
+                )
                 raise LoggerError(msg)
 
     def check_header_specification(self):
@@ -408,8 +416,10 @@ class LoggerProperties(QObject):
 
         # Check something has been entered for channel names
         if self.channel_header_row == 0 and len(self.user_channel_names) == 0:
-            msg = f"Either the channel header row or user-defined channel names" \
+            msg = (
+                f"Either the channel header row or user-defined channel names"
                 f"must be specified for logger {self.logger_id}."
+            )
             raise LoggerError(msg)
 
         # Check something has been entered for units

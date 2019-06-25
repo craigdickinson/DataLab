@@ -7,7 +7,7 @@ import pandas as pd
 from PyQt5 import QtCore, QtGui, QtWidgets
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 
-from app.core.calc_seascatter_diagram import calc_seascatter_diagram
+from app.core.calc_seascatter import calc_seascatter_diagram
 
 
 class SeascatterDiagram(QtWidgets.QWidget):
@@ -16,8 +16,11 @@ class SeascatterDiagram(QtWidgets.QWidget):
 
         self.parent = parent
 
-        # Hs/Tp and seascatter diagram data frames
-        self.df_ss = pd.DataFrame()
+        # Hs and Tp arrays
+        self.hs = np.array([])
+        self.tp = np.array([])
+
+        # Seascatter diagram data frames
         self.df_scatter = pd.DataFrame()
 
         # Hs/Tp bins limits
@@ -44,24 +47,17 @@ class SeascatterDiagram(QtWidgets.QWidget):
         self.connect_signals()
 
     def init_ui(self):
+        # WIDGETS
+        # Apply float validation to input boxes
+        dbl_validator = QtGui.QDoubleValidator()
+
         # Bin controls
         self.hsBinSize = QtWidgets.QLineEdit("0.5")
         self.hsBinSize.setFixedWidth(30)
+        self.hsBinSize.setValidator(dbl_validator)
         self.tpBinSize = QtWidgets.QLineEdit("1.0")
         self.tpBinSize.setFixedWidth(30)
-
-        # Apply float validation to input boxes
-        dbl_validator = QtGui.QDoubleValidator()
-        self.hsBinSize.setValidator(dbl_validator)
         self.tpBinSize.setValidator(dbl_validator)
-
-        # Controls container
-        self.container1 = QtWidgets.QWidget()
-        self.controlsLayout = QtWidgets.QHBoxLayout(self.container1)
-        self.controlsLayout.addWidget(QtWidgets.QLabel("Hs bin size (m):"))
-        self.controlsLayout.addWidget(self.hsBinSize)
-        self.controlsLayout.addWidget(QtWidgets.QLabel("Tp bin size (s):"))
-        self.controlsLayout.addWidget(self.tpBinSize)
 
         # Seascatter table widget
         self.scatterTable = QtWidgets.QTableWidget(self)
@@ -73,16 +69,24 @@ class SeascatterDiagram(QtWidgets.QWidget):
         self.fig, (self.ax1, self.ax2) = plt.subplots(2)
         self.canvas = FigureCanvas(self.fig)
 
-        # Table and plots container
-        self.container2 = QtWidgets.QWidget()
-        self.scatterLayout = QtWidgets.QHBoxLayout(self.container2)
-        self.scatterLayout.addWidget(self.scatterTable, stretch=76)
-        self.scatterLayout.addWidget(self.canvas, stretch=24)
+        # CONTAINERS
+        # Controls container
+        self.controlsLayout = QtWidgets.QHBoxLayout()
+        self.controlsLayout.addWidget(QtWidgets.QLabel("Hs bin size (m):"))
+        self.controlsLayout.addWidget(self.hsBinSize)
+        self.controlsLayout.addWidget(QtWidgets.QLabel("Tp bin size (s):"))
+        self.controlsLayout.addWidget(self.tpBinSize)
+        self.controlsLayout.addStretch()
 
-        # Main layout
+        # Table and plots container
+        self.scatterLayout = QtWidgets.QHBoxLayout()
+        self.scatterLayout.addWidget(self.scatterTable, stretch=75)
+        self.scatterLayout.addWidget(self.canvas, stretch=25)
+
+        # LAYOUT
         self.layout = QtWidgets.QVBoxLayout(self)
-        self.layout.addWidget(self.container1, alignment=QtCore.Qt.AlignLeft)
-        self.layout.addWidget(self.container2)
+        self.layout.addLayout(self.controlsLayout)
+        self.layout.addLayout(self.scatterLayout)
 
     def connect_signals(self):
         self.hsBinSize.returnPressed.connect(self.update_hs_bins)
@@ -108,7 +112,8 @@ class SeascatterDiagram(QtWidgets.QWidget):
         self.tp_bins = self.get_bins(self.tp_min, self.tp_max, self.tp_bin_size)
         self.generate_scatter_diagram()
 
-    def get_bins(self, bin_min, bin_max, bin_size):
+    @staticmethod
+    def get_bins(bin_min, bin_max, bin_size):
         """create bins array. If bins size is an integer convert to integer bins."""
 
         bins = np.arange(bin_min, bin_max + bin_size, bin_size)
@@ -116,41 +121,40 @@ class SeascatterDiagram(QtWidgets.QWidget):
             bins = bins.astype(int)
         return bins
 
-    def get_seascatter_dataset(self, df_vessel):
+    def get_seascatter_dataset(self, hs, tp):
         """Create Hs/Tp dataset from loaded stats dataset containing mean Hs and Tp values."""
+
+        self.hs = hs
+        self.tp = tp
 
         # Read hs and tp bin sizes in gui
         self.hs_bin_size = float(self.hsBinSize.text())
         self.tp_bin_size = float(self.tpBinSize.text())
 
-        self.df_ss = df_vessel.xs("mean", axis=1, level=1)
-        self.df_ss = self.df_ss[["SigWaveHeight", "SigWavePeriod"]]
-
         # Get Hs/Tp limits
-        self.hs_min = math.floor(self.df_ss.min()[0])
-        self.tp_min = math.floor(self.df_ss.min()[1])
-        self.hs_max = math.ceil(self.df_ss.max()[0])
-        self.tp_max = math.ceil(self.df_ss.max()[1])
+        self.hs_min = math.floor(np.nanmin(hs))
+        self.hs_max = math.ceil(np.nanmax(hs))
+        self.tp_min = math.floor(np.nanmin(tp))
+        self.tp_max = math.ceil(np.nanmax(tp))
 
         # Calculate bins and seascatter diagram
         self.hs_bins = self.get_bins(self.hs_min, self.hs_max, self.hs_bin_size)
         self.tp_bins = self.get_bins(self.tp_min, self.tp_max, self.tp_bin_size)
-        self.generate_scatter_diagram()
 
     def generate_scatter_diagram(self):
         """Create and display seascatter diagram from Hs/Tp data."""
 
         # Generate seascatter diagram
         self.df_scatter = calc_seascatter_diagram(
-            df=self.df_ss, hs_bins=self.hs_bins, tp_bins=self.tp_bins
+            self.hs, self.tp, self.hs_bins, self.tp_bins
         )
 
-        # Apply seascatter to table and plot Hs/Tp distributions
+        # Apply sea scatter to table and plot Hs/Tp distributions
         self.set_scatter_table(self.df_scatter)
         self.plot_hs_tp_distribution()
 
     def set_scatter_table(self, df_scatter):
-        """Write seascatter diagram to table widget."""
+        """Write sea scatter diagram to table widget."""
 
         self.scatterTable.setRowCount(df_scatter.shape[0])
         self.scatterTable.setColumnCount(df_scatter.shape[1])
@@ -187,7 +191,7 @@ class SeascatterDiagram(QtWidgets.QWidget):
         self.scatterTable.setEditTriggers(QtWidgets.QTableWidget.NoEditTriggers)
 
     def plot_hs_tp_distribution(self):
-        """Plot distribution of Hs and Tp for generated seascatter diagram."""
+        """Plot distribution of Hs and Tp for generated sea scatter diagram."""
 
         # Calculate Hs and Tp bin midpoints (the data frame indexes are interval types)
         hs = self.df_scatter.iloc[:-1, -1]

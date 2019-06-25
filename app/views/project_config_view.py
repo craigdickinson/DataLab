@@ -11,6 +11,7 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtCore import pyqtSlot
 from dateutil.parser import parse
 
+from app.core.calc_seascatter import Seascatter
 from app.core.calc_transfer_functions import TransferFunctions
 from app.core.control import Control, InputError
 from app.core.custom_date import get_datetime_format
@@ -36,6 +37,7 @@ class ConfigModule(QtWidgets.QWidget):
         self.parent = parent
         self.skip_on_logger_item_edited = False
         self.control = Control()
+        self.scatter = Seascatter()
         self.tf = TransferFunctions()
         self._init_ui()
         self._connect_signals()
@@ -45,7 +47,9 @@ class ConfigModule(QtWidgets.QWidget):
         self.openConfigButton = QtWidgets.QPushButton("Open")
         self.openConfigButton.setToolTip("Load config (*.json) file (Ctrl+O)")
         self.saveConfigButton = QtWidgets.QPushButton("Save")
-        self.saveConfigButton.setToolTip("Export project settings to config (*.json) file (Ctrl+S)")
+        self.saveConfigButton.setToolTip(
+            "Export project settings to config (*.json) file (Ctrl+S)"
+        )
         self.newProjButton = QtWidgets.QPushButton("New Project")
         self.newProjButton.setShortcut("Ctrl+N")
         self.newProjButton.setToolTip("Clear all settings (Ctrl+N)")
@@ -62,15 +66,19 @@ class ConfigModule(QtWidgets.QWidget):
         h = 30
         self.processButton = QtWidgets.QPushButton("Process Screening")
         self.processButton.setFixedHeight(h)
-        self.processButton.setToolTip("Screen loggers and calculate stats and spectral data (F6)")
+        self.processButton.setToolTip(
+            "Screen loggers and calculate stats and spectral data (F6)"
+        )
 
-        self.calcSeascatterButton = QtWidgets.QPushButton("Create Seascatter")
+        self.calcSeascatterButton = QtWidgets.QPushButton("Create Sea Scatter")
         self.calcSeascatterButton.setFixedHeight(h)
-        self.calcSeascatterButton.setToolTip("Create Hs-Tp seascatter diagram (F7)")
+        self.calcSeascatterButton.setToolTip("Create Hs-Tp sea scatter diagram (F7)")
 
         self.calcTFButton = QtWidgets.QPushButton("Calculate Transfer Functions")
         self.calcTFButton.setFixedHeight(h)
-        self.calcTFButton.setToolTip("Calculate frequency-dependent transfer functions (F8)")
+        self.calcTFButton.setToolTip(
+            "Calculate frequency-dependent transfer functions (F8)"
+        )
 
         self.calcFatigueButton = QtWidgets.QPushButton("Calculate Fatigue")
         self.calcFatigueButton.setFixedHeight(h)
@@ -80,7 +88,8 @@ class ConfigModule(QtWidgets.QWidget):
         # Config tab widgets
         self.campaignTab = CampaignInfoTab(self, self.control)
         self.loggerPropsTab = LoggerPropertiesTab(self, self.control)
-        self.analysisTab = StatsAndSpectralSettingsTab(self, self.control)
+        self.screeningTab = StatsAndSpectralSettingsTab(self, self.control)
+        self.scatterTab = SeascatterTab(self, self.control, self.scatter)
         self.tfSettingsTab = TransferFunctionsTab(self, self.tf)
 
         # CONTAINERS
@@ -108,7 +117,8 @@ class ConfigModule(QtWidgets.QWidget):
         self.setupTabs = QtWidgets.QTabWidget()
         self.setupTabs.addTab(self.campaignTab, "Campaign Info")
         self.setupTabs.addTab(self.loggerPropsTab, "Logger File Properties")
-        self.setupTabs.addTab(self.analysisTab, "Screening Setup")
+        self.setupTabs.addTab(self.screeningTab, "Screening Setup")
+        self.setupTabs.addTab(self.scatterTab, "Sea Scatter Setup")
         self.setupTabs.addTab(self.tfSettingsTab, "Transfer Functions Setup")
 
         # Process buttons container
@@ -168,15 +178,16 @@ class ConfigModule(QtWidgets.QWidget):
                 # Read JSON file and store data in config object
                 config.load_config_data(filename)
 
-                # Map JSON data to new control object to hold logger and screening settings
+                # Map JSON data to new objects that hold various setup data
                 self.control = config.map_json_to_control(Control())
-
-                # Map JSON data to new control object to hold transfer functions settings
+                self.scatter = config.map_json_to_seascatter(Seascatter())
                 self.tf = config.map_json_to_transfer_functions(TransferFunctions())
 
                 # Assign config data to control object and project dashboard
                 self._set_dashboards()
-                self._set_window_title(filename)
+
+                if self.parent is not None:
+                    self.parent.set_window_title(filename)
             except InputError as e:
                 self.parent.error(str(e))
                 logging.exception(e)
@@ -185,28 +196,29 @@ class ConfigModule(QtWidgets.QWidget):
                 self.parent.error(f"{msg}:\n{e}\n{sys.exc_info()[0]}")
                 logging.exception(e)
 
-        # Update control and transfer functions objects in parent DataLab object
+        # Map settings objects to parent DataLab object
         self.parent.control = self.control
+        self.parent.scatter = self.scatter
         self.parent.tf = self.tf
 
     def on_save_config_clicked(self):
         """Save project configuration settings as a dictionary to a JSON file."""
 
-        if self.control.project_num == "":
-            msg = "Project number required to create project config file. Add data to the Campaign Info tab."
-            return self.parent.warning(msg)
-
-        if self.control.project_name == "":
-            msg = "Project name required to create project config file. Input data to the Campaign Info tab."
+        if self.control.project_num == "" and self.control.project_name == "":
+            msg = (
+                "A project number and project name are required to create a project config file.\n"
+                "Input missing data in the Campaign Info tab of the Project Config dashboard."
+            )
             return self.parent.warning(msg)
 
         # Compile configuration data into a dictionary and save as a json file
         try:
             config = ProjectConfigJSONFile()
-            config.add_campaign_data(self.control)
-            config.add_loggers_data(self.control.loggers)
-            config.add_general_data(self.control)
-            config.add_transfer_functions_data(self.tf)
+            config.add_campaign_settings(self.control)
+            config.add_loggers_settings(self.control.loggers)
+            config.add_general_settings(self.control)
+            config.add_seascatter_settings(self.scatter)
+            config.add_transfer_functions_settings(self.tf)
             config.save_config(
                 proj_num=self.control.project_num,
                 proj_name=self.control.project_name,
@@ -231,17 +243,18 @@ class ConfigModule(QtWidgets.QWidget):
     def on_new_project_clicked(self):
         """Clear project control object and all config dashboard values."""
 
-        # Create new control and transfer functions objects and map to associated child widget objects
+        # Create new settings objects
         self.control = Control()
+        self.scatter = Seascatter()
         self.tf = TransferFunctions()
-        self.campaignTab.control = self.control
-        self.loggerPropsTab.control = self.control
-        self.analysisTab.control = self.control
-        self.tfSettingsTab.tf = self.tf
 
-        # Update control and transfer functions objects in parent DataLab instance
+        # Map settings objects to associated child widget objects
+        self._map_setup_objects_to_tabs()
+
+        # Map settings objects to parent DataLab instance
         if self.parent is not None:
             self.parent.control = self.control
+            self.parent.scatter = self.scatter
             self.parent.tf = self.tf
 
         # Clear logger combo box
@@ -252,11 +265,17 @@ class ConfigModule(QtWidgets.QWidget):
         # Clear campaign data dashboard and update window title to include config file path
         self.campaignTab.clear_dashboard()
         self.loggerPropsTab.clear_dashboard()
-        self.analysisTab.clear_dashboard()
+        self.screeningTab.clear_dashboard()
+        self.scatterTab.clear_dashboard()
         self.tfSettingsTab.clear_dashboard()
 
         # Reset window title
-        self._set_window_title()
+        if self.parent is not None:
+            self.parent.set_window_title()
+
+        # Select campaign tab and open setup dialog
+        self.setupTabs.setCurrentWidget(self.campaignTab)
+        self.campaignTab.on_edit_clicked()
 
     def on_add_logger_clicked(self):
         """Add new logger to list. Initial logger name format is 'Logger n'."""
@@ -267,6 +286,8 @@ class ConfigModule(QtWidgets.QWidget):
         # Create logger properties object and append to loggers list in control object
         logger = LoggerProperties(logger_id)
         self.control.loggers.append(logger)
+        self.control.logger_ids.append(logger_id)
+        self.control.logger_ids_upper.append(logger_id.upper())
 
         # Initialise logger file as a Fugro logger format
         set_fugro_csv_file_format(logger)
@@ -278,9 +299,9 @@ class ConfigModule(QtWidgets.QWidget):
 
         # Initialise dashboard layouts
         self.loggerPropsTab.set_logger_dashboard(logger)
-        self.analysisTab.set_analysis_dashboard(logger)
+        self.screeningTab.set_analysis_dashboard(logger)
 
-        # Open logger properties edit widget
+        # Select logger properties tab and open edit dialog
         self.setupTabs.setCurrentWidget(self.loggerPropsTab)
         self.loggerPropsTab.on_edit_clicked()
 
@@ -305,7 +326,10 @@ class ConfigModule(QtWidgets.QWidget):
         if response == QtWidgets.QMessageBox.Yes:
             # Remove logger from control object
             logger = self.control.loggers[i]
+            logger_id = logger.logger_id
             self.control.loggers.remove(logger)
+            self.control.logger_ids.remove(logger_id)
+            self.control.logger_ids_upper.remove(logger_id.upper())
 
             # Remove logger from loggers list
             self.loggersList.takeItem(i)
@@ -319,7 +343,7 @@ class ConfigModule(QtWidgets.QWidget):
         logger_idx = self.loggersList.currentRow()
         logger = self.control.loggers[logger_idx]
         self.loggerPropsTab.set_logger_dashboard(logger)
-        self.analysisTab.set_analysis_dashboard(logger)
+        self.screeningTab.set_analysis_dashboard(logger)
         self.set_logger_header_list(logger)
 
     def on_logger_item_edited(self):
@@ -368,7 +392,7 @@ class ConfigModule(QtWidgets.QWidget):
         self.parent.process_screening()
 
     def on_calc_seascatter_clicked(self):
-        pass
+        self.parent.calc_seascatter()
 
     def on_calc_transfer_functions_clicked(self):
         self.parent.calc_transfer_functions()
@@ -376,14 +400,21 @@ class ConfigModule(QtWidgets.QWidget):
     def on_calc_fatigue_clicked(self):
         self.parent.calc_fatigue()
 
-    def _set_dashboards(self):
-        """Set dashboard values with data in control object after loading JSON file."""
+    def _map_setup_objects_to_tabs(self):
+        """Update the various project config tab objects with their associated settings objects."""
 
-        # Map the loaded control and transfer objects to the associated tab widget objects
         self.campaignTab.control = self.control
         self.loggerPropsTab.control = self.control
-        self.analysisTab.control = self.control
+        self.screeningTab.control = self.control
+        self.scatterTab.control = self.control
+        self.scatterTab.scatter = self.scatter
         self.tfSettingsTab.tf = self.tf
+
+    def _set_dashboards(self):
+        """Set dashboard values with data in setup objects after loading JSON file."""
+
+        # Map the loaded settings objects to the associated tab widget objects
+        self._map_setup_objects_to_tabs()
 
         # Set campaign data to dashboard
         self.campaignTab.set_campaign_dashboard()
@@ -403,24 +434,14 @@ class ConfigModule(QtWidgets.QWidget):
             logger = self.control.loggers[0]
 
             self.loggerPropsTab.set_logger_dashboard(logger)
-            self.analysisTab.set_analysis_dashboard(logger)
+            self.screeningTab.set_analysis_dashboard(logger)
             self.set_logger_header_list(logger)
+
+        # Set seascatter dashboard
+        self.scatterTab.set_scatter_dashboard()
 
         # Set transfer functions dashboard
         self.tfSettingsTab.set_tf_dashboard()
-
-    def _set_window_title(self, filename=None):
-        """Update main window title with config filename."""
-
-        if self.parent is None:
-            return
-
-        if filename:
-            self.parent.setWindowTitle(
-                f"DataLab {self.parent.version} - Loaded Project: {filename}"
-            )
-        else:
-            self.parent.setWindowTitle(f"DataLab {self.parent.version}")
 
     @pyqtSlot(str)
     def warning(self, msg):
@@ -539,7 +560,7 @@ class EditCampaignInfoDialog(QtWidgets.QDialog):
 
     def _init_ui(self):
         self.setWindowTitle("Edit General Campaign Data")
-        self.setFixedSize(500, 250)
+        self.setFixedWidth(500)
 
         # Sizing policy
         policy = QtWidgets.QSizePolicy(
@@ -551,10 +572,15 @@ class EditCampaignInfoDialog(QtWidgets.QDialog):
         self.projNum.setFixedWidth(40)
         self.projName = QtWidgets.QLineEdit()
         self.campaignName = QtWidgets.QLineEdit()
-        self.projPath = QtWidgets.QLineEdit()
-        self.projPath.setToolTip("If not input the current working directory will be used.")
+        self.projPath = QtWidgets.QPlainTextEdit()
+        self.projPath.setFixedHeight(40)
+        self.projPath.setToolTip(
+            "If not input the current working directory will be used."
+        )
         self.browseButton = QtWidgets.QPushButton("Browse")
         self.browseButton.setSizePolicy(policy)
+        self.browseButton.setShortcut("Ctrl+B")
+        self.browseButton.setToolTip("Ctrl+B")
         self.buttonBox = QtWidgets.QDialogButtonBox(
             QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel
         )
@@ -575,8 +601,8 @@ class EditCampaignInfoDialog(QtWidgets.QDialog):
 
     def _connect_signals(self):
         self.browseButton.clicked.connect(self.set_project_path)
-        self.buttonBox.accepted.connect(self.accept)
         self.buttonBox.accepted.connect(self.on_ok_clicked)
+        self.buttonBox.accepted.connect(self.accept)
         self.buttonBox.rejected.connect(self.reject)
 
     def set_dialog_data(self):
@@ -587,7 +613,7 @@ class EditCampaignInfoDialog(QtWidgets.QDialog):
         self.projNum.setText(control.project_num)
         self.projName.setText(control.project_name)
         self.campaignName.setText(control.campaign_name)
-        self.projPath.setText(control.project_path)
+        self.projPath.setPlainText(control.project_path)
 
     def on_ok_clicked(self):
         """Assign values to the control object and update the dashboard."""
@@ -604,10 +630,10 @@ class EditCampaignInfoDialog(QtWidgets.QDialog):
         control.project_name = self.projName.text()
         control.campaign_name = self.campaignName.text()
 
-        if self.projPath.text() == "":
+        if self.projPath.toPlainText() == "":
             control.project_path = os.getcwd()
         else:
-            control.project_path = self.projPath.text()
+            control.project_path = self.projPath.toPlainText()
 
     def set_project_path(self):
         """Set location of project root directory."""
@@ -615,7 +641,7 @@ class EditCampaignInfoDialog(QtWidgets.QDialog):
         dir_path = QtWidgets.QFileDialog.getExistingDirectory(self, "Project Location")
 
         if dir_path:
-            self.projPath.setText(dir_path)
+            self.projPath.setPlainText(dir_path)
 
 
 class LoggerPropertiesTab(QtWidgets.QWidget):
@@ -766,7 +792,7 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
 
         self._init_ui()
         self._connect_signals()
-        self.set_dialog_data()
+        self._set_dialog_data()
 
     def _init_ui(self):
         self.setWindowTitle("Edit Logger File Properties")
@@ -787,11 +813,30 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
         self.loggerPath = QtWidgets.QTextEdit()
         self.loggerPath.setFixedHeight(40)
         self.browseButton = QtWidgets.QPushButton("Browse")
+        self.browseButton.setShortcut("Ctrl+B")
+        self.browseButton.setToolTip("Ctrl+B")
         self.browseButton.setSizePolicy(policy)
         self.fileFormat = QtWidgets.QComboBox()
         self.fileFormat.setFixedWidth(100)
         self.fileFormat.addItems(self.file_types)
         self.fileTimestampFormat = QtWidgets.QLineEdit()
+        msg = (
+            "Specify a format code to identify where the datetime info is located in the file names.\n"
+            "E.g. For file names of the format:\n"
+            "    BOP_2018_0607_1620,\n"
+            "the required input is:\n"
+            "    xxxxYYYYxmmDDxHHMM,\n"
+            "where,\n"
+            "Y = year\n"
+            "m = month\n"
+            "D = day\n"
+            "H = hour\n"
+            "M = minute\n"
+            "S = second\n"
+            "f = millisecond\n"
+            "x = any other character."
+        )
+        self.fileTimestampFormat.setToolTip(msg)
         self.fileExt = QtWidgets.QLineEdit()
         self.fileExt.setFixedWidth(30)
         self.fileDelimiter = QtWidgets.QComboBox()
@@ -807,6 +852,8 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
         self.unitsHeaderRow.setFixedWidth(30)
         self.unitsHeaderRow.setValidator(int_validator)
         self.detectButton = QtWidgets.QPushButton("Detect Properties")
+        self.detectButton.setShortcut("Ctrl+D")
+        self.detectButton.setToolTip("Ctrl+D")
         self.detectButton.setSizePolicy(policy)
         self.dataTimestampFormat = QtWidgets.QLineEdit()
         self.numColumns = QtWidgets.QLineEdit()
@@ -882,7 +929,7 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
         self.fileFormat.currentIndexChanged.connect(self.on_file_format_changed)
         self.detectButton.clicked.connect(self.on_detect_props_clicked)
 
-    def set_dialog_data(self):
+    def _set_dialog_data(self):
         """Set dialog data with logger properties from control object."""
 
         # Logger properties object of selected logger
@@ -1181,7 +1228,9 @@ class StatsAndSpectralSettingsTab(QtWidgets.QWidget):
         # Columns to process group
         self.colsGroup = QtWidgets.QGroupBox("Columns to Process Settings")
         self.colsForm = QtWidgets.QFormLayout(self.colsGroup)
-        self.colsForm.addRow(QtWidgets.QLabel("Column numbers to process:"), self.columns)
+        self.colsForm.addRow(
+            QtWidgets.QLabel("Column numbers to process:"), self.columns
+        )
         self.colsForm.addRow(
             QtWidgets.QLabel("Unit conversion factors:"), self.unitConvs
         )
@@ -1195,7 +1244,9 @@ class StatsAndSpectralSettingsTab(QtWidgets.QWidget):
         # Processing date range group
         self.dateRangeGroup = QtWidgets.QGroupBox("Processing Date Range")
         self.dateRangeForm = QtWidgets.QFormLayout(self.dateRangeGroup)
-        self.dateRangeForm.addRow(QtWidgets.QLabel("Start timestamp:"), self.processStart)
+        self.dateRangeForm.addRow(
+            QtWidgets.QLabel("Start timestamp:"), self.processStart
+        )
         self.dateRangeForm.addRow(QtWidgets.QLabel("End timestamp:"), self.processEnd)
 
         # Filters group
@@ -1215,7 +1266,9 @@ class StatsAndSpectralSettingsTab(QtWidgets.QWidget):
         self.statsForm = QtWidgets.QFormLayout(self.statsGroup)
         self.statsForm.addRow(self.processStatsChkBox, QtWidgets.QLabel(""))
         self.statsForm.addRow(QtWidgets.QLabel("Output folder:"), self.statsFolder)
-        self.statsForm.addRow(QtWidgets.QLabel("Sample length (s):"), self.statsInterval)
+        self.statsForm.addRow(
+            QtWidgets.QLabel("Sample length (s):"), self.statsInterval
+        )
 
         # Spectral settings group
         self.spectGroup = QtWidgets.QGroupBox("Spectral Analysis Settings")
@@ -1277,9 +1330,7 @@ class StatsAndSpectralSettingsTab(QtWidgets.QWidget):
     def _connect_signals(self):
         self.editButton.clicked.connect(self.on_edit_clicked)
         self.processStatsChkBox.toggled.connect(self.on_process_stats_check_box_toggled)
-        self.processSpectChkBox.toggled.connect(
-            self.on_process_spect_check_box_toggled
-        )
+        self.processSpectChkBox.toggled.connect(self.on_process_spect_check_box_toggled)
         self.statsH5.toggled.connect(self.on_stats_h5_toggled)
         self.statsCSV.toggled.connect(self.on_stats_csv_toggled)
         self.statsXLSX.toggled.connect(self.on_stats_xlsx_toggled)
@@ -1466,7 +1517,7 @@ class StatsAndSpectralSettingsTab(QtWidgets.QWidget):
         self.processType.setText("-")
         self.statsInterval.setText("-")
         self.spectInterval.setText("-")
-        self.statsFolder.setText("Statsitics")
+        self.statsFolder.setText("Statistics")
         self.spectFolder.setText("Spectrograms")
 
 
@@ -1495,30 +1546,39 @@ class EditStatsAndSpectralDialog(QtWidgets.QDialog):
 
         # WIDGETS
         self.columns = QtWidgets.QLineEdit()
-        self.columns.setToolTip("Column numbers to process, separated by a space.\n"
-                                "E.g. 2 3 4 5 (column 1 (time index) does not need to be included).")
+        self.columns.setToolTip(
+            "Column numbers to process, separated by a space.\n"
+            "E.g. 2 3 4 5 (column 1 (time index) does not need to be included)."
+        )
         self.unitConvs = QtWidgets.QLineEdit()
-        self.unitConvs.setToolTip("Column unit conversion factors, separated by a space.\n"
-                                  "E.g. 0.001 0.001 57.29578 57.29578.")
+        self.unitConvs.setToolTip(
+            "Column unit conversion factors, separated by a space.\n"
+            "E.g. 0.001 0.001 57.29578 57.29578."
+        )
         self.channelNames = QtWidgets.QLineEdit()
-        self.channelNames.setToolTip("Custom channel names, separated by a space.\n"
-                                     "E.g. AccelX AccelY AngRateX AngRateY.")
+        self.channelNames.setToolTip(
+            "Custom channel names, separated by a space.\n"
+            "E.g. AccelX AccelY AngRateX AngRateY."
+        )
         self.channelUnits = QtWidgets.QLineEdit()
-        self.channelUnits.setToolTip("Custom channel units, separated by a space.\n"
-                                     "E.g. m/s^2 m/s^2 deg/s deg/s.")
+        self.channelUnits.setToolTip(
+            "Custom channel units, separated by a space.\n"
+            "E.g. m/s^2 m/s^2 deg/s deg/s."
+        )
         self.processStart = QtWidgets.QLineEdit()
-        self.processStart.setToolTip("If blank, the timestamps of the first file "
-                                     "will be used (if detected).")
+        self.processStart.setToolTip(
+            "If blank, the timestamps of the first file " "will be used (if detected)."
+        )
         self.processStart.setFixedWidth(100)
         self.processEnd = QtWidgets.QLineEdit()
-        self.processEnd.setToolTip("If blank, the timestamp of the last file "
-                                   "will be used (if detected).")
+        self.processEnd.setToolTip(
+            "If blank, the timestamp of the last file " "will be used (if detected)."
+        )
         self.processEnd.setFixedWidth(100)
         self.processType = QtWidgets.QComboBox()
-        self.processType.addItems(["Both unfiltered and filtered",
-                                   "Unfiltered only",
-                                   "Filtered only",
-                                   ])
+        self.processType.addItems(
+            ["Both unfiltered and filtered", "Unfiltered only", "Filtered only"]
+        )
         self.processType.setFixedWidth(160)
         self.lowCutoff = QtWidgets.QLineEdit()
         self.lowCutoff.setFixedWidth(40)
@@ -1541,7 +1601,9 @@ class EditStatsAndSpectralDialog(QtWidgets.QDialog):
         # Columns to process settings group
         self.colsGroup = QtWidgets.QGroupBox("Columns to Process Settings")
         self.colsForm = QtWidgets.QFormLayout(self.colsGroup)
-        self.colsForm.addRow(QtWidgets.QLabel("Column numbers to process:"), self.columns)
+        self.colsForm.addRow(
+            QtWidgets.QLabel("Column numbers to process:"), self.columns
+        )
         self.colsForm.addRow(
             QtWidgets.QLabel("Unit conversion factors (optional):"), self.unitConvs
         )
@@ -1555,7 +1617,9 @@ class EditStatsAndSpectralDialog(QtWidgets.QDialog):
         # Processing date range group
         self.dateRangeGroup = QtWidgets.QGroupBox("Processing Date Range")
         self.dateRangeForm = QtWidgets.QFormLayout(self.dateRangeGroup)
-        self.dateRangeForm.addRow(QtWidgets.QLabel("Start timestamp:"), self.processStart)
+        self.dateRangeForm.addRow(
+            QtWidgets.QLabel("Start timestamp:"), self.processStart
+        )
         self.dateRangeForm.addRow(QtWidgets.QLabel("End timestamp:"), self.processEnd)
 
         # Filters group
@@ -1573,7 +1637,9 @@ class EditStatsAndSpectralDialog(QtWidgets.QDialog):
         self.statsGroup = QtWidgets.QGroupBox("Statistics Screening Settings")
         self.statsForm = QtWidgets.QFormLayout(self.statsGroup)
         self.statsForm.addRow(QtWidgets.QLabel("Output folder:"), self.statsFolder)
-        self.statsForm.addRow(QtWidgets.QLabel("Sample length (s):"), self.statsInterval)
+        self.statsForm.addRow(
+            QtWidgets.QLabel("Sample length (s):"), self.statsInterval
+        )
 
         # Spectral settings group
         self.spectGroup = QtWidgets.QGroupBox("Spectral Screening Settings")
@@ -1677,8 +1743,10 @@ class EditStatsAndSpectralDialog(QtWidgets.QDialog):
         try:
             logger.cols_to_process = list(map(int, self.columns.text().split()))
         except ValueError:
-            msg = "Only integer column numbers are allowed.\n" \
-                  "Separate each number with a space, e.g. 2 3 4 5."
+            msg = (
+                "Only integer column numbers are allowed.\n"
+                "Separate each number with a space, e.g. 2 3 4 5."
+            )
             QtWidgets.QMessageBox.information(
                 self, "Invalid Requested Columns Input", msg
             )
@@ -1686,8 +1754,10 @@ class EditStatsAndSpectralDialog(QtWidgets.QDialog):
         try:
             logger.unit_conv_factors = list(map(float, self.unitConvs.text().split()))
         except ValueError:
-            msg = "Unit conversion factors must be numeric.\n" \
-                  "Separate each input with a space, e.g. 0.001 0.001 57.29578 57.29578."
+            msg = (
+                "Unit conversion factors must be numeric.\n"
+                "Separate each input with a space, e.g. 0.001 0.001 57.29578 57.29578."
+            )
             QtWidgets.QMessageBox.information(
                 self, "Invalid Unit Conversion Factors Input", msg
             )
@@ -1735,15 +1805,21 @@ class EditStatsAndSpectralDialog(QtWidgets.QDialog):
         logger.process_type = self.processType.currentText()
 
         # Stats settings group
-        logger.stats_interval = int(self.statsInterval.text())
+        if self.statsInterval.text() == "":
+            logger.stats_interval = 0
+        else:
+            logger.stats_interval = int(self.statsInterval.text())
 
         # Spectral settings group
-        logger.spect_interval = int(self.spectInterval.text())
+        if self.spectInterval.text() == "":
+            logger.spect_interval = 0
+        else:
+            logger.spect_interval = int(self.spectInterval.text())
 
         # Output folders - store as global control settings
         if self.parent is not None:
-            self.parent.control.stats_output_folder = self.statsFolder
-            self.parent.control.spect_output_folder = self.spectFolder
+            self.parent.control.stats_output_folder = self.statsFolder.text()
+            self.parent.control.spect_output_folder = self.spectFolder.text()
 
     @staticmethod
     def get_timestamp_in_filename(logger, file_idx):
@@ -1755,6 +1831,184 @@ class EditStatsAndSpectralDialog(QtWidgets.QDialog):
             return logger.file_timestamps[file_idx]
         except:
             return None
+
+
+class SeascatterTab(QtWidgets.QWidget):
+    """Tab to display transfer functions settings."""
+
+    def __init__(self, parent=None, control=Control(), scatter=Seascatter()):
+        super(SeascatterTab, self).__init__(parent)
+
+        self.parent = parent
+        self.control = control
+        self.scatter = scatter
+        self._init_ui()
+        self._connect_signals()
+
+    def _init_ui(self):
+        # WIDGETS
+        self.editButton = QtWidgets.QPushButton("Edit Data")
+        self.editButton.setShortcut("Ctrl+E")
+        self.editButton.setToolTip("Ctrl+E")
+        self.logger = QtWidgets.QLabel("-")
+        self.hsCol = QtWidgets.QLabel("-")
+        self.tpCol = QtWidgets.QLabel("-")
+
+        # CONTAINERS
+        self.detailsGroup = QtWidgets.QGroupBox("Sea Scatter Data Details")
+        self.detailsGroup.setMinimumWidth(500)
+        self.form = QtWidgets.QFormLayout(self.detailsGroup)
+        self.form.addRow(
+            QtWidgets.QLabel("Logger containing metocean data:"), self.logger
+        )
+        self.form.addRow(
+            QtWidgets.QLabel("Significant wave height column:"), self.hsCol
+        )
+        self.form.addRow(
+            QtWidgets.QLabel("Significant wave period column:"), self.tpCol
+        )
+
+        # LAYOUT
+        self.layout1 = QtWidgets.QVBoxLayout()
+        self.layout1.addWidget(
+            self.editButton, stretch=0, alignment=QtCore.Qt.AlignLeft
+        )
+        self.layout1.addWidget(self.detailsGroup)
+        self.layout1.addStretch()
+
+        self.layout2 = QtWidgets.QHBoxLayout(self)
+        self.layout2.addLayout(self.layout1)
+        self.layout2.addStretch()
+
+    def _connect_signals(self):
+        self.editButton.clicked.connect(self.on_edit_clicked)
+
+    def on_edit_clicked(self):
+        """Show edit sea scatter settings dialog."""
+
+        editInfo = EditSeascatterDialog(self, self.control, self.scatter)
+        editInfo.set_dialog_data()
+        editInfo.show()
+
+    def set_scatter_dashboard(self):
+        """Set config tab sea scatter setup."""
+
+        self.logger.setText(self.scatter.metocean_logger)
+        self.hsCol.setText(str(self.scatter.hs_col))
+        self.tpCol.setText(str(self.scatter.tp_col))
+
+    def clear_dashboard(self):
+        """Initialise all values in sea scatter setup dashboard."""
+
+        self.logger.setText("-")
+        self.hsCol.setText("-")
+        self.tpCol.setText("-")
+
+
+class EditSeascatterDialog(QtWidgets.QDialog):
+    def __init__(self, parent=None, control=Control(), scatter=Seascatter()):
+        super(EditSeascatterDialog, self).__init__(parent)
+
+        self.cols = []
+
+        self.parent = parent
+        self.control = control
+        self.scatter = scatter
+        self._init_ui()
+        self._connect_signals()
+
+    def _init_ui(self):
+        self.setWindowTitle("Edit Sea Scatter Settings")
+
+        # WIDGETS
+        self.loggerCombo = QtWidgets.QComboBox()
+        self.hsColCombo = QtWidgets.QComboBox()
+        msg = "Select the Hs column number that was set up in the screening tab."
+        self.hsColCombo.setToolTip(msg)
+        self.tpColCombo = QtWidgets.QComboBox()
+        msg = "Select the Tp column number that was set up in the screening tab."
+        self.tpColCombo.setToolTip(msg)
+
+        self.buttonBox = QtWidgets.QDialogButtonBox(
+            QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel
+        )
+
+        # CONTAINERS
+        self.detailsGroup = QtWidgets.QGroupBox("Define Metocean Logger Details")
+        self.form = QtWidgets.QFormLayout(self.detailsGroup)
+        self.form.addRow(
+            QtWidgets.QLabel("Logger containing metocean data:"), self.loggerCombo
+        )
+        self.form.addRow(
+            QtWidgets.QLabel("Significant wave height column:"), self.hsColCombo
+        )
+        self.form.addRow(
+            QtWidgets.QLabel("Significant wave period column:"), self.tpColCombo
+        )
+
+        # LAYOUT
+        self.layout = QtWidgets.QVBoxLayout(self)
+        self.layout.addWidget(self.detailsGroup)
+        self.layout.addStretch()
+        self.layout.addWidget(self.buttonBox)
+
+    def _connect_signals(self):
+        self.loggerCombo.currentIndexChanged.connect(self.on_logger_combo_changed)
+        self.buttonBox.accepted.connect(self.on_ok_clicked)
+        self.buttonBox.accepted.connect(self.accept)
+        self.buttonBox.rejected.connect(self.reject)
+
+    def set_dialog_data(self):
+        self.loggerCombo.clear()
+
+        logger_ids = self.control.logger_ids
+        if logger_ids:
+            self.loggerCombo.addItems(logger_ids)
+
+            logger = self.scatter.metocean_logger
+            hs_col = self.scatter.hs_col
+            tp_col = self.scatter.tp_col
+
+            try:
+                self.loggerCombo.setCurrentText(logger)
+                self.hsColCombo.setCurrentText(str(hs_col))
+                self.tpColCombo.setCurrentText(str(tp_col))
+            except:
+                pass
+
+    def on_logger_combo_changed(self):
+        i = self.loggerCombo.currentIndex()
+        if i == -1:
+            return
+
+        self.cols = self.control.loggers[i].cols_to_process
+        self.hsColCombo.clear()
+        self.hsColCombo.addItems(map(str, self.cols))
+        self.tpColCombo.clear()
+        self.tpColCombo.addItems(map(str, self.cols))
+
+    def on_ok_clicked(self):
+        """Store time traces paths in transfer functions class."""
+
+        self._set_seascatter_data()
+        if self.parent is not None:
+            self.parent.set_scatter_dashboard()
+
+    def _set_seascatter_data(self):
+        """Assign values to the transfer functions object."""
+
+        self.scatter.metocean_logger = self.loggerCombo.currentText()
+        self.scatter.hs_col = int(self.hsColCombo.currentText())
+        self.scatter.tp_col = int(self.tpColCombo.currentText())
+
+        # Store the list index of the selected columns, which is the info actually needed to retrieve the stats data
+        self.scatter.hs_col_idx = self.cols.index(self.scatter.hs_col)
+        self.scatter.tp_col_idx = self.cols.index(self.scatter.tp_col)
+
+    @pyqtSlot(str)
+    def warning(self, msg):
+        print(f"Warning: {msg}")
+        return QtWidgets.QMessageBox.information(self, "Warning", msg)
 
 
 class TransferFunctionsTab(QtWidgets.QWidget):
@@ -1787,15 +2041,27 @@ class TransferFunctionsTab(QtWidgets.QWidget):
         self.pathsGroup = QtWidgets.QGroupBox("FEA Time Series Locations")
         self.pathsGroup.setMinimumWidth(500)
         self.form1 = QtWidgets.QFormLayout(self.pathsGroup)
-        self.form1.addRow(QtWidgets.QLabel("Logger displacements directory:"), self.loggerDispPath)
-        self.form1.addRow(QtWidgets.QLabel("Logger rotations directory:"), self.loggerRotPath)
-        self.form1.addRow(QtWidgets.QLabel("Location bending moments directory:"), self.locBMPath)
+        self.form1.addRow(
+            QtWidgets.QLabel("Logger displacements directory:"), self.loggerDispPath
+        )
+        self.form1.addRow(
+            QtWidgets.QLabel("Logger rotations directory:"), self.loggerRotPath
+        )
+        self.form1.addRow(
+            QtWidgets.QLabel("Location bending moments directory:"), self.locBMPath
+        )
 
         self.detailsGroup = QtWidgets.QGroupBox("FEA Details")
         self.form2 = QtWidgets.QFormLayout(self.detailsGroup)
-        self.form2.addRow(QtWidgets.QLabel("Number of FEA loggers detected:"), self.numLoggers)
-        self.form2.addRow(QtWidgets.QLabel("Number of FEA locations detected:"), self.numLocs)
-        self.form2.addRow(QtWidgets.QLabel("Number of FEA sea states detected:"), self.numSeastates)
+        self.form2.addRow(
+            QtWidgets.QLabel("Number of FEA loggers detected:"), self.numLoggers
+        )
+        self.form2.addRow(
+            QtWidgets.QLabel("Number of FEA locations detected:"), self.numLocs
+        )
+        self.form2.addRow(
+            QtWidgets.QLabel("Number of FEA sea states detected:"), self.numSeastates
+        )
 
         self.group1 = QtWidgets.QGroupBox("Logger Names")
         self.vbox1 = QtWidgets.QVBoxLayout(self.group1)
@@ -1820,7 +2086,9 @@ class TransferFunctionsTab(QtWidgets.QWidget):
 
         # LAYOUT
         self.layout1 = QtWidgets.QVBoxLayout()
-        self.layout1.addWidget(self.editButton, stretch=0, alignment=QtCore.Qt.AlignLeft)
+        self.layout1.addWidget(
+            self.editButton, stretch=0, alignment=QtCore.Qt.AlignLeft
+        )
         self.layout1.addWidget(self.pathsGroup)
         self.layout1.addLayout(self.hbox)
         self.layout1.addStretch()
@@ -1878,17 +2146,11 @@ class EditTransferFunctionsDialog(QtWidgets.QDialog):
 
     def _init_ui(self):
         self.setWindowTitle("Edit Transfer Functions Settings")
-
-        # Sizing policy
-        policy = QtWidgets.QSizePolicy(
-            QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Expanding
-        )
         self.setFixedHeight(500)
 
         # WIDGETS
         self.loggerDispPath = QtWidgets.QPlainTextEdit()
         self.loggerDispPath.setFixedHeight(40)
-        # self.loggerDispPath.setMinimumWidth(300)
         self.loggerRotPath = QtWidgets.QPlainTextEdit()
         self.loggerRotPath.setFixedHeight(40)
         self.locBMPath = QtWidgets.QPlainTextEdit()
@@ -1896,7 +2158,9 @@ class EditTransferFunctionsDialog(QtWidgets.QDialog):
         self.setDispPathButton = QtWidgets.QPushButton("Browse")
         self.setRotPathButton = QtWidgets.QPushButton("Browse")
         self.setBMPathButton = QtWidgets.QPushButton("Browse")
-        self.detectProps = QtWidgets.QPushButton("Detect Loggers and Locations")
+        self.detectButton = QtWidgets.QPushButton("Detect Loggers and Locations")
+        self.detectButton.setShortcut("Ctrl+D")
+        self.detectButton.setToolTip("Ctrl+D")
         self.numLoggers = QtWidgets.QLabel("-")
         self.numLocs = QtWidgets.QLabel("-")
         self.numSeastates = QtWidgets.QLabel("-")
@@ -1904,33 +2168,43 @@ class EditTransferFunctionsDialog(QtWidgets.QDialog):
         self.locNames = QtWidgets.QPlainTextEdit()
         self.percOcc = QtWidgets.QPlainTextEdit()
         self.percOcc.setFixedWidth(80)
-        self.percOcc.setToolTip("Optional: To calculate a weighted-average transfer function per location,\n"
-                                "input a list of sea state percentage occurrence values, e.g.\n"
-                                "19.040\n"
-                                "10.134\n"
-                                "20.049\n"
-                                "17.022\n"
-                                "14.644\n"
-                                "10.374\n"
-                                "5.448\n"
-                                "3.289\n"
-                                )
+        self.percOcc.setToolTip(
+            "Optional: To calculate a weighted-average transfer function per location,\n"
+            "input a list of sea state percentage occurrence values, e.g.\n"
+            "19.040\n"
+            "10.134\n"
+            "20.049\n"
+            "17.022\n"
+            "14.644\n"
+            "10.374\n"
+            "5.448\n"
+            "3.289\n"
+        )
         self.buttonBox = QtWidgets.QDialogButtonBox(
             QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel
         )
 
         # CONTAINERS
         self.pathsGroup = QtWidgets.QGroupBox("FEA Time Series Locations")
-        self.form1 = QtWidgets.QFormLayout()
-        self.form1.addRow(QtWidgets.QLabel("Logger displacements directory:"), self.loggerDispPath)
-        self.form1.addRow(QtWidgets.QLabel("Logger rotations directory:"), self.loggerRotPath)
-        self.form1.addRow(QtWidgets.QLabel("Location bending moments directory:"), self.locBMPath)
-
-        self.vboxButtons = QtWidgets.QVBoxLayout()
         self.grid = QtWidgets.QGridLayout(self.pathsGroup)
-        self.grid.addWidget(QtWidgets.QLabel("Logger displacements directory:"), 0, 0, alignment=QtCore.Qt.AlignTop)
-        self.grid.addWidget(QtWidgets.QLabel("Logger rotations directory:"), 1, 0, alignment=QtCore.Qt.AlignTop)
-        self.grid.addWidget(QtWidgets.QLabel("Location bending moments directory:"), 2, 0, alignment=QtCore.Qt.AlignTop)
+        self.grid.addWidget(
+            QtWidgets.QLabel("Logger displacements directory:"),
+            0,
+            0,
+            alignment=QtCore.Qt.AlignTop,
+        )
+        self.grid.addWidget(
+            QtWidgets.QLabel("Logger rotations directory:"),
+            1,
+            0,
+            alignment=QtCore.Qt.AlignTop,
+        )
+        self.grid.addWidget(
+            QtWidgets.QLabel("Location bending moments directory:"),
+            2,
+            0,
+            alignment=QtCore.Qt.AlignTop,
+        )
         self.grid.addWidget(self.loggerDispPath, 0, 1)
         self.grid.addWidget(self.loggerRotPath, 1, 1)
         self.grid.addWidget(self.locBMPath, 2, 1)
@@ -1939,18 +2213,16 @@ class EditTransferFunctionsDialog(QtWidgets.QDialog):
         self.grid.addWidget(self.setBMPathButton, 2, 2, alignment=QtCore.Qt.AlignTop)
 
         self.detailsGroup = QtWidgets.QGroupBox("FEA Details")
-        self.form2 = QtWidgets.QFormLayout(self.detailsGroup)
-        self.form2.addRow(QtWidgets.QLabel("Number of FEA loggers detected:"), self.numLoggers)
-        self.form2.addRow(QtWidgets.QLabel("Number of FEA locations detected:"), self.numLocs)
-        self.form2.addRow(QtWidgets.QLabel("Number of FEA sea states detected:"), self.numSeastates)
-
-        # self.grid2 = QtWidgets.QGridLayout()
-        # self.grid2.addWidget(QtWidgets.QLabel("Loggers Time Series"), 0, 0)
-        # self.grid2.addWidget(self.loggerNames, 1, 0)
-        # self.grid2.addWidget(QtWidgets.QLabel("Locations Time Series"), 0, 1)
-        # self.grid2.addWidget(self.locNames, 1, 1)
-        # self.grid2.addWidget(QtWidgets.QLabel("Percentage Occurrences"), 0, 2)
-        # self.grid2.addWidget(self.percOcc, 1, 2)
+        self.form = QtWidgets.QFormLayout(self.detailsGroup)
+        self.form.addRow(
+            QtWidgets.QLabel("Number of FEA loggers detected:"), self.numLoggers
+        )
+        self.form.addRow(
+            QtWidgets.QLabel("Number of FEA locations detected:"), self.numLocs
+        )
+        self.form.addRow(
+            QtWidgets.QLabel("Number of FEA sea states detected:"), self.numSeastates
+        )
 
         self.vbox1 = QtWidgets.QVBoxLayout()
         self.vbox1.addWidget(QtWidgets.QLabel("Loggers Time Series"))
@@ -1963,7 +2235,6 @@ class EditTransferFunctionsDialog(QtWidgets.QDialog):
         self.vbox2.addWidget(self.percOcc)
 
         self.hbox = QtWidgets.QHBoxLayout()
-        # self.hbox.addLayout(self.grid2)
         self.hbox.addLayout(self.vbox1)
         self.hbox.addLayout(self.vbox2)
         self.hbox.addStretch()
@@ -1972,7 +2243,9 @@ class EditTransferFunctionsDialog(QtWidgets.QDialog):
         # LAYOUT
         self.layout = QtWidgets.QVBoxLayout(self)
         self.layout.addWidget(self.pathsGroup)
-        self.layout.addWidget(self.detectProps, stretch=0, alignment=QtCore.Qt.AlignLeft)
+        self.layout.addWidget(
+            self.detectButton, stretch=0, alignment=QtCore.Qt.AlignLeft
+        )
         self.layout.addWidget(self.detailsGroup)
         self.layout.addLayout(self.hbox)
 
@@ -1980,9 +2253,9 @@ class EditTransferFunctionsDialog(QtWidgets.QDialog):
         self.setDispPathButton.clicked.connect(self.on_set_disp_path_clicked)
         self.setRotPathButton.clicked.connect(self.on_set_rot_path_clicked)
         self.setBMPathButton.clicked.connect(self.on_set_bm_path_clicked)
-        self.detectProps.clicked.connect(self.on_detect_clicked)
-        self.buttonBox.accepted.connect(self.accept)
+        self.detectButton.clicked.connect(self.on_detect_clicked)
         self.buttonBox.accepted.connect(self.on_ok_clicked)
+        self.buttonBox.accepted.connect(self.accept)
         self.buttonBox.rejected.connect(self.reject)
 
         # Connect warning signal to warning message box
@@ -2007,19 +2280,25 @@ class EditTransferFunctionsDialog(QtWidgets.QDialog):
         self.percOcc.setPlainText("\n".join(list(map(str, self.tf.perc_occ))))
 
     def on_set_disp_path_clicked(self):
-        dir_path = QtWidgets.QFileDialog.getExistingDirectory(self, "Logger Displacements Folder")
+        dir_path = QtWidgets.QFileDialog.getExistingDirectory(
+            self, "Logger Displacements Folder"
+        )
 
         if dir_path:
             self.loggerDispPath.setPlainText(dir_path)
 
     def on_set_rot_path_clicked(self):
-        dir_path = QtWidgets.QFileDialog.getExistingDirectory(self, "Logger Rotations Folder")
+        dir_path = QtWidgets.QFileDialog.getExistingDirectory(
+            self, "Logger Rotations Folder"
+        )
 
         if dir_path:
             self.loggerRotPath.setPlainText(dir_path)
 
     def on_set_bm_path_clicked(self):
-        dir_path = QtWidgets.QFileDialog.getExistingDirectory(self, "Location Bending Moments Folder")
+        dir_path = QtWidgets.QFileDialog.getExistingDirectory(
+            self, "Location Bending Moments Folder"
+        )
 
         if dir_path:
             self.locBMPath.setPlainText(dir_path)
@@ -2054,14 +2333,18 @@ class EditTransferFunctionsDialog(QtWidgets.QDialog):
             self.tf.num_ss = 0
 
         # Convert to lists
-        self.tf.logger_names = [i.strip() for i in self.loggerNames.toPlainText().split("\n")]
+        self.tf.logger_names = [
+            i.strip() for i in self.loggerNames.toPlainText().split("\n")
+        ]
         self.tf.loc_names = [i.strip() for i in self.locNames.toPlainText().split("\n")]
 
         perc_occ = self.percOcc.toPlainText()
         if perc_occ:
             try:
                 # Convert values to float
-                self.tf.perc_occ = list(map(float, self.percOcc.toPlainText().split("\n")))
+                self.tf.perc_occ = list(
+                    map(float, self.percOcc.toPlainText().split("\n"))
+                )
             except ValueError as e:
                 msg = "Percentage occurrences must be numeric."
                 QtWidgets.QMessageBox.information(
@@ -2115,10 +2398,9 @@ class EditTransferFunctionsDialog(QtWidgets.QDialog):
         """
 
         loggers = [i.strip().replace("_", " ") for i in loggers]
-        loggers = [i.rsplit(" ", 1)[0]
-                   if i.lower().endswith("dispy")
-                   else i for i in
-                   loggers]
+        loggers = [
+            i.rsplit(" ", 1)[0] if i.lower().endswith("dispy") else i for i in loggers
+        ]
         return loggers
 
     @staticmethod
@@ -2129,10 +2411,12 @@ class EditTransferFunctionsDialog(QtWidgets.QDialog):
         """
 
         locations = [i.strip().replace("_", " ") for i in locations]
-        locations = [i.rsplit(" ", 1)[0]
-                     if i.lower().endswith("after") or i.lower().endswith("before")
-                     else i for i in
-                     locations]
+        locations = [
+            i.rsplit(" ", 1)[0]
+            if i.lower().endswith("after") or i.lower().endswith("before")
+            else i
+            for i in locations
+        ]
         return locations
 
     @pyqtSlot(str)
@@ -2144,13 +2428,15 @@ class EditTransferFunctionsDialog(QtWidgets.QDialog):
 if __name__ == "__main__":
     # For testing widget layout
     app = QtWidgets.QApplication(sys.argv)
-    win = ConfigModule()
+    # win = ConfigModule()
     # win = CampaignInfoTab()
     # win = LoggerPropertiesTab()
     # win = StatsAndSpectralSettingsTab()
     # win = EditCampaignInfoDialog()
     # win = EditLoggerPropertiesDialog()
     # win = EditStatsAndSpectralDialog()
+    win = SeascatterTab()
+    # win = EditSeascatterDialog()
     # win = TransferFunctionsTab()
     # win = EditTransferFunctionsDialog()
     win.show()

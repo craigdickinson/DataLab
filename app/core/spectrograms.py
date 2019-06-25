@@ -105,27 +105,37 @@ class Spectrogram(object):
         """Write spectrograms data to requested file formats (HDF5, csv, xlsx)."""
 
         t0 = time()
+        dict_df = {}
 
         for channel, spect in self.spectrograms.items():
-            logger_id = replace_space_with_underscore(self.logger_id)
-            channel = replace_space_with_underscore(channel)
+            logger_id = "_".join(self.logger_id.split(" "))
+            channel = "_".join(channel.split(" "))
 
-            filename = "_".join(("Spectrograms_Data", logger_id, channel))
+            key = f"{logger_id}_{channel}"
+            if filtered is True:
+                key += "_filtered"
+
+            filename = f"Spectrograms_Data_{logger_id}_{channel}"
             if filtered is True:
                 filename += "_(filtered)"
+            file_path = os.path.join(self.output_dir, filename)
 
             # Create directory if does not exist
             if self.output_dir != "" and os.path.exists(self.output_dir) is False:
                 os.makedirs(self.output_dir)
 
-            file_path = os.path.join(self.output_dir, filename)
-            key = logger_id + "_" + channel
+            # Create spectrogram data frame for channel and add to dictionary
             f = self.freq
             t = self.datetimes
             df = pd.DataFrame(data=spect, index=t, columns=f)
 
+            # Replace _ in key with " "
+            key2 = " ".join(key.split("_"))
+            dict_df[key2] = df
+
             if dict_formats_to_write["h5"] is True:
-                df.to_hdf(file_path + ".h5", key)
+                # Note HDF5 files should use a contiguous key name
+                df.to_hdf(file_path + ".h5", key, mode="w")
             if dict_formats_to_write["csv"] is True:
                 df.to_csv(file_path + ".csv")
             if dict_formats_to_write["xlsx"] is True:
@@ -136,17 +146,8 @@ class Spectrogram(object):
         t1 = round(time() - t0)
         # print('Write hdf5 time = {}'.format(str(timedelta(seconds=t1))))
 
+        return dict_df
 
-def replace_space_with_underscore(input_str):
-    """Replace any spaces with underscores in string."""
-
-    return "_".join(input_str.split(" "))
-
-
-def replace_space_with_underscore(input_str):
-    """Replace any spaces with underscores in string."""
-
-    return "_".join(input_str.split(" "))
 
 # if __name__ == '__main__':
 #     folder = r'C:\Users\dickinsc\PycharmProjects\_2. DataLab Analysis Files\Misc\Output 21239 Test 4'

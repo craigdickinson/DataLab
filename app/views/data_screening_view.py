@@ -10,30 +10,15 @@ class DataQualityReport(QtWidgets.QWidget):
         super(DataQualityReport, self).__init__(parent)
 
         self.parent = parent
-        self.datalab = Screening(no_dat=True)
+        self.screening = Screening()
         self.init_ui()
         self.connect_signals()
 
     def init_ui(self):
-        self.layout = QtWidgets.QGridLayout(self)
-        self.layout.setAlignment(QtCore.Qt.AlignTop)
-
-        # Container for selected logger combo box
-        self.selectedLoggerWidget = QtWidgets.QWidget()
-        self.selectedLoggerWidget.setFixedSize(300, 50)
-        self.hbox = QtWidgets.QHBoxLayout(self.selectedLoggerWidget)
-
+        # WIDGETS
         self.loggerCombo = QtWidgets.QComboBox()
         self.loggerCombo.setMinimumWidth(100)
         self.loggerCombo.addItem("-")
-
-        self.hbox.addWidget(QtWidgets.QLabel("Selected logger:"))
-        self.hbox.addWidget(self.loggerCombo)
-
-        # Data quality report group
-        self.qualityGroup = QtWidgets.QGroupBox("Data Quality Screening Results")
-        self.qualityGroup.setFixedSize(300, 100)
-        self.form = QtWidgets.QFormLayout(self.qualityGroup)
         self.numFiles = QtWidgets.QLabel("-")
         self.numBadFilenames = QtWidgets.QLabel("-")
         self.percCompleteData = QtWidgets.QLabel("-")
@@ -41,6 +26,16 @@ class DataQualityReport(QtWidgets.QWidget):
         self.minResTable.setColumnCount(2)
         self.minResTable.setRowCount(4)
 
+        # CONTAINERS
+        # Container for selected logger combo box
+        self.hbox = QtWidgets.QHBoxLayout()
+        self.hbox.addWidget(QtWidgets.QLabel("Selected logger:"))
+        self.hbox.addWidget(self.loggerCombo)
+
+        # Data quality report group
+        self.qualityGroup = QtWidgets.QGroupBox("Data Quality Screening Results")
+        self.qualityGroup.setFixedSize(300, 100)
+        self.form = QtWidgets.QFormLayout(self.qualityGroup)
         self.form.addRow(QtWidgets.QLabel("Number of files:"), self.numFiles)
         self.form.addRow(
             QtWidgets.QLabel("Number of bad file names:"), self.numBadFilenames
@@ -50,15 +45,18 @@ class DataQualityReport(QtWidgets.QWidget):
         )
         # self.form.addRow(QtWidgets.QLabel('Percentage of complete data:'), self.minResTable)
 
-        self.layout.addWidget(self.selectedLoggerWidget, 0, 0)
-        self.layout.addWidget(self.qualityGroup, 1, 0)
-        # self.layout.addWidget(self.minResTable, 2, 0)
+        # LAYOUT
+        self.layout = QtWidgets.QVBoxLayout(self)
+        self.layout.setAlignment(QtCore.Qt.AlignTop)
+        self.layout.addLayout(self.hbox)
+        self.layout.addWidget(self.qualityGroup)
+        # self.layout.addWidget(self.minResTable)
 
     def connect_signals(self):
         self.loggerCombo.currentIndexChanged.connect(self.on_logger_combo_changed)
 
     def set_data_quality_results(self):
-        logger_ids = self.datalab.control.logger_ids
+        logger_ids = self.screening.control.logger_ids
         self.populate_logger_combo(logger_ids)
 
     def on_logger_combo_changed(self):
@@ -69,8 +67,8 @@ class DataQualityReport(QtWidgets.QWidget):
         if logger_idx == -1:
             return
 
-        logger_data_screen = self.datalab.data_screen[logger_idx]
-        logger = self.datalab.control.loggers[logger_idx]
+        logger_data_screen = self.screening.data_screen[logger_idx]
+        logger = self.screening.control.loggers[logger_idx]
 
         # Update report
         self.numFiles.setText(str(len(logger_data_screen.files)))
