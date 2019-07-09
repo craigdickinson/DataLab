@@ -1,7 +1,7 @@
 __author__ = "Craig Dickinson"
 __program__ = "DataLab"
-__version__ = "1.0.0"
-__date__ = "25 June 2019"
+__version__ = "1.0.1.1"
+__date__ = "9 July 2019"
 
 import logging
 import os
@@ -473,8 +473,8 @@ class DataLab(DataLabGui):
 
             # Get all channel names and units if not already stored in logger object
             if (
-                len(logger.all_channel_names) == 0
-                and len(logger.all_channel_units) == 0
+                    len(logger.all_channel_names) == 0
+                    and len(logger.all_channel_units) == 0
             ):
                 logger.get_all_channel_and_unit_names()
 
@@ -577,25 +577,26 @@ class DataLab(DataLabGui):
                     "Generate or load the required statistics dataset "
                     "containing Hs and Tp data and try again."
                 )
-            self.warning(msg)
-        else:
-            try:
-                hs, tp = self.scatter.get_hs_tp_data(df_metocean)
+            return self.warning(msg)
 
-                if hs.size == 0 and tp.size == 0:
-                    msg = (
-                        f"The specified Hs and Tp columns in the '{logger}' stats data do not exist.\n\n"
-                        "Check the correct columns have been input in the seascatter settings."
-                    )
-                    self.warning(msg)
-                else:
-                    self.seascatterModule.get_seascatter_dataset(hs, tp)
-                    self.seascatterModule.generate_scatter_diagram()
-                    self.view_tab_seascatter()
-            except Exception as e:
-                msg = "Unexpected error generating seascatter diagram"
-                self.error(f"{msg}:\n{e}\n{sys.exc_info()[0]}")
-                logging.exception(e)
+        try:
+            hs, tp = self.scatter.get_hs_tp_data(df_metocean)
+
+            if hs.size == 0 and tp.size == 0:
+                msg = (
+                    f"The specified Hs and Tp columns in the '{logger}' stats data do not exist.\n\n"
+                    "Check the correct columns have been input in the sea scatter settings."
+                )
+                return self.warning(msg)
+
+            self.seascatterModule.df_ss = self.scatter.df_ss
+            self.seascatterModule.calc_bins(hs, tp)
+            self.seascatterModule.generate_scatter_diagram()
+            self.view_tab_seascatter()
+        except Exception as e:
+            msg = "Unexpected error generating sea scatter diagram"
+            self.error(f"{msg}:\n{e}\n{sys.exc_info()[0]}")
+            logging.exception(e)
 
     def on_export_scatter_diagram_triggered(self):
         """Export sea scatter diagram to Excel."""
@@ -707,7 +708,7 @@ class ControlFileWorker(QtCore.QThread):
 
 
 if __name__ == "__main__":
-    # os.chdir(r'C:\Users\dickinsc\PycharmProjects\DataLab\demo_data\2. Project Configs')
+    os.chdir(r'C:\Users\dickinsc\PycharmProjects\DataLab\demo_data\2. Project Configs')
     app = QtWidgets.QApplication(sys.argv)
     # win = QtDesignerGui()
     win = DataLab()

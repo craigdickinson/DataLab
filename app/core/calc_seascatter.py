@@ -1,6 +1,5 @@
 import numpy as np
 import pandas as pd
-from PyQt5 import QtWidgets
 
 
 class Seascatter(object):
@@ -10,6 +9,7 @@ class Seascatter(object):
         self.tp_col = 0
         self.hs_col_idx = 0
         self.tp_col_idx = 0
+        self.df_ss = pd.DataFrame()
 
     def check_metocean_dataset_loaded(self, datasets):
         """
@@ -33,6 +33,10 @@ class Seascatter(object):
             # TODO: This won't be correct if both unfiltered and filtered stats exist in data frame!
             hs = df.iloc[:, self.hs_col_idx].values
             tp = df.iloc[:, self.tp_col_idx].values
+
+            # Store seastates as data frame
+            self.df_ss = df.iloc[:, [self.hs_col_idx, self.tp_col_idx]]
+            self.df_ss.columns = ["Hs (m)", "Tp (s)"]
         except:
             hs = np.array([])
             tp = np.array([])

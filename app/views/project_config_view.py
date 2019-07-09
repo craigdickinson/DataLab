@@ -45,7 +45,7 @@ class ConfigModule(QtWidgets.QWidget):
     def _init_ui(self):
         # WIDGETS
         self.openConfigButton = QtWidgets.QPushButton("Open")
-        self.openConfigButton.setToolTip("Load config (*.json) file (Ctrl+O)")
+        self.openConfigButton.setToolTip("Open config (*.json) file (Ctrl+O)")
         self.saveConfigButton = QtWidgets.QPushButton("Save")
         self.saveConfigButton.setToolTip(
             "Export project settings to config (*.json) file (Ctrl+S)"
@@ -108,7 +108,7 @@ class ConfigModule(QtWidgets.QWidget):
         self.vbox = QtWidgets.QVBoxLayout(self.loggersGroup)
         self.vbox.addWidget(self.addLoggerButton)
         self.vbox.addWidget(self.remLoggerButton)
-        self.vbox.addWidget(QtWidgets.QLabel("Project Loggers"))
+        self.vbox.addWidget(QtWidgets.QLabel("Loggers"))
         self.vbox.addWidget(self.loggersList)
         self.vbox.addWidget(QtWidgets.QLabel("Logger Header Details"))
         self.vbox.addWidget(self.columnsList)
@@ -334,8 +334,12 @@ class ConfigModule(QtWidgets.QWidget):
             # Remove logger from loggers list
             self.loggersList.takeItem(i)
 
+            # Clear relevant dashboards if all loggers removed
             if self.loggersList.count() == 0:
-                self.on_new_project_clicked()
+                self.columnsList.clear()
+                self.loggerPropsTab.clear_dashboard()
+                self.screeningTab.clear_dashboard()
+                self.scatterTab.clear_dashboard()
 
     def on_logger_selected(self):
         """Update dashboard data pertaining to selected logger."""
@@ -363,6 +367,18 @@ class ConfigModule(QtWidgets.QWidget):
         # Update dashboard logger id
         self.loggerPropsTab.loggerID.setText(new_logger_id)
 
+    def on_process_screening_clicked(self):
+        self.parent.process_screening()
+
+    def on_calc_seascatter_clicked(self):
+        self.parent.calc_seascatter()
+
+    def on_calc_transfer_functions_clicked(self):
+        self.parent.calc_transfer_functions()
+
+    def on_calc_fatigue_clicked(self):
+        self.parent.calc_fatigue()
+
     def update_logger_id_list(self, logger_id, logger_idx):
         """Update logger name in the loggers list if logger id in edit dialog is changed."""
 
@@ -387,18 +403,6 @@ class ConfigModule(QtWidgets.QWidget):
                 item = QtWidgets.QListWidgetItem(i)
                 item.setFlags(item.flags() & ~QtCore.Qt.ItemIsSelectable)
                 self.columnsList.addItem(item)
-
-    def on_process_screening_clicked(self):
-        self.parent.process_screening()
-
-    def on_calc_seascatter_clicked(self):
-        self.parent.calc_seascatter()
-
-    def on_calc_transfer_functions_clicked(self):
-        self.parent.calc_transfer_functions()
-
-    def on_calc_fatigue_clicked(self):
-        self.parent.calc_fatigue()
 
     def _map_setup_objects_to_tabs(self):
         """Update the various project config tab objects with their associated settings objects."""

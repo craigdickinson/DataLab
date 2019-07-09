@@ -101,7 +101,7 @@ class DataLabGui(QtWidgets.QMainWindow):
         self.menuAbout = menubar.addMenu("&Help")
 
         # File menu
-        self.openConfigAction = QtWidgets.QAction("Load Config File")
+        self.openConfigAction = QtWidgets.QAction("Open Config File")
         self.openConfigAction.setShortcut("Ctrl+O")
         self.saveConfigAction = QtWidgets.QAction("Save Config File")
         self.saveConfigAction.setShortcut("Ctrl+S")
