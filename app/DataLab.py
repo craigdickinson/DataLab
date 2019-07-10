@@ -1,7 +1,7 @@
 __author__ = "Craig Dickinson"
 __program__ = "DataLab"
-__version__ = "1.0.1.1"
-__date__ = "9 July 2019"
+__version__ = "1.1.0.1"
+__date__ = "10 July 2019"
 
 import logging
 import os
@@ -70,11 +70,9 @@ class DataLab(DataLabGui):
         self.saveConfigAction.triggered.connect(
             self.projConfigModule.on_save_config_clicked
         )
-        self.openLoggerFileAction.triggered.connect(self.load_logger_file)
-        self.openLoggerStatsAction.triggered.connect(
-            self.load_stats_file_from_file_menu
-        )
-        self.openSpectrogramsAction.triggered.connect(self.load_spectrograms_file)
+        self.openLoggerFileAction.triggered.connect(self.on_open_logger_file)
+        self.openLoggerStatsAction.triggered.connect(self.on_open_stats_file_triggered)
+        self.openSpectrogramsAction.triggered.connect(self.on_open_spectrograms_file)
 
         # View menu
         # self.showPlotScreen.triggered.connect(self.view_mod_stats_screening)
@@ -110,12 +108,11 @@ class DataLab(DataLabGui):
         self.fatigueButton.clicked.connect(self.view_mod_fatigue)
 
     def _connect_child_signals(self):
-        self.rawDataModule.openRawButton.clicked.connect(self.load_logger_file)
-        self.statsTab.openStatsButton.clicked.connect(self.load_stats_file)
-        self.vesselStatsTab.openStatsButton.clicked.connect(self.load_stats_file)
-        self.spectrogramTab.openSpectButton.clicked.connect(self.load_spectrograms_file)
-        self.fatigueTab.openWCFATFileButton.clicked.connect(
-            self.load_wcfat_results_file
+        self.rawDataModule.openRawButton.clicked.connect(self.on_open_logger_file)
+        self.statsTab.openStatsButton.clicked.connect(self.on_open_stats_file)
+        self.vesselStatsTab.openStatsButton.clicked.connect(self.on_open_stats_file)
+        self.spectrogramTab.openSpectButton.clicked.connect(
+            self.on_open_spectrograms_file
         )
 
     def _message_information(self, title, message, buttons=QtWidgets.QMessageBox.Ok):
@@ -149,7 +146,7 @@ class DataLab(DataLabGui):
         msg = f"Instructions for using {__program__}:\n\n" "Worst help, ever! To do..."
         self._message_information("Help", msg)
 
-    def load_logger_file(self):
+    def on_open_logger_file(self):
         """Load raw logger time series file."""
 
         self.ts_file, _ = QtWidgets.QFileDialog.getOpenFileName(
@@ -181,13 +178,14 @@ class DataLab(DataLabGui):
 
             self.view_mod_raw_data()
 
-    def load_stats_file_from_file_menu(self):
-        """Load stats file when actioned from file menu."""
+    def on_open_stats_file_triggered(self):
+        """Open stats file when actioned from file menu."""
 
-        self.load_stats_file(src="logger_stats")
+        self.on_open_stats_file(src="logger_stats")
 
-    def load_stats_file(self, src=None):
-        """Load summary stats file."""
+    def on_open_stats_file(self, src=None):
+        """Open stats file."""
+
         try:
             # Prompt user to select file with open file dialog
             stats_file, _ = QtWidgets.QFileDialog.getOpenFileName(
@@ -243,8 +241,8 @@ class DataLab(DataLabGui):
             self.error(f"{msg}:\n{e}\n{sys.exc_info()[0]}")
             logging.exception(e)
 
-    def load_spectrograms_file(self):
-        """Load spectrograms spreadsheet."""
+    def on_open_spectrograms_file(self):
+        """Open spectrograms file."""
 
         spect_file, _ = QtWidgets.QFileDialog.getOpenFileName(
             self,
@@ -272,8 +270,8 @@ class DataLab(DataLabGui):
             # Show dashboard
             self.view_tab_spectrogram()
 
-    def load_wcfat_results_file(self):
-        """Load 2HWCFAT .dmg file."""
+    def open_wcfat_damage_file(self):
+        """Open 2HWCFAT .dmg file."""
 
         dmg_file, _ = QtWidgets.QFileDialog.getOpenFileName(
             self,
@@ -284,6 +282,11 @@ class DataLab(DataLabGui):
         if dmg_file:
             df_dam = read_wcfat_results(dmg_file)
             self.fatigueTab.process_fatigue_damage_file(df_dam)
+
+    def open_fatlasa_damage_file(self):
+        return QtWidgets.QMessageBox.information(
+            self, "To Do", "Feature coming in a future update."
+        )
 
     def open_logger_plot_settings(self):
         """Show raw data plot settings window."""
@@ -430,8 +433,9 @@ class DataLab(DataLabGui):
         """Screen loggers and process statistical and spectral analysis."""
 
         try:
-            self.analyse_screening_setup()
-            self.run_screening()
+            status = self.analyse_screening_setup()
+            if status is True:
+                self.run_screening()
         except InputError as e:
             self.error(str(e))
             return logging.exception(e)
@@ -450,11 +454,13 @@ class DataLab(DataLabGui):
 
         # Check project path exists
         if control.project_path == "":
-            return self.warning("Cannot process: Project location not set")
+            self.warning("Cannot process: Project location not set")
+            return False
 
         # Check at least one logger exists
         if not control.loggers:
-            return self.warning("Cannot process: No loggers exist in setup")
+            self.warning("Cannot process: No loggers exist in setup")
+            return False
 
         # Get all raw data filenames for all loggers to be processed and perform some screening checks
         # Check all ids are unique
@@ -473,8 +479,8 @@ class DataLab(DataLabGui):
 
             # Get all channel names and units if not already stored in logger object
             if (
-                    len(logger.all_channel_names) == 0
-                    and len(logger.all_channel_units) == 0
+                len(logger.all_channel_names) == 0
+                and len(logger.all_channel_units) == 0
             ):
                 logger.get_all_channel_and_unit_names()
 
@@ -493,6 +499,8 @@ class DataLab(DataLabGui):
 
                 # Check number of headers match number of columns to process
                 logger.check_headers()
+
+        return True
 
     def run_screening(self):
         """Run statistical and spectral analysis in config setup."""
@@ -567,8 +575,8 @@ class DataLab(DataLabGui):
         if df_metocean is False:
             if logger == "":
                 msg = (
-                    "No logger set in seascatter settings tab.\n\n"
-                    "Input seascatter settings and generate or load the required statistics dataset "
+                    "No logger set in sea scatter settings tab.\n\n"
+                    "Input sea scatter settings and generate or load the required statistics dataset "
                     "containing Hs and Tp data and try again."
                 )
             else:
@@ -628,7 +636,9 @@ class DataLab(DataLabGui):
             logging.exception(e)
 
     def calc_fatigue(self):
-        pass
+        return QtWidgets.QMessageBox.information(
+            self, "To Do", "Feature coming in a future update."
+        )
 
 
 class ControlFileWorker(QtCore.QThread):
@@ -708,7 +718,7 @@ class ControlFileWorker(QtCore.QThread):
 
 
 if __name__ == "__main__":
-    os.chdir(r'C:\Users\dickinsc\PycharmProjects\DataLab\demo_data\2. Project Configs')
+    os.chdir(r"C:\Users\dickinsc\PycharmProjects\DataLab\demo_data\2. Project Configs")
     app = QtWidgets.QApplication(sys.argv)
     # win = QtDesignerGui()
     win = DataLab()

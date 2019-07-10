@@ -110,7 +110,7 @@ class ConfigModule(QtWidgets.QWidget):
         self.vbox.addWidget(self.remLoggerButton)
         self.vbox.addWidget(QtWidgets.QLabel("Loggers"))
         self.vbox.addWidget(self.loggersList)
-        self.vbox.addWidget(QtWidgets.QLabel("Logger Header Details"))
+        self.vbox.addWidget(QtWidgets.QLabel("Logger Columns"))
         self.vbox.addWidget(self.columnsList)
 
         # Setup container
@@ -2336,12 +2336,20 @@ class EditTransferFunctionsDialog(QtWidgets.QDialog):
         except:
             self.tf.num_ss = 0
 
-        # Convert to lists
-        self.tf.logger_names = [
-            i.strip() for i in self.loggerNames.toPlainText().split("\n")
-        ]
-        self.tf.loc_names = [i.strip() for i in self.locNames.toPlainText().split("\n")]
+        # Convert logger and location names to lists
+        loggers = [i.strip() for i in self.loggerNames.toPlainText().split("\n")]
+        locs = [i.strip() for i in self.locNames.toPlainText().split("\n")]
 
+        # Handle for blank inputs
+        if loggers[0] == "":
+            loggers = []
+        if locs[0] == "":
+            locs = []
+
+        self.tf.logger_names = loggers
+        self.tf.loc_names = locs
+
+        # Convert percentage occurrences to numeric list
         perc_occ = self.percOcc.toPlainText()
         if perc_occ:
             try:
@@ -2360,7 +2368,7 @@ class EditTransferFunctionsDialog(QtWidgets.QDialog):
 
     def on_detect_clicked(self):
         """
-        Analyse FEA time series files to detect the number of logger, locations and sea states processed,
+        Analyse FEA time series files to detect the number of loggers, locations and sea states processed,
         and the logger and location names.
         """
 
@@ -2374,16 +2382,16 @@ class EditTransferFunctionsDialog(QtWidgets.QDialog):
         # Get number of loggers from displacement time series
         df = self.tf.read_2httrace_csv(self.tf.disp_files[0])
         num_loggers = len(df.columns)
-        loggers = [c for c in df.columns]
+        loggers = df.columns.tolist()
 
         # Get number of locations from bending moment time series
         df = self.tf.read_2httrace_csv(self.tf.bm_files[0])
         num_locs = len(df.columns)
-        locs = [c for c in df.columns]
+        locs = df.columns.tolist()
 
         # Data munging on logger and location names
-        loggers = self.munge_logger_cols(loggers)
-        locs = self.munge_location_cols(locs)
+        loggers = self.tf.munge_logger_cols(loggers)
+        locs = self.tf.munge_location_cols(locs)
 
         # Populate dialog with detected properties
         self.numLoggers.setText(str(num_loggers))
@@ -2393,35 +2401,6 @@ class EditTransferFunctionsDialog(QtWidgets.QDialog):
         # Convert list items to strings separated by newlines
         self.loggerNames.setPlainText("\n".join(loggers))
         self.locNames.setPlainText("\n".join(locs))
-
-    @staticmethod
-    def munge_logger_cols(loggers):
-        """
-        Perform formatting of logger columns from 2HTTrace output.
-        Remove underscores and remove possible suffix "DispY".
-        """
-
-        loggers = [i.strip().replace("_", " ") for i in loggers]
-        loggers = [
-            i.rsplit(" ", 1)[0] if i.lower().endswith("dispy") else i for i in loggers
-        ]
-        return loggers
-
-    @staticmethod
-    def munge_location_cols(locations):
-        """
-        Perform formatting of location columns from 2HTTrace output.
-        Remove underscores and remove possible suffixes "After" and "Before".
-        """
-
-        locations = [i.strip().replace("_", " ") for i in locations]
-        locations = [
-            i.rsplit(" ", 1)[0]
-            if i.lower().endswith("after") or i.lower().endswith("before")
-            else i
-            for i in locations
-        ]
-        return locations
 
     @pyqtSlot(str)
     def warning(self, msg):

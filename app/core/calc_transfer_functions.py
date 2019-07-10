@@ -49,7 +49,10 @@ class TransferFunctions(QObject):
         self.get_files()
         if self.get_number_of_seastates() == 0:
             return False
+
         self.read_fea_time_traces()
+        self.get_number_of_loggers()
+        self.get_number_of_locations()
         self.calc_g_cont_accs()
         self.clean_acc_and_bm_dataframes()
         self.calc_logger_acc_psds()
@@ -65,44 +68,72 @@ class TransferFunctions(QObject):
         self.rot_files = glob(self.rot_dir + "/*.csv")
 
     def read_fea_time_traces(self):
-
         self.df_bm = self.read_seastate_time_traces(self.bm_files)
         self.df_disp = self.read_seastate_time_traces(self.disp_files)
         self.df_rot = self.read_seastate_time_traces(self.rot_files)
 
-        self.get_number_of_loggers()
-        self.get_number_of_locations()
+    def read_seastate_time_traces(self, files):
+        df_all = pd.DataFrame()
 
-    def get_number_of_loggers(self):
-        n = self.df_disp.shape[1]
-        m = self.df_rot.shape[1]
+        for i, f in enumerate(files):
+            df = self.read_2httrace_csv(f)
 
-        if n == m:
-            if self.num_ss > 0:
-                self.num_loggers = n // self.num_ss
-            else:
-                self.num_loggers = 0
-                msg = "Number of sea states is zero."
-                self.signal_warning.emit(msg)
-        else:
-            msg = "Unequal number of columns in logger displacements and rotations time traces."
-            self.signal_warning.emit(msg)
+            # Format and append window number to column names
+            df.columns = self.format_column_names(df.columns, ss_num=i + 1)
 
-        return self.num_loggers
+            # Join frames
+            df_all = pd.concat((df_all, df), axis=1)
 
-    def get_number_of_locations(self):
-        n = self.df_bm.shape[1]
+        return df_all
 
-        if self.num_ss > 0:
-            self.num_locs = n // self.num_ss
-        else:
-            self.num_locs = 0
-            msg = "Number of sea states is zero."
-            self.signal_warning.emit(msg)
+    def read_2httrace_csv(self, filename):
+        """Read time series in 2HTTrace csv file output."""
 
-        return self.num_locs
+        # Determine header row (row with "TIME" in column 1)
+        header_row = self.get_header_row(filename)
+
+        # Read file and drop wave elevation column
+        df = pd.read_csv(
+            filename, header=header_row, index_col=0, skip_blank_lines=False
+        )
+        df = df.drop(df.columns[0], axis=1)
+
+        return df
+
+    @staticmethod
+    def format_column_names(cols, ss_num):
+        cols_new = []
+        for c in cols:
+            # Remove the element _After or _Before suffix if present
+            pos = c.find("_After")
+            if pos > -1:
+                c = c[:pos]
+            pos = c.find("_Before")
+            if pos > -1:
+                c = c[:pos]
+
+            cols_new.append(f"{c.strip()}_W{ss_num}")
+
+        return cols_new
+
+    @staticmethod
+    def get_header_row(filename):
+        """
+        Determine header row of 2HTTrace.csv file.
+        Will differ depending on whether user labels are included in 2HTTrace dat file.
+        """
+
+        with open(filename, "r") as f:
+            for i, line in enumerate(f):
+                test_str = line.split(",")[0].strip()
+
+                if test_str.upper() == "TIME":
+                    return i
+
+        return 0
 
     def get_number_of_seastates(self):
+        self.num_ss = 0
         n1 = len(self.bm_files)
         n2 = len(self.disp_files)
         n3 = len(self.rot_files)
@@ -113,11 +144,68 @@ class TransferFunctions(QObject):
         elif n1 == n2 == n3:
             self.num_ss = n1
         else:
-            self.num_ss = 0
             msg = "Unequal number of sea state files in each folder."
             self.signal_warning.emit(msg)
 
         return self.num_ss
+
+    def get_number_of_loggers(self):
+        self.num_loggers = 0
+        n = self.df_disp.shape[1]
+        m = self.df_rot.shape[1]
+
+        if n == m:
+            if self.num_ss > 0:
+                self.num_loggers = n // self.num_ss
+            else:
+                msg = "Number of sea states is zero."
+                self.signal_warning.emit(msg)
+        else:
+            msg = "Unequal number of columns in logger displacements and rotations time traces."
+            self.signal_warning.emit(msg)
+
+        return self.num_loggers
+
+    def get_number_of_locations(self):
+        self.num_locs = 0
+        n = self.df_bm.shape[1]
+
+        if self.num_ss > 0:
+            self.num_locs = n // self.num_ss
+        else:
+            msg = "Number of sea states is zero."
+            self.signal_warning.emit(msg)
+
+        return self.num_locs
+
+    @staticmethod
+    def munge_logger_cols(loggers):
+        """
+        Perform formatting of logger columns from 2HTTrace output during file properties detection.
+        Remove underscores and remove possible suffix "DispY".
+        """
+
+        loggers = [i.strip().replace("_", " ") for i in loggers]
+        loggers = [
+            i.rsplit(" ", 1)[0] if i.lower().endswith("dispy") else i for i in loggers
+        ]
+        return loggers
+
+    @staticmethod
+    def munge_location_cols(locations):
+        """
+        Perform formatting of location columns from 2HTTrace output during file properties detection.
+        Remove underscores and remove possible suffixes "After" and "Before".
+        """
+
+        locations = [i.strip().replace("_", " ") for i in locations]
+        locations = [
+            i.rsplit(" ", 1)[0]
+            if i.lower().endswith("after") or i.lower().endswith("before")
+            else i
+            for i in locations
+        ]
+        return locations
 
     def calc_g_cont_accs(self):
         """
@@ -132,10 +220,10 @@ class TransferFunctions(QObject):
         # Step size
         h = self.df_disp.index[1] - self.df_disp.index[0]
 
-        # Double differentiate node displacements to accelerations
+        # Double differentiate node displacements to get accelerations
         acc = (
-            -(self.df_disp.shift(1) - 2 * self.df_disp + self.df_disp.shift(-1))
-            / h ** 2
+                -(self.df_disp.shift(1) - 2 * self.df_disp + self.df_disp.shift(-1))
+                / h ** 2
         )
 
         # Gravity component from node rotations
@@ -211,27 +299,26 @@ class TransferFunctions(QObject):
         Transfer functions are stored in 2D lists of form: TF[logger i][location j].
         """
 
-        self.logger_names = []
         self.tf_names = []
         self.trans_funcs = []
         freq = self.loc_bm_psds[0].index
 
-        # Store location names
-        self.loc_names = [f"Loc {i + 1}" for i in range(self.num_locs)]
+        # Create generic logger and location names if not provided in project setup
+        if not self.logger_names:
+            self.logger_names = [f"Logger {i + 1}" for i in range(self.num_loggers)]
+
+        if not self.loc_names:
+            self.loc_names = [f"Loc {i + 1}" for i in range(self.num_locs)]
 
         # Create new TFs list for each logger
         for i in range(self.num_loggers):
             self.trans_funcs.append([])
 
-            # Store logger name
-            logger_name = f"Logger {i + 1}"
-            self.logger_names.append(logger_name)
-
             # Append logger i derived TF for each location
             for j in range(self.num_locs):
                 data = self.loc_bm_psds[j].values / self.logger_acc_psds[i].values
                 cols = [
-                    f"{logger_name} {self.loc_names[j]} SS{k + 1}"
+                    f"{self.logger_names[i]} {self.loc_names[j]} SS{k + 1}"
                     for k in range(self.num_ss)
                 ]
                 df = pd.DataFrame(data, index=freq, columns=cols)
@@ -244,6 +331,16 @@ class TransferFunctions(QObject):
     def calc_weighted_ave_trans_funcs(self):
         """Compute percentage occurrence weighted average transfer functions for all sea states."""
 
+        # Skip if no percentage occurrence values input
+        if not self.perc_occ:
+            return
+
+        # Check number of percentage occurrences equals number of sea states
+        if len(self.perc_occ) != self.num_ss:
+            msg = f"Number of percentage occurrences must equal number of sea states ({self.num_ss}).\n\n" \
+                "Weighted-averaged transfer functions not calculated."
+            return self.signal_warning.emit(msg)
+
         perc_occ = np.asarray(self.perc_occ)
         n = perc_occ.sum()
 
@@ -252,12 +349,12 @@ class TransferFunctions(QObject):
             df_ave = pd.DataFrame()
 
             for j in range(self.num_locs):
-                # Multiply each column be percentage occurrence and average
+                # For each logger, multiply each column (location) by percentage occurrence and average
                 df = (
-                    self.trans_funcs[i][j]
-                    .apply(lambda x: perc_occ * x, axis=1)
-                    .sum(axis=1)
-                    / n
+                        self.trans_funcs[i][j]
+                        .apply(lambda x: perc_occ * x, axis=1)
+                        .sum(axis=1)
+                        / n
                 )
                 df_ave = pd.concat((df_ave, df), axis=1)
 
@@ -316,66 +413,6 @@ class TransferFunctions(QObject):
 
         return exported
 
-    def read_seastate_time_traces(self, files):
-        df_all = pd.DataFrame()
-
-        for i, f in enumerate(files):
-            df = self.read_2httrace_csv(f)
-
-            # Format and append window number to column names
-            df.columns = self.format_column_names(df.columns, ss_num=i + 1)
-
-            # Join frames
-            df_all = pd.concat((df_all, df), axis=1)
-
-        return df_all
-
-    @staticmethod
-    def format_column_names(cols, ss_num):
-        cols_new = []
-        for c in cols:
-            # Remove the element _After or _Before suffix if present
-            pos = c.find("_After")
-            if pos > -1:
-                c = c[:pos]
-            pos = c.find("_Before")
-            if pos > -1:
-                c = c[:pos]
-
-            cols_new.append(f"{c.strip()}_W{ss_num}")
-
-        return cols_new
-
-    def read_2httrace_csv(self, filename):
-        """Read time series in 2HTTrace csv file output."""
-
-        # Determine header row (row with "TIME" in column 1)
-        header_row = self.get_header_row(filename)
-
-        # Read file and drop wave elevation column
-        df = pd.read_csv(
-            filename, header=header_row, index_col=0, skip_blank_lines=False
-        )
-        df = df.drop(df.columns[0], axis=1)
-
-        return df
-
-    @staticmethod
-    def get_header_row(filename):
-        """
-        Determine header row of 2HTTrace.csv file.
-        Will differ depending on whether user labels are included in 2HTTrace dat file.
-        """
-
-        with open(filename, "r") as f:
-            for i, line in enumerate(f):
-                test_str = line.split(",")[0].strip()
-
-                if test_str.upper() == "TIME":
-                    return i
-
-        return 0
-
     @staticmethod
     def find_nearest_window(windows, hs_list, tp_list, hs_i, tp_i):
         """Find the nearest sea state window from the linearised sea states for a given (Hs, Tp) pair."""
@@ -405,20 +442,38 @@ class TransferFunctions(QObject):
 if __name__ == "__main__":
     tf = TransferFunctions()
     root = r"C:\Users\dickinsc\PycharmProjects\DataLab\demo_data\3. Transfer Functions"
-    tf.bm_dir = os.path.join(root, "Hot_Spots_BM_Z")
-    tf.disp_dir = os.path.join(root, "Loggers_Disp_Y")
-    tf.rot_dir = os.path.join(root, "Loggers_Rot_Z")
+    tf.bm_dir = os.path.join(root, "Hot Spots BM Z")
+    tf.disp_dir = os.path.join(root, "Loggers Disp Y")
+    tf.rot_dir = os.path.join(root, "Loggers Rot Z")
+
+    tf.perc_occ = [
+        19.040,
+        10.134,
+        20.049,
+        17.022,
+        14.644,
+        10.374,
+        5.448,
+        3.289,
+    ]
+
     tf.get_files()
-    tf.get_number_of_seastates()
+    num_ss = tf.get_number_of_seastates()
     tf.read_fea_time_traces()
+    num_loggers = tf.get_number_of_loggers()
+    num_locs = tf.get_number_of_locations()
+
+    if num_ss == 0 and num_loggers == 0 and num_locs == 0:
+        exit()
+
     tf.calc_g_cont_accs()
     tf.clean_acc_and_bm_dataframes()
     tf.calc_logger_acc_psds()
     tf.calc_location_bm_psds()
     tf.calc_seastate_trans_funcs()
     tf.calc_weighted_ave_trans_funcs()
-    tf.export_seastate_transfer_functions()
-    tf.export_weighted_ave_trans_funcs()
+    # tf.export_seastate_transfer_functions()
+    # tf.export_weighted_ave_trans_funcs()
 
     # # Test find nearest window
     # windows = [1, 2, 3, 4, 5, 6, 7, 8]
