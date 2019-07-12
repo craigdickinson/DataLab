@@ -72,7 +72,7 @@ class SpectrogramWidget(QtWidgets.QWidget):
 
     def _init_ui(self):
         # WIDGETS
-        self.openSpectButton = QtWidgets.QPushButton("Open Spectrograms")
+        self.openSpectButton = QtWidgets.QPushButton("Open Spectrograms...")
         self.openSpectButton.setToolTip(
             "Open logger spectrograms (*.h5;*.csv;*.xlsx) (F4)"
         )
@@ -85,7 +85,7 @@ class SpectrogramWidget(QtWidgets.QWidget):
         self.slider = QtWidgets.QSlider()
         self.slider.setOrientation(QtCore.Qt.Vertical)
         self.slider.setValue(50)
-        self.openPlotSettingsButton = QtWidgets.QPushButton("Plot Settings")
+        self.openPlotSettingsButton = QtWidgets.QPushButton("Plot Settings...")
         self.calcNatFreqButton = QtWidgets.QPushButton("Estimate Nat. Freq.")
         self.clearDatasetsButton = QtWidgets.QPushButton("Clear Datasets")
 

@@ -101,17 +101,17 @@ class DataLabGui(QtWidgets.QMainWindow):
         self.menuAbout = menubar.addMenu("&Help")
 
         # File menu
-        self.openConfigAction = QtWidgets.QAction("Open Config File")
+        self.openConfigAction = QtWidgets.QAction("Open Config File...")
         self.openConfigAction.setShortcut("Ctrl+O")
         self.saveConfigAction = QtWidgets.QAction("Save Config File")
         self.saveConfigAction.setShortcut("Ctrl+S")
-        self.openLoggerFileAction = QtWidgets.QAction("Open Logger File")
+        self.openLoggerFileAction = QtWidgets.QAction("Open Logger File...")
         self.openLoggerFileAction.setShortcut("F2")
-        self.openLoggerStatsAction = QtWidgets.QAction("Open Logger Stats")
+        self.openLoggerStatsAction = QtWidgets.QAction("Open Logger Stats...")
         self.openLoggerStatsAction.setShortcut("F3")
-        self.openSpectrogramsAction = QtWidgets.QAction("Open Logger Spectrograms")
+        self.openSpectrogramsAction = QtWidgets.QAction("Open Logger Spectrograms...")
         self.openSpectrogramsAction.setShortcut("F4")
-        self.openSeascatterAction = QtWidgets.QAction("Open Transfer Functions")
+        self.openSeascatterAction = QtWidgets.QAction("Open Transfer Functions...")
         self.openSeascatterAction.setShortcut("F5")
 
         self.menuFile.addAction(self.openConfigAction)
@@ -149,9 +149,9 @@ class DataLabGui(QtWidgets.QMainWindow):
         # Plot settings menu
         # self.add2HIcon = QtWidgets.QAction("Add 2H Icon")
         # self.add2HIcon.setCheckable(True)
-        self.loggerPlotSettingsAction = QtWidgets.QAction("Logger Plot Settings")
+        self.loggerPlotSettingsAction = QtWidgets.QAction("Logger Plot Settings...")
         self.loggerPlotSettingsAction.setShortcut("Alt+1")
-        self.spectPlotSettingsAction = QtWidgets.QAction("Spectrogram Plot Settings")
+        self.spectPlotSettingsAction = QtWidgets.QAction("Spectrogram Plot Settings...")
         self.spectPlotSettingsAction.setShortcut("Alt+3")
 
         # self.menuPlotSettings.addAction(self.add2HIcon)

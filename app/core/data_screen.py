@@ -211,8 +211,6 @@ class DataScreen(object):
         :return: Updated sample data frame and logger file data frame with sample data dropped.
         """
 
-        # TODO: Do units conversion here
-
         # Current number of points in sample
         ns = len(df_sample)
 

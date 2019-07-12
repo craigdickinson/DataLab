@@ -43,9 +43,9 @@ class FatigueProcessingWidget(QtWidgets.QWidget):
 
     def init_ui(self):
         # WIDGETS
-        self.openWCFATFileButton = QtWidgets.QPushButton("Open 2HWCFAT Damage File")
+        self.openWCFATFileButton = QtWidgets.QPushButton("Open 2HWCFAT Damage File...")
         self.openWCFATFileButton.setToolTip("Open 2HWCFAT fatigue damage (.dmg) file")
-        self.openFATLASAFileButton = QtWidgets.QPushButton("Open 2HFATLASA Damage File")
+        self.openFATLASAFileButton = QtWidgets.QPushButton("Open 2HFATLASA Damage File...")
         self.openFATLASAFileButton.setToolTip(
             "Open 2HFATLASA max fatigue damage (.csv) file"
         )
@@ -64,7 +64,7 @@ class FatigueProcessingWidget(QtWidgets.QWidget):
         # CONTAINERS
         # Setup container
         self.setupWidget = QtWidgets.QWidget()
-        self.setupWidget.setFixedWidth(180)
+        self.setupWidget.setFixedWidth(200)
         self.vboxSetup = QtWidgets.QVBoxLayout(self.setupWidget)
         self.vboxSetup.addWidget(self.openWCFATFileButton)
         self.vboxSetup.addWidget(self.openFATLASAFileButton)

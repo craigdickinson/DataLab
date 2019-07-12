@@ -33,7 +33,7 @@ class TransferFunctionsWidget(QtWidgets.QWidget):
 
     def _init_ui(self):
         # WIDGETS
-        self.openTFsButton = QtWidgets.QPushButton("Open Transfer Functions")
+        self.openTFsButton = QtWidgets.QPushButton("Open Transfer Functions...")
         self.openTFsButton.setToolTip("Open transfer functions (*.csv) (F5)")
         self.exportSSTFButton = QtWidgets.QPushButton("Export Sea State TFs")
         self.exportAveTFButton = QtWidgets.QPushButton("Export Averaged TFs")

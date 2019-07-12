@@ -372,13 +372,13 @@ class StatsWidget(QtWidgets.QWidget):
     def _init_ui(self):
         # WIDGETS
         # Buttons and datasets and channels lists
-        self.openStatsButton = QtWidgets.QPushButton("Open Statistics")
+        self.openStatsButton = QtWidgets.QPushButton("Open Statistics...")
         self.openStatsButton.setToolTip("Open logger stats (*.h5;*.csv;*.xlsx) (F3)")
         self.clearDatasetsButton = QtWidgets.QPushButton("Clear Datasets")
         self.datasetList = QtWidgets.QListWidget()
         self.channelsLabel = QtWidgets.QLabel("Available Channels")
         self.channelsList = QtWidgets.QListWidget()
-        self.settingsButton = QtWidgets.QPushButton("Plot Settings")
+        self.settingsButton = QtWidgets.QPushButton("Plot Settings...")
 
         # Number of plots
         self.numPlotsCombo = QtWidgets.QComboBox()
@@ -1015,10 +1015,10 @@ class StatsWidget(QtWidgets.QWidget):
                 continue
 
             # Get data limits, get global min and max and apply to both axes
-            ymin1 = df1.values.min()
-            ymax1 = df1.values.max()
-            ymin2 = df2.values.min()
-            ymax2 = df2.values.max()
+            ymin1 = np.nanmin(df1.values)
+            ymax1 = np.nanmax(df1.values)
+            ymin2 = np.nanmin(df2.values)
+            ymax2 = np.nanmax(df2.values)
 
             # Subplot overall min/max
             ymin = min(ymin1, ymin2)
@@ -1242,7 +1242,7 @@ class VesselStatsWidget(QtWidgets.QWidget):
     def init_ui(self):
         # WIDGETS
         # Selection controls
-        self.openStatsButton = QtWidgets.QPushButton("Open Statistics")
+        self.openStatsButton = QtWidgets.QPushButton("Open Statistics...")
         self.clearDatasetsButton = QtWidgets.QPushButton("Clear Datasets")
         self.lbl1 = QtWidgets.QLabel("Loaded Datasets")
         self.lbl2 = QtWidgets.QLabel("Channels (echo)")
@@ -1251,7 +1251,7 @@ class VesselStatsWidget(QtWidgets.QWidget):
         self.vesselMotionsCombo = QtWidgets.QComboBox()
         self.stats1Combo = QtWidgets.QComboBox()
         self.stats2Combo = QtWidgets.QComboBox()
-        # self.plotSettings = QtWidgets.QPushButton("Plot Settings")
+        # self.plotSettings = QtWidgets.QPushButton("Plot Settings...")
         self.replotButton = QtWidgets.QPushButton("Replot")
 
         # Plot drop-downs

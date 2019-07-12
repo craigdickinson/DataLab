@@ -44,7 +44,7 @@ class ConfigModule(QtWidgets.QWidget):
 
     def _init_ui(self):
         # WIDGETS
-        self.openConfigButton = QtWidgets.QPushButton("Open")
+        self.openConfigButton = QtWidgets.QPushButton("Open...")
         self.openConfigButton.setToolTip("Open config (*.json) file (Ctrl+O)")
         self.saveConfigButton = QtWidgets.QPushButton("Save")
         self.saveConfigButton.setToolTip(
@@ -53,7 +53,7 @@ class ConfigModule(QtWidgets.QWidget):
         self.newProjButton = QtWidgets.QPushButton("New Project")
         self.newProjButton.setShortcut("Ctrl+N")
         self.newProjButton.setToolTip("Clear all settings (Ctrl+N)")
-        self.addLoggerButton = QtWidgets.QPushButton("Add Logger")
+        self.addLoggerButton = QtWidgets.QPushButton("Add Logger...")
         self.addLoggerButton.setShortcut("Ctrl+A")
         self.addLoggerButton.setToolTip("Ctrl+A")
         self.remLoggerButton = QtWidgets.QPushButton("Remove Logger")
@@ -470,7 +470,7 @@ class CampaignInfoTab(QtWidgets.QWidget):
 
     def _init_ui(self):
         # WIDGETS
-        self.editButton = QtWidgets.QPushButton("Edit Data")
+        self.editButton = QtWidgets.QPushButton("Edit Data...")
         self.editButton.setShortcut("Ctrl+E")
         self.editButton.setToolTip("Ctrl+E")
         self.projNum = QtWidgets.QLabel("-")
@@ -581,7 +581,7 @@ class EditCampaignInfoDialog(QtWidgets.QDialog):
         self.projPath.setToolTip(
             "If not input the current working directory will be used."
         )
-        self.browseButton = QtWidgets.QPushButton("Browse")
+        self.browseButton = QtWidgets.QPushButton("Browse...")
         self.browseButton.setSizePolicy(policy)
         self.browseButton.setShortcut("Ctrl+B")
         self.browseButton.setToolTip("Ctrl+B")
@@ -665,7 +665,7 @@ class LoggerPropertiesTab(QtWidgets.QWidget):
         """Create widget layout."""
 
         # WIDGETS
-        self.editButton = QtWidgets.QPushButton("Edit Data")
+        self.editButton = QtWidgets.QPushButton("Edit Data...")
         self.editButton.setShortcut("Ctrl+E")
         self.editButton.setToolTip("Ctrl+E")
         self.loggerID = QtWidgets.QLabel("-")
@@ -816,7 +816,7 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
         self.loggerID = QtWidgets.QLineEdit()
         self.loggerPath = QtWidgets.QTextEdit()
         self.loggerPath.setFixedHeight(40)
-        self.browseButton = QtWidgets.QPushButton("Browse")
+        self.browseButton = QtWidgets.QPushButton("Browse...")
         self.browseButton.setShortcut("Ctrl+B")
         self.browseButton.setToolTip("Ctrl+B")
         self.browseButton.setSizePolicy(policy)
@@ -1194,7 +1194,7 @@ class StatsAndSpectralSettingsTab(QtWidgets.QWidget):
         """Create widget layout."""
 
         # WIDGETS
-        self.editButton = QtWidgets.QPushButton("Edit Data")
+        self.editButton = QtWidgets.QPushButton("Edit Data...")
         self.editButton.setShortcut("Ctrl+E")
         self.editButton.setToolTip("Ctrl+E")
         self.columns = QtWidgets.QLabel("-")
@@ -1571,7 +1571,7 @@ class EditStatsAndSpectralDialog(QtWidgets.QDialog):
         )
         self.processStart = QtWidgets.QLineEdit()
         self.processStart.setToolTip(
-            "If blank, the timestamps of the first file " "will be used (if detected)."
+            "If blank, the timestamp of the first file " "will be used (if detected)."
         )
         self.processStart.setFixedWidth(100)
         self.processEnd = QtWidgets.QLineEdit()
@@ -1851,7 +1851,7 @@ class SeascatterTab(QtWidgets.QWidget):
 
     def _init_ui(self):
         # WIDGETS
-        self.editButton = QtWidgets.QPushButton("Edit Data")
+        self.editButton = QtWidgets.QPushButton("Edit Data...")
         self.editButton.setShortcut("Ctrl+E")
         self.editButton.setToolTip("Ctrl+E")
         self.logger = QtWidgets.QLabel("-")
@@ -2028,7 +2028,7 @@ class TransferFunctionsTab(QtWidgets.QWidget):
 
     def _init_ui(self):
         # WIDGETS
-        self.editButton = QtWidgets.QPushButton("Edit Data")
+        self.editButton = QtWidgets.QPushButton("Edit Data...")
         self.editButton.setShortcut("Ctrl+E")
         self.editButton.setToolTip("Ctrl+E")
         self.loggerDispPath = QtWidgets.QLabel("-")
@@ -2159,9 +2159,9 @@ class EditTransferFunctionsDialog(QtWidgets.QDialog):
         self.loggerRotPath.setFixedHeight(40)
         self.locBMPath = QtWidgets.QPlainTextEdit()
         self.locBMPath.setFixedHeight(40)
-        self.setDispPathButton = QtWidgets.QPushButton("Browse")
-        self.setRotPathButton = QtWidgets.QPushButton("Browse")
-        self.setBMPathButton = QtWidgets.QPushButton("Browse")
+        self.setDispPathButton = QtWidgets.QPushButton("Browse...")
+        self.setRotPathButton = QtWidgets.QPushButton("Browse...")
+        self.setBMPathButton = QtWidgets.QPushButton("Browse...")
         self.detectButton = QtWidgets.QPushButton("Detect Loggers and Locations")
         self.detectButton.setShortcut("Ctrl+D")
         self.detectButton.setToolTip("Ctrl+D")
