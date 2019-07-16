@@ -107,8 +107,8 @@ class DataLabGui(QtWidgets.QMainWindow):
         self.saveConfigAction.setShortcut("Ctrl+S")
         self.openLoggerFileAction = QtWidgets.QAction("Open Logger File...")
         self.openLoggerFileAction.setShortcut("F2")
-        self.openLoggerStatsAction = QtWidgets.QAction("Open Logger Stats...")
-        self.openLoggerStatsAction.setShortcut("F3")
+        self.openStatsAction = QtWidgets.QAction("Open Logger Stats...")
+        self.openStatsAction.setShortcut("F3")
         self.openSpectrogramsAction = QtWidgets.QAction("Open Logger Spectrograms...")
         self.openSpectrogramsAction.setShortcut("F4")
         self.openSeascatterAction = QtWidgets.QAction("Open Transfer Functions...")
@@ -118,7 +118,7 @@ class DataLabGui(QtWidgets.QMainWindow):
         self.menuFile.addAction(self.saveConfigAction)
         self.menuFile.addSeparator()
         self.menuFile.addAction(self.openLoggerFileAction)
-        self.menuFile.addAction(self.openLoggerStatsAction)
+        self.menuFile.addAction(self.openStatsAction)
         self.menuFile.addAction(self.openSpectrogramsAction)
 
         # View menu

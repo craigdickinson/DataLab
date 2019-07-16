@@ -1,7 +1,7 @@
 __author__ = "Craig Dickinson"
 __program__ = "DataLab"
-__version__ = "1.1.0.2"
-__date__ = "12 July 2019"
+__version__ = "1.1.0.3"
+__date__ = "16 July 2019"
 
 import logging
 import os
@@ -71,7 +71,7 @@ class DataLab(DataLabGui):
             self.projConfigModule.on_save_config_clicked
         )
         self.openLoggerFileAction.triggered.connect(self.on_open_logger_file)
-        self.openLoggerStatsAction.triggered.connect(self.on_open_stats_file_triggered)
+        self.openStatsAction.triggered.connect(self.on_open_stats_file_triggered)
         self.openSpectrogramsAction.triggered.connect(self.on_open_spectrograms_file)
 
         # View menu

@@ -45,7 +45,9 @@ class FatigueProcessingWidget(QtWidgets.QWidget):
         # WIDGETS
         self.openWCFATFileButton = QtWidgets.QPushButton("Open 2HWCFAT Damage File...")
         self.openWCFATFileButton.setToolTip("Open 2HWCFAT fatigue damage (.dmg) file")
-        self.openFATLASAFileButton = QtWidgets.QPushButton("Open 2HFATLASA Damage File...")
+        self.openFATLASAFileButton = QtWidgets.QPushButton(
+            "Open 2HFATLASA Damage File..."
+        )
         self.openFATLASAFileButton.setToolTip(
             "Open 2HFATLASA max fatigue damage (.csv) file"
         )

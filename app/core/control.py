@@ -489,7 +489,8 @@ class Control(object):
         else:
             self.copy_stats_format(key, ref_logger_name, logger)
 
-    def detect_fugro_file_properties(self, logger, file):
+    @staticmethod
+    def detect_fugro_file_properties(logger, file):
         """
         For Fugro logger file detect:
             sampling frequency

@@ -44,13 +44,13 @@ def get_date_code_span(letter, date_str):
     end = start + 1
 
     # Use a regex to find consecutive letters
-    regex = letter + "+"
-    pos = re.search(regex, date_str)
+    pattern = letter + "+"
+    match = re.search(pattern, date_str)
 
     # Return start and end positions if consecutive string is found
-    if pos:
-        start = pos.span()[0]
-        end = pos.span()[1]
+    if match:
+        start = match.start()
+        end = match.end()
 
     # Return span of regex
     return start, end
@@ -95,7 +95,7 @@ def user_date_to_date_format(timestamp_fmt_str, rep=replacements):
     The dict_repl function is called for each dictionary key.
     """
 
-    pattern = "|".join(r"\b" + re.escape(k) + r"\b" for k in rep)
+    pattern = "|".join(r"\b" + k + r"\b" for k in rep)
     return re.sub(pattern, dict_repl, timestamp_fmt_str)
 
 

@@ -161,7 +161,7 @@ class LoggerProperties(QObject):
         # File timestamp format
         f = self.file_timestamp_format
 
-        # Get pos of Y, m, D, H, M, S and ms strings
+        # Get position of Y, m, D, H, M, S and ms strings
         self.year_span = get_date_code_span("Y", f)
         self.month_span = get_date_code_span("m", f)
         self.day_span = get_date_code_span("D", f)
@@ -410,7 +410,7 @@ class LoggerProperties(QObject):
 
     def check_header_specification(self):
         """
-        TO DELETE - DAT ROUTINE:
+        DEPRECATED DAT ROUTINE - TO DELETE
         Check that user has provided either the channel/units header row or user channel and unit names.
         """
 
@@ -430,7 +430,7 @@ class LoggerProperties(QObject):
 
     def detect_requested_channels_and_units(self, test_file):
         """
-        TO DELETE - DAT ROUTINE:
+        DEPRECATED DAT ROUTINE - TO DELETE
         Detect number of columns and channel names/units from headers of logger file.
         """
 
@@ -488,7 +488,7 @@ class LoggerProperties(QObject):
 
     def check_for_user_headers(self):
         """
-        TO DELETE - DAT ROUTINE:
+        DEPRECATED DAT ROUTINE - TO DELETE
         Assign user-defined channel names and units to logger if supplied.
         """
 

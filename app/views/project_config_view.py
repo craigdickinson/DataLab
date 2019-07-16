@@ -6,15 +6,18 @@ __author__ = "Craig Dickinson"
 import logging
 import os
 import sys
+from pathlib import Path
 
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtCore import pyqtSlot
 from dateutil.parser import parse
+from datetime import datetime
 
 from app.core.calc_seascatter import Seascatter
 from app.core.calc_transfer_functions import TransferFunctions
 from app.core.control import Control, InputError
 from app.core.custom_date import get_datetime_format
+from app.core.detect_file_timestamp_format import detect_file_timestamp_format
 from app.core.fugro_csv_properties import (
     detect_fugro_logger_properties,
     set_fugro_csv_file_format,
@@ -290,7 +293,7 @@ class ConfigModule(QtWidgets.QWidget):
         self.control.logger_ids_upper.append(logger_id.upper())
 
         # Initialise logger file as a Fugro logger format
-        set_fugro_csv_file_format(logger)
+        logger = set_fugro_csv_file_format(logger)
 
         item = QtWidgets.QListWidgetItem(logger_id)
         item.setFlags(item.flags() | QtCore.Qt.ItemIsEditable)
@@ -560,7 +563,7 @@ class EditCampaignInfoDialog(QtWidgets.QDialog):
         self.control = control
         self._init_ui()
         self._connect_signals()
-        self.set_dialog_data()
+        self._set_dialog_data()
 
     def _init_ui(self):
         self.setWindowTitle("Edit General Campaign Data")
@@ -609,7 +612,7 @@ class EditCampaignInfoDialog(QtWidgets.QDialog):
         self.buttonBox.accepted.connect(self.accept)
         self.buttonBox.rejected.connect(self.reject)
 
-    def set_dialog_data(self):
+    def _set_dialog_data(self):
         """Set dialog data with campaign info from control object."""
 
         control = self.control
@@ -823,6 +826,11 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
         self.fileFormat = QtWidgets.QComboBox()
         self.fileFormat.setFixedWidth(100)
         self.fileFormat.addItems(self.file_types)
+        self.detectTimestampFormatButton = QtWidgets.QPushButton(
+            "Detect File Timestamp Format"
+        )
+        self.detectTimestampFormatButton.setShortcut("Ctrl+F")
+        self.detectTimestampFormatButton.setSizePolicy(policy)
         self.fileTimestampFormat = QtWidgets.QLineEdit()
         msg = (
             "Specify a format code to identify where the datetime info is located in the file names.\n"
@@ -855,10 +863,10 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
         self.unitsHeaderRow = QtWidgets.QLineEdit()
         self.unitsHeaderRow.setFixedWidth(30)
         self.unitsHeaderRow.setValidator(int_validator)
-        self.detectButton = QtWidgets.QPushButton("Detect Properties")
-        self.detectButton.setShortcut("Ctrl+D")
-        self.detectButton.setToolTip("Ctrl+D")
-        self.detectButton.setSizePolicy(policy)
+        self.detectPropsButton = QtWidgets.QPushButton("Detect Properties")
+        self.detectPropsButton.setShortcut("Ctrl+D")
+        self.detectPropsButton.setToolTip("Ctrl+D")
+        self.detectPropsButton.setSizePolicy(policy)
         self.dataTimestampFormat = QtWidgets.QLineEdit()
         self.numColumns = QtWidgets.QLineEdit()
         self.numColumns.setFixedWidth(30)
@@ -887,10 +895,11 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
         # Logger type group
         self.loggerType = QtWidgets.QGroupBox("Logger Type")
         self.typeForm = QtWidgets.QFormLayout(self.loggerType)
-        self.typeForm.addRow(QtWidgets.QLabel("File format:"), self.fileFormat)
+        self.typeForm.addRow(self.detectTimestampFormatButton, QtWidgets.QLabel(""))
         self.typeForm.addRow(
             QtWidgets.QLabel("File timestamp format:"), self.fileTimestampFormat
         )
+        self.typeForm.addRow(QtWidgets.QLabel("File format:"), self.fileFormat)
         self.typeForm.addRow(QtWidgets.QLabel("File extension:"), self.fileExt)
         self.typeForm.addRow(QtWidgets.QLabel("File delimiter:"), self.fileDelimiter)
         self.typeForm.addRow(
@@ -904,7 +913,7 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
         # Logger properties group
         self.loggerProps = QtWidgets.QGroupBox("Logger Properties")
         self.propsForm = QtWidgets.QFormLayout(self.loggerProps)
-        self.propsForm.addRow(self.detectButton, QtWidgets.QLabel(""))
+        self.propsForm.addRow(self.detectPropsButton, QtWidgets.QLabel(""))
         self.propsForm.addRow(
             QtWidgets.QLabel("Timestamp format:"), self.dataTimestampFormat
         )
@@ -931,7 +940,10 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
         self.buttonBox.rejected.connect(self.reject)
         self.browseButton.clicked.connect(self.on_browse_path_clicked)
         self.fileFormat.currentIndexChanged.connect(self.on_file_format_changed)
-        self.detectButton.clicked.connect(self.on_detect_props_clicked)
+        self.detectTimestampFormatButton.clicked.connect(
+            self.on_detect_file_timestamp_format_clicked
+        )
+        self.detectPropsButton.clicked.connect(self.on_detect_props_clicked)
 
     def _set_dialog_data(self):
         """Set dialog data with logger properties from control object."""
@@ -959,9 +971,9 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
         self.loggingDuration.setText(str(logger.duration))
 
         # Initialise which input fields are enabled/disabled based on file format set
-        self.set_enabled_inputs(logger.file_format)
+        self._set_enabled_inputs(logger.file_format)
 
-    def set_enabled_inputs(self, file_format):
+    def _set_enabled_inputs(self, file_format):
         """Enable or disable input fields based on selected file format (Fugro-csv, Pulse-csv, General-csv)."""
 
         # Initialise for Fugro-csv format
@@ -992,11 +1004,19 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
             self.loggerPath.setText(logger_path)
 
     def on_file_format_changed(self):
+        """
+        Set standard logger file properties based on selected format.
+        File format types:
+            Fugro-csv
+            Pulse-acc
+            General-csv
+        """
+
         selected_file_format = self.fileFormat.currentText()
         test_logger = LoggerProperties()
 
         # Set which input fields are enabled/disabled based on file format set
-        self.set_enabled_inputs(selected_file_format)
+        self._set_enabled_inputs(selected_file_format)
 
         # Create a test logger object with standard file format properties of the selected logger file type and assign
         # to edit dialog
@@ -1017,20 +1037,7 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
             # Restore timestamp format to value when dialog was opened (useful if previous selection was Pulse-acc)
             self.dataTimestampFormat.setText(self.timestamp_format)
 
-        # Assign test logger file format properties to the dialog File Type group
-        self.set_standard_file_format_props_to_dialog(test_logger)
-
-    def set_standard_file_format_props_to_dialog(self, test_logger):
-        """
-        Set the following standard logger file format properties to the edit dialog:
-            file extension
-            file delimiter
-            number of header rows
-            channel header row
-            units header row
-        """
-
-        # Set file format properties
+        # Set test logger file format properties to the dialog File Type group
         self.fileExt.setText(test_logger.file_ext)
         self.fileDelimiter.setCurrentText(
             self.delims_logger_to_gui[test_logger.file_delimiter]
@@ -1038,6 +1045,80 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
         self.numHeaderRows.setText(str(test_logger.num_headers))
         self.channelHeaderRow.setText(str(test_logger.channel_header_row))
         self.unitsHeaderRow.setText(str(test_logger.units_header_row))
+
+    def on_detect_file_timestamp_format_clicked(self):
+        """
+        Attempt to decipher the required file timestamp format to determine the datetime of a file.
+        Example: For a filename BOP_2018_0607_1620
+        File timestamp format = xxxxYYYYxmmDDxHHMM
+        """
+
+        logger_path = self.loggerPath.toPlainText()
+        path = Path(logger_path)
+
+        if not path.exists():
+            msg = "Logger path does not exist. Set a logger path first."
+            return QtWidgets.QMessageBox.information(
+                self, "Detect Logger Properties", msg
+            )
+
+        raw_files = [f for f in Path(logger_path).iterdir() if f.is_file()]
+        # raw_files = [f for f in os.listdir(logger_path) if os.path.isfile(os.path.join(logger_path, f))]
+
+        if len(raw_files) == 0:
+            msg = f"No files found in {logger_path}"
+            raise FileNotFoundError(msg)
+
+        test_filename = raw_files[0].name
+        file_timestamp_format = detect_file_timestamp_format(test_filename)
+
+        # Test file timestamp format code
+        # Extract timestamp embedded in test file with detected format code using methods of LoggerProperties class
+        test_logger = LoggerProperties()
+        test_logger.raw_filenames.append(test_filename)
+        test_logger.file_timestamp_format = file_timestamp_format
+        test_logger.get_timestamp_span()
+        test_logger.check_file_timestamps()
+
+        # Check file timestamp list is populated
+        if test_logger.file_timestamps:
+            test_datetime = test_logger.file_timestamps[0]
+
+            # Convert datetime to string - check whether seconds identifier is included
+            if test_logger.sec_span[0] != -1:
+                try:
+                    test_timestamp = datetime.strftime(
+                        test_datetime, "%Y-%m-%d %H:%M:%S"
+                    )
+                except:
+                    test_timestamp = ""
+            else:
+                try:
+                    test_timestamp = datetime.strftime(test_datetime, "%Y-%m-%d %H:%M")
+                except:
+                    test_timestamp = ""
+
+            # Success message
+            if test_timestamp:
+                msg = (
+                    "Detected file timestamp embedded in test file name:\n"
+                    f"{test_filename} is {test_timestamp}.\n\n"
+                    "If this is not correct then the file timestamp format code needs manual correction."
+                )
+            # Fail message
+            else:
+                msg = (
+                    "File timestamp embedded in test file name:\n"
+                    f"{test_filename} could not be detected.\n\n"
+                    "File timestamp format code needs to be set manually."
+                )
+
+            QtWidgets.QMessageBox.information(
+                self, "Detect File Timestamp Format Test", msg
+            )
+
+        # Set format to dialog
+        self.fileTimestampFormat.setText(file_timestamp_format)
 
     def on_detect_props_clicked(self):
         """Detect standard logger properties for selected file format."""
@@ -1089,6 +1170,24 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
             self.error(f"{msg}:\n{e}\n{sys.exc_info()[0]}")
             logging.exception(e)
 
+    def on_ok_clicked(self):
+        """Assign logger properties to the control object and update the dashboard."""
+
+        try:
+            self._set_control_data()
+            self._detect_header()
+
+            if self.parent is not None:
+                self.parent.set_logger_dashboard(self.logger)
+                self.parent.parent.update_logger_id_list(
+                    self.logger.logger_id, self.logger_idx
+                )
+                self.parent.parent.set_logger_header_list(self.logger)
+        except Exception as e:
+            msg = "Unexpected error assigning logger properties"
+            self.error(f"{msg}:\n{e}\n{sys.exc_info()[0]}")
+            logging.exception(e)
+
     def _set_detected_file_props_to_dialog(self, test_logger):
         """
         Set the following detected (if found) logger properties to the edit dialog:
@@ -1108,24 +1207,6 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
         if test_logger.duration != 0:
             self.loggingDuration.setText(str(test_logger.duration))
 
-    def on_ok_clicked(self):
-        """Assign logger properties to the control object and update the dashboard."""
-
-        try:
-            self._set_control_data()
-            self._detect_header()
-
-            if self.parent is not None:
-                self.parent.set_logger_dashboard(self.logger)
-                self.parent.parent.update_logger_id_list(
-                    self.logger.logger_id, self.logger_idx
-                )
-                self.parent.parent.set_logger_header_list(self.logger)
-        except Exception as e:
-            msg = "Unexpected error assigning logger properties"
-            self.error(f"{msg}:\n{e}\n{sys.exc_info()[0]}")
-            logging.exception(e)
-
     def _set_control_data(self):
         """Assign values to the control object."""
 
@@ -1138,7 +1219,7 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
         logger.file_timestamp_format = self.fileTimestampFormat.text()
         logger.timestamp_format = self.dataTimestampFormat.text()
 
-        # Get datetime format string from attempting to converting user input timestamp format
+        # Get datetime format string by converting user input timestamp format
         logger.datetime_format = get_datetime_format(logger.timestamp_format)
 
         logger.file_ext = self.fileExt.text()
@@ -1891,7 +1972,7 @@ class SeascatterTab(QtWidgets.QWidget):
         """Show edit sea scatter settings dialog."""
 
         editInfo = EditSeascatterDialog(self, self.control, self.scatter)
-        editInfo.set_dialog_data()
+        editInfo._set_dialog_data()
         editInfo.show()
 
     def set_scatter_dashboard(self):
@@ -1962,7 +2043,7 @@ class EditSeascatterDialog(QtWidgets.QDialog):
         self.buttonBox.accepted.connect(self.accept)
         self.buttonBox.rejected.connect(self.reject)
 
-    def set_dialog_data(self):
+    def _set_dialog_data(self):
         self.loggerCombo.clear()
 
         logger_ids = self.control.logger_ids
@@ -2108,7 +2189,7 @@ class TransferFunctionsTab(QtWidgets.QWidget):
         """Show edit transfer functions settings dialog."""
 
         editInfo = EditTransferFunctionsDialog(self, self.tf)
-        editInfo.set_dialog_data()
+        editInfo._set_dialog_data()
         editInfo.show()
 
     def set_tf_dashboard(self):
@@ -2270,7 +2351,7 @@ class EditTransferFunctionsDialog(QtWidgets.QDialog):
             pass
         self.tf.signal_warning.connect(self.warning)
 
-    def set_dialog_data(self):
+    def _set_dialog_data(self):
         self.loggerDispPath.setPlainText(self.tf.disp_dir)
         self.loggerRotPath.setPlainText(self.tf.rot_dir)
         self.locBMPath.setPlainText(self.tf.bm_dir)
@@ -2416,9 +2497,9 @@ if __name__ == "__main__":
     # win = LoggerPropertiesTab()
     # win = StatsAndSpectralSettingsTab()
     # win = EditCampaignInfoDialog()
-    # win = EditLoggerPropertiesDialog()
+    win = EditLoggerPropertiesDialog()
     # win = EditStatsAndSpectralDialog()
-    win = SeascatterTab()
+    # win = SeascatterTab()
     # win = EditSeascatterDialog()
     # win = TransferFunctionsTab()
     # win = EditTransferFunctionsDialog()

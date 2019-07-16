@@ -222,8 +222,8 @@ class TransferFunctions(QObject):
 
         # Double differentiate node displacements to get accelerations
         acc = (
-                -(self.df_disp.shift(1) - 2 * self.df_disp + self.df_disp.shift(-1))
-                / h ** 2
+            -(self.df_disp.shift(1) - 2 * self.df_disp + self.df_disp.shift(-1))
+            / h ** 2
         )
 
         # Gravity component from node rotations
@@ -337,8 +337,10 @@ class TransferFunctions(QObject):
 
         # Check number of percentage occurrences equals number of sea states
         if len(self.perc_occ) != self.num_ss:
-            msg = f"Number of percentage occurrences must equal number of sea states ({self.num_ss}).\n\n" \
+            msg = (
+                f"Number of percentage occurrences must equal number of sea states ({self.num_ss}).\n\n"
                 "Weighted-averaged transfer functions not calculated."
+            )
             return self.signal_warning.emit(msg)
 
         perc_occ = np.asarray(self.perc_occ)
@@ -351,10 +353,10 @@ class TransferFunctions(QObject):
             for j in range(self.num_locs):
                 # For each logger, multiply each column (location) by percentage occurrence and average
                 df = (
-                        self.trans_funcs[i][j]
-                        .apply(lambda x: perc_occ * x, axis=1)
-                        .sum(axis=1)
-                        / n
+                    self.trans_funcs[i][j]
+                    .apply(lambda x: perc_occ * x, axis=1)
+                    .sum(axis=1)
+                    / n
                 )
                 df_ave = pd.concat((df_ave, df), axis=1)
 
@@ -446,16 +448,7 @@ if __name__ == "__main__":
     tf.disp_dir = os.path.join(root, "Loggers Disp Y")
     tf.rot_dir = os.path.join(root, "Loggers Rot Z")
 
-    tf.perc_occ = [
-        19.040,
-        10.134,
-        20.049,
-        17.022,
-        14.644,
-        10.374,
-        5.448,
-        3.289,
-    ]
+    tf.perc_occ = [19.040, 10.134, 20.049, 17.022, 14.644, 10.374, 5.448, 3.289]
 
     tf.get_files()
     num_ss = tf.get_number_of_seastates()
