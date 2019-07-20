@@ -3,6 +3,7 @@ Project config dashboard widget. Handles all project setup.
 """
 __author__ = "Craig Dickinson"
 
+from azure.storage.blob import BlockBlobService
 import logging
 import os
 import sys
@@ -607,10 +608,10 @@ class EditCampaignInfoDialog(QtWidgets.QDialog):
         self.layout.addWidget(self.buttonBox)
 
     def _connect_signals(self):
-        self.browseButton.clicked.connect(self.set_project_path)
         self.buttonBox.accepted.connect(self.on_ok_clicked)
         self.buttonBox.accepted.connect(self.accept)
         self.buttonBox.rejected.connect(self.reject)
+        self.browseButton.clicked.connect(self.set_project_path)
 
     def _set_dialog_data(self):
         """Set dialog data with campaign info from control object."""
@@ -734,10 +735,9 @@ class LoggerPropertiesTab(QtWidgets.QWidget):
         # Retrieve selected logger object
         # TODO: If adding logger, dialog should show new logger id - works but if remove one first, id may not be unique
         logger_idx = self.parent.loggersList.currentRow()
-        logger = self.control.loggers[logger_idx]
 
         # Create edit logger properties dialog window instance
-        editLoggerProps = EditLoggerPropertiesDialog(self, logger, logger_idx)
+        editLoggerProps = EditLoggerPropertiesDialog(self, self.control, logger_idx)
         editLoggerProps.show()
 
     def set_logger_dashboard(self, logger):
@@ -781,13 +781,14 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
     file_types = ["Fugro-csv", "Pulse-acc", "General-csv"]
     delimiters = ["comma", "space"]
 
-    def __init__(self, parent=None, logger=LoggerProperties(), logger_idx=0):
+    def __init__(self, parent=None, control=Control(), logger_idx=0):
         super(EditLoggerPropertiesDialog, self).__init__(parent)
 
         self.parent = parent
 
         # Logger properties object and index of selected logger in combo box
-        self.logger = logger
+        self.control = control
+        self.logger = control.loggers[logger_idx]
         self.logger_idx = logger_idx
 
         # To hold a copy of the original timestamp format upon opening the dialog so it can be restored, if need be,
@@ -817,7 +818,15 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
 
         # WIDGETS
         self.loggerID = QtWidgets.QLineEdit()
-        self.loggerPath = QtWidgets.QTextEdit()
+        self.loggerID.setFixedWidth(150)
+        self.localFilesRadio = QtWidgets.QRadioButton("Local Drive")
+        self.localFilesRadio.setChecked(True)
+        self.azureCloudRadio = QtWidgets.QRadioButton("Azure Cloud Storage")
+        self.setAzureButton = QtWidgets.QPushButton("Set Azure Account Settings...")
+        self.setAzureButton.setSizePolicy(policy)
+        self.setAzureButton.setHidden(True)
+        self.pathLabel = QtWidgets.QLabel("Logger path:")
+        self.loggerPath = QtWidgets.QPlainTextEdit()
         self.loggerPath.setFixedHeight(40)
         self.browseButton = QtWidgets.QPushButton("Browse...")
         self.browseButton.setShortcut("Ctrl+B")
@@ -830,6 +839,7 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
             "Detect File Timestamp Format"
         )
         self.detectTimestampFormatButton.setShortcut("Ctrl+F")
+        self.detectTimestampFormatButton.setToolTip("Ctrl+F")
         self.detectTimestampFormatButton.setSizePolicy(policy)
         self.fileTimestampFormat = QtWidgets.QLineEdit()
         msg = (
@@ -885,15 +895,35 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
         # self.buttons.addButton(QtWidgets.QDialogButtonBox.Cancel)
 
         # CONTAINERS
-        # Logger details group
-        self.loggerDetails = QtWidgets.QGroupBox("Logger Details")
-        self.detailsForm = QtWidgets.QFormLayout(self.loggerDetails)
-        self.detailsForm.addRow(QtWidgets.QLabel("Logger ID:"), self.loggerID)
-        self.detailsForm.addRow(QtWidgets.QLabel("Logger path:"), self.loggerPath)
-        self.detailsForm.addRow(QtWidgets.QLabel(""), self.browseButton)
+        # Logger name
+        self.loggerIDLayout = QtWidgets.QFormLayout()
+        self.loggerIDLayout.addRow(QtWidgets.QLabel("Logger ID:"), self.loggerID)
+
+        # Logger location group
+        self.locSelectionGroup = QtWidgets.QGroupBox("Location Source")
+        self.vbox = QtWidgets.QVBoxLayout(self.locSelectionGroup)
+        self.vbox.addWidget(self.localFilesRadio)
+        self.vbox.addWidget(self.azureCloudRadio)
+
+        self.loggerLocGroup = QtWidgets.QGroupBox("Raw Data Location")
+        self.hbox = QtWidgets.QHBoxLayout()
+        self.hbox.addWidget(self.pathLabel)
+        self.hbox.addWidget(self.browseButton)
+        self.hbox.addStretch()
+
+        self.vbox2 = QtWidgets.QVBoxLayout(self.loggerLocGroup)
+        self.vbox2.addWidget(self.setAzureButton)
+        # self.vbox2.addWidget(self.pathLabel)
+        self.vbox2.addLayout(self.hbox)
+        self.vbox2.addWidget(self.loggerPath)
+        # self.vbox2.addWidget(self.browseButton)
+
+        self.locLayout = QtWidgets.QHBoxLayout()
+        self.locLayout.addWidget(self.locSelectionGroup, alignment=QtCore.Qt.AlignTop)
+        self.locLayout.addWidget(self.loggerLocGroup)
 
         # Logger type group
-        self.loggerType = QtWidgets.QGroupBox("Logger Type")
+        self.loggerType = QtWidgets.QGroupBox("Logger File Properties")
         self.typeForm = QtWidgets.QFormLayout(self.loggerType)
         self.typeForm.addRow(self.detectTimestampFormatButton, QtWidgets.QLabel(""))
         self.typeForm.addRow(
@@ -911,7 +941,7 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
         self.typeForm.addRow(QtWidgets.QLabel("Units header row:"), self.unitsHeaderRow)
 
         # Logger properties group
-        self.loggerProps = QtWidgets.QGroupBox("Logger Properties")
+        self.loggerProps = QtWidgets.QGroupBox("Logger Data Properties")
         self.propsForm = QtWidgets.QFormLayout(self.loggerProps)
         self.propsForm.addRow(self.detectPropsButton, QtWidgets.QLabel(""))
         self.propsForm.addRow(
@@ -929,15 +959,19 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
 
         # LAYOUT
         self.layout = QtWidgets.QVBoxLayout(self)
-        self.layout.addWidget(self.loggerDetails)
+        self.layout.addLayout(self.loggerIDLayout)
+        self.layout.addLayout(self.locLayout)
         self.layout.addWidget(self.loggerType)
         self.layout.addWidget(self.loggerProps)
+        self.layout.addStretch()
         self.layout.addWidget(self.buttonBox, stretch=0, alignment=QtCore.Qt.AlignRight)
 
     def _connect_signals(self):
         self.buttonBox.accepted.connect(self.on_ok_clicked)
         self.buttonBox.accepted.connect(self.accept)
         self.buttonBox.rejected.connect(self.reject)
+        self.azureCloudRadio.toggled.connect(self.on_azure_radio_toggled)
+        self.setAzureButton.clicked.connect(self.on_set_azure_settings_clicked)
         self.browseButton.clicked.connect(self.on_browse_path_clicked)
         self.fileFormat.currentIndexChanged.connect(self.on_file_format_changed)
         self.detectTimestampFormatButton.clicked.connect(
@@ -956,7 +990,7 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
 
         self.loggerID.setText(logger.logger_id)
         self.fileFormat.setCurrentText(logger.file_format)
-        self.loggerPath.setText(logger.logger_path)
+        self.loggerPath.setPlainText(logger.logger_path)
         self.fileTimestampFormat.setText(logger.file_timestamp_format)
         self.dataTimestampFormat.setText(logger.timestamp_format)
         self.fileExt.setText(logger.file_ext)
@@ -993,6 +1027,32 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
             self.channelHeaderRow.setEnabled(True)
             self.unitsHeaderRow.setEnabled(True)
 
+    def on_azure_radio_toggled(self):
+        if self.azureCloudRadio.isChecked():
+            self.pathLabel.setText("Path to files (blobs):")
+            self.setAzureButton.setHidden(False)
+            self.browseButton.setHidden(True)
+            msg = (
+                "Path to files stored on Azure is to include the container name and any virtual folders.\n"
+                "E.g. 21239-glendronach/raw_data/BOP."
+            )
+            self.loggerPath.setToolTip(msg)
+        else:
+            self.pathLabel.setText("Logger path:")
+            self.setAzureButton.setHidden(True)
+            self.browseButton.setHidden(False)
+            self.loggerPath.setToolTip("")
+
+    def on_set_azure_settings_clicked(self):
+        """Open campaign settings edit dialog."""
+
+        azureSettings = AzureAccountSetupDialog(
+            self,
+            account_name=self.control.azure_account_name,
+            account_key=self.control.azure_account_key,
+        )
+        azureSettings.show()
+
     def on_browse_path_clicked(self):
         """Set location of logger directory."""
 
@@ -1001,7 +1061,7 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
         )
 
         if logger_path:
-            self.loggerPath.setText(logger_path)
+            self.loggerPath.setPlainText(logger_path)
 
     def on_file_format_changed(self):
         """
@@ -1208,7 +1268,7 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
             self.loggingDuration.setText(str(test_logger.duration))
 
     def _set_control_data(self):
-        """Assign values to the control object."""
+        """Assign values to the specific logger attribute of the control object."""
 
         logger = self.logger
 
@@ -2489,19 +2549,98 @@ class EditTransferFunctionsDialog(QtWidgets.QDialog):
         return QtWidgets.QMessageBox.information(self, "Warning", msg)
 
 
+class AzureAccountSetupDialog(QtWidgets.QDialog):
+    def __init__(self, parent=None, account_name="", account_key=""):
+        super(AzureAccountSetupDialog, self).__init__(parent)
+
+        # account_name = 'agl2hpocdatalab1store'
+        # account_key = '25ZKbPuwSrzqS3Tv8DVeF58x0cy3rMA8VQPKHj3wRZoiWKTPoyllqFOL0EnEy9Dq+poASjV9nFoSIIC7/sBt6Q=='
+
+        self.parent = parent
+        self.account_name = account_name
+        self.account_key = account_key
+        self._init_ui()
+        self._connect_signals()
+
+    def _init_ui(self):
+        self.setWindowTitle("Connect to Microsoft Azure Cloud Storage Account")
+        self.setFixedWidth(650)
+
+        # WIDGETS
+        self.accountName = QtWidgets.QLineEdit(self.account_name)
+        self.accountName.setFixedWidth(200)
+        self.accountKey = QtWidgets.QLineEdit(self.account_key)
+        self.buttonBox = QtWidgets.QDialogButtonBox(
+            QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel
+        )
+        self.testButton = self.buttonBox.addButton(
+            "&Test Connection", QtWidgets.QDialogButtonBox.ResetRole
+        )
+
+        # CONTAINERS
+        self.form = QtWidgets.QFormLayout()
+        self.form.addRow(QtWidgets.QLabel("Account name:"), self.accountName)
+        self.form.addRow(QtWidgets.QLabel("Account key:"), self.accountKey)
+
+        # LAYOUT
+        self.layout = QtWidgets.QVBoxLayout(self)
+        self.layout.addLayout(self.form)
+        self.layout.addWidget(self.buttonBox)
+
+    def _connect_signals(self):
+        self.buttonBox.accepted.connect(self.on_ok_clicked)
+        self.testButton.clicked.connect(self.on_test_clicked)
+        self.buttonBox.accepted.connect(self.accept)
+        self.buttonBox.rejected.connect(self.reject)
+
+    def on_test_clicked(self):
+        account_name = self.accountName.text()
+        account_key = self.accountKey.text()
+
+        if account_name == "" or account_key == "":
+            msg = "Both account name and account key must be input."
+            return QtWidgets.QMessageBox.warning(
+                self, "Test Connection to Azure Cloud Storage Account", msg
+            )
+
+        try:
+            bloc_blob_service = BlockBlobService(
+                account_name=account_name, account_key=account_key
+            )
+            bloc_blob_service.list_containers(num_results=1)
+            msg = f"Successfully connected to Azure Storage account: {account_name}."
+            return QtWidgets.QMessageBox.information(
+                self, "Test Connection to Azure Storage Cloud Account", msg
+            )
+        except Exception:
+            msg = "Could not connect to Azure Cloud Storage account. Check account name and key are correct."
+            print(f"Error: {msg}")
+            return QtWidgets.QMessageBox.critical(self, "Error", msg)
+
+    def on_ok_clicked(self):
+        """Store Azure settings in control object."""
+
+        try:
+            self.parent.control.azure_account_name = self.accountName.text()
+            self.parent.control.azure_account_key = self.accountKey.text()
+        except:
+            pass
+
+
 if __name__ == "__main__":
     # For testing widget layout
     app = QtWidgets.QApplication(sys.argv)
     # win = ConfigModule()
     # win = CampaignInfoTab()
-    # win = LoggerPropertiesTab()
-    # win = StatsAndSpectralSettingsTab()
     # win = EditCampaignInfoDialog()
+    # win = LoggerPropertiesTab()
     win = EditLoggerPropertiesDialog()
+    # win = StatsAndSpectralSettingsTab()
     # win = EditStatsAndSpectralDialog()
     # win = SeascatterTab()
     # win = EditSeascatterDialog()
     # win = TransferFunctionsTab()
     # win = EditTransferFunctionsDialog()
+    # win = AzureAccountSetupDialog()
     win.show()
     app.exit(app.exec_())

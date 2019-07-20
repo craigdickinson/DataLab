@@ -55,6 +55,10 @@ class Control(object):
         self.campaign_name = ""
         self.project_path = ""
 
+        # Azure account settings
+        self.azure_account_name = ""
+        self.azure_account_key = ""
+
         # Output folders and paths
         self.report_output_folder = "Screening Report"
         self.stats_output_folder = "Statistics"
@@ -320,7 +324,7 @@ class Control(object):
 
         i = slice_array[index]
         if index < len(slice_array) - 1:
-            return data[i : slice_array[index + 1]]
+            return data[i: slice_array[index + 1]]
         else:
             return data[i:]
 
@@ -768,7 +772,7 @@ class Control(object):
             text_upper = text.upper().strip()
             if text_upper.startswith(key.upper()):
                 # Return the rest of the line and row number if found
-                key_data = text[len(key) :].strip()
+                key_data = text[len(key):].strip()
                 return line, key_data
 
         # Return empty string and negative row number if not found

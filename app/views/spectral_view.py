@@ -77,8 +77,8 @@ class SpectrogramWidget(QtWidgets.QWidget):
             "Open logger spectrograms (*.h5;*.csv;*.xlsx) (F4)"
         )
         self.lbl = QtWidgets.QLabel("Loaded Datasets")
-        self.datasetList = QtWidgets.QListWidget()
-        self.datasetList.setFixedHeight(100)
+        self.datasetsList = QtWidgets.QListWidget()
+        self.datasetsList.setFixedHeight(100)
         self.datetimeEdit = QtWidgets.QDateTimeEdit()
         self.lbl2 = QtWidgets.QLabel("Timestamps (reversed)")
         self.timestampList = QtWidgets.QListWidget()
@@ -119,7 +119,7 @@ class SpectrogramWidget(QtWidgets.QWidget):
         self.grid.addWidget(self.openSpectButton, 0, 0)
         self.grid.addWidget(self.clearDatasetsButton, 1, 0)
         self.grid.addWidget(self.lbl, 2, 0)
-        self.grid.addWidget(self.datasetList, 3, 0)
+        self.grid.addWidget(self.datasetsList, 3, 0)
         self.grid.addWidget(self.datetimeEdit, 4, 0)
         self.grid.addWidget(self.lbl2, 5, 0)
         self.grid.addWidget(self.timestampList, 6, 0)
@@ -143,7 +143,7 @@ class SpectrogramWidget(QtWidgets.QWidget):
         self.calcNatFreqButton.clicked.connect(self.on_calc_nat_freq_clicked)
         self.clearDatasetsButton.clicked.connect(self.on_clear_datasets_clicked)
         self.openPlotSettingsButton.clicked.connect(self.on_open_plot_settings_clicked)
-        self.datasetList.itemDoubleClicked.connect(self.on_dataset_double_clicked)
+        self.datasetsList.itemDoubleClicked.connect(self.on_dataset_double_clicked)
         self.timestampList.itemDoubleClicked.connect(
             self.on_timestamp_list_double_clicked
         )
@@ -175,7 +175,7 @@ class SpectrogramWidget(QtWidgets.QWidget):
         self.create_plots()
 
         # Check dataset key exists
-        dataset = self.datasetList.currentItem().text()
+        dataset = self.datasetsList.currentItem().text()
         if dataset in self.nat_freqs:
             mean_nat_freq = self.nat_freqs[dataset]
             self.natFreq.setText(
@@ -218,14 +218,14 @@ class SpectrogramWidget(QtWidgets.QWidget):
     def on_calc_nat_freq_clicked(self):
         """Estimate mean natural frequency for selected dataset."""
 
-        if self.datasetList.count() == 0:
+        if self.datasetsList.count() == 0:
             self.parent.error(
                 "No data currently plotted. Load a spectrogram file first."
             )
             return
 
         # self.parent.statusbar.showMessage('Calculating estimate natural frequency...')
-        dataset = self.datasetList.currentItem().text()
+        dataset = self.datasetsList.currentItem().text()
         df = self.datasets[dataset]
 
         # Get the frequency of the max PSD in the given frequency range for all events
@@ -251,7 +251,7 @@ class SpectrogramWidget(QtWidgets.QWidget):
         self.datasets = {}
         self.nat_freqs = {}
         self.timestamps = []
-        self.datasetList.clear()
+        self.datasetsList.clear()
         self.timestampList.clear()
         self.natFreq.setText("")
         self._draw_axes()
@@ -260,9 +260,9 @@ class SpectrogramWidget(QtWidgets.QWidget):
     def append_spect_to_datasets_list(self, dataset_id):
         """Add loaded spectrogram to datasets list."""
 
-        self.datasetList.addItem(dataset_id)
-        n = self.datasetList.count()
-        self.datasetList.setCurrentRow(n - 1)
+        self.datasetsList.addItem(dataset_id)
+        n = self.datasetsList.count()
+        self.datasetsList.setCurrentRow(n - 1)
 
         # Get and plot data
         try:
@@ -275,8 +275,8 @@ class SpectrogramWidget(QtWidgets.QWidget):
     def append_multiple_spect_to_datasets_list(self, dataset_ids):
         """Add multiple spectrogram to datasets list."""
 
-        self.datasetList.addItems(dataset_ids)
-        self.datasetList.setCurrentRow(0)
+        self.datasetsList.addItems(dataset_ids)
+        self.datasetsList.setCurrentRow(0)
 
         # Get and plot data
         try:
@@ -307,7 +307,7 @@ class SpectrogramWidget(QtWidgets.QWidget):
         """Retrieve spectrogram dataset from list and extract relevant data."""
 
         # Get plot data
-        dataset = self.datasetList.currentItem().text()
+        dataset = self.datasetsList.currentItem().text()
         df = self.datasets[dataset]
 
         # Extract data
@@ -475,7 +475,7 @@ class SpectrogramWidget(QtWidgets.QWidget):
         if campaign_name == "":
             campaign_name = "Campaign Title"
 
-        dataset = self.datasetList.currentItem().text()
+        dataset = self.datasetsList.currentItem().text()
         title = f"{project_name} - {campaign_name}\n{dataset} Spectrogram"
         self.ax1.set_title(title, **title_args)
 
