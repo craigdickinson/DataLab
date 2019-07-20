@@ -12,6 +12,7 @@ from views.seascatter_view import SeascatterDiagram
 from views.spectral_view import SpectrogramWidget
 from views.stats_view import PlotStyle2H, StatsWidget, VesselStatsWidget
 from views.transfer_functions_view import TransferFunctionsWidget
+from views.pairplot_stats_view import PairPlotView
 
 
 class DataLabGui(QtWidgets.QMainWindow):
@@ -51,8 +52,10 @@ class DataLabGui(QtWidgets.QMainWindow):
         self.statsScreeningModule = QtWidgets.QTabWidget()
         self.statsTab = StatsWidget(self)
         self.vesselStatsTab = VesselStatsWidget(self)
+        self.pairplotTab=PairPlotView(self)
         self.statsScreeningModule.addTab(self.statsTab, "Statistics")
         self.statsScreeningModule.addTab(self.vesselStatsTab, "Vessel Statistics")
+        self.statsScreeningModule.addTab(self.pairplotTab, "Pair-Plot")
 
         # Spectral screening module
         self.spectralScreeningModule = QtWidgets.QTabWidget()

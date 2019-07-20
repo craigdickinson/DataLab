@@ -1,7 +1,7 @@
 __author__ = "Craig Dickinson"
 __program__ = "DataLab"
-__version__ = "1.1.0.3"
-__date__ = "16 July 2019"
+__version__ = "1.1.0.4"
+__date__ = "20 July 2019"
 
 import logging
 import os
@@ -9,6 +9,7 @@ import sys
 from datetime import timedelta
 from glob import glob
 from time import time
+import webbrowser
 
 from PyQt5 import QtCore, QtWidgets
 from PyQt5.QtCore import pyqtSignal, pyqtSlot
@@ -55,7 +56,7 @@ class DataLab(DataLabGui):
         # Dummy placeholder for Screening class (main processor)
         self.screening = None
 
-        # Map settings pbjects (control, seascatter, transfer functions)
+        # Map settings objects (control, seascatter, transfer functions)
         self.control = self.projConfigModule.control
         self.scatter = self.projConfigModule.scatter
         self.tf = self.projConfigModule.tf
@@ -141,10 +142,14 @@ class DataLab(DataLabGui):
         self._message_information("About", msg)
 
     def show_help(self):
-        """Show program overview and instructions message box."""
+        """Open instructions documentation on sharepoint url."""
 
-        msg = f"Instructions for using {__program__}:\n\n" "Worst help, ever! To do..."
-        self._message_information("Help", msg)
+        url = (
+            r"https://agcloud.sharepoint.com/:p:/r/sites/"
+            r"O365-UG-2HEngineeringSoftware/Shared%20Documents/2H%20Datalab/"
+            r"2019-07-12%20How%20to%20Use%20DataLab.pptx?d=wcabe347939784784b8d7270cdf7938e7&csf=1&e=G0SRms"
+        )
+        webbrowser.open(url)
 
     def on_open_logger_file(self):
         """Load raw logger time series file."""
@@ -219,6 +224,7 @@ class DataLab(DataLabGui):
                     dataset = StatsDataset(logger_id, df)
                     self.statsTab.datasets.append(dataset)
                     self.vesselStatsTab.datasets.append(dataset)
+                    self.pairplotTab.datasets.append(dataset)
 
                 # Store dataset/logger names from dictionary keys
                 logger_ids = list(dict_stats.keys())
