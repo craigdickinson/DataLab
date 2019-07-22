@@ -25,7 +25,7 @@ class ProjectConfigJSONFile(QObject):
             self.data = json.load(f)
 
         # Store filename and set directory to project root
-        file_path, self.filename = os.path.split(file_name)
+        self.filename = os.path.basename(file_name)
 
     def map_json_to_control(self, control):
         """
@@ -76,7 +76,18 @@ class ProjectConfigJSONFile(QObject):
             self.signal_warning.emit(msg)
             return control
 
-        # Azure cloud storage account access settings
+        control.project_num = self._get_key_value(
+            section=key, data=data, key="project_number", attr=control.project_num
+        )
+        control.project_name = self._get_key_value(
+            section=key, data=data, key="project_name", attr=control.project_name
+        )
+        control.campaign_name = self._get_key_value(
+            section=key, data=data, key="campaign_name", attr=control.campaign_name
+        )
+        control.project_path = self._get_key_value(
+            section=key, data=data, key="project_location", attr=control.project_path
+        )
         control.azure_account_name = self._get_key_value(
             section=key,
             data=data,
@@ -127,7 +138,9 @@ class ProjectConfigJSONFile(QObject):
         if key in data.keys():
             data = data[key]
         else:
-            msg = f"'{key}' key not found in config file."
+            msg = f"'{key}' key is deprecated in v1.1.0 and will be removed in a future update.\n" \
+                f"Warning can be safely ignored for now.\n" \
+                f"Save your project to update the config file to the new format."
             self.signal_warning.emit(msg)
             return control
 
@@ -143,7 +156,6 @@ class ProjectConfigJSONFile(QObject):
         control.project_path = self._get_key_value(
             section=key, data=data, key="project_location", attr=control.project_path
         )
-        control.config_file = self.filename
 
         return control
 
@@ -473,6 +485,10 @@ class ProjectConfigJSONFile(QObject):
         """Add general settings."""
 
         d = dict()
+        d["project_number"] = control.project_num
+        d["project_name"] = control.project_name
+        d["campaign_name"] = control.campaign_name
+        d["project_location"] = control.project_path
         d["azure_account_name"] = control.azure_account_name
         d["azure_account_key"] = control.azure_account_key
         d["stats_folder"] = control.stats_output_folder
@@ -485,17 +501,6 @@ class ProjectConfigJSONFile(QObject):
         d["spectral_to_xlsx"] = control.spect_to_xlsx
 
         self.data["general"] = d
-
-    def add_campaign_settings(self, control):
-        """Add project and campaign details."""
-
-        d = dict()
-        d["project_number"] = control.project_num
-        d["project_name"] = control.project_name
-        d["campaign_name"] = control.campaign_name
-        d["project_location"] = control.project_path
-
-        self.data["campaign"] = d
 
     def add_loggers_settings(self, loggers):
         """Add properties of all loggers."""

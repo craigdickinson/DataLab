@@ -187,6 +187,7 @@ class ConfigModule(QtWidgets.QWidget):
                 config.load_config_data(filename)
 
                 # Map JSON data to new objects that hold various setup data
+                self.control.config_file = filename
                 self.control = config.map_json_to_control(Control())
                 self.scatter = config.map_json_to_seascatter(Seascatter())
                 self.tf = config.map_json_to_transfer_functions(
@@ -204,6 +205,9 @@ class ConfigModule(QtWidgets.QWidget):
                 msg = "Unexpected error loading config file"
                 self.parent.error(f"{msg}:\n{e}\n{sys.exc_info()[0]}")
                 logging.exception(e)
+
+        # Write config filename to campaign tab
+        self.campaignTab.configFile.setText(os.path.basename(filename))
 
         # Map settings objects to parent DataLab object
         self.parent.control = self.control
@@ -223,7 +227,6 @@ class ConfigModule(QtWidgets.QWidget):
         # Compile configuration data into a dictionary and save as a json file
         try:
             config = ProjectConfigJSONFile()
-            config.add_campaign_settings(self.control)
             config.add_general_settings(self.control)
             config.add_loggers_settings(self.control.loggers)
             config.add_seascatter_settings(self.scatter)
