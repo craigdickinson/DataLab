@@ -58,7 +58,7 @@ class DataScreen(object):
         self.apply_filters = True
 
     def set_logger(self, logger):
-        """Set the logger filenames to be assessed and required read csv file properties."""
+        """Set the logger filenames to be assessed and required read file properties."""
 
         self.logger = logger
 
@@ -95,6 +95,8 @@ class DataScreen(object):
 
         if low_cutoff is None and high_cutoff is None:
             self.apply_filters = False
+
+
 
     def read_logger_file(self, filename):
         """Read logger file into pandas data frame."""
@@ -169,7 +171,8 @@ class DataScreen(object):
             # Calculate resolution for each channel
             self.res.append(self._resolution(df))
 
-    def _resolution(self, df):
+    @staticmethod
+    def _resolution(df):
         """
         Return smallest difference between rows of a data frame for each
         column. Assumes column names are not multi-indexed.

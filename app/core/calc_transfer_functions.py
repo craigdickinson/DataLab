@@ -281,7 +281,7 @@ class TransferFunctions(QObject):
         freq, psds = calc_psd(data=df.T.values, fs=fs, nperseg=1000, noverlap=0)
         freq = np.round(freq, 3)
 
-        # Create list of locations bending moment PSD data frames
+        # Create list of location bending moment PSD data frames
         n = self.num_locs
         self.loc_bm_psds = []
 
@@ -447,7 +447,6 @@ if __name__ == "__main__":
     tf.bm_dir = os.path.join(root, "Hot Spots BM Z")
     tf.disp_dir = os.path.join(root, "Loggers Disp Y")
     tf.rot_dir = os.path.join(root, "Loggers Rot Z")
-
     tf.perc_occ = [19.040, 10.134, 20.049, 17.022, 14.644, 10.374, 5.448, 3.289]
 
     tf.get_files()

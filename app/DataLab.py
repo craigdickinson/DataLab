@@ -1,7 +1,7 @@
 __author__ = "Craig Dickinson"
 __program__ = "DataLab"
-__version__ = "1.1.0.4"
-__date__ = "20 July 2019"
+__version__ = "1.1.0.5"
+__date__ = "22 July 2019"
 
 import logging
 import os
@@ -272,6 +272,7 @@ class DataLab(DataLabGui):
             # Store spectrogram datasets and update plot tab
             self.spectrogramTab.datasets[dataset_id] = df
             self.spectrogramTab.append_spect_to_datasets_list(dataset_id)
+            self.spectrogramTab.create_plots()
 
             # Show dashboard
             self.view_tab_spectrogram()
@@ -448,6 +449,9 @@ class DataLab(DataLabGui):
         except LoggerError as e:
             self.error(str(e))
             return logging.exception(e)
+        except FileNotFoundError as e:
+            self.error(str(e))
+            return logging.exception(e)
         except Exception as e:
             msg = "Unexpected error on preparing config setup"
             self.error(f"{msg}:\n{e}\n{sys.exc_info()[0]}")
@@ -477,7 +481,10 @@ class DataLab(DataLabGui):
 
         # Get raw filenames, check timestamps and select files in processing datetime range
         for logger in control.loggers:
+            # Store logger filenames and check file timestamps
             logger.process_filenames()
+
+            # Select only files in date range to process on
             logger.select_files_in_datetime_range(
                 logger.process_start, logger.process_end
             )
@@ -485,8 +492,8 @@ class DataLab(DataLabGui):
 
             # Get all channel names and units if not already stored in logger object
             if (
-                len(logger.all_channel_names) == 0
-                and len(logger.all_channel_units) == 0
+                    len(logger.all_channel_names) == 0
+                    and len(logger.all_channel_units) == 0
             ):
                 logger.get_all_channel_and_unit_names()
 
@@ -568,6 +575,7 @@ class DataLab(DataLabGui):
             self.spectrogramTab.datasets = screening.dict_spectrograms
             dataset_ids = list(screening.dict_spectrograms.keys())
             self.spectrogramTab.append_multiple_spect_to_datasets_list(dataset_ids)
+            self.spectrogramTab.create_plots()
 
     def calc_seascatter(self):
         """Create seascatter diagram if vessel stats data is loaded."""

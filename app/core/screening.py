@@ -19,6 +19,12 @@ from app.core.data_screen import DataScreen
 from app.core.data_screen_report import DataScreenReport
 from app.core.spectrograms import Spectrogram
 from app.core.write_stats import StatsOutput
+from app.core.azure_cloud_storage import (
+    connect_to_azure_account,
+    get_container_name_and_folders_path,
+    get_blobs,
+    stream_blob,
+)
 
 prog_info = "Program to perform signal processing on logger data"
 
@@ -57,7 +63,6 @@ class Screening(QThread):
 
         self.datfile = datfile
         self.control = Control()
-        self.logger_path = ""
         self.data_screen = []
         self.total_files = 0
 
@@ -100,9 +105,19 @@ class Screening(QThread):
 
         # Get total number of files to process
         logger_ids = []
+        any_data_on_azure = False
         for logger in loggers:
             self.total_files += len(logger.files)
             logger_ids.append(logger.logger_id)
+
+            # Check whether any logger data is to be streamed from Azure
+            if logger.data_on_azure is True:
+                any_data_on_azure = True
+
+        # Connect to Azure account if to be used
+        if any_data_on_azure is True:
+            bloc_blob_service = connect_to_azure_account(self.control.azure_account_name,
+                                                         self.control.azure_account_key)
 
         # Process each logger file
         print("Processing loggers...")
@@ -110,9 +125,6 @@ class Screening(QThread):
         for i, logger in enumerate(loggers):
             if logger.process_stats is True:
                 stats_processed = True
-
-            # Change directory to logger input files (useful for gui file tree)
-            self.logger_path = logger.logger_path
 
             # Add any bad filenames to screening report
             data_report.add_bad_filenames(logger.logger_id, logger.dict_bad_filenames)
@@ -162,7 +174,10 @@ class Screening(QThread):
                     f"Processing {logger.logger_id} file {j + 1} of {n} ({filename})"
                 )
                 print(f"\r{progress}", end="")
-                # print(f"{progress}")
+
+                # If streaming data from Azure Cloud read as a file stream
+                if logger.data_on_azure is True:
+                    file = stream_blob(bloc_blob_service, logger.container_name, logger.blobs[j])
 
                 # Read the file into a pandas data frame
                 df = data_screen[i].read_logger_file(file)

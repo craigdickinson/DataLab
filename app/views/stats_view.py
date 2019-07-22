@@ -1245,7 +1245,7 @@ class VesselStatsWidget(QtWidgets.QWidget):
         self.clearDatasetsButton = QtWidgets.QPushButton("Clear Datasets")
         self.lbl1 = QtWidgets.QLabel("Loaded Datasets")
         self.lbl2 = QtWidgets.QLabel("Channels (echo)")
-        self.datasetList = QtWidgets.QListWidget()
+        self.datasetsList = QtWidgets.QListWidget()
         self.channelsList = QtWidgets.QListWidget()
         self.vesselMotionsCombo = QtWidgets.QComboBox()
         self.stats1Combo = QtWidgets.QComboBox()
@@ -1288,7 +1288,7 @@ class VesselStatsWidget(QtWidgets.QWidget):
         self.vbox.addWidget(self.openStatsButton)
         self.vbox.addWidget(self.clearDatasetsButton)
         self.vbox.addWidget(self.lbl1)
-        self.vbox.addWidget(self.datasetList)
+        self.vbox.addWidget(self.datasetsList)
         self.vbox.addWidget(self.lbl2)
         self.vbox.addWidget(self.channelsList)
         self.vbox.addWidget(self.statsWidget)
@@ -1308,7 +1308,7 @@ class VesselStatsWidget(QtWidgets.QWidget):
 
     def connect_signals(self):
         self.clearDatasetsButton.clicked.connect(self.on_clear_datasets_clicked)
-        self.datasetList.currentItemChanged.connect(self.on_dataset_list_changed)
+        self.datasetsList.currentItemChanged.connect(self.on_dataset_list_changed)
         self.vesselMotionsCombo.currentIndexChanged.connect(
             self.on_motions_combo_changed
         )
@@ -1386,7 +1386,7 @@ class VesselStatsWidget(QtWidgets.QWidget):
         # Set flag to prevent channel combo boxes repopulating when clear the dataset combo boxes
         self.skip_logger_combo_change = True
         self.datasets = []
-        self.datasetList.clear()
+        self.datasetsList.clear()
         self.channelsList.clear()
         self.init_logger_channel_combos()
         self.skip_logger_combo_change = False
@@ -1395,16 +1395,16 @@ class VesselStatsWidget(QtWidgets.QWidget):
         """Populate loaded datasets list."""
 
         # Create dataset list and select first item (this will trigger an update of update_channels_list)
-        self.datasetList.addItems(dataset_ids)
+        self.datasetsList.addItems(dataset_ids)
 
         # Add dataset ids to logger combo box
         self.axis2Logger.addItems(dataset_ids)
-        self.datasetList.setCurrentRow(0)
+        self.datasetsList.setCurrentRow(0)
 
     def update_channels_list(self):
         """Update channels list to match selected dataset."""
 
-        i = self.datasetList.currentRow()
+        i = self.datasetsList.currentRow()
         if i == -1:
             return
 
