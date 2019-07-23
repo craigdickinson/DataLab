@@ -844,7 +844,7 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
         # WIDGETS
         self.loggerID = QtWidgets.QLineEdit()
         self.loggerID.setFixedWidth(150)
-        self.localFilesRadio = QtWidgets.QRadioButton("Local Drive")
+        self.localFilesRadio = QtWidgets.QRadioButton("Local files")
         self.localFilesRadio.setChecked(True)
         self.azureCloudRadio = QtWidgets.QRadioButton("Azure Cloud Storage")
         self.setAzureButton = QtWidgets.QPushButton(
@@ -2730,7 +2730,7 @@ class AzureAccountSetupDialog(QtWidgets.QDialog):
 
         try:
             check_azure_account_exists(account_name, account_key)
-            msg = f"Successfully connected to Azure Storage account: {account_name}."
+            msg = f"Connected successfully to Azure Storage account: {account_name}."
             return QtWidgets.QMessageBox.information(
                 self, "Test Connection to Azure Storage Cloud Account", msg
             )

@@ -82,7 +82,7 @@ class StatsOutput(object):
         elif unfiltered_stats:
             self.stats = unfiltered_stats
             channels_header = channels_header_unfilt
-        # unfiltered stats not generated
+        # Unfiltered stats not generated
         elif filtered_stats:
             self.stats = filtered_stats
             channels_header = channels_header_filt

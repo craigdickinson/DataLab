@@ -13,18 +13,13 @@ from time import time
 import pandas as pd
 from PyQt5.QtCore import QThread, pyqtSignal
 
+from app.core.azure_cloud_storage import connect_to_azure_account, stream_blob
 from app.core.calc_stats import LoggerStats
 from app.core.control import Control
 from app.core.data_screen import DataScreen
 from app.core.data_screen_report import DataScreenReport
 from app.core.spectrograms import Spectrogram
 from app.core.write_stats import StatsOutput
-from app.core.azure_cloud_storage import (
-    connect_to_azure_account,
-    get_container_name_and_folders_path,
-    get_blobs,
-    stream_blob,
-)
 
 prog_info = "Program to perform signal processing on logger data"
 
@@ -103,19 +98,22 @@ class Screening(QThread):
         # Create output stats to workbook object
         stats_out = StatsOutput(output_dir=self.control.stats_output_path)
 
-        # Get total number of files to process
+        # List of output files
+        files_output=[]
+
+        # Get list of loggers, where source files are stored (local or Azure) and total number of files to process
         logger_ids = []
         any_data_on_azure = False
         for logger in loggers:
             self.total_files += len(logger.files)
             logger_ids.append(logger.logger_id)
 
-            # Check whether any logger data is to be streamed from Azure
+            # Check whether logger data is to be streamed from Azure
             if logger.data_on_azure is True:
                 any_data_on_azure = True
 
         # Connect to Azure account if to be used
-        if any_data_on_azure is True:
+        if any_data_on_azure:
             bloc_blob_service = connect_to_azure_account(self.control.azure_account_name,
                                                          self.control.azure_account_key)
 

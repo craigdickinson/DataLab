@@ -52,8 +52,6 @@ class ProcessingProgressBar(QtWidgets.QDialog):
 
         self._populate_loggers_list(logger_ids)
 
-        self.show()
-
     def _populate_loggers_list(self, logger_ids):
         if logger_ids:
             self.loggersList.addItems(logger_ids)
@@ -75,9 +73,7 @@ class ProcessingProgressBar(QtWidgets.QDialog):
         n = dict_progress["num_logger_files"]
         total_file_count = dict_progress["file_count"]
         total_files = dict_progress["total_files"]
-
         logger = logger_ids[logger_i]
-        num_loggers = len(logger_ids)
 
         # Update loggers status list
         self.loggersList.item(logger_i).setText(f"{logger} - Processing")

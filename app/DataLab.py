@@ -1,7 +1,7 @@
 __author__ = "Craig Dickinson"
 __program__ = "DataLab"
-__version__ = "1.1.0.6"
-__date__ = "22 July 2019"
+__version__ = "1.1.0.7"
+__date__ = "23 July 2019"
 
 import logging
 import os
@@ -142,12 +142,12 @@ class DataLab(DataLabGui):
         self._message_information("About", msg)
 
     def show_help(self):
-        """Open instructions documentation on sharepoint url."""
+        """Open guidance documentation on sharepoint."""
 
         url = (
             r"https://agcloud.sharepoint.com/:p:/r/sites/"
             r"O365-UG-2HEngineeringSoftware/Shared%20Documents/2H%20Datalab/"
-            r"2019-07-12%20How%20to%20Use%20DataLab.pptx?d=wcabe347939784784b8d7270cdf7938e7&csf=1&e=G0SRms"
+            r"DataLab%20Guidance.pptx?d=wcabe347939784784b8d7270cdf7938e7&csf=1&e=9LJsCD"
         )
         webbrowser.open(url)
 
@@ -440,22 +440,33 @@ class DataLab(DataLabGui):
         """Screen loggers and process statistical and spectral analysis."""
 
         try:
+            self.repaint()
             status = self.analyse_screening_setup()
+            self.statusbar.showMessage("")
+
             if status is True:
+                self.statusbar.showMessage(
+                    "Checking setup: Complete. Processing loggers..."
+                )
+                self.repaint()
                 self.run_screening()
         except InputError as e:
+            self.statusbar.showMessage("")
             self.error(str(e))
-            return logging.exception(e)
+            logging.exception(e)
         except LoggerError as e:
+            self.statusbar.showMessage("")
             self.error(str(e))
-            return logging.exception(e)
+            logging.exception(e)
         except FileNotFoundError as e:
+            self.statusbar.showMessage("")
             self.error(str(e))
-            return logging.exception(e)
+            logging.exception(e)
         except Exception as e:
+            self.statusbar.showMessage("")
             msg = "Unexpected error on preparing config setup"
             self.error(f"{msg}:\n{e}\n{sys.exc_info()[0]}")
-            return logging.exception(e)
+            logging.exception(e)
 
     def analyse_screening_setup(self):
         """Prepare and check screening setup."""
@@ -482,6 +493,10 @@ class DataLab(DataLabGui):
         # Get raw filenames, check timestamps and select files in processing datetime range
         for logger in control.loggers:
             # Store logger filenames and check file timestamps
+            self.statusbar.showMessage(
+                f"Checking setup: Checking file names for {logger.logger_id}. Please wait..."
+            )
+            self.repaint()
             logger.process_filenames()
 
             # Select only files in date range to process on
@@ -492,8 +507,8 @@ class DataLab(DataLabGui):
 
             # Get all channel names and units if not already stored in logger object
             if (
-                    len(logger.all_channel_names) == 0
-                    and len(logger.all_channel_units) == 0
+                len(logger.all_channel_names) == 0
+                and len(logger.all_channel_units) == 0
             ):
                 logger.get_all_channel_and_unit_names()
 
@@ -521,11 +536,11 @@ class DataLab(DataLabGui):
         # Run processing on QThread worker - prevents GUI lock up
         try:
             # Create screening object, map control data and process
-            screening = Screening(self)
+            screening = Screening()
             screening.control = self.control
 
-            # Create worker thread, connect signals to methods in this class and start, which this calls worker.run()
-            self.worker = ControlFileWorker(screening, parent=self)
+            # Create worker thread, connect signals to methods in this class and start, which calls worker.run()
+            self.worker = ScreeningWorker(screening, parent=self)
             self.worker.signal_screening_output_to_gui.connect(
                 self.set_screening_output_to_gui
             )
@@ -655,8 +670,8 @@ class DataLab(DataLabGui):
         )
 
 
-class ControlFileWorker(QtCore.QThread):
-    """Worker class to process control file in separate thread."""
+class ScreeningWorker(QtCore.QThread):
+    """Worker class to perform screening processing of control setup in a separate thread."""
 
     # Note: Using the alternative method of creating a QObject and a standalone QThread worker and using moveToThread
     # does not work with GUIs. The QObject still stays on the QMainWindow thread. Therefore, while the processing works,
@@ -668,20 +683,19 @@ class ControlFileWorker(QtCore.QThread):
 
     def __init__(self, screening, parent=None):
         """Worker class to allow control file processing on a separate thread to the gui."""
-        super(ControlFileWorker, self).__init__(parent)
+        super(ScreeningWorker, self).__init__(parent)
 
         self.parent = parent
 
         # Screening processing object
         self.screening = screening
 
-        logger_ids = self.screening.control.logger_ids
-
         # Initialise progress bar
-        self.pb = ProcessingProgressBar(logger_ids=logger_ids)
-        self.connect_signals()
+        self.pb = ProcessingProgressBar(logger_ids=self.screening.control.logger_ids)
+        self.pb.show()
+        self._connect_signals()
 
-    def connect_signals(self):
+    def _connect_signals(self):
         self.pb.signal_quit_worker.connect(self.quit_worker)
         self.screening.signal_notify_progress.connect(self.pb.update_progress_bar)
         self.signal_complete.connect(self.pb.on_processing_complete)
@@ -691,9 +705,9 @@ class ControlFileWorker(QtCore.QThread):
 
         try:
             self.parent.setEnabled(False)
-            t0 = time()
 
             # Run DataLab processing; compute and write requested logger statistics and spectrograms
+            t0 = time()
             self.screening.process_control_file()
             t = str(timedelta(seconds=round(time() - t0)))
             self.signal_complete.emit(t, self.screening.total_files)
@@ -710,6 +724,7 @@ class ControlFileWorker(QtCore.QThread):
             logging.exception(e)
         finally:
             self.parent.setEnabled(True)
+            self.parent.statusbar.showMessage("")
 
     @pyqtSlot()
     def quit_worker(self):
@@ -722,6 +737,7 @@ class ControlFileWorker(QtCore.QThread):
 
         self.pb.close()
         self.parent.setEnabled(True)
+        self.parent.statusbar.showMessage("")
 
 
 # class QtDesignerGui(QtWidgets.QMainWindow, datalab_gui_layout.Ui_MainWindow):

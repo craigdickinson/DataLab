@@ -237,13 +237,13 @@ class LoggerProperties(QObject):
         :return: filename datetime as string
         """
 
-        y = f[self.year_span[0]: self.year_span[1]]
-        m = f[self.month_span[0]: self.month_span[1]]
-        d = f[self.day_span[0]: self.day_span[1]]
-        h = f[self.hour_span[0]: self.hour_span[1]]
-        minute = f[self.min_span[0]: self.min_span[1]]
-        sec = f[self.sec_span[0]: self.sec_span[1]]
-        ms = f[self.ms_span[0]: self.ms_span[1]]
+        y = f[self.year_span[0] : self.year_span[1]]
+        m = f[self.month_span[0] : self.month_span[1]]
+        d = f[self.day_span[0] : self.day_span[1]]
+        h = f[self.hour_span[0] : self.hour_span[1]]
+        minute = f[self.min_span[0] : self.min_span[1]]
+        sec = f[self.sec_span[0] : self.sec_span[1]]
+        ms = f[self.ms_span[0] : self.ms_span[1]]
 
         # Date must contain y, m and d
         date_str = y + "-" + m + "-" + d
@@ -405,8 +405,8 @@ class LoggerProperties(QObject):
 
             # Keep headers requested (append dummy channel names if exist)
             self.channel_names = [
-                                     all_channels[i - 2] for i in present_cols
-                                 ] + dummy_cols
+                all_channels[i - 2] for i in present_cols
+            ] + dummy_cols
 
             if missing_cols:
                 warn_flag = True
@@ -431,11 +431,12 @@ class LoggerProperties(QObject):
             if missing_cols:
                 warn_flag = True
 
-        # If missing cols found, warn user
+        # If missing cols found, inform user
+        # Note emitting a message not raise an error so that screening is not halted
         if warn_flag is True:
             msg = (
-                f"Number of columns in test file for logger {self.logger_id} is less than {last_col}.\n\n"
-                f"Dummy column names will be created for missing columns.\n\n"
+                f"Number of columns in test file for logger {self.logger_id} is less than {last_col}.\n"
+                f"Dummy column names will be created for missing columns.\n"
                 f"Alternatively, input custom channel and unit names."
                 f"\nTest file: {test_file}."
             )
@@ -452,7 +453,9 @@ class LoggerProperties(QObject):
             test_blob = self.blobs[file_idx]
             test_file = os.path.basename(test_blob)
 
-            bloc_blob_service = connect_to_azure_account(self.azure_account_name, self.azure_account_key)
+            bloc_blob_service = connect_to_azure_account(
+                self.azure_account_name, self.azure_account_key
+            )
             f = stream_blob(bloc_blob_service, self.container_name, test_blob)
             [f.readline() for _ in range(self.num_headers)]
             first_row = f.readline().decode().strip().split(self.file_delimiter)
