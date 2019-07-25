@@ -4,7 +4,7 @@ Created on 22 Sep 2016
 @author: bowdenc
 """
 
-import os.path
+from pathlib import Path
 
 from openpyxl import Workbook
 
@@ -12,14 +12,14 @@ from openpyxl import Workbook
 class DataScreenReport(object):
     """Methods to write data screening results to Excel."""
 
-    def __init__(self, project_name, campaign_name):
-        """Constructor."""
+    def __init__(self, project_name, campaign_name, output_dir=""):
+        self.project_name = project_name
+        self.campaign_name = campaign_name
+        self.output_dir = output_dir
 
         self.wb = Workbook()
         self.ws_summary = self.wb.active
         self.ws_summary.title = "Summary"
-        self.project_name = project_name
-        self.campaign_name = campaign_name
         self.bad_filenames = []
         self.bad_files = []
 
@@ -69,10 +69,10 @@ class DataScreenReport(object):
             for row in self.bad_files:
                 self.ws_bad_files.append(row)
 
-    def save_workbook(self, directory, filename):
+    def save_workbook(self, filename):
         """Save workbook once all data has been written."""
 
         # Create directory if does not exist
-        if directory != "" and os.path.exists(directory) is False:
-            os.makedirs(directory)
-        self.wb.save(os.path.join(directory, filename))
+        path = Path(self.output_dir)
+        path.mkdir(parents=True, exist_ok=True)
+        self.wb.save(path.joinpath(filename))

@@ -52,7 +52,7 @@ class DataLabGui(QtWidgets.QMainWindow):
         self.statsScreeningModule = QtWidgets.QTabWidget()
         self.statsTab = StatsWidget(self)
         self.vesselStatsTab = VesselStatsWidget(self)
-        self.pairplotTab=PairPlotView(self)
+        self.pairplotTab = PairPlotView(self)
         self.statsScreeningModule.addTab(self.statsTab, "Statistics")
         self.statsScreeningModule.addTab(self.vesselStatsTab, "Vessel Statistics")
         self.statsScreeningModule.addTab(self.pairplotTab, "Pair-Plot")

@@ -94,7 +94,9 @@ class Control(object):
         self.control_file = filename
 
     def analyse(self):
-        """Read all data from control file"""
+        """DEPRECATED DAT ROUTINE - TO DELETE
+        Read all data from control file
+        """
 
         self.read_data_from_control_file()
         self.get_project_name()
@@ -149,7 +151,9 @@ class Control(object):
 
     @staticmethod
     def _ensure_dir_exists(directory):
-        """Create directory (and intermediate directories) if do not exist."""
+        """DEPRECATED DAT ROUTINE - TO DELETE
+        Create directory (and intermediate directories) if do not exist.
+        """
 
         if directory != "" and os.path.exists(directory) is False:
             os.makedirs(directory)
@@ -324,7 +328,7 @@ class Control(object):
 
         i = slice_array[index]
         if index < len(slice_array) - 1:
-            return data[i: slice_array[index + 1]]
+            return data[i : slice_array[index + 1]]
         else:
             return data[i:]
 
@@ -772,7 +776,7 @@ class Control(object):
             text_upper = text.upper().strip()
             if text_upper.startswith(key.upper()):
                 # Return the rest of the line and row number if found
-                key_data = text[len(key):].strip()
+                key_data = text[len(key) :].strip()
                 return line, key_data
 
         # Return empty string and negative row number if not found

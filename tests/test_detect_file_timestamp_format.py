@@ -35,5 +35,6 @@ def test_detect_file_timestamp_format_5():
     timestamp_fmt = detect_file_timestamp_format(filename)
     assert timestamp_fmt == "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxYYYYxmmxDDxHHxMMxSS"
 
+
 if __name__ == "__main__":
     pytest.main()

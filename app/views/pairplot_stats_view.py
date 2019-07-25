@@ -44,17 +44,17 @@ class PairPlotView(QtWidgets.QWidget):
         # Plot selection group
         self.plotGroup = QtWidgets.QGroupBox("Select Plot Channels")
         self.vbox = QtWidgets.QVBoxLayout(self.plotGroup)
-        self.vbox.addWidget(QtWidgets.QLabel('Channel 1:'))
+        self.vbox.addWidget(QtWidgets.QLabel("Channel 1:"))
         self.vbox.addWidget(self.ch1Combo)
-        self.vbox.addWidget(QtWidgets.QLabel('Channel 2:'))
+        self.vbox.addWidget(QtWidgets.QLabel("Channel 2:"))
         self.vbox.addWidget(self.ch2Combo)
-        self.vbox.addWidget(QtWidgets.QLabel('Channel 3:'))
+        self.vbox.addWidget(QtWidgets.QLabel("Channel 3:"))
         self.vbox.addWidget(self.ch3Combo)
-        self.vbox.addWidget(QtWidgets.QLabel('Channel 4:'))
+        self.vbox.addWidget(QtWidgets.QLabel("Channel 4:"))
         self.vbox.addWidget(self.ch4Combo)
-        self.vbox.addWidget(QtWidgets.QLabel('Channel 5:'))
+        self.vbox.addWidget(QtWidgets.QLabel("Channel 5:"))
         self.vbox.addWidget(self.ch5Combo)
-        self.vbox.addWidget(QtWidgets.QLabel('Channel 6:'))
+        self.vbox.addWidget(QtWidgets.QLabel("Channel 6:"))
         self.vbox.addWidget(self.ch6Combo)
 
         # Selection container
@@ -86,7 +86,7 @@ class PairPlotView(QtWidgets.QWidget):
         pass
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
     win = PairPlotView()
     win.show()

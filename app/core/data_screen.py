@@ -96,8 +96,6 @@ class DataScreen(object):
         if low_cutoff is None and high_cutoff is None:
             self.apply_filters = False
 
-
-
     def read_logger_file(self, filename):
         """Read logger file into pandas data frame."""
 

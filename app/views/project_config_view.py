@@ -76,11 +76,9 @@ class ConfigModule(QtWidgets.QWidget):
 
         self.calcSeascatterButton = QtWidgets.QPushButton("Create Sea Scatter")
         self.calcSeascatterButton.setFixedHeight(h)
-        self.calcSeascatterButton.setToolTip(
-            "Create Hs-Tp sea scatter diagram (F7)")
+        self.calcSeascatterButton.setToolTip("Create Hs-Tp sea scatter diagram (F7)")
 
-        self.calcTFButton = QtWidgets.QPushButton(
-            "Calculate Transfer Functions")
+        self.calcTFButton = QtWidgets.QPushButton("Calculate Transfer Functions")
         self.calcTFButton.setFixedHeight(h)
         self.calcTFButton.setToolTip(
             "Calculate frequency-dependent transfer functions (F8)"
@@ -162,10 +160,8 @@ class ConfigModule(QtWidgets.QWidget):
         self.loggersList.itemClicked.connect(self.on_logger_selected)
         self.loggersList.itemChanged.connect(self.on_logger_item_edited)
         self.processButton.clicked.connect(self.on_process_screening_clicked)
-        self.calcSeascatterButton.clicked.connect(
-            self.on_calc_seascatter_clicked)
-        self.calcTFButton.clicked.connect(
-            self.on_calc_transfer_functions_clicked)
+        self.calcSeascatterButton.clicked.connect(self.on_calc_seascatter_clicked)
+        self.calcTFButton.clicked.connect(self.on_calc_transfer_functions_clicked)
         self.calcFatigueButton.clicked.connect(self.on_calc_fatigue_clicked)
 
     def on_open_config_clicked(self):
@@ -190,8 +186,7 @@ class ConfigModule(QtWidgets.QWidget):
                 self.control.config_file = filename
                 self.control = config.map_json_to_control(Control())
                 self.scatter = config.map_json_to_seascatter(Seascatter())
-                self.tf = config.map_json_to_transfer_functions(
-                    TransferFunctions())
+                self.tf = config.map_json_to_transfer_functions(TransferFunctions())
 
                 # Assign config data to control object and project dashboard
                 self._set_dashboards()
@@ -501,13 +496,11 @@ class CampaignInfoTab(QtWidgets.QWidget):
         self.form.addRow(QtWidgets.QLabel("Project name:"), self.projName)
         self.form.addRow(QtWidgets.QLabel("Campaign name:"), self.campaignName)
         self.form.addRow(QtWidgets.QLabel("Project location:"), self.projPath)
-        self.form.addRow(QtWidgets.QLabel(
-            "Config file name:"), self.configFile)
+        self.form.addRow(QtWidgets.QLabel("Config file name:"), self.configFile)
 
         # LAYOUT
         self.vbox = QtWidgets.QVBoxLayout()
-        self.vbox.addWidget(self.editButton, stretch=0,
-                            alignment=QtCore.Qt.AlignLeft)
+        self.vbox.addWidget(self.editButton, stretch=0, alignment=QtCore.Qt.AlignLeft)
         self.vbox.addWidget(self.projGroup)
         self.vbox.addStretch()
 
@@ -656,8 +649,7 @@ class EditCampaignInfoDialog(QtWidgets.QDialog):
     def set_project_path(self):
         """Set location of project root directory."""
 
-        dir_path = QtWidgets.QFileDialog.getExistingDirectory(
-            self, "Project Location")
+        dir_path = QtWidgets.QFileDialog.getExistingDirectory(self, "Project Location")
 
         if dir_path:
             self.projPath.setPlainText(dir_path)
@@ -684,10 +676,11 @@ class LoggerPropertiesTab(QtWidgets.QWidget):
         self.editButton.setShortcut("Ctrl+E")
         self.editButton.setToolTip("Ctrl+E")
         self.loggerID = QtWidgets.QLabel("-")
-        self.fileFormat = QtWidgets.QLabel("-")
+        self.dataSource = QtWidgets.QLabel("-")
         self.loggerPath = QtWidgets.QLabel("-")
         self.loggerPath.setWordWrap(True)
         self.fileTimestampFormat = QtWidgets.QLabel("-")
+        self.fileFormat = QtWidgets.QLabel("-")
         self.dataTimestampFormat = QtWidgets.QLabel("-")
         self.fileExt = QtWidgets.QLabel("-")
         self.fileDelimiter = QtWidgets.QLabel("-")
@@ -704,33 +697,27 @@ class LoggerPropertiesTab(QtWidgets.QWidget):
         self.loggerPropsGroup.setMinimumWidth(500)
         self.form = QtWidgets.QFormLayout(self.loggerPropsGroup)
         self.form.addRow(QtWidgets.QLabel("Logger ID:"), self.loggerID)
-        self.form.addRow(QtWidgets.QLabel("File type:"), self.fileFormat)
+        self.form.addRow(QtWidgets.QLabel("Logger source:"), self.dataSource)
         self.form.addRow(QtWidgets.QLabel("Logger path:"), self.loggerPath)
-        self.form.addRow(QtWidgets.QLabel("File timestamp:"),
-                         self.fileTimestampFormat)
-        self.form.addRow(QtWidgets.QLabel("Data timestamp:"),
-                         self.dataTimestampFormat)
+        self.form.addRow(QtWidgets.QLabel("File timestamp:"), self.fileTimestampFormat)
+        self.form.addRow(QtWidgets.QLabel("File type:"), self.fileFormat)
+        self.form.addRow(QtWidgets.QLabel("Data timestamp:"), self.dataTimestampFormat)
         self.form.addRow(QtWidgets.QLabel("Extension:"), self.fileExt)
         self.form.addRow(QtWidgets.QLabel("Delimiter:"), self.fileDelimiter)
-        self.form.addRow(QtWidgets.QLabel(
-            "Number of header rows:"), self.numHeaderRows)
+        self.form.addRow(QtWidgets.QLabel("Number of header rows:"), self.numHeaderRows)
         self.form.addRow(
             QtWidgets.QLabel("Number of expected columns:"), self.numColumns
         )
-        self.form.addRow(QtWidgets.QLabel(
-            "Channel header row:"), self.channelHeaderRow)
-        self.form.addRow(QtWidgets.QLabel(
-            "Units header row:"), self.unitsHeaderRow)
-        self.form.addRow(QtWidgets.QLabel(
-            "Logging frequency (Hz):"), self.loggingFreq)
+        self.form.addRow(QtWidgets.QLabel("Channel header row:"), self.channelHeaderRow)
+        self.form.addRow(QtWidgets.QLabel("Units header row:"), self.unitsHeaderRow)
+        self.form.addRow(QtWidgets.QLabel("Logging frequency (Hz):"), self.loggingFreq)
         self.form.addRow(
             QtWidgets.QLabel("Logging duration (s):"), self.loggingDuration
         )
 
         # LAYOUT
         self.vbox = QtWidgets.QVBoxLayout()
-        self.vbox.addWidget(self.editButton, stretch=0,
-                            alignment=QtCore.Qt.AlignLeft)
+        self.vbox.addWidget(self.editButton, stretch=0, alignment=QtCore.Qt.AlignLeft)
         self.vbox.addWidget(self.loggerPropsGroup)
         self.vbox.addStretch()
 
@@ -755,21 +742,26 @@ class LoggerPropertiesTab(QtWidgets.QWidget):
         logger_idx = self.parent.loggersList.currentRow()
 
         # Create edit logger properties dialog window instance
-        editLoggerProps = EditLoggerPropertiesDialog(
-            self, self.control, logger_idx)
+        editLoggerProps = EditLoggerPropertiesDialog(self, self.control, logger_idx)
         editLoggerProps.show()
 
     def set_logger_dashboard(self, logger):
         """Set dashboard with logger properties from logger object."""
 
         self.loggerID.setText(logger.logger_id)
-        self.fileFormat.setText(logger.file_format)
+
+        if logger.data_on_azure is True:
+            src = "Azure Cloud Storage"
+        else:
+            src = "Local files"
+
+        self.dataSource.setText(src)
         self.loggerPath.setText(logger.logger_path)
         self.fileTimestampFormat.setText(logger.file_timestamp_format)
+        self.fileFormat.setText(logger.file_format)
         self.dataTimestampFormat.setText(logger.timestamp_format)
         self.fileExt.setText(logger.file_ext)
-        self.fileDelimiter.setText(
-            self.delims_logger_to_gui[logger.file_delimiter])
+        self.fileDelimiter.setText(self.delims_logger_to_gui[logger.file_delimiter])
         self.numHeaderRows.setText(str(logger.num_headers))
         self.numColumns.setText(str(logger.num_columns))
         self.channelHeaderRow.setText(str(logger.channel_header_row))
@@ -847,8 +839,7 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
         self.localFilesRadio = QtWidgets.QRadioButton("Local files")
         self.localFilesRadio.setChecked(True)
         self.azureCloudRadio = QtWidgets.QRadioButton("Azure Cloud Storage")
-        self.setAzureButton = QtWidgets.QPushButton(
-            "Set Azure Account Settings...")
+        self.setAzureButton = QtWidgets.QPushButton("Set Azure Account Settings...")
         self.setAzureButton.setSizePolicy(policy)
         self.setAzureButton.setHidden(True)
         self.pathLabel = QtWidgets.QLabel("Logger path:")
@@ -934,8 +925,7 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
         # CONTAINERS
         # Logger name
         self.loggerIDLayout = QtWidgets.QFormLayout()
-        self.loggerIDLayout.addRow(
-            QtWidgets.QLabel("Logger ID:"), self.loggerID)
+        self.loggerIDLayout.addRow(QtWidgets.QLabel("Logger ID:"), self.loggerID)
 
         # Location source group
         self.locSelectionGroup = QtWidgets.QGroupBox("Location Source")
@@ -956,17 +946,14 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
 
         # Combine source and location containers
         self.locLayout = QtWidgets.QHBoxLayout()
-        self.locLayout.addWidget(
-            self.locSelectionGroup, alignment=QtCore.Qt.AlignTop)
+        self.locLayout.addWidget(self.locSelectionGroup, alignment=QtCore.Qt.AlignTop)
         self.locLayout.addWidget(self.loggerLocGroup)
 
         # Logger type group
         self.loggerType = QtWidgets.QGroupBox("Logger File Properties")
         self.typeForm = QtWidgets.QFormLayout(self.loggerType)
-        self.typeForm.addRow(
-            self.detectTimestampFormatButton, QtWidgets.QLabel(""))
-        self.typeForm.addRow(self.lblFileTimestampFmt,
-                             self.fileTimestampFormat)
+        self.typeForm.addRow(self.detectTimestampFormatButton, QtWidgets.QLabel(""))
+        self.typeForm.addRow(self.lblFileTimestampFmt, self.fileTimestampFormat)
         self.typeForm.addRow(self.lblFileFmt, self.fileFormat)
         self.typeForm.addRow(self.lblExt, self.fileExt)
         self.typeForm.addRow(self.lblDelim, self.fileDelimiter)
@@ -990,8 +977,7 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
         self.layout.addWidget(self.loggerType)
         self.layout.addWidget(self.loggerProps)
         self.layout.addStretch()
-        self.layout.addWidget(self.buttonBox, stretch=0,
-                              alignment=QtCore.Qt.AlignRight)
+        self.layout.addWidget(self.buttonBox, stretch=0, alignment=QtCore.Qt.AlignRight)
 
     def _connect_signals(self):
         self.buttonBox.accepted.connect(self.on_ok_clicked)
@@ -1000,8 +986,7 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
         self.azureCloudRadio.toggled.connect(self.on_azure_radio_toggled)
         self.setAzureButton.clicked.connect(self.on_set_azure_settings_clicked)
         self.browseButton.clicked.connect(self.on_browse_path_clicked)
-        self.fileFormat.currentIndexChanged.connect(
-            self.on_file_format_changed)
+        self.fileFormat.currentIndexChanged.connect(self.on_file_format_changed)
         self.detectTimestampFormatButton.clicked.connect(
             self.on_detect_file_timestamp_format_clicked
         )
@@ -1209,8 +1194,7 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
                     test_timestamp = ""
             else:
                 try:
-                    test_timestamp = datetime.strftime(
-                        test_datetime, "%Y-%m-%d %H:%M")
+                    test_timestamp = datetime.strftime(test_datetime, "%Y-%m-%d %H:%M")
                 except:
                     test_timestamp = ""
 
@@ -1270,8 +1254,7 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
                     self.fileDelimiter.currentText()
                 ]
                 test_logger.num_headers = int(self.numHeaderRows.text())
-                test_logger.channel_header_row = int(
-                    self.channelHeaderRow.text())
+                test_logger.channel_header_row = int(self.channelHeaderRow.text())
                 test_logger.units_header_row = int(self.unitsHeaderRow.text())
 
             # Set detected file properties to dialog
@@ -1416,13 +1399,11 @@ class StatsAndSpectralSettingsTab(QtWidgets.QWidget):
         self.spectInterval = QtWidgets.QLabel("-")
         self.statsFolder = QtWidgets.QLabel()
         self.spectFolder = QtWidgets.QLabel()
-        self.statsH5 = QtWidgets.QCheckBox(
-            ".h5 (recommended - fast read/write)")
+        self.statsH5 = QtWidgets.QCheckBox(".h5 (recommended - fast read/write)")
         self.statsH5.setChecked(True)
         self.statsCSV = QtWidgets.QCheckBox(".csv")
         self.statsXLSX = QtWidgets.QCheckBox(".xlsx")
-        self.spectH5 = QtWidgets.QCheckBox(
-            ".h5 (recommended - fast read/write)")
+        self.spectH5 = QtWidgets.QCheckBox(".h5 (recommended - fast read/write)")
         self.spectH5.setChecked(True)
         self.spectCSV = QtWidgets.QCheckBox(".csv")
         self.spectXLSX = QtWidgets.QCheckBox(".xlsx")
@@ -1443,12 +1424,10 @@ class StatsAndSpectralSettingsTab(QtWidgets.QWidget):
             QtWidgets.QLabel("Unit conversion factors:"), self.unitConvs
         )
         self.colsForm.addRow(
-            QtWidgets.QLabel(
-                "Channel names override (optional):"), self.channelNames
+            QtWidgets.QLabel("Channel names override (optional):"), self.channelNames
         )
         self.colsForm.addRow(
-            QtWidgets.QLabel(
-                "Channel units override (optional):"), self.channelUnits
+            QtWidgets.QLabel("Channel units override (optional):"), self.channelUnits
         )
 
         # Processing date range group
@@ -1457,14 +1436,12 @@ class StatsAndSpectralSettingsTab(QtWidgets.QWidget):
         self.dateRangeForm.addRow(
             QtWidgets.QLabel("Start timestamp:"), self.processStart
         )
-        self.dateRangeForm.addRow(QtWidgets.QLabel(
-            "End timestamp:"), self.processEnd)
+        self.dateRangeForm.addRow(QtWidgets.QLabel("End timestamp:"), self.processEnd)
 
         # Filters group
         self.filtersGroup = QtWidgets.QGroupBox("Frequency Filters")
         self.filtersForm = QtWidgets.QFormLayout(self.filtersGroup)
-        self.filtersForm.addRow(QtWidgets.QLabel(
-            "Screen on:"), self.processType)
+        self.filtersForm.addRow(QtWidgets.QLabel("Screen on:"), self.processType)
         self.filtersForm.addRow(
             QtWidgets.QLabel("Low cut-off frequency (Hz):"), self.lowCutoff
         )
@@ -1477,8 +1454,7 @@ class StatsAndSpectralSettingsTab(QtWidgets.QWidget):
         self.statsGroup.setFixedWidth(250)
         self.statsForm = QtWidgets.QFormLayout(self.statsGroup)
         self.statsForm.addRow(self.processStatsChkBox, QtWidgets.QLabel(""))
-        self.statsForm.addRow(QtWidgets.QLabel(
-            "Output folder:"), self.statsFolder)
+        self.statsForm.addRow(QtWidgets.QLabel("Output folder:"), self.statsFolder)
         self.statsForm.addRow(
             QtWidgets.QLabel("Sample length (s):"), self.statsInterval
         )
@@ -1488,15 +1464,13 @@ class StatsAndSpectralSettingsTab(QtWidgets.QWidget):
         self.spectGroup.setFixedWidth(250)
         self.spectForm = QtWidgets.QFormLayout(self.spectGroup)
         self.spectForm.addRow(self.processSpectChkBox, QtWidgets.QLabel(""))
-        self.spectForm.addRow(QtWidgets.QLabel(
-            "Output folder:"), self.spectFolder)
+        self.spectForm.addRow(QtWidgets.QLabel("Output folder:"), self.spectFolder)
         self.spectForm.addRow(
             QtWidgets.QLabel("Sample length (s):"), self.spectInterval
         )
 
         # Stats output file formats group
-        self.statsOutputGroup = QtWidgets.QGroupBox(
-            "Stats File Formats to Output")
+        self.statsOutputGroup = QtWidgets.QGroupBox("Stats File Formats to Output")
         self.statsOutputGroup.setSizePolicy(policy)
         self.vbox = QtWidgets.QVBoxLayout(self.statsOutputGroup)
         self.vbox.addWidget(self.statsH5)
@@ -1504,8 +1478,7 @@ class StatsAndSpectralSettingsTab(QtWidgets.QWidget):
         self.vbox.addWidget(self.statsXLSX)
 
         # Spectral output file formats group
-        self.spectOutputGroup = QtWidgets.QGroupBox(
-            "Spectral File Formats to Output")
+        self.spectOutputGroup = QtWidgets.QGroupBox("Spectral File Formats to Output")
         self.spectOutputGroup.setSizePolicy(policy)
         self.vbox = QtWidgets.QVBoxLayout(self.spectOutputGroup)
         self.vbox.addWidget(self.spectH5)
@@ -1519,18 +1492,15 @@ class StatsAndSpectralSettingsTab(QtWidgets.QWidget):
         self.hboxStats = QtWidgets.QHBoxLayout()
         self.hboxStats.setAlignment(QtCore.Qt.AlignLeft)
         self.hboxStats.addWidget(self.statsGroup)
-        self.hboxStats.addWidget(
-            self.statsOutputGroup, alignment=QtCore.Qt.AlignTop)
+        self.hboxStats.addWidget(self.statsOutputGroup, alignment=QtCore.Qt.AlignTop)
 
         self.hboxSpect = QtWidgets.QHBoxLayout()
         self.hboxSpect.setAlignment(QtCore.Qt.AlignLeft)
         self.hboxSpect.addWidget(self.spectGroup)
-        self.hboxSpect.addWidget(
-            self.spectOutputGroup, alignment=QtCore.Qt.AlignTop)
+        self.hboxSpect.addWidget(self.spectOutputGroup, alignment=QtCore.Qt.AlignTop)
 
         self.vbox = QtWidgets.QVBoxLayout()
-        self.vbox.addWidget(self.editButton, stretch=0,
-                            alignment=QtCore.Qt.AlignLeft)
+        self.vbox.addWidget(self.editButton, stretch=0, alignment=QtCore.Qt.AlignLeft)
         self.vbox.addWidget(self.colsGroup)
         # self.vbox.addItem(spacer)
         self.vbox.addWidget(self.dateRangeGroup)
@@ -1548,10 +1518,8 @@ class StatsAndSpectralSettingsTab(QtWidgets.QWidget):
 
     def _connect_signals(self):
         self.editButton.clicked.connect(self.on_edit_clicked)
-        self.processStatsChkBox.toggled.connect(
-            self.on_process_stats_check_box_toggled)
-        self.processSpectChkBox.toggled.connect(
-            self.on_process_spect_check_box_toggled)
+        self.processStatsChkBox.toggled.connect(self.on_process_stats_check_box_toggled)
+        self.processSpectChkBox.toggled.connect(self.on_process_spect_check_box_toggled)
         self.statsH5.toggled.connect(self.on_stats_h5_toggled)
         self.statsCSV.toggled.connect(self.on_stats_csv_toggled)
         self.statsXLSX.toggled.connect(self.on_stats_xlsx_toggled)
@@ -1577,8 +1545,7 @@ class StatsAndSpectralSettingsTab(QtWidgets.QWidget):
         logger.azure_account_key = self.control.azure_account_key
 
         # Edit stats dialog class
-        editStatsSettings = EditStatsAndSpectralDialog(
-            self, logger, logger_idx)
+        editStatsSettings = EditStatsAndSpectralDialog(self, logger, logger_idx)
         editStatsSettings.show()
 
     def on_process_stats_check_box_toggled(self):
@@ -1649,8 +1616,7 @@ class StatsAndSpectralSettingsTab(QtWidgets.QWidget):
         self.columns.setText(cols_str)
 
         # Unit conversion factors
-        unit_conv_factors_str = " ".join(
-            [str(i) for i in logger.unit_conv_factors])
+        unit_conv_factors_str = " ".join([str(i) for i in logger.unit_conv_factors])
         self.unitConvs.setText(unit_conv_factors_str)
 
         # Channel names
@@ -1763,8 +1729,7 @@ class EditStatsAndSpectralDialog(QtWidgets.QDialog):
         self._set_dialog_data()
 
     def _init_ui(self):
-        self.setWindowTitle(
-            "Edit Logger Statistics and Spectral Analysis Settings")
+        self.setWindowTitle("Edit Logger Statistics and Spectral Analysis Settings")
         self.setMinimumWidth(500)
 
         # Define input validators
@@ -1833,16 +1798,13 @@ class EditStatsAndSpectralDialog(QtWidgets.QDialog):
             QtWidgets.QLabel("Column numbers to process:"), self.columns
         )
         self.colsForm.addRow(
-            QtWidgets.QLabel(
-                "Unit conversion factors (optional):"), self.unitConvs
+            QtWidgets.QLabel("Unit conversion factors (optional):"), self.unitConvs
         )
         self.colsForm.addRow(
-            QtWidgets.QLabel(
-                "Channel names override (optional):"), self.channelNames
+            QtWidgets.QLabel("Channel names override (optional):"), self.channelNames
         )
         self.colsForm.addRow(
-            QtWidgets.QLabel(
-                "Channel units override (optional):"), self.channelUnits
+            QtWidgets.QLabel("Channel units override (optional):"), self.channelUnits
         )
 
         # Processing date range group
@@ -1851,14 +1813,12 @@ class EditStatsAndSpectralDialog(QtWidgets.QDialog):
         self.dateRangeForm.addRow(
             QtWidgets.QLabel("Start timestamp:"), self.processStart
         )
-        self.dateRangeForm.addRow(QtWidgets.QLabel(
-            "End timestamp:"), self.processEnd)
+        self.dateRangeForm.addRow(QtWidgets.QLabel("End timestamp:"), self.processEnd)
 
         # Filters group
         self.filtersGroup = QtWidgets.QGroupBox("Frequency Filters")
         self.filtersForm = QtWidgets.QFormLayout(self.filtersGroup)
-        self.filtersForm.addRow(QtWidgets.QLabel(
-            "Screen on:"), self.processType)
+        self.filtersForm.addRow(QtWidgets.QLabel("Screen on:"), self.processType)
         self.filtersForm.addRow(
             QtWidgets.QLabel("Low cut-off frequency (Hz):"), self.lowCutoff
         )
@@ -1869,8 +1829,7 @@ class EditStatsAndSpectralDialog(QtWidgets.QDialog):
         # Stats settings group
         self.statsGroup = QtWidgets.QGroupBox("Statistics Screening Settings")
         self.statsForm = QtWidgets.QFormLayout(self.statsGroup)
-        self.statsForm.addRow(QtWidgets.QLabel(
-            "Output folder:"), self.statsFolder)
+        self.statsForm.addRow(QtWidgets.QLabel("Output folder:"), self.statsFolder)
         self.statsForm.addRow(
             QtWidgets.QLabel("Sample length (s):"), self.statsInterval
         )
@@ -1878,8 +1837,7 @@ class EditStatsAndSpectralDialog(QtWidgets.QDialog):
         # Spectral settings group
         self.spectGroup = QtWidgets.QGroupBox("Spectral Screening Settings")
         self.spectForm = QtWidgets.QFormLayout(self.spectGroup)
-        self.spectForm.addRow(QtWidgets.QLabel(
-            "Output folder:"), self.spectFolder)
+        self.spectForm.addRow(QtWidgets.QLabel("Output folder:"), self.spectFolder)
         self.spectForm.addRow(
             QtWidgets.QLabel("Sample length (s):"), self.spectInterval
         )
@@ -1895,8 +1853,7 @@ class EditStatsAndSpectralDialog(QtWidgets.QDialog):
         self.layout.addWidget(self.filtersGroup)
         self.layout.addWidget(self.statsGroup)
         self.layout.addWidget(self.spectGroup)
-        self.layout.addWidget(self.buttonBox, stretch=0,
-                              alignment=QtCore.Qt.AlignRight)
+        self.layout.addWidget(self.buttonBox, stretch=0, alignment=QtCore.Qt.AlignRight)
 
     def _connect_signals(self):
         self.buttonBox.accepted.connect(self.on_ok_clicked)
@@ -1913,8 +1870,7 @@ class EditStatsAndSpectralDialog(QtWidgets.QDialog):
         self.columns.setText(cols_str)
 
         # Unit conversion factors
-        unit_conv_factors_str = " ".join(
-            [str(i) for i in logger.unit_conv_factors])
+        unit_conv_factors_str = " ".join([str(i) for i in logger.unit_conv_factors])
         self.unitConvs.setText(unit_conv_factors_str)
 
         # Channel names
@@ -1978,8 +1934,7 @@ class EditStatsAndSpectralDialog(QtWidgets.QDialog):
         # Processed columns group
         # Convert strings to lists
         try:
-            logger.cols_to_process = list(
-                map(int, self.columns.text().split()))
+            logger.cols_to_process = list(map(int, self.columns.text().split()))
         except ValueError:
             msg = (
                 "Only integer column numbers are allowed.\n"
@@ -1990,8 +1945,7 @@ class EditStatsAndSpectralDialog(QtWidgets.QDialog):
             )
 
         try:
-            logger.unit_conv_factors = list(
-                map(float, self.unitConvs.text().split()))
+            logger.unit_conv_factors = list(map(float, self.unitConvs.text().split()))
         except ValueError:
             msg = (
                 "Unit conversion factors must be numeric.\n"
@@ -2006,20 +1960,17 @@ class EditStatsAndSpectralDialog(QtWidgets.QDialog):
 
         process_start = self.processStart.text()
         if process_start == "" or process_start == "First file":
-            logger.process_start = self.get_timestamp_in_filename(
-                logger, file_idx=0)
+            logger.process_start = self.get_timestamp_in_filename(logger, file_idx=0)
         else:
             try:
                 logger.process_start = parse(process_start, yearfirst=True)
             except ValueError:
                 msg = "Stats start datetime format not recognised; timestamp unchanged"
-                QtWidgets.QMessageBox.information(
-                    self, "Stats Start Input", msg)
+                QtWidgets.QMessageBox.information(self, "Stats Start Input", msg)
 
         process_end = self.processEnd.text()
         if process_end == "" or process_end == "Last file":
-            logger.process_end = self.get_timestamp_in_filename(
-                logger, file_idx=-1)
+            logger.process_end = self.get_timestamp_in_filename(logger, file_idx=-1)
         else:
             try:
                 logger.process_end = parse(process_end, yearfirst=True)
@@ -2187,20 +2138,16 @@ class EditSeascatterDialog(QtWidgets.QDialog):
         )
 
         # CONTAINERS
-        self.detailsGroup = QtWidgets.QGroupBox(
-            "Define Metocean Logger Details")
+        self.detailsGroup = QtWidgets.QGroupBox("Define Metocean Logger Details")
         self.form = QtWidgets.QFormLayout(self.detailsGroup)
         self.form.addRow(
-            QtWidgets.QLabel(
-                "Logger containing metocean data:"), self.loggerCombo
+            QtWidgets.QLabel("Logger containing metocean data:"), self.loggerCombo
         )
         self.form.addRow(
-            QtWidgets.QLabel(
-                "Significant wave height column:"), self.hsColCombo
+            QtWidgets.QLabel("Significant wave height column:"), self.hsColCombo
         )
         self.form.addRow(
-            QtWidgets.QLabel(
-                "Significant wave period column:"), self.tpColCombo
+            QtWidgets.QLabel("Significant wave period column:"), self.tpColCombo
         )
 
         # LAYOUT
@@ -2210,8 +2157,7 @@ class EditSeascatterDialog(QtWidgets.QDialog):
         self.layout.addWidget(self.buttonBox)
 
     def _connect_signals(self):
-        self.loggerCombo.currentIndexChanged.connect(
-            self.on_logger_combo_changed)
+        self.loggerCombo.currentIndexChanged.connect(self.on_logger_combo_changed)
         self.buttonBox.accepted.connect(self.on_ok_clicked)
         self.buttonBox.accepted.connect(self.accept)
         self.buttonBox.rejected.connect(self.reject)
@@ -2300,29 +2246,25 @@ class TransferFunctionsTab(QtWidgets.QWidget):
         self.pathsGroup.setMinimumWidth(500)
         self.form1 = QtWidgets.QFormLayout(self.pathsGroup)
         self.form1.addRow(
-            QtWidgets.QLabel(
-                "Logger displacements directory:"), self.loggerDispPath
+            QtWidgets.QLabel("Logger displacements directory:"), self.loggerDispPath
         )
         self.form1.addRow(
             QtWidgets.QLabel("Logger rotations directory:"), self.loggerRotPath
         )
         self.form1.addRow(
-            QtWidgets.QLabel(
-                "Location bending moments directory:"), self.locBMPath
+            QtWidgets.QLabel("Location bending moments directory:"), self.locBMPath
         )
 
         self.detailsGroup = QtWidgets.QGroupBox("FEA Details")
         self.form2 = QtWidgets.QFormLayout(self.detailsGroup)
         self.form2.addRow(
-            QtWidgets.QLabel(
-                "Number of FEA loggers detected:"), self.numLoggers
+            QtWidgets.QLabel("Number of FEA loggers detected:"), self.numLoggers
         )
         self.form2.addRow(
             QtWidgets.QLabel("Number of FEA locations detected:"), self.numLocs
         )
         self.form2.addRow(
-            QtWidgets.QLabel(
-                "Number of FEA sea states detected:"), self.numSeastates
+            QtWidgets.QLabel("Number of FEA sea states detected:"), self.numSeastates
         )
 
         self.group1 = QtWidgets.QGroupBox("Logger Names")
@@ -2420,8 +2362,7 @@ class EditTransferFunctionsDialog(QtWidgets.QDialog):
         self.setDispPathButton = QtWidgets.QPushButton("Browse...")
         self.setRotPathButton = QtWidgets.QPushButton("Browse...")
         self.setBMPathButton = QtWidgets.QPushButton("Browse...")
-        self.detectButton = QtWidgets.QPushButton(
-            "Detect Loggers and Locations")
+        self.detectButton = QtWidgets.QPushButton("Detect Loggers and Locations")
         self.detectButton.setShortcut("Ctrl+D")
         self.detectButton.setToolTip("Ctrl+D")
         self.numLoggers = QtWidgets.QLabel("-")
@@ -2471,25 +2412,20 @@ class EditTransferFunctionsDialog(QtWidgets.QDialog):
         self.grid.addWidget(self.loggerDispPath, 0, 1)
         self.grid.addWidget(self.loggerRotPath, 1, 1)
         self.grid.addWidget(self.locBMPath, 2, 1)
-        self.grid.addWidget(self.setDispPathButton, 0, 2,
-                            alignment=QtCore.Qt.AlignTop)
-        self.grid.addWidget(self.setRotPathButton, 1, 2,
-                            alignment=QtCore.Qt.AlignTop)
-        self.grid.addWidget(self.setBMPathButton, 2, 2,
-                            alignment=QtCore.Qt.AlignTop)
+        self.grid.addWidget(self.setDispPathButton, 0, 2, alignment=QtCore.Qt.AlignTop)
+        self.grid.addWidget(self.setRotPathButton, 1, 2, alignment=QtCore.Qt.AlignTop)
+        self.grid.addWidget(self.setBMPathButton, 2, 2, alignment=QtCore.Qt.AlignTop)
 
         self.detailsGroup = QtWidgets.QGroupBox("FEA Details")
         self.form = QtWidgets.QFormLayout(self.detailsGroup)
         self.form.addRow(
-            QtWidgets.QLabel(
-                "Number of FEA loggers detected:"), self.numLoggers
+            QtWidgets.QLabel("Number of FEA loggers detected:"), self.numLoggers
         )
         self.form.addRow(
             QtWidgets.QLabel("Number of FEA locations detected:"), self.numLocs
         )
         self.form.addRow(
-            QtWidgets.QLabel(
-                "Number of FEA sea states detected:"), self.numSeastates
+            QtWidgets.QLabel("Number of FEA sea states detected:"), self.numSeastates
         )
 
         self.vbox1 = QtWidgets.QVBoxLayout()
@@ -2499,8 +2435,7 @@ class EditTransferFunctionsDialog(QtWidgets.QDialog):
         self.vbox1.addWidget(self.locNames)
 
         self.vbox2 = QtWidgets.QVBoxLayout()
-        self.vbox2.addWidget(QtWidgets.QLabel(
-            "Sea State Percentage Occurrences"))
+        self.vbox2.addWidget(QtWidgets.QLabel("Sea State Percentage Occurrences"))
         self.vbox2.addWidget(self.percOcc)
 
         self.hbox = QtWidgets.QHBoxLayout()
@@ -2602,8 +2537,7 @@ class EditTransferFunctionsDialog(QtWidgets.QDialog):
             self.tf.num_ss = 0
 
         # Convert logger and location names to lists
-        loggers = [i.strip()
-                   for i in self.loggerNames.toPlainText().split("\n")]
+        loggers = [i.strip() for i in self.loggerNames.toPlainText().split("\n")]
         locs = [i.strip() for i in self.locNames.toPlainText().split("\n")]
 
         # Handle for blank inputs

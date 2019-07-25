@@ -1,22 +1,19 @@
 __author__ = "Craig Dickinson"
 __program__ = "DataLab"
-__version__ = "1.1.0.7"
-__date__ = "23 July 2019"
+__version__ = "1.1.0.8"
+__date__ = "25 July 2019"
 
 import logging
 import os
 import sys
-from datetime import timedelta
-from glob import glob
-from time import time
 import webbrowser
+from glob import glob
 
 from PyQt5 import QtCore, QtWidgets
 from PyQt5.QtCore import pyqtSignal, pyqtSlot
 
 # import datalab_gui_layout
 from app.core.control import InputError
-from app.core.screening import Screening
 from app.core.logger_properties import LoggerError
 from app.core.read_files import (
     read_spectrograms_csv,
@@ -27,6 +24,7 @@ from app.core.read_files import (
     read_stats_hdf5,
 )
 from app.core.read_files import read_wcfat_results
+from app.core.screening import Screening
 from app.views.main_window_view import DataLabGui
 from app.views.processing_progress_view import ProcessingProgressBar
 from app.views.stats_view import StatsDataset
@@ -679,7 +677,6 @@ class ScreeningWorker(QtCore.QThread):
     # Also, cannot pass parents to QObjects, which isn't ideal.
     signal_screening_output_to_gui = pyqtSignal(object)
     signal_error = pyqtSignal(str)
-    signal_complete = pyqtSignal(str, int)
 
     def __init__(self, screening, parent=None):
         """Worker class to allow control file processing on a separate thread to the gui."""
@@ -698,7 +695,7 @@ class ScreeningWorker(QtCore.QThread):
     def _connect_signals(self):
         self.pb.signal_quit_worker.connect(self.quit_worker)
         self.screening.signal_notify_progress.connect(self.pb.update_progress_bar)
-        self.signal_complete.connect(self.pb.on_processing_complete)
+        self.screening.signal_update_output_info.connect(self.pb.add_output_files)
 
     def run(self):
         """Override of QThread's run method to process control file."""
@@ -707,10 +704,7 @@ class ScreeningWorker(QtCore.QThread):
             self.parent.setEnabled(False)
 
             # Run DataLab processing; compute and write requested logger statistics and spectrograms
-            t0 = time()
-            self.screening.process_control_file()
-            t = str(timedelta(seconds=round(time() - t0)))
-            self.signal_complete.emit(t, self.screening.total_files)
+            self.screening.screen_loggers()
             self.signal_screening_output_to_gui.emit(self.screening)
         except ValueError as e:
             self.signal_error.emit(str(e))

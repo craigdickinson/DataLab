@@ -42,10 +42,10 @@ class SeascatterDiagram(QtWidgets.QWidget):
         self.connect_signals()
 
     def init_ui(self):
-        # WIDGETS
-        # Apply float validation to input boxes
+        # Define input box validator
         dbl_validator = QtGui.QDoubleValidator()
 
+        # WIDGETS
         # Bin controls
         self.hsBinSize = QtWidgets.QLineEdit("0.5")
         self.hsBinSize.setFixedWidth(30)
@@ -75,8 +75,8 @@ class SeascatterDiagram(QtWidgets.QWidget):
 
         # Table and plots container
         self.scatterLayout = QtWidgets.QHBoxLayout()
-        self.scatterLayout.addWidget(self.scatterTable, stretch=70)
-        self.scatterLayout.addWidget(self.canvas, stretch=30)
+        self.scatterLayout.addWidget(self.scatterTable, stretch=75)
+        self.scatterLayout.addWidget(self.canvas, stretch=25)
 
         # LAYOUT
         self.layout = QtWidgets.QVBoxLayout(self)
@@ -208,7 +208,10 @@ class SeascatterDiagram(QtWidgets.QWidget):
         self.ax2.set_xlabel("Tp (s)")
         self.ax2.set_ylabel("Percentage Occurrence (%)")
 
-        # self.fig.tight_layout()
+        # For some reason need to do tight layout and draw twice to make sure plot is sized correctly
+        self.fig.tight_layout()
+        self.canvas.draw()
+        self.fig.tight_layout()
         self.canvas.draw()
 
     def export_scatter_diagram(self, filename):

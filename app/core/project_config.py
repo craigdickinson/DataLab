@@ -137,9 +137,11 @@ class ProjectConfigJSONFile(QObject):
         key = "campaign"
         if key in data.keys():
             data = data[key]
-            msg = f"'{key}' key is deprecated in v1.1.0 and will be removed in a future update.\n" \
-                f"Warning can be safely ignored for now.\n" \
+            msg = (
+                f"'{key}' key is deprecated in v1.1.0 and will be removed in a future update.\n"
+                f"Warning can be safely ignored for now.\n"
                 f"Save your project to update the config file to the new format."
+            )
             self.signal_warning.emit(msg)
         else:
             return control
