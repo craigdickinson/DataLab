@@ -100,7 +100,18 @@ class ProjectConfigJSONFile(QObject):
             key="azure_account_key",
             attr=control.azure_account_key,
         )
-
+        control.global_process_stats = self._get_key_value(
+            section=key,
+            data=data,
+            key="global_process_stats",
+            attr=control.global_process_stats,
+        )
+        control.global_process_spect = self._get_key_value(
+            section=key,
+            data=data,
+            key="global_process_spectral",
+            attr=control.global_process_spect,
+        )
         control.stats_output_folder = self._get_key_value(
             section=key, data=data, key="stats_folder", attr=control.stats_output_folder
         )
@@ -132,8 +143,11 @@ class ProjectConfigJSONFile(QObject):
         return control
 
     def _map_campaign_dict(self, data, control):
-        """Map the config campaign section to the control object."""
+        """DEPRECATED - TO REMOVE IN NEXT RELEASE
+        Map the config campaign section to the control object.
+        """
 
+        # TODO: Deprecated
         key = "campaign"
         if key in data.keys():
             data = data[key]
@@ -386,11 +400,11 @@ class ProjectConfigJSONFile(QObject):
             key="stats_interval",
             attr=logger.stats_interval,
         )
-        logger.process_spectral = self._get_key_value(
+        logger.process_spect = self._get_key_value(
             section=logger.logger_id,
             data=dict_logger,
             key="process_spectral",
-            attr=logger.process_spectral,
+            attr=logger.process_spect,
         )
         logger.spect_interval = self._get_key_value(
             section=logger.logger_id,
@@ -479,7 +493,7 @@ class ProjectConfigJSONFile(QObject):
         if key in data.keys():
             return data[key]
         else:
-            msg = f"'{key}' key not found in config file for {section} dictionary."
+            msg = f"'{key}' key not found in config file under '{section}' dictionary."
             self.signal_warning.emit(msg)
             return attr
 
@@ -493,6 +507,8 @@ class ProjectConfigJSONFile(QObject):
         d["project_location"] = control.project_path
         d["azure_account_name"] = control.azure_account_name
         d["azure_account_key"] = control.azure_account_key
+        d["global_process_stats"] = control.global_process_stats
+        d["global_process_spectral"] = control.global_process_spect
         d["stats_folder"] = control.stats_output_folder
         d["spectral_folder"] = control.spect_output_folder
         d["stats_to_h5"] = control.stats_to_h5
@@ -612,7 +628,7 @@ class ProjectConfigJSONFile(QObject):
         dict_props["stats_interval"] = logger.stats_interval
 
         # Spectral settings group
-        dict_props["process_spectral"] = logger.process_spectral
+        dict_props["process_spectral"] = logger.process_spect
         dict_props["spectral_interval"] = logger.spect_interval
 
         return dict_props

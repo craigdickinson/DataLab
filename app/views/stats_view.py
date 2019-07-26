@@ -1467,13 +1467,20 @@ class VesselStatsWidget(QtWidgets.QWidget):
         plot_data = {}
 
         # Get axis 1 plot data
-        # Get vessel motions data from vessel data frame - it is required that the vessel dataset is called "VESSEL"
+        # Get vessel motions data from vessel data frame
+        # It is required that the vessel dataset is called "VESSEL"
+        # and the columns are named "Surge", "Sway", "Heave", "Roll", "Pitch", "Yaw"
         for i in range(len(self.datasets)):
             if self.datasets[i].logger_id.upper() == "VESSEL":
                 df_vessel = self.datasets[i].df
                 df_vessel = df_vessel.xs(key=stat1_col, axis=1, level=1)
-                df_vessel = df_vessel[motion_cols]
-                plot_data["vessel_data"] = df_vessel
+
+                try:
+                    # TODO: Should make work for more generalised column names
+                    df_vessel = df_vessel[motion_cols]
+                    plot_data["vessel_data"] = df_vessel
+                except:
+                    pass
                 break
 
         # Selected logger info

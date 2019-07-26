@@ -102,16 +102,12 @@ class LoggerProperties(QObject):
         # Data type to screen on (unfiltered only, filtered only, both unfiltered and filtered)
         self.process_type = "Both unfiltered and filtered"
 
-        # STATISTICS ANALYSIS PARAMETERS
-        # Include in processing flag
+        # Logger stats and spectral processing flags
         self.process_stats = True
+        self.process_spect = True
 
         # Interval (in seconds) to process stats over
         self.stats_interval = 0  # *STATS_INTERVAL
-
-        # SPECTRAL ANALYSIS PARAMETERS
-        # Include in processing flag
-        self.process_spectral = True
 
         # Interval (in seconds) to process stats over
         self.spect_interval = 0
@@ -379,10 +375,11 @@ class LoggerProperties(QObject):
         # Check we have at least one full row of data
         if last_col > len(first_row):
             msg = (
-                f"Number of columns in test file for logger {self.logger_id} is less than {last_col}."
+                f"Number of columns in test file for logger {self.logger_id} is less than {last_col}, "
+                f"which is the highest column number to be processed."
                 f"\nTest file: {test_file}."
             )
-            raise LoggerError(msg)
+            self.signal_warning.emit(msg)
 
         # Now set channel names and units for columns to process
         all_channels = self.all_channel_names
@@ -474,7 +471,7 @@ class LoggerProperties(QObject):
         """Check that there is a channel name and channel units per requested column to process."""
 
         # Check number of analysis headers is correct
-        if self.process_stats is True or self.process_spectral is True:
+        if self.process_stats is True or self.process_spect is True:
             # Check length of channel header
             if len(self.channel_names) != len(self.cols_to_process):
                 msg = (

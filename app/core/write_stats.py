@@ -225,6 +225,11 @@ class StatsOutput(object):
 
         # Create worksheet for logger
         logger_id = replace_space_with_underscore(self.logger_id)
+
+        # Worksheet name length limit is 31
+        if len(logger_id) > 31:
+            logger_id = logger_id[:31]
+
         ws = self.wb.create_sheet(title=logger_id)
 
         # Write headers

@@ -1,7 +1,7 @@
 __author__ = "Craig Dickinson"
 __program__ = "DataLab"
-__version__ = "1.1.0.8"
-__date__ = "25 July 2019"
+__version__ = "1.1.0.9"
+__date__ = "26 July 2019"
 
 import logging
 import os
@@ -28,6 +28,7 @@ from app.core.screening import Screening
 from app.views.main_window_view import DataLabGui
 from app.views.processing_progress_view import ProcessingProgressBar
 from app.views.stats_view import StatsDataset
+from app.views.project_config_view import AzureAccountSetupDialog
 
 
 # if hasattr(QtCore.Qt, 'AA_EnableHighDpiScaling'):
@@ -88,13 +89,16 @@ class DataLab(DataLabGui):
         self.spectPlotSettingsAction.triggered.connect(self.open_spect_plot_settings)
 
         # Export menu
-        self.exportScatterDiag.triggered.connect(
+        self.exportScatterDiagAction.triggered.connect(
             self.on_export_scatter_diagram_triggered
         )
 
+        # Azure menu
+        self.azureSettingsAction.triggered.connect(self.open_azure_account_settings)
+
         # Help menu
-        self.showHelp.triggered.connect(self.show_help)
-        self.showAbout.triggered.connect(self.show_about)
+        self.helpAction.triggered.connect(self.show_help)
+        self.aboutAction.triggered.connect(self.show_about)
 
         # Toolbar dashboard buttons
         self.projConfigButton.clicked.connect(self.view_proj_config_mod)
@@ -132,22 +136,6 @@ class DataLab(DataLabGui):
     def warning(self, message):
         print(f"Warning: {message}")
         self._message_information("Warning", message)
-
-    def show_about(self):
-        """Show program version info message box."""
-
-        msg = f"Program: {__program__}\nVersion: {__version__}\nDate: {__date__}"
-        self._message_information("About", msg)
-
-    def show_help(self):
-        """Open guidance documentation on sharepoint."""
-
-        url = (
-            r"https://agcloud.sharepoint.com/:p:/r/sites/"
-            r"O365-UG-2HEngineeringSoftware/Shared%20Documents/2H%20Datalab/"
-            r"DataLab%20Guidance.pptx?d=wcabe347939784784b8d7270cdf7938e7&csf=1&e=9LJsCD"
-        )
-        webbrowser.open(url)
 
     def on_open_logger_file(self):
         """Load raw logger time series file."""
@@ -222,7 +210,7 @@ class DataLab(DataLabGui):
                     dataset = StatsDataset(logger_id, df)
                     self.statsTab.datasets.append(dataset)
                     self.vesselStatsTab.datasets.append(dataset)
-                    self.pairplotTab.datasets.append(dataset)
+                    # self.pairplotTab.datasets.append(dataset)
 
                 # Store dataset/logger names from dictionary keys
                 logger_ids = list(dict_stats.keys())
@@ -306,6 +294,31 @@ class DataLab(DataLabGui):
         # Set current parameters from spectrogram plot widget class
         self.spectrogramTab.plotSettings.get_params()
         self.spectrogramTab.plotSettings.show()
+
+    def open_azure_account_settings(self):
+        azureSettings = AzureAccountSetupDialog(
+            self,
+            account_name=self.control.azure_account_name,
+            account_key=self.control.azure_account_key,
+        )
+        azureSettings.show()
+
+    @staticmethod
+    def show_help():
+        """Open guidance documentation on sharepoint."""
+
+        url = (
+            r"https://agcloud.sharepoint.com/:p:/r/sites/"
+            r"O365-UG-2HEngineeringSoftware/Shared%20Documents/2H%20Datalab/"
+            r"DataLab%20Guidance.pptx?d=wcabe347939784784b8d7270cdf7938e7&csf=1&e=9LJsCD"
+        )
+        webbrowser.open(url)
+
+    def show_about(self):
+        """Show program version info message box."""
+
+        msg = f"Program: {__program__}\nVersion: {__version__}\nDate: {__date__}"
+        self._message_information("About", msg)
 
     def add_2h_icon(self):
         if self.add2HIcon.isChecked():
@@ -505,13 +518,13 @@ class DataLab(DataLabGui):
 
             # Get all channel names and units if not already stored in logger object
             if (
-                len(logger.all_channel_names) == 0
-                and len(logger.all_channel_units) == 0
+                    len(logger.all_channel_names) == 0
+                    and len(logger.all_channel_units) == 0
             ):
                 logger.get_all_channel_and_unit_names()
 
             # Check requested channels exist
-            if logger.process_stats is True or logger.process_spectral is True:
+            if logger.process_stats is True or logger.process_spect is True:
                 # Connect warning signal to warning message box in DataLab class
                 try:
                     # Disconnect any existing connection to prevent repeated triggerings
@@ -713,7 +726,7 @@ class ScreeningWorker(QtCore.QThread):
             self.signal_error.emit(str(e))
             logging.exception(e)
         except Exception as e:
-            msg = "Unexpected error processing control file"
+            msg = "Unexpected error during processing"
             self.signal_error.emit(f"{msg}:\n{e}\n{sys.exc_info()[0]}")
             logging.exception(e)
         finally:

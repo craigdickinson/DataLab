@@ -52,10 +52,10 @@ class DataLabGui(QtWidgets.QMainWindow):
         self.statsScreeningModule = QtWidgets.QTabWidget()
         self.statsTab = StatsWidget(self)
         self.vesselStatsTab = VesselStatsWidget(self)
-        self.pairplotTab = PairPlotView(self)
+        # self.pairplotTab = PairPlotView(self)
         self.statsScreeningModule.addTab(self.statsTab, "Statistics")
         self.statsScreeningModule.addTab(self.vesselStatsTab, "Vessel Statistics")
-        self.statsScreeningModule.addTab(self.pairplotTab, "Pair-Plot")
+        # self.statsScreeningModule.addTab(self.pairplotTab, "Pair-Plot")
 
         # Spectral screening module
         self.spectralScreeningModule = QtWidgets.QTabWidget()
@@ -101,9 +101,10 @@ class DataLabGui(QtWidgets.QMainWindow):
         # self.menuLogic = menubar.addMenu("&Applied Logic")
         self.menuPlotSettings = menubar.addMenu("Plot &Settings")
         self.menuExport = menubar.addMenu("&Export")
-        self.menuAbout = menubar.addMenu("&Help")
+        self.menuAzure = menubar.addMenu("&Azure")
+        self.menuHelp = menubar.addMenu("&Help")
 
-        # File menu
+        # File menu actions
         self.openConfigAction = QtWidgets.QAction("Open Config File...")
         self.openConfigAction.setShortcut("Ctrl+O")
         self.saveConfigAction = QtWidgets.QAction("Save Config File")
@@ -116,7 +117,6 @@ class DataLabGui(QtWidgets.QMainWindow):
         self.openSpectrogramsAction.setShortcut("F4")
         self.openSeascatterAction = QtWidgets.QAction("Open Transfer Functions...")
         self.openSeascatterAction.setShortcut("F5")
-
         self.menuFile.addAction(self.openConfigAction)
         self.menuFile.addAction(self.saveConfigAction)
         self.menuFile.addSeparator()
@@ -124,11 +124,11 @@ class DataLabGui(QtWidgets.QMainWindow):
         self.menuFile.addAction(self.openStatsAction)
         self.menuFile.addAction(self.openSpectrogramsAction)
 
-        # View menu
+        # View menu actions
         # self.showPlotScreen = QtWidgets.QAction("Plots")
         # self.menuView.addAction(self.showPlotScreen)
 
-        # Process menu
+        # Process menu actions
         self.processScreeningAction = QtWidgets.QAction("Process Screening")
         self.processScreeningAction.setShortcut("F6")
         self.calcSeascatterAction = QtWidgets.QAction("Create Seascatter")
@@ -137,42 +137,45 @@ class DataLabGui(QtWidgets.QMainWindow):
         self.calcTFAction.setShortcut("F8")
         self.calcFatigueAction = QtWidgets.QAction("Calculate Fatigue")
         self.calcFatigueAction.setShortcut("F9")
-
         self.menuProcess.addAction(self.processScreeningAction)
         self.menuProcess.addAction(self.calcSeascatterAction)
         self.menuProcess.addAction(self.calcTFAction)
         self.menuProcess.addAction(self.calcFatigueAction)
 
-        # Applied logic menu
+        # Applied logic menu actions
         # self.filter = QtWidgets.QAction("Apply Low/High Pass Filter")
         # self.spikeRemoval = QtWidgets.QAction("Spike Removal")
         # menuLogic.addAction(self.filter)
         # menuLogic.addAction(self.spikeRemoval)
 
-        # Plot settings menu
+        # Plot settings menu actions
         # self.add2HIcon = QtWidgets.QAction("Add 2H Icon")
         # self.add2HIcon.setCheckable(True)
         self.loggerPlotSettingsAction = QtWidgets.QAction("Logger Plot Settings...")
         self.loggerPlotSettingsAction.setShortcut("Alt+1")
         self.spectPlotSettingsAction = QtWidgets.QAction("Spectrogram Plot Settings...")
         self.spectPlotSettingsAction.setShortcut("Alt+3")
-
         # self.menuPlotSettings.addAction(self.add2HIcon)
         self.menuPlotSettings.addAction(self.loggerPlotSettingsAction)
         self.menuPlotSettings.addAction(self.spectPlotSettingsAction)
 
-        # Export menu
-        self.exportScatterDiag = QtWidgets.QAction("Export Sea Scatter Diagram")
-        self.exportScatterDiag.setStatusTip("Export sea scatter diagram to Excel")
-        self.menuExport.addAction(self.exportScatterDiag)
+        # Export menu actions
+        self.exportScatterDiagAction = QtWidgets.QAction("Export Sea Scatter Diagram")
+        self.exportScatterDiagAction.setStatusTip("Export sea scatter diagram to Excel")
+        self.menuExport.addAction(self.exportScatterDiagAction)
 
-        # Help menu
-        self.showHelp = QtWidgets.QAction("Help")
-        self.showHelp.setShortcut("F1")
-        self.showHelp.setToolTip("DataLab instructions (F1)")
-        self.showAbout = QtWidgets.QAction("About")
-        self.menuAbout.addAction(self.showHelp)
-        self.menuAbout.addAction(self.showAbout)
+        # Azure menu actions
+        self.azureSettingsAction = QtWidgets.QAction(
+            "Azure Cloud Storage Account Settings"
+        )
+        self.menuAzure.addAction(self.azureSettingsAction)
+
+        # Help menu actions
+        self.helpAction = QtWidgets.QAction("DataLab Guidance")
+        self.helpAction.setShortcut("F1")
+        self.aboutAction = QtWidgets.QAction("About")
+        self.menuHelp.addAction(self.helpAction)
+        self.menuHelp.addAction(self.aboutAction)
 
     def _tool_bar(self):
         """Create toolbar with button to show dashboards."""

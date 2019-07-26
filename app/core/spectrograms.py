@@ -74,9 +74,19 @@ class Spectrogram(object):
             if channel not in self.spectrograms:
                 self.spectrograms[channel] = psd[i]
             else:
-                self.spectrograms[channel] = np.row_stack(
-                    [self.spectrograms[channel], psd[i]]
-                )
+                try:
+                    self.spectrograms[channel] = np.row_stack(
+                        [self.spectrograms[channel], psd[i]]
+                    )
+                except:
+                    msg = (
+                        f"Error during spectrograms processing:\n\n"
+                        f"Length of sample is {df.shape[0]} which is less than the "
+                        f"expected length of 256 used per PSD ensemble. "
+                        f"Set a spectral sample length that does not result in such a "
+                        f"short sample data length when processing the tail of a file."
+                    )
+                    raise ValueError(msg)
 
     def add_timestamps(self, dates):
         """Store all sample start dates."""
@@ -151,6 +161,11 @@ class Spectrogram(object):
                 filename = file_stem + ".xlsx"
                 file_path = os.path.join(self.output_dir, filename)
                 writer = pd.ExcelWriter(file_path)
+
+                # Worksheet name length limit is 31
+                if len(key) > 31:
+                    key = key[:31]
+
                 df.to_excel(writer, sheet_name=key)
                 writer.save()
                 self.output_files.append(self.output_folder + "/" + filename)

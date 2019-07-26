@@ -40,6 +40,7 @@ class ConfigModule(QtWidgets.QWidget):
 
         self.parent = parent
         self.skip_on_logger_item_edited = False
+        self.del_logger = False
         self.control = Control()
         self.scatter = Seascatter()
         self.tf = TransferFunctions()
@@ -57,6 +58,9 @@ class ConfigModule(QtWidgets.QWidget):
         self.newProjButton = QtWidgets.QPushButton("New Project")
         self.newProjButton.setShortcut("Ctrl+N")
         self.newProjButton.setToolTip("Clear all settings (Ctrl+N)")
+        self.openProjDirButton = QtWidgets.QPushButton("Open Project Folder")
+        self.openProjDirButton.setShortcut("Ctrl+Shift+O")
+        self.openProjDirButton.setToolTip("Ctrl+Shift+O")
         self.addLoggerButton = QtWidgets.QPushButton("Add Logger...")
         self.addLoggerButton.setShortcut("Ctrl+A")
         self.addLoggerButton.setToolTip("Ctrl+A")
@@ -65,6 +69,16 @@ class ConfigModule(QtWidgets.QWidget):
         self.remLoggerButton.setToolTip("Ctrl+Del")
         self.loggersList = QtWidgets.QListWidget()
         self.columnsList = QtWidgets.QListWidget()
+        self.colSpacer = QtWidgets.QSpacerItem(20, 1)
+
+        # Global screening check boxes
+        self.reportScreenChkBox = QtWidgets.QCheckBox("Data Quality Screening")
+        self.reportScreenChkBox.setChecked(True)
+        self.reportScreenChkBox.setEnabled(False)
+        self.statsScreenChkBox = QtWidgets.QCheckBox("Statistics Screening")
+        self.statsScreenChkBox.setChecked(True)
+        self.spectScreenChkBox = QtWidgets.QCheckBox("Spectral Screening")
+        self.spectScreenChkBox.setChecked(True)
 
         # Process buttons
         h = 30
@@ -98,24 +112,25 @@ class ConfigModule(QtWidgets.QWidget):
 
         # CONTAINERS
         # Config buttons container
-        self.configButtonsWidget = QtWidgets.QWidget()
-        self.hbox = QtWidgets.QHBoxLayout(self.configButtonsWidget)
-        self.hbox.addWidget(QtWidgets.QLabel("Config File:"))
-        self.hbox.addWidget(self.openConfigButton)
-        self.hbox.addWidget(self.saveConfigButton)
-        self.hbox.addWidget(self.newProjButton)
-        self.hbox.addStretch()
+        self.hboxConfig = QtWidgets.QHBoxLayout()
+        self.hboxConfig.addWidget(QtWidgets.QLabel("Config File:"))
+        self.hboxConfig.addWidget(self.openConfigButton)
+        self.hboxConfig.addWidget(self.saveConfigButton)
+        self.hboxConfig.addItem(self.colSpacer)
+        self.hboxConfig.addWidget(self.newProjButton)
+        self.hboxConfig.addWidget(self.openProjDirButton)
+        self.hboxConfig.addStretch()
 
         # Loggers container
         self.loggersGroup = QtWidgets.QGroupBox("Campaign Loggers")
         self.loggersGroup.setFixedWidth(180)
-        self.vbox = QtWidgets.QVBoxLayout(self.loggersGroup)
-        self.vbox.addWidget(self.addLoggerButton)
-        self.vbox.addWidget(self.remLoggerButton)
-        self.vbox.addWidget(QtWidgets.QLabel("Loggers"))
-        self.vbox.addWidget(self.loggersList)
-        self.vbox.addWidget(QtWidgets.QLabel("Logger Columns"))
-        self.vbox.addWidget(self.columnsList)
+        self.vboxLoggers = QtWidgets.QVBoxLayout(self.loggersGroup)
+        self.vboxLoggers.addWidget(self.addLoggerButton)
+        self.vboxLoggers.addWidget(self.remLoggerButton)
+        self.vboxLoggers.addWidget(QtWidgets.QLabel("Loggers"))
+        self.vboxLoggers.addWidget(self.loggersList)
+        self.vboxLoggers.addWidget(QtWidgets.QLabel("Logger Columns"))
+        self.vboxLoggers.addWidget(self.columnsList)
 
         # Setup container
         self.setupTabs = QtWidgets.QTabWidget()
@@ -125,8 +140,15 @@ class ConfigModule(QtWidgets.QWidget):
         self.setupTabs.addTab(self.scatterTab, "Sea Scatter Setup")
         self.setupTabs.addTab(self.tfSettingsTab, "Transfer Functions Setup")
 
-        # Process buttons container
+        # Screening check boxes and process buttons container
+        self.screeningGroup = QtWidgets.QGroupBox("Global Screening Flags")
+        self.vboxFlags = QtWidgets.QVBoxLayout(self.screeningGroup)
+        self.vboxFlags.addWidget(self.reportScreenChkBox)
+        self.vboxFlags.addWidget(self.statsScreenChkBox)
+        self.vboxFlags.addWidget(self.spectScreenChkBox)
+
         self.vboxRun = QtWidgets.QVBoxLayout()
+        self.vboxRun.addWidget(self.screeningGroup)
         self.vboxRun.addItem(self.spacer)
         self.vboxRun.addWidget(self.processButton)
         self.vboxRun.addItem(self.spacer)
@@ -138,27 +160,29 @@ class ConfigModule(QtWidgets.QWidget):
         self.vboxRun.addStretch()
 
         # LAYOUT
-        self.hbox1 = QtWidgets.QHBoxLayout()
-        self.hbox1.addWidget(self.loggersGroup)
-        self.hbox1.addWidget(self.setupTabs)
-        self.hbox1.addLayout(self.vboxRun)
+        self.hbox = QtWidgets.QHBoxLayout()
+        self.hbox.addWidget(self.loggersGroup)
+        self.hbox.addWidget(self.setupTabs)
 
-        self.vbox1 = QtWidgets.QVBoxLayout()
-        self.vbox1.addWidget(self.configButtonsWidget)
-        self.vbox1.addLayout(self.hbox1)
+        self.vbox = QtWidgets.QVBoxLayout()
+        self.vbox.addLayout(self.hboxConfig)
+        self.vbox.addLayout(self.hbox)
 
         self.layout = QtWidgets.QHBoxLayout(self)
-        self.layout.addLayout(self.vbox1)
-        # self.layout.addLayout(self.vboxRun)
+        self.layout.addLayout(self.vbox)
+        self.layout.addLayout(self.vboxRun)
 
     def _connect_signals(self):
         self.openConfigButton.clicked.connect(self.on_open_config_clicked)
         self.saveConfigButton.clicked.connect(self.on_save_config_clicked)
         self.newProjButton.clicked.connect(self.on_new_project_clicked)
+        self.openProjDirButton.clicked.connect(self.on_open_project_folder_clicked)
         self.addLoggerButton.clicked.connect(self.on_add_logger_clicked)
         self.remLoggerButton.clicked.connect(self.on_remove_logger_clicked)
-        self.loggersList.itemClicked.connect(self.on_logger_selected)
+        self.loggersList.currentItemChanged.connect(self.on_logger_selected)
         self.loggersList.itemChanged.connect(self.on_logger_item_edited)
+        self.statsScreenChkBox.toggled.connect(self.on_stats_screen_toggled)
+        self.spectScreenChkBox.toggled.connect(self.on_spect_screen_toggled)
         self.processButton.clicked.connect(self.on_process_screening_clicked)
         self.calcSeascatterButton.clicked.connect(self.on_calc_seascatter_clicked)
         self.calcTFButton.clicked.connect(self.on_calc_transfer_functions_clicked)
@@ -284,6 +308,14 @@ class ConfigModule(QtWidgets.QWidget):
         self.setupTabs.setCurrentWidget(self.campaignTab)
         self.campaignTab.on_edit_clicked()
 
+    def on_open_project_folder_clicked(self):
+        try:
+            os.startfile(self.control.project_path)
+        except:
+            QtWidgets.QMessageBox.warning(
+                self, "Open Project Folder", "Couldn't open folder."
+            )
+
     def on_add_logger_clicked(self):
         """Add new logger to list. Initial logger name format is 'Logger n'."""
 
@@ -339,7 +371,9 @@ class ConfigModule(QtWidgets.QWidget):
             self.control.logger_ids_upper.remove(logger_id.upper())
 
             # Remove logger from loggers list
+            self.del_logger = True
             self.loggersList.takeItem(i)
+            self.del_logger = False
 
             # Clear relevant dashboards if all loggers removed
             if self.loggersList.count() == 0:
@@ -352,6 +386,19 @@ class ConfigModule(QtWidgets.QWidget):
         """Update dashboard data pertaining to selected logger."""
 
         logger_idx = self.loggersList.currentRow()
+        if logger_idx == -1:
+            return
+
+        if self.del_logger is True:
+            # If first logger has been removed, set selected logger to be the new first logger
+            if logger_idx == 1:
+                logger_idx = 0
+
+            # If second to last logger has been removed, set selected logger to be the new last logger
+            n = len(self.control.loggers) - 1
+            if logger_idx > n:
+                logger_idx = n
+
         logger = self.control.loggers[logger_idx]
         self.loggerPropsTab.set_logger_dashboard(logger)
         self.screeningTab.set_analysis_dashboard(logger)
@@ -373,6 +420,18 @@ class ConfigModule(QtWidgets.QWidget):
 
         # Update dashboard logger id
         self.loggerPropsTab.loggerID.setText(new_logger_id)
+
+    def on_stats_screen_toggled(self):
+        if self.statsScreenChkBox.isChecked():
+            self.control.global_process_stats = True
+        else:
+            self.control.global_process_stats = False
+
+    def on_spect_screen_toggled(self):
+        if self.spectScreenChkBox.isChecked():
+            self.control.global_process_spect = True
+        else:
+            self.control.global_process_spect = False
 
     def on_process_screening_clicked(self):
         self.parent.process_screening()
@@ -588,10 +647,8 @@ class EditCampaignInfoDialog(QtWidgets.QDialog):
         self.projPath.setToolTip(
             "If not input the current working directory will be used."
         )
-        self.browseButton = QtWidgets.QPushButton("Browse...")
+        self.browseButton = QtWidgets.QPushButton("&Browse...")
         self.browseButton.setSizePolicy(policy)
-        self.browseButton.setShortcut("Ctrl+B")
-        self.browseButton.setToolTip("Ctrl+B")
         self.buttonBox = QtWidgets.QDialogButtonBox(
             QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel
         )
@@ -773,9 +830,10 @@ class LoggerPropertiesTab(QtWidgets.QWidget):
         """Initialise all values in logger dashboard."""
 
         self.loggerID.setText("-")
-        self.fileFormat.setText("-")
+        self.dataSource.setText("-")
         self.loggerPath.setText("-")
         self.fileTimestampFormat.setText("-")
+        self.fileFormat.setText("-")
         self.dataTimestampFormat.setText("-")
         self.fileExt.setText("-")
         self.fileDelimiter.setText("-")
@@ -839,24 +897,20 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
         self.localFilesRadio = QtWidgets.QRadioButton("Local files")
         self.localFilesRadio.setChecked(True)
         self.azureCloudRadio = QtWidgets.QRadioButton("Azure Cloud Storage")
-        self.setAzureButton = QtWidgets.QPushButton("Set Azure Account Settings...")
+        self.setAzureButton = QtWidgets.QPushButton("Set &Azure Account Settings...")
         self.setAzureButton.setSizePolicy(policy)
         self.setAzureButton.setHidden(True)
         self.pathLabel = QtWidgets.QLabel("Logger path:")
         self.loggerPath = QtWidgets.QPlainTextEdit()
         self.loggerPath.setFixedHeight(40)
-        self.browseButton = QtWidgets.QPushButton("Browse...")
-        self.browseButton.setShortcut("Ctrl+B")
-        self.browseButton.setToolTip("Ctrl+B")
+        self.browseButton = QtWidgets.QPushButton("&Browse...")
         self.browseButton.setSizePolicy(policy)
         self.fileFormat = QtWidgets.QComboBox()
         self.fileFormat.setFixedWidth(100)
         self.fileFormat.addItems(self.file_types)
         self.detectTimestampFormatButton = QtWidgets.QPushButton(
-            "Detect File Timestamp Format"
+            "Detect File &Timestamp Format"
         )
-        self.detectTimestampFormatButton.setShortcut("Ctrl+F")
-        self.detectTimestampFormatButton.setToolTip("Ctrl+F")
         self.detectTimestampFormatButton.setSizePolicy(policy)
         self.fileTimestampFormat = QtWidgets.QLineEdit()
         msg = (
@@ -890,9 +944,7 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
         self.unitsHeaderRow = QtWidgets.QLineEdit()
         self.unitsHeaderRow.setFixedWidth(30)
         self.unitsHeaderRow.setValidator(int_validator)
-        self.detectPropsButton = QtWidgets.QPushButton("Detect Properties")
-        self.detectPropsButton.setShortcut("Ctrl+D")
-        self.detectPropsButton.setToolTip("Ctrl+D")
+        self.detectPropsButton = QtWidgets.QPushButton("&Detect Properties")
         self.detectPropsButton.setSizePolicy(policy)
         self.dataTimestampFormat = QtWidgets.QLineEdit()
         self.numColumns = QtWidgets.QLineEdit()
@@ -1084,7 +1136,7 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
             self.loggerPath.setToolTip("")
 
     def on_set_azure_settings_clicked(self):
-        """Open campaign settings edit dialog."""
+        """Open Azure Cloud Storage settings dialog."""
 
         azureSettings = AzureAccountSetupDialog(
             self,
@@ -1399,19 +1451,14 @@ class StatsAndSpectralSettingsTab(QtWidgets.QWidget):
         self.spectInterval = QtWidgets.QLabel("-")
         self.statsFolder = QtWidgets.QLabel()
         self.spectFolder = QtWidgets.QLabel()
-        self.statsH5 = QtWidgets.QCheckBox(".h5 (recommended - fast read/write)")
-        self.statsH5.setChecked(True)
-        self.statsCSV = QtWidgets.QCheckBox(".csv")
-        self.statsXLSX = QtWidgets.QCheckBox(".xlsx")
-        self.spectH5 = QtWidgets.QCheckBox(".h5 (recommended - fast read/write)")
-        self.spectH5.setChecked(True)
-        self.spectCSV = QtWidgets.QCheckBox(".csv")
-        self.spectXLSX = QtWidgets.QCheckBox(".xlsx")
-
-        # Define sizing policy
-        policy = QtWidgets.QSizePolicy(
-            QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed
-        )
+        self.statsH5ChkBox = QtWidgets.QCheckBox(".h5 (fast read/write)")
+        self.statsH5ChkBox.setChecked(True)
+        self.statsCSVChkBox = QtWidgets.QCheckBox(".csv")
+        self.statsXLSXChkBox = QtWidgets.QCheckBox(".xlsx")
+        self.spectH5ChkBox = QtWidgets.QCheckBox(".h5 (fast read/write)")
+        self.spectH5ChkBox.setChecked(True)
+        self.spectCSVChkBox = QtWidgets.QCheckBox(".csv")
+        self.spectXLSXChkBox = QtWidgets.QCheckBox(".xlsx")
 
         # CONTAINERS
         # Columns to process group
@@ -1451,7 +1498,7 @@ class StatsAndSpectralSettingsTab(QtWidgets.QWidget):
 
         # Stats settings group
         self.statsGroup = QtWidgets.QGroupBox("Statistical Analysis Settings")
-        self.statsGroup.setFixedWidth(250)
+        self.statsGroup.setMinimumWidth(250)
         self.statsForm = QtWidgets.QFormLayout(self.statsGroup)
         self.statsForm.addRow(self.processStatsChkBox, QtWidgets.QLabel(""))
         self.statsForm.addRow(QtWidgets.QLabel("Output folder:"), self.statsFolder)
@@ -1461,7 +1508,7 @@ class StatsAndSpectralSettingsTab(QtWidgets.QWidget):
 
         # Spectral settings group
         self.spectGroup = QtWidgets.QGroupBox("Spectral Analysis Settings")
-        self.spectGroup.setFixedWidth(250)
+        self.spectGroup.setMinimumWidth(250)
         self.spectForm = QtWidgets.QFormLayout(self.spectGroup)
         self.spectForm.addRow(self.processSpectChkBox, QtWidgets.QLabel(""))
         self.spectForm.addRow(QtWidgets.QLabel("Output folder:"), self.spectFolder)
@@ -1471,44 +1518,37 @@ class StatsAndSpectralSettingsTab(QtWidgets.QWidget):
 
         # Stats output file formats group
         self.statsOutputGroup = QtWidgets.QGroupBox("Stats File Formats to Output")
-        self.statsOutputGroup.setSizePolicy(policy)
+        self.statsOutputGroup.setFixedWidth(170)
         self.vbox = QtWidgets.QVBoxLayout(self.statsOutputGroup)
-        self.vbox.addWidget(self.statsH5)
-        self.vbox.addWidget(self.statsCSV)
-        self.vbox.addWidget(self.statsXLSX)
+        self.vbox.addWidget(self.statsH5ChkBox)
+        self.vbox.addWidget(self.statsCSVChkBox)
+        self.vbox.addWidget(self.statsXLSXChkBox)
 
         # Spectral output file formats group
         self.spectOutputGroup = QtWidgets.QGroupBox("Spectral File Formats to Output")
-        self.spectOutputGroup.setSizePolicy(policy)
+        self.spectOutputGroup.setFixedWidth(170)
         self.vbox = QtWidgets.QVBoxLayout(self.spectOutputGroup)
-        self.vbox.addWidget(self.spectH5)
-        self.vbox.addWidget(self.spectCSV)
-        self.vbox.addWidget(self.spectXLSX)
+        self.vbox.addWidget(self.spectH5ChkBox)
+        self.vbox.addWidget(self.spectCSVChkBox)
+        self.vbox.addWidget(self.spectXLSXChkBox)
 
         # LAYOUT
-        # Spacer widgets to separate the group boxes a bit
-        spacer = QtWidgets.QSpacerItem(1, 15)
-
         self.hboxStats = QtWidgets.QHBoxLayout()
         self.hboxStats.setAlignment(QtCore.Qt.AlignLeft)
         self.hboxStats.addWidget(self.statsGroup)
-        self.hboxStats.addWidget(self.statsOutputGroup, alignment=QtCore.Qt.AlignTop)
+        self.hboxStats.addWidget(self.statsOutputGroup)
 
         self.hboxSpect = QtWidgets.QHBoxLayout()
         self.hboxSpect.setAlignment(QtCore.Qt.AlignLeft)
         self.hboxSpect.addWidget(self.spectGroup)
-        self.hboxSpect.addWidget(self.spectOutputGroup, alignment=QtCore.Qt.AlignTop)
+        self.hboxSpect.addWidget(self.spectOutputGroup)
 
         self.vbox = QtWidgets.QVBoxLayout()
         self.vbox.addWidget(self.editButton, stretch=0, alignment=QtCore.Qt.AlignLeft)
         self.vbox.addWidget(self.colsGroup)
-        # self.vbox.addItem(spacer)
         self.vbox.addWidget(self.dateRangeGroup)
-        # self.vbox.addItem(spacer)
         self.vbox.addWidget(self.filtersGroup)
-        # self.vbox.addItem(spacer)
         self.vbox.addLayout(self.hboxStats)
-        # self.vbox.addItem(spacer)
         self.vbox.addLayout(self.hboxSpect)
         self.vbox.addStretch()
 
@@ -1520,12 +1560,12 @@ class StatsAndSpectralSettingsTab(QtWidgets.QWidget):
         self.editButton.clicked.connect(self.on_edit_clicked)
         self.processStatsChkBox.toggled.connect(self.on_process_stats_check_box_toggled)
         self.processSpectChkBox.toggled.connect(self.on_process_spect_check_box_toggled)
-        self.statsH5.toggled.connect(self.on_stats_h5_toggled)
-        self.statsCSV.toggled.connect(self.on_stats_csv_toggled)
-        self.statsXLSX.toggled.connect(self.on_stats_xlsx_toggled)
-        self.spectH5.toggled.connect(self.on_spect_h5_toggled)
-        self.spectCSV.toggled.connect(self.on_spect_csv_toggled)
-        self.spectXLSX.toggled.connect(self.on_spect_xlsx_toggled)
+        self.statsH5ChkBox.toggled.connect(self.on_stats_h5_toggled)
+        self.statsCSVChkBox.toggled.connect(self.on_stats_csv_toggled)
+        self.statsXLSXChkBox.toggled.connect(self.on_stats_xlsx_toggled)
+        self.spectH5ChkBox.toggled.connect(self.on_spect_h5_toggled)
+        self.spectCSVChkBox.toggled.connect(self.on_spect_csv_toggled)
+        self.spectXLSXChkBox.toggled.connect(self.on_spect_xlsx_toggled)
 
     def on_edit_clicked(self):
         """Open logger screening edit dialog."""
@@ -1558,46 +1598,46 @@ class StatsAndSpectralSettingsTab(QtWidgets.QWidget):
         """Set include in processing state in logger object."""
 
         if self.parent.loggersList.count() > 0:
-            self.logger.process_spectral = self.processSpectChkBox.isChecked()
+            self.logger.process_spect = self.processSpectChkBox.isChecked()
 
     def on_stats_h5_toggled(self):
         if self.parent.loggersList.count() > 0:
-            if self.statsH5.isChecked():
+            if self.statsH5ChkBox.isChecked():
                 self.control.stats_to_h5 = True
             else:
                 self.control.stats_to_h5 = False
 
     def on_stats_csv_toggled(self):
         if self.parent.loggersList.count() > 0:
-            if self.statsCSV.isChecked():
+            if self.statsCSVChkBox.isChecked():
                 self.control.stats_to_csv = True
             else:
                 self.control.stats_to_csv = False
 
     def on_stats_xlsx_toggled(self):
         if self.parent.loggersList.count() > 0:
-            if self.statsXLSX.isChecked():
+            if self.statsXLSXChkBox.isChecked():
                 self.control.stats_to_xlsx = True
             else:
                 self.control.stats_to_xlsx = False
 
     def on_spect_h5_toggled(self):
         if self.parent.loggersList.count() > 0:
-            if self.spectH5.isChecked():
+            if self.spectH5ChkBox.isChecked():
                 self.control.spect_to_h5 = True
             else:
                 self.control.spect_to_h5 = False
 
     def on_spect_csv_toggled(self):
         if self.parent.loggersList.count() > 0:
-            if self.spectCSV.isChecked():
+            if self.spectCSVChkBox.isChecked():
                 self.control.spect_to_csv = True
             else:
                 self.control.spect_to_csv = False
 
     def on_spect_xlsx_toggled(self):
         if self.parent.loggersList.count() > 0:
-            if self.spectXLSX.isChecked():
+            if self.spectXLSXChkBox.isChecked():
                 self.control.spect_to_xlsx = True
             else:
                 self.control.spect_to_xlsx = False
@@ -1609,7 +1649,7 @@ class StatsAndSpectralSettingsTab(QtWidgets.QWidget):
 
         # Process check states
         self.processStatsChkBox.setChecked(logger.process_stats)
-        self.processSpectChkBox.setChecked(logger.process_spectral)
+        self.processSpectChkBox.setChecked(logger.process_spect)
 
         # Columns
         cols_str = " ".join([str(i) for i in logger.cols_to_process])
@@ -1666,35 +1706,35 @@ class StatsAndSpectralSettingsTab(QtWidgets.QWidget):
 
         # Selected stats file formats to output
         if self.control.stats_to_h5 is True:
-            self.statsH5.setChecked(True)
+            self.statsH5ChkBox.setChecked(True)
         else:
-            self.statsH5.setChecked(False)
+            self.statsH5ChkBox.setChecked(False)
 
         if self.control.stats_to_csv is True:
-            self.statsCSV.setChecked(True)
+            self.statsCSVChkBox.setChecked(True)
         else:
-            self.statsCSV.setChecked(False)
+            self.statsCSVChkBox.setChecked(False)
 
         if self.control.stats_to_xlsx is True:
-            self.statsXLSX.setChecked(True)
+            self.statsXLSXChkBox.setChecked(True)
         else:
-            self.statsXLSX.setChecked(False)
+            self.statsXLSXChkBox.setChecked(False)
 
         # Selected spectral file formats to output
         if self.control.spect_to_h5 is True:
-            self.spectH5.setChecked(True)
+            self.spectH5ChkBox.setChecked(True)
         else:
-            self.spectH5.setChecked(False)
+            self.spectH5ChkBox.setChecked(False)
 
         if self.control.spect_to_csv is True:
-            self.spectCSV.setChecked(True)
+            self.spectCSVChkBox.setChecked(True)
         else:
-            self.spectCSV.setChecked(False)
+            self.spectCSVChkBox.setChecked(False)
 
         if self.control.spect_to_xlsx is True:
-            self.spectXLSX.setChecked(True)
+            self.spectXLSXChkBox.setChecked(True)
         else:
-            self.spectXLSX.setChecked(False)
+            self.spectXLSXChkBox.setChecked(False)
 
     def clear_dashboard(self):
         """Initialise all values in stats and spectral analysis dashboard."""
@@ -2362,9 +2402,7 @@ class EditTransferFunctionsDialog(QtWidgets.QDialog):
         self.setDispPathButton = QtWidgets.QPushButton("Browse...")
         self.setRotPathButton = QtWidgets.QPushButton("Browse...")
         self.setBMPathButton = QtWidgets.QPushButton("Browse...")
-        self.detectButton = QtWidgets.QPushButton("Detect Loggers and Locations")
-        self.detectButton.setShortcut("Ctrl+D")
-        self.detectButton.setToolTip("Ctrl+D")
+        self.detectButton = QtWidgets.QPushButton("&Detect Loggers and Locations")
         self.numLoggers = QtWidgets.QLabel("-")
         self.numLocs = QtWidgets.QLabel("-")
         self.numSeastates = QtWidgets.QLabel("-")
@@ -2612,8 +2650,11 @@ class AzureAccountSetupDialog(QtWidgets.QDialog):
     def __init__(self, parent=None, account_name="", account_key=""):
         super(AzureAccountSetupDialog, self).__init__(parent)
 
-        # account_name = 'agl2hpocdatalab1store'
-        # account_key = '25ZKbPuwSrzqS3Tv8DVeF58x0cy3rMA8VQPKHj3wRZoiWKTPoyllqFOL0EnEy9Dq+poASjV9nFoSIIC7/sBt6Q=='
+        # Default settings
+        if account_name == "":
+            account_name = "agl2hpocdatalab1store"
+        if account_key == "":
+            account_key = "25ZKbPuwSrzqS3Tv8DVeF58x0cy3rMA8VQPKHj3wRZoiWKTPoyllqFOL0EnEy9Dq+poASjV9nFoSIIC7/sBt6Q=="
 
         self.parent = parent
         self.account_name = account_name
@@ -2664,9 +2705,9 @@ class AzureAccountSetupDialog(QtWidgets.QDialog):
 
         try:
             check_azure_account_exists(account_name, account_key)
-            msg = f"Connected successfully to Azure Storage account: {account_name}."
+            msg = f"Connected successfully to Azure Cloud Storage account: {account_name}."
             return QtWidgets.QMessageBox.information(
-                self, "Test Connection to Azure Storage Cloud Account", msg
+                self, "Test Connection to Azure Cloud Storage Account", msg
             )
         except Exception:
             msg = "Could not connect to Azure Cloud Storage account. Check account name and key are correct."

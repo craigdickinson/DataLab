@@ -55,6 +55,10 @@ class Control(object):
         self.campaign_name = ""
         self.project_path = ""
 
+        # Global stats and spectral screening flags
+        self.global_process_stats = True
+        self.global_process_spect = True
+
         # Azure account settings
         self.azure_account_name = ""
         self.azure_account_key = ""
