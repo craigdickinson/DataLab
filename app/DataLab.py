@@ -1,21 +1,19 @@
 __author__ = "Craig Dickinson"
 __program__ = "DataLab"
-__version__ = "1.0.0"
-__date__ = "25 June 2019"
+__version__ = "1.1.0"
+__date__ = "26 July 2019"
 
 import logging
 import os
 import sys
-from datetime import timedelta
+import webbrowser
 from glob import glob
-from time import time
 
 from PyQt5 import QtCore, QtWidgets
 from PyQt5.QtCore import pyqtSignal, pyqtSlot
 
 # import datalab_gui_layout
 from app.core.control import InputError
-from app.core.screening import Screening
 from app.core.logger_properties import LoggerError
 from app.core.read_files import (
     read_spectrograms_csv,
@@ -26,9 +24,11 @@ from app.core.read_files import (
     read_stats_hdf5,
 )
 from app.core.read_files import read_wcfat_results
+from app.core.screening import Screening
 from app.views.main_window_view import DataLabGui
 from app.views.processing_progress_view import ProcessingProgressBar
 from app.views.stats_view import StatsDataset
+from app.views.project_config_view import AzureAccountSetupDialog
 
 
 # if hasattr(QtCore.Qt, 'AA_EnableHighDpiScaling'):
@@ -55,7 +55,7 @@ class DataLab(DataLabGui):
         # Dummy placeholder for Screening class (main processor)
         self.screening = None
 
-        # Map settings pbjects (control, seascatter, transfer functions)
+        # Map settings objects (control, seascatter, transfer functions)
         self.control = self.projConfigModule.control
         self.scatter = self.projConfigModule.scatter
         self.tf = self.projConfigModule.tf
@@ -70,11 +70,9 @@ class DataLab(DataLabGui):
         self.saveConfigAction.triggered.connect(
             self.projConfigModule.on_save_config_clicked
         )
-        self.openLoggerFileAction.triggered.connect(self.load_logger_file)
-        self.openLoggerStatsAction.triggered.connect(
-            self.load_stats_file_from_file_menu
-        )
-        self.openSpectrogramsAction.triggered.connect(self.load_spectrograms_file)
+        self.openLoggerFileAction.triggered.connect(self.on_open_logger_file)
+        self.openStatsAction.triggered.connect(self.on_open_stats_file_triggered)
+        self.openSpectrogramsAction.triggered.connect(self.on_open_spectrograms_file)
 
         # View menu
         # self.showPlotScreen.triggered.connect(self.view_mod_stats_screening)
@@ -91,13 +89,16 @@ class DataLab(DataLabGui):
         self.spectPlotSettingsAction.triggered.connect(self.open_spect_plot_settings)
 
         # Export menu
-        self.exportScatterDiag.triggered.connect(
+        self.exportScatterDiagAction.triggered.connect(
             self.on_export_scatter_diagram_triggered
         )
 
+        # Azure menu
+        self.azureSettingsAction.triggered.connect(self.open_azure_account_settings)
+
         # Help menu
-        self.showHelp.triggered.connect(self.show_help)
-        self.showAbout.triggered.connect(self.show_about)
+        self.helpAction.triggered.connect(self.show_help)
+        self.aboutAction.triggered.connect(self.show_about)
 
         # Toolbar dashboard buttons
         self.projConfigButton.clicked.connect(self.view_proj_config_mod)
@@ -110,12 +111,11 @@ class DataLab(DataLabGui):
         self.fatigueButton.clicked.connect(self.view_mod_fatigue)
 
     def _connect_child_signals(self):
-        self.rawDataModule.openRawButton.clicked.connect(self.load_logger_file)
-        self.statsTab.openStatsButton.clicked.connect(self.load_stats_file)
-        self.vesselStatsTab.openStatsButton.clicked.connect(self.load_stats_file)
-        self.spectrogramTab.openSpectButton.clicked.connect(self.load_spectrograms_file)
-        self.fatigueTab.openWCFATFileButton.clicked.connect(
-            self.load_wcfat_results_file
+        self.rawDataModule.openRawButton.clicked.connect(self.on_open_logger_file)
+        self.statsTab.openStatsButton.clicked.connect(self.on_open_stats_file)
+        self.vesselStatsTab.openStatsButton.clicked.connect(self.on_open_stats_file)
+        self.spectrogramTab.openSpectButton.clicked.connect(
+            self.on_open_spectrograms_file
         )
 
     def _message_information(self, title, message, buttons=QtWidgets.QMessageBox.Ok):
@@ -137,19 +137,7 @@ class DataLab(DataLabGui):
         print(f"Warning: {message}")
         self._message_information("Warning", message)
 
-    def show_about(self):
-        """Show program version info message box."""
-
-        msg = f"Program: {__program__}\nVersion: {__version__}\nDate: {__date__}"
-        self._message_information("About", msg)
-
-    def show_help(self):
-        """Show program overview and instructions message box."""
-
-        msg = f"Instructions for using {__program__}:\n\n" "Worst help, ever! To do..."
-        self._message_information("Help", msg)
-
-    def load_logger_file(self):
+    def on_open_logger_file(self):
         """Load raw logger time series file."""
 
         self.ts_file, _ = QtWidgets.QFileDialog.getOpenFileName(
@@ -181,13 +169,14 @@ class DataLab(DataLabGui):
 
             self.view_mod_raw_data()
 
-    def load_stats_file_from_file_menu(self):
-        """Load stats file when actioned from file menu."""
+    def on_open_stats_file_triggered(self):
+        """Open stats file when actioned from file menu."""
 
-        self.load_stats_file(src="logger_stats")
+        self.on_open_stats_file(src="logger_stats")
 
-    def load_stats_file(self, src=None):
-        """Load summary stats file."""
+    def on_open_stats_file(self, src=None):
+        """Open stats file."""
+
         try:
             # Prompt user to select file with open file dialog
             stats_file, _ = QtWidgets.QFileDialog.getOpenFileName(
@@ -221,6 +210,7 @@ class DataLab(DataLabGui):
                     dataset = StatsDataset(logger_id, df)
                     self.statsTab.datasets.append(dataset)
                     self.vesselStatsTab.datasets.append(dataset)
+                    # self.pairplotTab.datasets.append(dataset)
 
                 # Store dataset/logger names from dictionary keys
                 logger_ids = list(dict_stats.keys())
@@ -243,8 +233,8 @@ class DataLab(DataLabGui):
             self.error(f"{msg}:\n{e}\n{sys.exc_info()[0]}")
             logging.exception(e)
 
-    def load_spectrograms_file(self):
-        """Load spectrograms spreadsheet."""
+    def on_open_spectrograms_file(self):
+        """Open spectrograms file."""
 
         spect_file, _ = QtWidgets.QFileDialog.getOpenFileName(
             self,
@@ -268,12 +258,13 @@ class DataLab(DataLabGui):
             # Store spectrogram datasets and update plot tab
             self.spectrogramTab.datasets[dataset_id] = df
             self.spectrogramTab.append_spect_to_datasets_list(dataset_id)
+            self.spectrogramTab.create_plots()
 
             # Show dashboard
             self.view_tab_spectrogram()
 
-    def load_wcfat_results_file(self):
-        """Load 2HWCFAT .dmg file."""
+    def open_wcfat_damage_file(self):
+        """Open 2HWCFAT .dmg file."""
 
         dmg_file, _ = QtWidgets.QFileDialog.getOpenFileName(
             self,
@@ -284,6 +275,11 @@ class DataLab(DataLabGui):
         if dmg_file:
             df_dam = read_wcfat_results(dmg_file)
             self.fatigueTab.process_fatigue_damage_file(df_dam)
+
+    def open_fatlasa_damage_file(self):
+        return QtWidgets.QMessageBox.information(
+            self, "To Do", "Feature coming in a future update."
+        )
 
     def open_logger_plot_settings(self):
         """Show raw data plot settings window."""
@@ -298,6 +294,31 @@ class DataLab(DataLabGui):
         # Set current parameters from spectrogram plot widget class
         self.spectrogramTab.plotSettings.get_params()
         self.spectrogramTab.plotSettings.show()
+
+    def open_azure_account_settings(self):
+        azureSettings = AzureAccountSetupDialog(
+            self,
+            account_name=self.control.azure_account_name,
+            account_key=self.control.azure_account_key,
+        )
+        azureSettings.show()
+
+    @staticmethod
+    def show_help():
+        """Open guidance documentation on sharepoint."""
+
+        url = (
+            r"https://agcloud.sharepoint.com/:p:/r/sites/"
+            r"O365-UG-2HEngineeringSoftware/Shared%20Documents/2H%20Datalab/"
+            r"DataLab%20Guidance.pptx?d=wcabe347939784784b8d7270cdf7938e7&csf=1&e=9LJsCD"
+        )
+        webbrowser.open(url)
+
+    def show_about(self):
+        """Show program version info message box."""
+
+        msg = f"Program: {__program__}\nVersion: {__version__}\nDate: {__date__}"
+        self._message_information("About", msg)
 
     def add_2h_icon(self):
         if self.add2HIcon.isChecked():
@@ -430,18 +451,33 @@ class DataLab(DataLabGui):
         """Screen loggers and process statistical and spectral analysis."""
 
         try:
-            self.analyse_screening_setup()
-            self.run_screening()
+            self.repaint()
+            status = self.analyse_screening_setup()
+            self.statusbar.showMessage("")
+
+            if status is True:
+                self.statusbar.showMessage(
+                    "Checking setup: Complete. Processing loggers..."
+                )
+                self.repaint()
+                self.run_screening()
         except InputError as e:
+            self.statusbar.showMessage("")
             self.error(str(e))
-            return logging.exception(e)
+            logging.exception(e)
         except LoggerError as e:
+            self.statusbar.showMessage("")
             self.error(str(e))
-            return logging.exception(e)
+            logging.exception(e)
+        except FileNotFoundError as e:
+            self.statusbar.showMessage("")
+            self.error(str(e))
+            logging.exception(e)
         except Exception as e:
+            self.statusbar.showMessage("")
             msg = "Unexpected error on preparing config setup"
             self.error(f"{msg}:\n{e}\n{sys.exc_info()[0]}")
-            return logging.exception(e)
+            logging.exception(e)
 
     def analyse_screening_setup(self):
         """Prepare and check screening setup."""
@@ -450,11 +486,13 @@ class DataLab(DataLabGui):
 
         # Check project path exists
         if control.project_path == "":
-            return self.warning("Cannot process: Project location not set")
+            self.warning("Cannot process: Project location not set")
+            return False
 
         # Check at least one logger exists
         if not control.loggers:
-            return self.warning("Cannot process: No loggers exist in setup")
+            self.warning("Cannot process: No loggers exist in setup")
+            return False
 
         # Get all raw data filenames for all loggers to be processed and perform some screening checks
         # Check all ids are unique
@@ -465,7 +503,14 @@ class DataLab(DataLabGui):
 
         # Get raw filenames, check timestamps and select files in processing datetime range
         for logger in control.loggers:
+            # Store logger filenames and check file timestamps
+            self.statusbar.showMessage(
+                f"Checking setup: Checking file names for {logger.logger_id}. Please wait..."
+            )
+            self.repaint()
             logger.process_filenames()
+
+            # Select only files in date range to process on
             logger.select_files_in_datetime_range(
                 logger.process_start, logger.process_end
             )
@@ -473,13 +518,13 @@ class DataLab(DataLabGui):
 
             # Get all channel names and units if not already stored in logger object
             if (
-                len(logger.all_channel_names) == 0
-                and len(logger.all_channel_units) == 0
+                    len(logger.all_channel_names) == 0
+                    and len(logger.all_channel_units) == 0
             ):
                 logger.get_all_channel_and_unit_names()
 
             # Check requested channels exist
-            if logger.process_stats is True or logger.process_spectral is True:
+            if logger.process_stats is True or logger.process_spect is True:
                 # Connect warning signal to warning message box in DataLab class
                 try:
                     # Disconnect any existing connection to prevent repeated triggerings
@@ -494,17 +539,19 @@ class DataLab(DataLabGui):
                 # Check number of headers match number of columns to process
                 logger.check_headers()
 
+        return True
+
     def run_screening(self):
         """Run statistical and spectral analysis in config setup."""
 
         # Run processing on QThread worker - prevents GUI lock up
         try:
             # Create screening object, map control data and process
-            screening = Screening(self)
+            screening = Screening()
             screening.control = self.control
 
-            # Create worker thread, connect signals to methods in this class and start, which this calls worker.run()
-            self.worker = ControlFileWorker(screening, parent=self)
+            # Create worker thread, connect signals to methods in this class and start, which calls worker.run()
+            self.worker = ScreeningWorker(screening, parent=self)
             self.worker.signal_screening_output_to_gui.connect(
                 self.set_screening_output_to_gui
             )
@@ -554,6 +601,7 @@ class DataLab(DataLabGui):
             self.spectrogramTab.datasets = screening.dict_spectrograms
             dataset_ids = list(screening.dict_spectrograms.keys())
             self.spectrogramTab.append_multiple_spect_to_datasets_list(dataset_ids)
+            self.spectrogramTab.create_plots()
 
     def calc_seascatter(self):
         """Create seascatter diagram if vessel stats data is loaded."""
@@ -567,8 +615,8 @@ class DataLab(DataLabGui):
         if df_metocean is False:
             if logger == "":
                 msg = (
-                    "No logger set in seascatter settings tab.\n\n"
-                    "Input seascatter settings and generate or load the required statistics dataset "
+                    "No logger set in sea scatter settings tab.\n\n"
+                    "Input sea scatter settings and generate or load the required statistics dataset "
                     "containing Hs and Tp data and try again."
                 )
             else:
@@ -577,25 +625,26 @@ class DataLab(DataLabGui):
                     "Generate or load the required statistics dataset "
                     "containing Hs and Tp data and try again."
                 )
-            self.warning(msg)
-        else:
-            try:
-                hs, tp = self.scatter.get_hs_tp_data(df_metocean)
+            return self.warning(msg)
 
-                if hs.size == 0 and tp.size == 0:
-                    msg = (
-                        f"The specified Hs and Tp columns in the '{logger}' stats data do not exist.\n\n"
-                        "Check the correct columns have been input in the seascatter settings."
-                    )
-                    self.warning(msg)
-                else:
-                    self.seascatterModule.get_seascatter_dataset(hs, tp)
-                    self.seascatterModule.generate_scatter_diagram()
-                    self.view_tab_seascatter()
-            except Exception as e:
-                msg = "Unexpected error generating seascatter diagram"
-                self.error(f"{msg}:\n{e}\n{sys.exc_info()[0]}")
-                logging.exception(e)
+        try:
+            hs, tp = self.scatter.get_hs_tp_data(df_metocean)
+
+            if hs.size == 0 and tp.size == 0:
+                msg = (
+                    f"The specified Hs and Tp columns in the '{logger}' stats data do not exist.\n\n"
+                    "Check the correct columns have been input in the sea scatter settings."
+                )
+                return self.warning(msg)
+
+            self.seascatterModule.df_ss = self.scatter.df_ss
+            self.seascatterModule.calc_bins(hs, tp)
+            self.seascatterModule.generate_scatter_diagram()
+            self.view_tab_seascatter()
+        except Exception as e:
+            msg = "Unexpected error generating sea scatter diagram"
+            self.error(f"{msg}:\n{e}\n{sys.exc_info()[0]}")
+            logging.exception(e)
 
     def on_export_scatter_diagram_triggered(self):
         """Export sea scatter diagram to Excel."""
@@ -627,11 +676,13 @@ class DataLab(DataLabGui):
             logging.exception(e)
 
     def calc_fatigue(self):
-        pass
+        return QtWidgets.QMessageBox.information(
+            self, "To Do", "Feature coming in a future update."
+        )
 
 
-class ControlFileWorker(QtCore.QThread):
-    """Worker class to process control file in separate thread."""
+class ScreeningWorker(QtCore.QThread):
+    """Worker class to perform screening processing of control setup in a separate thread."""
 
     # Note: Using the alternative method of creating a QObject and a standalone QThread worker and using moveToThread
     # does not work with GUIs. The QObject still stays on the QMainWindow thread. Therefore, while the processing works,
@@ -639,39 +690,34 @@ class ControlFileWorker(QtCore.QThread):
     # Also, cannot pass parents to QObjects, which isn't ideal.
     signal_screening_output_to_gui = pyqtSignal(object)
     signal_error = pyqtSignal(str)
-    signal_complete = pyqtSignal(str, int)
 
     def __init__(self, screening, parent=None):
         """Worker class to allow control file processing on a separate thread to the gui."""
-        super(ControlFileWorker, self).__init__(parent)
+        super(ScreeningWorker, self).__init__(parent)
 
         self.parent = parent
 
         # Screening processing object
         self.screening = screening
 
-        logger_ids = self.screening.control.logger_ids
-
         # Initialise progress bar
-        self.pb = ProcessingProgressBar(logger_ids=logger_ids)
-        self.connect_signals()
+        self.pb = ProcessingProgressBar(logger_ids=self.screening.control.logger_ids)
+        self.pb.show()
+        self._connect_signals()
 
-    def connect_signals(self):
+    def _connect_signals(self):
         self.pb.signal_quit_worker.connect(self.quit_worker)
         self.screening.signal_notify_progress.connect(self.pb.update_progress_bar)
-        self.signal_complete.connect(self.pb.on_processing_complete)
+        self.screening.signal_update_output_info.connect(self.pb.add_output_files)
 
     def run(self):
         """Override of QThread's run method to process control file."""
 
         try:
             self.parent.setEnabled(False)
-            t0 = time()
 
             # Run DataLab processing; compute and write requested logger statistics and spectrograms
-            self.screening.process_control_file()
-            t = str(timedelta(seconds=round(time() - t0)))
-            self.signal_complete.emit(t, self.screening.total_files)
+            self.screening.screen_loggers()
             self.signal_screening_output_to_gui.emit(self.screening)
         except ValueError as e:
             self.signal_error.emit(str(e))
@@ -680,11 +726,12 @@ class ControlFileWorker(QtCore.QThread):
             self.signal_error.emit(str(e))
             logging.exception(e)
         except Exception as e:
-            msg = "Unexpected error processing control file"
+            msg = "Unexpected error during processing"
             self.signal_error.emit(f"{msg}:\n{e}\n{sys.exc_info()[0]}")
             logging.exception(e)
         finally:
             self.parent.setEnabled(True)
+            self.parent.statusbar.showMessage("")
 
     @pyqtSlot()
     def quit_worker(self):
@@ -697,6 +744,7 @@ class ControlFileWorker(QtCore.QThread):
 
         self.pb.close()
         self.parent.setEnabled(True)
+        self.parent.statusbar.showMessage("")
 
 
 # class QtDesignerGui(QtWidgets.QMainWindow, datalab_gui_layout.Ui_MainWindow):
@@ -707,7 +755,7 @@ class ControlFileWorker(QtCore.QThread):
 
 
 if __name__ == "__main__":
-    # os.chdir(r'C:\Users\dickinsc\PycharmProjects\DataLab\demo_data\2. Project Configs')
+    # os.chdir(r"C:\Users\dickinsc\PycharmProjects\DataLab\demo_data\2. Project Configs")
     app = QtWidgets.QApplication(sys.argv)
     # win = QtDesignerGui()
     win = DataLab()

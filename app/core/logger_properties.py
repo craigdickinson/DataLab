@@ -10,6 +10,12 @@ from dateutil.parser import parse
 from PyQt5.QtCore import QObject, pyqtSignal
 
 from app.core.custom_date import get_date_code_span, make_time_str
+from app.core.azure_cloud_storage import (
+    connect_to_azure_account,
+    get_container_name_and_folders_path,
+    get_blobs,
+    stream_blob,
+)
 
 
 class Error(Exception):
@@ -35,16 +41,18 @@ class LoggerProperties(QObject):
     signal_warning = pyqtSignal(str)
 
     def __init__(self, logger_id=""):
-        """
-        Constructor - initialise properties.
-        May wish to use a dictionary to hold these properties in future
-        and then write this dictionary straight to JSON as part of the config file.
-        """
         super().__init__()
 
         # Name and location
         self.logger_id = logger_id  # *LOGGER_ID
+        self.data_on_azure = False
         self.logger_path = ""  # *PATH
+
+        # Azure account access settings, container name and blobs (files) list
+        self.azure_account_name = ""
+        self.azure_account_key = ""
+        self.container_name = ""
+        self.blobs = []
 
         # File format variables
         self.file_format = ""  # *FILE_FORMAT
@@ -94,16 +102,12 @@ class LoggerProperties(QObject):
         # Data type to screen on (unfiltered only, filtered only, both unfiltered and filtered)
         self.process_type = "Both unfiltered and filtered"
 
-        # STATISTICS ANALYSIS PARAMETERS
-        # Include in processing flag
+        # Logger stats and spectral processing flags
         self.process_stats = True
+        self.process_spect = True
 
         # Interval (in seconds) to process stats over
         self.stats_interval = 0  # *STATS_INTERVAL
-
-        # SPECTRAL ANALYSIS PARAMETERS
-        # Include in processing flag
-        self.process_spectral = True
 
         # Interval (in seconds) to process stats over
         self.spect_interval = 0
@@ -139,7 +143,11 @@ class LoggerProperties(QObject):
     def process_filenames(self):
         """Read all file timestamps and check that they conform to the specified format."""
 
-        self.get_filenames()
+        if self.data_on_azure is True:
+            self.get_filenames_on_azure()
+        else:
+            self.get_filenames()
+
         self.get_timestamp_span()
         self.check_file_timestamps()
 
@@ -151,9 +159,41 @@ class LoggerProperties(QObject):
         ]
 
         if not self.raw_filenames:
-            raise LoggerError(
-                f"No {self.logger_id} logger files found in {self.logger_path}"
+            msg = f"No {self.logger_id} logger files found in {self.logger_path}."
+            raise LoggerError(msg)
+
+    def get_filenames_on_azure(self):
+        """Get all filenames with specified extension stored on Azure Cloud Storage container."""
+
+        try:
+            bloc_blob_service = connect_to_azure_account(
+                self.azure_account_name, self.azure_account_key
             )
+        except Exception as e:
+            raise LoggerError(e)
+
+        try:
+            container_name, virtual_folders_path = get_container_name_and_folders_path(
+                self.logger_path
+            )
+            blobs = get_blobs(bloc_blob_service, container_name, virtual_folders_path)
+
+            # Store container name and blobs list
+            self.container_name = container_name
+            self.blobs = blobs
+        except:
+            msg = f"Could not connect to {container_name} container on Azure Cloud Storage account."
+            raise LoggerError(msg)
+
+        self.raw_filenames = [
+            os.path.basename(f)
+            for f in blobs
+            if os.path.splitext(f)[1] == "." + self.file_ext
+        ]
+
+        if not self.raw_filenames:
+            msg = f"No {self.logger_id} logger files found in {self.logger_path} on Azure Cloud Storage account."
+            raise LoggerError(msg)
 
     def get_timestamp_span(self):
         """Extract timestamp code spans using filename format given in control file."""
@@ -161,7 +201,7 @@ class LoggerProperties(QObject):
         # File timestamp format
         f = self.file_timestamp_format
 
-        # Get pos of Y, m, D, H, M, S and ms strings
+        # Get position of Y, m, D, H, M, S and ms strings
         self.year_span = get_date_code_span("Y", f)
         self.month_span = get_date_code_span("m", f)
         self.day_span = get_date_code_span("D", f)
@@ -177,32 +217,44 @@ class LoggerProperties(QObject):
         self.file_timestamps = []
 
         for f in self.raw_filenames:
-            y = f[self.year_span[0] : self.year_span[1]]
-            m = f[self.month_span[0] : self.month_span[1]]
-            d = f[self.day_span[0] : self.day_span[1]]
-            h = f[self.hour_span[0] : self.hour_span[1]]
-            minute = f[self.min_span[0] : self.min_span[1]]
-            sec = f[self.sec_span[0] : self.sec_span[1]]
-            ms = f[self.ms_span[0] : self.ms_span[1]]
+            date = self.get_file_timestamp(f)
 
-            # Date must contain y, m and d
-            date_str = y + "-" + m + "-" + d
-
-            # Construct time string
-            time_str = make_time_str(h, minute, sec, ms)
-
-            # Construct full datetime string
-            datetime_str = (date_str + " " + time_str).strip()
-
-            # Try to convert string to date
-            try:
-                date = parse(datetime_str, yearfirst=True)
-            except ValueError:
+            if date is None:
                 self.dict_bad_filenames[f] = "Unable to parse datetime from filename"
             else:
                 # Append if date is successfully parsed
                 self.files.append(f)
                 self.file_timestamps.append(date)
+
+    def get_file_timestamp(self, f):
+        """
+        Attempt to extract timestamp embedded in logger filename.
+        :param f: logger filename
+        :return: filename datetime as string
+        """
+
+        y = f[self.year_span[0] : self.year_span[1]]
+        m = f[self.month_span[0] : self.month_span[1]]
+        d = f[self.day_span[0] : self.day_span[1]]
+        h = f[self.hour_span[0] : self.hour_span[1]]
+        minute = f[self.min_span[0] : self.min_span[1]]
+        sec = f[self.sec_span[0] : self.sec_span[1]]
+        ms = f[self.ms_span[0] : self.ms_span[1]]
+
+        # Date must contain y, m and d
+        date_str = y + "-" + m + "-" + d
+
+        # Construct time string
+        time_str = make_time_str(h, minute, sec, ms)
+
+        # Construct full datetime string
+        datetime_str = (date_str + " " + time_str).strip()
+
+        # Try to convert string to date
+        try:
+            return parse(datetime_str, yearfirst=True)
+        except ValueError:
+            return None
 
     def select_files_in_datetime_range(self, start_date=None, end_date=None):
         """
@@ -245,6 +297,9 @@ class LoggerProperties(QObject):
         """Store in logger object lists of all channel and units header in test file."""
 
         if self.logger_path == "":
+            return
+
+        if self.data_on_azure is True:
             return
 
         # TODO: Need to check file is of expected filename first!
@@ -307,28 +362,24 @@ class LoggerProperties(QObject):
         to process not found in test file.
         """
 
-        # First check columns detected in test make sense with requested columns to process
+        # Check columns to process have been input
         if len(self.cols_to_process) > 0:
             last_col = max(self.cols_to_process)
         else:
             msg = f"Need to input columns to process for logger {self.logger_id} or disable processing."
             raise LoggerError(msg)
 
-        test_file = self.files[0]
-        file_path = os.path.join(self.logger_path, test_file)
-
-        # Read first data row
-        with open(file_path) as f:
-            [next(f) for _ in range(self.num_headers)]
-            first_row = f.readline().strip().split(self.file_delimiter)
+        # Read first data row from a test file
+        test_file, first_row = self.get_first_row_of_data(file_idx=0)
 
         # Check we have at least one full row of data
         if last_col > len(first_row):
             msg = (
-                f"Number of columns in test file for logger {self.logger_id} is less than {last_col}."
+                f"Number of columns in test file for logger {self.logger_id} is less than {last_col}, "
+                f"which is the highest column number to be processed."
                 f"\nTest file: {test_file}."
             )
-            raise LoggerError(msg)
+            self.signal_warning.emit(msg)
 
         # Now set channel names and units for columns to process
         all_channels = self.all_channel_names
@@ -377,21 +428,50 @@ class LoggerProperties(QObject):
             if missing_cols:
                 warn_flag = True
 
-        # If missing cols found, warn user
+        # If missing cols found, inform user
+        # Note emitting a message not raise an error so that screening is not halted
         if warn_flag is True:
             msg = (
-                f"Number of columns in test file for logger {self.logger_id} is less than {last_col}.\n\n"
-                f"Dummy column names will be created for missing columns.\n\n"
+                f"Number of columns in test file for logger {self.logger_id} is less than {last_col}.\n"
+                f"Dummy column names will be created for missing columns.\n"
                 f"Alternatively, input custom channel and unit names."
                 f"\nTest file: {test_file}."
             )
             self.signal_warning.emit(msg)
 
+    def get_first_row_of_data(self, file_idx):
+        """
+        Read first data row to validate on.
+        :return: name of test file, first data row string
+        """
+
+        # Stream test file (blob) on Azure Cloud Storage
+        if self.data_on_azure is True:
+            test_blob = self.blobs[file_idx]
+            test_file = os.path.basename(test_blob)
+
+            bloc_blob_service = connect_to_azure_account(
+                self.azure_account_name, self.azure_account_key
+            )
+            f = stream_blob(bloc_blob_service, self.container_name, test_blob)
+            [f.readline() for _ in range(self.num_headers)]
+            first_row = f.readline().decode().strip().split(self.file_delimiter)
+        # Read test file on local drive
+        else:
+            test_file = self.files[file_idx]
+            test_path = os.path.join(self.logger_path, test_file)
+
+            with open(test_path) as f:
+                [f.readline() for _ in range(self.num_headers)]
+                first_row = f.readline().strip().split(self.file_delimiter)
+
+        return test_file, first_row
+
     def check_headers(self):
         """Check that there is a channel name and channel units per requested column to process."""
 
         # Check number of analysis headers is correct
-        if self.process_stats is True or self.process_spectral is True:
+        if self.process_stats is True or self.process_spect is True:
             # Check length of channel header
             if len(self.channel_names) != len(self.cols_to_process):
                 msg = (
@@ -410,7 +490,7 @@ class LoggerProperties(QObject):
 
     def check_header_specification(self):
         """
-        TO DELETE - DAT ROUTINE:
+        DEPRECATED DAT ROUTINE - TO DELETE
         Check that user has provided either the channel/units header row or user channel and unit names.
         """
 
@@ -430,7 +510,7 @@ class LoggerProperties(QObject):
 
     def detect_requested_channels_and_units(self, test_file):
         """
-        TO DELETE - DAT ROUTINE:
+        DEPRECATED DAT ROUTINE - TO DELETE
         Detect number of columns and channel names/units from headers of logger file.
         """
 
@@ -488,7 +568,7 @@ class LoggerProperties(QObject):
 
     def check_for_user_headers(self):
         """
-        TO DELETE - DAT ROUTINE:
+        DEPRECATED DAT ROUTINE - TO DELETE
         Assign user-defined channel names and units to logger if supplied.
         """
 

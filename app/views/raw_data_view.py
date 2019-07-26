@@ -104,7 +104,7 @@ class RawDataDashboard(QtWidgets.QWidget):
 
     def _init_ui(self):
         # WIDGETS
-        self.openRawButton = QtWidgets.QPushButton("Open Raw Logger File")
+        self.openRawButton = QtWidgets.QPushButton("Open Raw Logger File...")
         self.openRawButton.setToolTip("Open raw logger data (*.csv;*.acc) (F2)")
         self.filesLabel = QtWidgets.QLabel("Logger Files")
         self.filesList = QtWidgets.QListWidget()
@@ -120,7 +120,7 @@ class RawDataDashboard(QtWidgets.QWidget):
         self.line = QtWidgets.QFrame()
         self.line.setFrameShape(QtWidgets.QFrame.HLine)
         self.line.setFrameShadow(QtWidgets.QFrame.Sunken)
-        self.plotSettingsButton = QtWidgets.QPushButton("Plot Settings")
+        self.plotSettingsButton = QtWidgets.QPushButton("Plot Settings...")
         self.replotButton = QtWidgets.QPushButton("Replot")
 
         # Plot figure and canvas to display figure

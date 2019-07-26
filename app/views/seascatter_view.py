@@ -20,7 +20,8 @@ class SeascatterDiagram(QtWidgets.QWidget):
         self.hs = np.array([])
         self.tp = np.array([])
 
-        # Seascatter diagram data frames
+        # Seastate and seascatter diagram data frames
+        self.df_ss = pd.DataFrame()
         self.df_scatter = pd.DataFrame()
 
         # Hs/Tp bins limits
@@ -37,20 +38,14 @@ class SeascatterDiagram(QtWidgets.QWidget):
         self.hs_bins = np.array([])
         self.tp_bins = np.array([])
 
-        # Hs bins
-        # self.hs_bins = np.arange(0, 20, 0.25)
-
-        # Tp bins
-        # self.tp_bins = np.arange(30)
-
         self.init_ui()
         self.connect_signals()
 
     def init_ui(self):
-        # WIDGETS
-        # Apply float validation to input boxes
+        # Define input box validator
         dbl_validator = QtGui.QDoubleValidator()
 
+        # WIDGETS
         # Bin controls
         self.hsBinSize = QtWidgets.QLineEdit("0.5")
         self.hsBinSize.setFixedWidth(30)
@@ -89,23 +84,23 @@ class SeascatterDiagram(QtWidgets.QWidget):
         self.layout.addLayout(self.scatterLayout)
 
     def connect_signals(self):
-        self.hsBinSize.returnPressed.connect(self.update_hs_bins)
-        self.tpBinSize.returnPressed.connect(self.update_tp_bins)
+        self.hsBinSize.returnPressed.connect(self.on_hs_bins_updated)
+        self.tpBinSize.returnPressed.connect(self.on_tp_bins_updated)
 
-    def update_hs_bins(self):
+    def on_hs_bins_updated(self):
         """Refresh seascatter diagram for change in Hs bin size."""
 
-        if self.df_ss.empty:
+        if self.hs_bins.size == 0:
             return
 
         self.hs_bin_size = float(self.hsBinSize.text())
         self.hs_bins = self.get_bins(self.hs_min, self.hs_max, self.hs_bin_size)
         self.generate_scatter_diagram()
 
-    def update_tp_bins(self):
+    def on_tp_bins_updated(self):
         """Refresh seascatter diagram for change in Tp bin size."""
 
-        if self.df_ss.empty:
+        if self.tp_bins.size == 0:
             return
 
         self.tp_bin_size = float(self.tpBinSize.text())
@@ -121,8 +116,8 @@ class SeascatterDiagram(QtWidgets.QWidget):
             bins = bins.astype(int)
         return bins
 
-    def get_seascatter_dataset(self, hs, tp):
-        """Create Hs/Tp dataset from loaded stats dataset containing mean Hs and Tp values."""
+    def calc_bins(self, hs, tp):
+        """Calculate Hs/Tp bins from loaded stats dataset containing mean Hs and Tp values."""
 
         self.hs = hs
         self.tp = tp
@@ -137,7 +132,7 @@ class SeascatterDiagram(QtWidgets.QWidget):
         self.tp_min = math.floor(np.nanmin(tp))
         self.tp_max = math.ceil(np.nanmax(tp))
 
-        # Calculate bins and seascatter diagram
+        # Calculate hs/tp bins
         self.hs_bins = self.get_bins(self.hs_min, self.hs_max, self.hs_bin_size)
         self.tp_bins = self.get_bins(self.tp_min, self.tp_max, self.tp_bin_size)
 
@@ -195,29 +190,27 @@ class SeascatterDiagram(QtWidgets.QWidget):
 
         # Calculate Hs and Tp bin midpoints (the data frame indexes are interval types)
         hs = self.df_scatter.iloc[:-1, -1]
-        hs_mids = []
-        for i in hs.index:
-            hs_mids.append(i.mid)
-        hs.index = hs_mids
-
+        hs.index = [i.mid for i in hs.index]
         tp = self.df_scatter.iloc[-1, :-1]
-        tp_mids = []
-        for i in tp.index:
-            tp_mids.append(i.mid)
-        tp.index = tp_mids
+        tp.index = [i.mid for i in tp.index]
 
         # Plot Hs distribution
         self.ax1.cla()
-        self.ax1.plot(hs)
+        # self.ax1.plot(hs)
+        self.ax1.bar(hs.index, hs.values)
         self.ax1.set_xlabel("Hs (m)")
         self.ax1.set_ylabel("Percentage Occurrence (%)")
 
         # Plot Tp distribution
         self.ax2.cla()
-        self.ax2.plot(tp)
+        # self.ax2.plot(tp)
+        self.ax2.bar(tp.index, tp.values)
         self.ax2.set_xlabel("Tp (s)")
         self.ax2.set_ylabel("Percentage Occurrence (%)")
 
+        # For some reason need to do tight layout and draw twice to make sure plot is sized correctly
+        self.fig.tight_layout()
+        self.canvas.draw()
         self.fig.tight_layout()
         self.canvas.draw()
 
@@ -228,9 +221,9 @@ class SeascatterDiagram(QtWidgets.QWidget):
 
         # Seastates sheet
         self.df_ss.to_excel(
-            writer, sheet_name="Seastates", na_rep="N/A", float_format="%.2f"
+            writer, sheet_name="Sea States", na_rep="N/A", float_format="%.2f"
         )
-        ws = writer.sheets["Seastates"]
+        ws = writer.sheets["Sea States"]
         ws.set_column("A:A", 11)
         # wb = writer.book
         # fmt = wb.add_format({'num_format': '0.00'})
@@ -240,7 +233,7 @@ class SeascatterDiagram(QtWidgets.QWidget):
         # Replace zeros with blanks
         df_scatter = self.df_scatter.replace({0: ""})
         df_scatter.to_excel(
-            writer, sheet_name="Seascatter Diagram", float_format="%.2f"
+            writer, sheet_name="Sea Scatter Diagram", float_format="%.2f"
         )
         ws.set_column("A:A", 18)
         writer.save()

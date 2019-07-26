@@ -1,6 +1,5 @@
 import sys
 import logging
-from datetime import datetime
 
 import PIL
 import matplotlib.dates as mdates
@@ -372,13 +371,13 @@ class StatsWidget(QtWidgets.QWidget):
     def _init_ui(self):
         # WIDGETS
         # Buttons and datasets and channels lists
-        self.openStatsButton = QtWidgets.QPushButton("Open Statistics")
+        self.openStatsButton = QtWidgets.QPushButton("Open Statistics...")
         self.openStatsButton.setToolTip("Open logger stats (*.h5;*.csv;*.xlsx) (F3)")
         self.clearDatasetsButton = QtWidgets.QPushButton("Clear Datasets")
-        self.datasetList = QtWidgets.QListWidget()
+        self.datasetsList = QtWidgets.QListWidget()
         self.channelsLabel = QtWidgets.QLabel("Available Channels")
         self.channelsList = QtWidgets.QListWidget()
-        self.settingsButton = QtWidgets.QPushButton("Plot Settings")
+        self.settingsButton = QtWidgets.QPushButton("Plot Settings...")
 
         # Number of plots
         self.numPlotsCombo = QtWidgets.QComboBox()
@@ -451,7 +450,7 @@ class StatsWidget(QtWidgets.QWidget):
         self.vboxSel.addWidget(self.openStatsButton)
         self.vboxSel.addWidget(self.clearDatasetsButton)
         self.vboxSel.addWidget(QtWidgets.QLabel("Loaded Datasets"))
-        self.vboxSel.addWidget(self.datasetList)
+        self.vboxSel.addWidget(self.datasetsList)
         self.vboxSel.addWidget(self.channelsLabel)
         self.vboxSel.addWidget(self.channelsList)
         self.vboxSel.addLayout(self.numPlotsForm)
@@ -489,7 +488,7 @@ class StatsWidget(QtWidgets.QWidget):
 
     def _connect_signals(self):
         self.clearDatasetsButton.clicked.connect(self.on_clear_datasets_clicked)
-        self.datasetList.currentItemChanged.connect(self.on_dataset_list_item_changed)
+        self.datasetsList.currentItemChanged.connect(self.on_dataset_list_item_changed)
         self.numPlotsCombo.currentIndexChanged.connect(self.on_num_plots_combo_changed)
         self.plotNumCombo.currentIndexChanged.connect(self.on_plot_num_combo_changed)
         self.axisCombo.currentIndexChanged.connect(self.on_axis_combo_changed)
@@ -763,7 +762,7 @@ class StatsWidget(QtWidgets.QWidget):
 
         self.resetting_dashboard = True
         self.datasets = []
-        self.datasetList.clear()
+        self.datasetsList.clear()
         self.channelsList.clear()
         self.channelsLabel.setText("Available Channels")
 
@@ -835,19 +834,19 @@ class StatsWidget(QtWidgets.QWidget):
         """Populate loaded datasets list."""
 
         # Create dataset list and select first item (this will trigger an update of update_channels_list)
-        self.datasetList.addItems(dataset_ids)
-        self.datasetList.setCurrentRow(0)
+        self.datasetsList.addItems(dataset_ids)
+        self.datasetsList.setCurrentRow(0)
         self._update_logger_combo(dataset_ids)
 
     def _update_channels_list(self):
         """Update channels list to match selected dataset."""
 
-        i = self.datasetList.currentRow()
+        i = self.datasetsList.currentRow()
         if i == -1:
             return
 
         # Update channel list label
-        logger_id = self.datasetList.currentItem().text()
+        logger_id = self.datasetsList.currentItem().text()
         self.channelsLabel.setText(f"Available {logger_id} Channels")
 
         # Add channels to list and make non-selectable since they are just an echo for reference
@@ -1015,10 +1014,10 @@ class StatsWidget(QtWidgets.QWidget):
                 continue
 
             # Get data limits, get global min and max and apply to both axes
-            ymin1 = df1.values.min()
-            ymax1 = df1.values.max()
-            ymin2 = df2.values.min()
-            ymax2 = df2.values.max()
+            ymin1 = np.nanmin(df1.values)
+            ymax1 = np.nanmax(df1.values)
+            ymin2 = np.nanmin(df2.values)
+            ymax2 = np.nanmax(df2.values)
 
             # Subplot overall min/max
             ymin = min(ymin1, ymin2)
@@ -1242,16 +1241,16 @@ class VesselStatsWidget(QtWidgets.QWidget):
     def init_ui(self):
         # WIDGETS
         # Selection controls
-        self.openStatsButton = QtWidgets.QPushButton("Open Statistics")
+        self.openStatsButton = QtWidgets.QPushButton("Open Statistics...")
         self.clearDatasetsButton = QtWidgets.QPushButton("Clear Datasets")
         self.lbl1 = QtWidgets.QLabel("Loaded Datasets")
         self.lbl2 = QtWidgets.QLabel("Channels (echo)")
-        self.datasetList = QtWidgets.QListWidget()
+        self.datasetsList = QtWidgets.QListWidget()
         self.channelsList = QtWidgets.QListWidget()
         self.vesselMotionsCombo = QtWidgets.QComboBox()
         self.stats1Combo = QtWidgets.QComboBox()
         self.stats2Combo = QtWidgets.QComboBox()
-        # self.plotSettings = QtWidgets.QPushButton("Plot Settings")
+        # self.plotSettings = QtWidgets.QPushButton("Plot Settings...")
         self.replotButton = QtWidgets.QPushButton("Replot")
 
         # Plot drop-downs
@@ -1289,7 +1288,7 @@ class VesselStatsWidget(QtWidgets.QWidget):
         self.vbox.addWidget(self.openStatsButton)
         self.vbox.addWidget(self.clearDatasetsButton)
         self.vbox.addWidget(self.lbl1)
-        self.vbox.addWidget(self.datasetList)
+        self.vbox.addWidget(self.datasetsList)
         self.vbox.addWidget(self.lbl2)
         self.vbox.addWidget(self.channelsList)
         self.vbox.addWidget(self.statsWidget)
@@ -1309,7 +1308,7 @@ class VesselStatsWidget(QtWidgets.QWidget):
 
     def connect_signals(self):
         self.clearDatasetsButton.clicked.connect(self.on_clear_datasets_clicked)
-        self.datasetList.currentItemChanged.connect(self.on_dataset_list_changed)
+        self.datasetsList.currentItemChanged.connect(self.on_dataset_list_changed)
         self.vesselMotionsCombo.currentIndexChanged.connect(
             self.on_motions_combo_changed
         )
@@ -1387,7 +1386,7 @@ class VesselStatsWidget(QtWidgets.QWidget):
         # Set flag to prevent channel combo boxes repopulating when clear the dataset combo boxes
         self.skip_logger_combo_change = True
         self.datasets = []
-        self.datasetList.clear()
+        self.datasetsList.clear()
         self.channelsList.clear()
         self.init_logger_channel_combos()
         self.skip_logger_combo_change = False
@@ -1396,16 +1395,16 @@ class VesselStatsWidget(QtWidgets.QWidget):
         """Populate loaded datasets list."""
 
         # Create dataset list and select first item (this will trigger an update of update_channels_list)
-        self.datasetList.addItems(dataset_ids)
+        self.datasetsList.addItems(dataset_ids)
 
         # Add dataset ids to logger combo box
         self.axis2Logger.addItems(dataset_ids)
-        self.datasetList.setCurrentRow(0)
+        self.datasetsList.setCurrentRow(0)
 
     def update_channels_list(self):
         """Update channels list to match selected dataset."""
 
-        i = self.datasetList.currentRow()
+        i = self.datasetsList.currentRow()
         if i == -1:
             return
 
@@ -1468,13 +1467,20 @@ class VesselStatsWidget(QtWidgets.QWidget):
         plot_data = {}
 
         # Get axis 1 plot data
-        # Get vessel motions data from vessel data frame - it is required that the vessel dataset is called "VESSEL"
+        # Get vessel motions data from vessel data frame
+        # It is required that the vessel dataset is called "VESSEL"
+        # and the columns are named "Surge", "Sway", "Heave", "Roll", "Pitch", "Yaw"
         for i in range(len(self.datasets)):
             if self.datasets[i].logger_id.upper() == "VESSEL":
                 df_vessel = self.datasets[i].df
                 df_vessel = df_vessel.xs(key=stat1_col, axis=1, level=1)
-                df_vessel = df_vessel[motion_cols]
-                plot_data["vessel_data"] = df_vessel
+
+                try:
+                    # TODO: Should make work for more generalised column names
+                    df_vessel = df_vessel[motion_cols]
+                    plot_data["vessel_data"] = df_vessel
+                except:
+                    pass
                 break
 
         # Selected logger info

@@ -25,7 +25,7 @@ class ProjectConfigJSONFile(QObject):
             self.data = json.load(f)
 
         # Store filename and set directory to project root
-        file_path, self.filename = os.path.split(file_name)
+        self.filename = os.path.basename(file_name)
 
     def map_json_to_control(self, control):
         """
@@ -35,9 +35,9 @@ class ProjectConfigJSONFile(QObject):
         """
 
         data = self.data
+        control = self._map_general_dict(data, control)
         control = self._map_campaign_dict(data, control)
         control = self._map_loggers_dict(data, control)
-        control = self._map_general_dict(data, control)
 
         return control
 
@@ -65,10 +65,10 @@ class ProjectConfigJSONFile(QObject):
 
         return tf
 
-    def _map_campaign_dict(self, data, control):
-        """Map the config campaign section to the control object."""
+    def _map_general_dict(self, data, control):
+        """Map the general settings section to the control object."""
 
-        key = "campaign"
+        key = "general"
         if key in data.keys():
             data = data[key]
         else:
@@ -88,7 +88,90 @@ class ProjectConfigJSONFile(QObject):
         control.project_path = self._get_key_value(
             section=key, data=data, key="project_location", attr=control.project_path
         )
-        control.config_file = self.filename
+        control.azure_account_name = self._get_key_value(
+            section=key,
+            data=data,
+            key="azure_account_name",
+            attr=control.azure_account_name,
+        )
+        control.azure_account_key = self._get_key_value(
+            section=key,
+            data=data,
+            key="azure_account_key",
+            attr=control.azure_account_key,
+        )
+        control.global_process_stats = self._get_key_value(
+            section=key,
+            data=data,
+            key="global_process_stats",
+            attr=control.global_process_stats,
+        )
+        control.global_process_spect = self._get_key_value(
+            section=key,
+            data=data,
+            key="global_process_spectral",
+            attr=control.global_process_spect,
+        )
+        control.stats_output_folder = self._get_key_value(
+            section=key, data=data, key="stats_folder", attr=control.stats_output_folder
+        )
+        control.spect_output_folder = self._get_key_value(
+            section=key,
+            data=data,
+            key="spectral_folder",
+            attr=control.spect_output_folder,
+        )
+        control.stats_to_h5 = self._get_key_value(
+            section=key, data=data, key="stats_to_h5", attr=control.stats_to_h5
+        )
+        control.stats_to_csv = self._get_key_value(
+            section=key, data=data, key="stats_to_csv", attr=control.stats_to_csv
+        )
+        control.stats_to_xlsx = self._get_key_value(
+            section=key, data=data, key="stats_to_xlsx", attr=control.stats_to_xlsx
+        )
+        control.spect_to_h5 = self._get_key_value(
+            section=key, data=data, key="spectral_to_h5", attr=control.spect_to_h5
+        )
+        control.spect_to_csv = self._get_key_value(
+            section=key, data=data, key="spectral_to_csv", attr=control.spect_to_csv
+        )
+        control.spect_to_xlsx = self._get_key_value(
+            section=key, data=data, key="spectral_to_xlsx", attr=control.spect_to_xlsx
+        )
+
+        return control
+
+    def _map_campaign_dict(self, data, control):
+        """DEPRECATED - TO REMOVE IN NEXT RELEASE
+        Map the config campaign section to the control object.
+        """
+
+        # TODO: Deprecated
+        key = "campaign"
+        if key in data.keys():
+            data = data[key]
+            msg = (
+                f"'{key}' key is deprecated in v1.1.0 and will be removed in a future update.\n"
+                f"Warning can be safely ignored for now.\n"
+                f"Save your project to update the config file to the new format."
+            )
+            self.signal_warning.emit(msg)
+        else:
+            return control
+
+        control.project_num = self._get_key_value(
+            section=key, data=data, key="project_number", attr=control.project_num
+        )
+        control.project_name = self._get_key_value(
+            section=key, data=data, key="project_name", attr=control.project_name
+        )
+        control.campaign_name = self._get_key_value(
+            section=key, data=data, key="campaign_name", attr=control.campaign_name
+        )
+        control.project_path = self._get_key_value(
+            section=key, data=data, key="project_location", attr=control.project_path
+        )
 
         return control
 
@@ -113,6 +196,10 @@ class ProjectConfigJSONFile(QObject):
             # Logger screening settings
             logger = self._map_logger_screening_settings(logger, dict_logger)
 
+            # Map Azure account settings (if any) to logger
+            logger.azure_account_name = control.azure_account_name
+            logger.azure_account_key = control.azure_account_key
+
             # Finally, assign logger to control object
             control.logger_ids.append(logger_id)
             control.logger_ids_upper.append(logger_id.upper())
@@ -123,17 +210,23 @@ class ProjectConfigJSONFile(QObject):
     def _map_logger_props(self, logger, dict_logger):
         """Retrieve logger properties from JSON dictionary and map to logger object."""
 
-        logger.file_format = self._get_key_value(
+        logger.data_on_azure = self._get_key_value(
             section=logger.logger_id,
             data=dict_logger,
-            key="file_format",
-            attr=logger.file_format,
+            key="data_on_azure",
+            attr=logger.data_on_azure,
         )
         logger.logger_path = self._get_key_value(
             section=logger.logger_id,
             data=dict_logger,
             key="logger_path",
             attr=logger.logger_path,
+        )
+        logger.file_format = self._get_key_value(
+            section=logger.logger_id,
+            data=dict_logger,
+            key="file_format",
+            attr=logger.file_format,
         )
         logger.file_timestamp_format = self._get_key_value(
             section=logger.logger_id,
@@ -307,11 +400,11 @@ class ProjectConfigJSONFile(QObject):
             key="stats_interval",
             attr=logger.stats_interval,
         )
-        logger.process_spectral = self._get_key_value(
+        logger.process_spect = self._get_key_value(
             section=logger.logger_id,
             data=dict_logger,
             key="process_spectral",
-            attr=logger.process_spectral,
+            attr=logger.process_spect,
         )
         logger.spect_interval = self._get_key_value(
             section=logger.logger_id,
@@ -320,47 +413,6 @@ class ProjectConfigJSONFile(QObject):
             attr=logger.spect_interval,
         )
         return logger
-
-    def _map_general_dict(self, data, control):
-        """Map the general settings section to the control object."""
-
-        key = "general"
-        if key in data.keys():
-            data = data[key]
-        else:
-            msg = f"'{key}' key not found in config file."
-            self.signal_warning.emit(msg)
-            return control
-
-        control.stats_output_folder = self._get_key_value(
-            section=key, data=data, key="stats_folder", attr=control.stats_output_folder
-        )
-        control.spect_output_folder = self._get_key_value(
-            section=key,
-            data=data,
-            key="spectral_folder",
-            attr=control.spect_output_folder,
-        )
-        control.stats_to_h5 = self._get_key_value(
-            section=key, data=data, key="stats_to_h5", attr=control.stats_to_h5
-        )
-        control.stats_to_csv = self._get_key_value(
-            section=key, data=data, key="stats_to_csv", attr=control.stats_to_csv
-        )
-        control.stats_to_xlsx = self._get_key_value(
-            section=key, data=data, key="stats_to_xlsx", attr=control.stats_to_xlsx
-        )
-        control.spect_to_h5 = self._get_key_value(
-            section=key, data=data, key="spectral_to_h5", attr=control.spect_to_h5
-        )
-        control.spect_to_csv = self._get_key_value(
-            section=key, data=data, key="spectral_to_csv", attr=control.spect_to_csv
-        )
-        control.spect_to_xlsx = self._get_key_value(
-            section=key, data=data, key="spectral_to_xlsx", attr=control.spect_to_xlsx
-        )
-
-        return control
 
     def _map_seascatter_dict(self, data, scatter):
         """Map the seascatter settings section to the transfer function object."""
@@ -441,20 +493,32 @@ class ProjectConfigJSONFile(QObject):
         if key in data.keys():
             return data[key]
         else:
-            msg = f"'{key}' key not found in config file for {section} dictionary."
+            msg = f"'{key}' key not found in config file under '{section}' dictionary."
             self.signal_warning.emit(msg)
             return attr
 
-    def add_campaign_settings(self, control):
-        """Add project and campaign details."""
+    def add_general_settings(self, control):
+        """Add general settings."""
 
         d = dict()
         d["project_number"] = control.project_num
         d["project_name"] = control.project_name
         d["campaign_name"] = control.campaign_name
         d["project_location"] = control.project_path
+        d["azure_account_name"] = control.azure_account_name
+        d["azure_account_key"] = control.azure_account_key
+        d["global_process_stats"] = control.global_process_stats
+        d["global_process_spectral"] = control.global_process_spect
+        d["stats_folder"] = control.stats_output_folder
+        d["spectral_folder"] = control.spect_output_folder
+        d["stats_to_h5"] = control.stats_to_h5
+        d["stats_to_csv"] = control.stats_to_csv
+        d["stats_to_xlsx"] = control.stats_to_xlsx
+        d["spectral_to_h5"] = control.spect_to_h5
+        d["spectral_to_csv"] = control.spect_to_csv
+        d["spectral_to_xlsx"] = control.spect_to_xlsx
 
-        self.data["campaign"] = d
+        self.data["general"] = d
 
     def add_loggers_settings(self, loggers):
         """Add properties of all loggers."""
@@ -475,21 +539,6 @@ class ProjectConfigJSONFile(QObject):
 
             # Add logger props dictionary to loggers dictionary
             self.data["loggers"][logger.logger_id] = dict_props
-
-    def add_general_settings(self, control):
-        """Add general settings."""
-
-        d = dict()
-        d["stats_folder"] = control.stats_output_folder
-        d["spectral_folder"] = control.spect_output_folder
-        d["stats_to_h5"] = control.stats_to_h5
-        d["stats_to_csv"] = control.stats_to_csv
-        d["stats_to_xlsx"] = control.stats_to_xlsx
-        d["spectral_to_h5"] = control.spect_to_h5
-        d["spectral_to_csv"] = control.spect_to_csv
-        d["spectral_to_xlsx"] = control.spect_to_xlsx
-
-        self.data["general"] = d
 
     def add_seascatter_settings(self, scatter):
         """Add seascatter settings."""
@@ -523,8 +572,9 @@ class ProjectConfigJSONFile(QObject):
     def _add_logger_props(logger, dict_props):
         """Add control object logger properties to JSON dictionary."""
 
-        dict_props["file_format"] = logger.file_format
+        dict_props["data_on_azure"] = logger.data_on_azure
         dict_props["logger_path"] = logger.logger_path
+        dict_props["file_format"] = logger.file_format
         dict_props["file_timestamp_format"] = logger.file_timestamp_format
         dict_props["data_timestamp_format"] = logger.timestamp_format
         dict_props["data_datetime_format"] = logger.datetime_format
@@ -578,7 +628,7 @@ class ProjectConfigJSONFile(QObject):
         dict_props["stats_interval"] = logger.stats_interval
 
         # Spectral settings group
-        dict_props["process_spectral"] = logger.process_spectral
+        dict_props["process_spectral"] = logger.process_spect
         dict_props["spectral_interval"] = logger.spect_interval
 
         return dict_props

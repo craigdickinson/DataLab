@@ -16,21 +16,17 @@ class StatsOutput(object):
     Methods to write statistics from LoggerStats to Excel.
     """
 
-    def __init__(self, output_dir):
+    def __init__(self, output_dir=""):
         """Create workbook object and delete initial worksheet (called Sheet)."""
 
-        # Path to save output
         self.output_dir = output_dir
         self.logger_id = ""
 
         # List to hold stats data for all logger channels
         self.stats = []
 
-        # Dictionary to hold statistics data frames
-        self.dict_stats = {}
-
         # Stats data frame for file export
-        self.df_stats = pd.DataFrame()
+        self.df_stats_export = pd.DataFrame()
 
         # Workbook object if writing stats to Excel
         self.wb = Workbook()
@@ -48,17 +44,17 @@ class StatsOutput(object):
         :param sample_end
         :param logger_stats: object
         :param logger_stats_filt: object
-        :return: None
+        :return: df_stats
         """
 
         # Store logger id
         self.logger_id = logger.logger_id
 
         # Reorder the unfiltered logger stats
-        unfiltered_stats = self._reorder_stats(logger_stats)
+        stats_unfilt = self._reorder_stats(logger_stats)
 
         # Reorder the filtered logger stats (if processed)
-        filtered_stats = self._reorder_stats(logger_stats_filt)
+        stats_filt = self._reorder_stats(logger_stats_filt)
 
         # Create headers
         channels = logger.channel_names
@@ -70,43 +66,45 @@ class StatsOutput(object):
         units_header = [x for unit in logger.channel_units for x in [unit] * 4]
 
         # If both unfiltered and filtered stats generated, join unfiltered and filtered stats columns
-        if unfiltered_stats and filtered_stats:
+        if stats_unfilt and stats_filt:
             # Join unfiltered and filtered stats arrays
-            self.stats = np.hstack((unfiltered_stats, filtered_stats))
+            self.stats = np.hstack((stats_unfilt, stats_filt))
 
             # Create headers containing unfiltered and filtered channels
             channels_header = channels_header_unfilt + channels_header_filt
             stats_header *= 2
             units_header *= 2
         # Filtered stats not generated
-        elif unfiltered_stats:
-            self.stats = unfiltered_stats
+        elif stats_unfilt:
+            self.stats = stats_unfilt
             channels_header = channels_header_unfilt
-        # unfiltered stats not generated
-        elif filtered_stats:
-            self.stats = filtered_stats
+        # Unfiltered stats not generated
+        elif stats_filt:
+            self.stats = stats_filt
             channels_header = channels_header_filt
+        # No stats exist - warn
+        else:
+            return pd.DataFrame()
 
         # Create pandas multi-index header
         header = self._create_header(channels_header, stats_header, units_header)
 
         # Create stats data frame for internal use
-        df = self._create_stats_dataframe(self.stats, sample_start, header)
+        df_stats = self._create_stats_dataframe(self.stats, sample_start, header)
 
         # Create an alternative stats data frame in a layout for writing to file (includes end timestamps column)
-        self.df_stats = self._create_export_stats_dataframe(
+        self.df_stats_export = self._create_export_stats_dataframe(
             self.stats, sample_start, sample_end, header
         )
 
         # If unfiltered and filtered processed reorder stats data frame columns to
         # preferred order of (channel, channel (filtered)) pairs
-        if unfiltered_stats and filtered_stats:
-            cols = self._reorder_columns(df)
-            df = df[cols]
-            self.df_stats = self.df_stats[["Start", "End"] + cols]
+        if stats_unfilt and stats_filt:
+            cols = self._reorder_columns(df_stats)
+            df_stats = df_stats[cols]
+            self.df_stats_export = self.df_stats_export[["Start", "End"] + cols]
 
-        # Add stats data frame to dictionary for internal use by the gui
-        self.dict_stats[self.logger_id] = df
+        return df_stats
 
     @staticmethod
     def _reorder_stats(logger_stats):
@@ -161,7 +159,7 @@ class StatsOutput(object):
     def _create_export_stats_dataframe(stats, sample_start, sample_end, header):
         """
         Create an alternative statistics data frame layout for exporting to file (csv/xlsx/hdf5).
-        The only difference is that the sample end timestamps column is include and a standard integer index is used.
+        The only difference is that the sample end timestamps column is included and a standard integer index is used.
         """
 
         # Add End time column, reset index and rename first column to Start
@@ -185,15 +183,18 @@ class StatsOutput(object):
 
         return new_cols
 
-    def write_to_hdf5(self):
+    def write_to_hdf5(self, mode="w"):
         """Write stats to HDF5 file."""
 
         # Create directory if does not exist
         self._ensure_dir_exists(self.output_dir)
 
+        filename = "Statistics.h5"
+        file_path = os.path.join(self.output_dir, filename)
         logger_id = replace_space_with_underscore(self.logger_id)
-        file_name = os.path.join(self.output_dir, "Statistics.h5")
-        self.df_stats.to_hdf(file_name, logger_id, mode="w")
+        self.df_stats_export.to_hdf(file_path, logger_id, mode=mode)
+
+        return filename
 
     def write_to_csv(self):
         """Write stats to csv file."""
@@ -202,17 +203,20 @@ class StatsOutput(object):
         self._ensure_dir_exists(self.output_dir)
 
         logger_id = replace_space_with_underscore(self.logger_id)
-        file_name = os.path.join(self.output_dir, "Statistics_" + logger_id + ".csv")
-        self.df_stats.to_csv(file_name, index=False)
+        filename = "Statistics_" + logger_id + ".csv"
+        file_path = os.path.join(self.output_dir, filename)
+        self.df_stats_export.to_csv(file_path, index=False)
+
+        return filename
 
     def write_to_excel(self):
         """Write stats from a logger_stats object to Excel workbook."""
 
         # Convert headers and values as lists
-        channels_header = self.df_stats.columns.unique(level=0).to_list()
-        stats_header = self.df_stats.columns.get_level_values(level=1).to_list()
-        units_header = self.df_stats.columns.get_level_values(level=2).to_list()
-        data = self.df_stats.values.tolist()
+        channels_header = self.df_stats_export.columns.unique(level=0).to_list()
+        stats_header = self.df_stats_export.columns.get_level_values(level=1).to_list()
+        units_header = self.df_stats_export.columns.get_level_values(level=2).to_list()
+        data = self.df_stats_export.values.tolist()
 
         # Reformat channels header so as not to have repeating channels
         channels = channels_header[2:]
@@ -221,6 +225,11 @@ class StatsOutput(object):
 
         # Create worksheet for logger
         logger_id = replace_space_with_underscore(self.logger_id)
+
+        # Worksheet name length limit is 31
+        if len(logger_id) > 31:
+            logger_id = logger_id[:31]
+
         ws = self.wb.create_sheet(title=logger_id)
 
         # Write headers
@@ -258,10 +267,13 @@ class StatsOutput(object):
             # Create directory if does not exist
             self._ensure_dir_exists(self.output_dir)
 
-            fname = "Statistics.xlsx"
-            self.wb.save(os.path.join(self.output_dir, fname))
+            filename = "Statistics.xlsx"
+            file_path = os.path.join(self.output_dir, filename)
+            self.wb.save(file_path)
+
+            return filename
         except:
-            print("\n\nFailed to save " + fname)
+            print("\n\nFailed to save " + filename)
 
 
 def replace_space_with_underscore(input_str):

@@ -43,10 +43,14 @@ class FatigueProcessingWidget(QtWidgets.QWidget):
 
     def init_ui(self):
         # WIDGETS
-        self.openWCFATFileButton = QtWidgets.QPushButton("Open 2HWCFAT Damage File")
+        self.openWCFATFileButton = QtWidgets.QPushButton("Open 2HWCFAT Damage File...")
         self.openWCFATFileButton.setToolTip("Open 2HWCFAT fatigue damage (.dmg) file")
-        self.openFATLASAFile = QtWidgets.QPushButton("Open 2HFATLASA Damage File")
-        self.openFATLASAFile.setToolTip("Open 2HFATLASA max fatigue damage (.csv) file")
+        self.openFATLASAFileButton = QtWidgets.QPushButton(
+            "Open 2HFATLASA Damage File..."
+        )
+        self.openFATLASAFileButton.setToolTip(
+            "Open 2HFATLASA max fatigue damage (.csv) file"
+        )
         self.fatigueLocsList = QtWidgets.QListWidget()
         self.fatigueLocsList.setFixedHeight(150)
         self.damLogScale = QtWidgets.QCheckBox("Fatigue damage log scale")
@@ -62,10 +66,10 @@ class FatigueProcessingWidget(QtWidgets.QWidget):
         # CONTAINERS
         # Setup container
         self.setupWidget = QtWidgets.QWidget()
-        self.setupWidget.setFixedWidth(180)
+        self.setupWidget.setFixedWidth(200)
         self.vboxSetup = QtWidgets.QVBoxLayout(self.setupWidget)
         self.vboxSetup.addWidget(self.openWCFATFileButton)
-        self.vboxSetup.addWidget(self.openFATLASAFile)
+        self.vboxSetup.addWidget(self.openFATLASAFileButton)
         self.vboxSetup.addWidget(QtWidgets.QLabel("Assessed Fatigue Locations"))
         self.vboxSetup.addWidget(self.fatigueLocsList)
         self.vboxSetup.addWidget(self.damLogScale)
@@ -83,11 +87,40 @@ class FatigueProcessingWidget(QtWidgets.QWidget):
         self.layout.addWidget(self.plotWidget, 0, 1)
 
     def connect_signals(self):
+        self.openWCFATFileButton.clicked.connect(self.on_open_wcfat_file_clicked)
+        self.openFATLASAFileButton.clicked.connect(self.on_open_fatlasa_file_clicked)
         self.fatigueLocsList.itemDoubleClicked.connect(
             self.on_fatigue_loc_double_clicked
         )
         self.damLogScale.stateChanged.connect(self.on_log_scale_changed)
         self.damRatePerEvent.stateChanged.connect(self.on_scale_damage_rate_changed)
+
+    def on_open_wcfat_file_clicked(self):
+        self.parent.open_wcfat_damage_file()
+
+    def on_open_fatlasa_file_clicked(self):
+        self.parent.open_fatlasa_damage_file()
+
+    def on_fatigue_loc_double_clicked(self):
+        self.plot_fatigue_damage()
+
+    def on_log_scale_changed(self):
+        if self.damLogScale.isChecked():
+            self.log_scale = True
+        else:
+            self.log_scale = False
+
+        self.plot_fatigue_damage()
+
+    def on_scale_damage_rate_changed(self):
+        if self.damRatePerEvent.isChecked():
+            self.df_dam = self.df_dam_per_event
+            self.period = f"{self.event_length} mins"
+        else:
+            self.df_dam = self.df_dam_per_yr
+            self.period = "year"
+
+        self.plot_fatigue_damage()
 
     def process_fatigue_damage_file(self, df_dam):
         # Backup original fatigue damage file
@@ -116,27 +149,6 @@ class FatigueProcessingWidget(QtWidgets.QWidget):
         self.fatigueLocsList.addItems(fatigue_locs)
         self.fatigueLocsList.setCurrentRow(0)
 
-    def on_fatigue_loc_double_clicked(self):
-        self.plot_fatigue_damage()
-
-    def on_log_scale_changed(self):
-        if self.damLogScale.isChecked():
-            self.log_scale = True
-        else:
-            self.log_scale = False
-
-        self.plot_fatigue_damage()
-
-    def on_scale_damage_rate_changed(self):
-        if self.damRatePerEvent.isChecked():
-            self.df_dam = self.df_dam_per_event
-            self.period = f"{self.event_length} mins"
-        else:
-            self.df_dam = self.df_dam_per_yr
-            self.period = "year"
-
-        self.plot_fatigue_damage()
-
     def get_event_length(self, df):
         """Return the duration in minutes of each processed fatigue event."""
 
@@ -161,6 +173,9 @@ class FatigueProcessingWidget(QtWidgets.QWidget):
             return df / factor
 
     def plot_fatigue_damage(self):
+        if self.fatigueLocsList.count() == 0:
+            return
+
         fat_loc = self.fatigueLocsList.currentItem().text()
 
         if self.log_scale is True:

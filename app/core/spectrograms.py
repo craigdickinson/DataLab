@@ -17,9 +17,13 @@ from app.core.signal_processing import calc_psd
 class Spectrogram(object):
     """Routines to read pandas data frames and construct spectrograms."""
 
-    def __init__(self, logger_id, output_dir):
+    def __init__(self, logger_id, output_dir=""):
         self.logger_id = logger_id
         self.output_dir = output_dir
+        self.output_folder = os.path.split(output_dir)[1]
+
+        # Use a list to store output files in case multiple output file formats are selected
+        self.output_files = []
 
         # Dictionary to hold spectrograms for each channel
         self.spectrograms = {}
@@ -70,9 +74,19 @@ class Spectrogram(object):
             if channel not in self.spectrograms:
                 self.spectrograms[channel] = psd[i]
             else:
-                self.spectrograms[channel] = np.row_stack(
-                    [self.spectrograms[channel], psd[i]]
-                )
+                try:
+                    self.spectrograms[channel] = np.row_stack(
+                        [self.spectrograms[channel], psd[i]]
+                    )
+                except:
+                    msg = (
+                        f"Error during spectrograms processing:\n\n"
+                        f"Length of sample is {df.shape[0]} which is less than the "
+                        f"expected length of 256 used per PSD ensemble. "
+                        f"Set a spectral sample length that does not result in such a "
+                        f"short sample data length when processing the tail of a file."
+                    )
+                    raise ValueError(msg)
 
     def add_timestamps(self, dates):
         """Store all sample start dates."""
@@ -115,10 +129,9 @@ class Spectrogram(object):
             if filtered is True:
                 key += "_filtered"
 
-            filename = f"Spectrograms_Data_{logger_id}_{channel}"
+            file_stem = f"Spectrograms_Data_{logger_id}_{channel}"
             if filtered is True:
-                filename += "_(filtered)"
-            file_path = os.path.join(self.output_dir, filename)
+                file_stem += "_(filtered)"
 
             # Create directory if does not exist
             if self.output_dir != "" and os.path.exists(self.output_dir) is False:
@@ -135,13 +148,27 @@ class Spectrogram(object):
 
             if dict_formats_to_write["h5"] is True:
                 # Note HDF5 files should use a contiguous key name
-                df.to_hdf(file_path + ".h5", key, mode="w")
+                filename = file_stem + ".h5"
+                file_path = os.path.join(self.output_dir, filename)
+                df.to_hdf(file_path, key, mode="w")
+                self.output_files.append(self.output_folder + "/" + filename)
             if dict_formats_to_write["csv"] is True:
-                df.to_csv(file_path + ".csv")
+                filename = file_stem + ".csv"
+                file_path = os.path.join(self.output_dir, filename)
+                df.to_csv(file_path)
+                self.output_files.append(self.output_folder + "/" + filename)
             if dict_formats_to_write["xlsx"] is True:
-                writer = pd.ExcelWriter(file_path + ".xlsx")
+                filename = file_stem + ".xlsx"
+                file_path = os.path.join(self.output_dir, filename)
+                writer = pd.ExcelWriter(file_path)
+
+                # Worksheet name length limit is 31
+                if len(key) > 31:
+                    key = key[:31]
+
                 df.to_excel(writer, sheet_name=key)
                 writer.save()
+                self.output_files.append(self.output_folder + "/" + filename)
 
         t1 = round(time() - t0)
         # print('Write hdf5 time = {}'.format(str(timedelta(seconds=t1))))

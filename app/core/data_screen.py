@@ -52,15 +52,17 @@ class DataScreen(object):
         self.header_row = 0
         self.skip_rows = []
         self.use_cols = []
+        self.channel_names = []
         self.unit_conv_factors = []
 
         # Apply bandpass signal filtering flag
         self.apply_filters = True
 
     def set_logger(self, logger):
-        """Set the logger filenames to be assessed and required read csv file properties."""
+        """Set the logger filenames to be assessed and required read file properties."""
 
         self.logger = logger
+        self.channel_names = logger.channel_names
 
         # Set full file path
         self.files = [
@@ -128,7 +130,10 @@ class DataScreen(object):
 
         # Create dummy data for missing columns
         for i in missing_cols:
-            df["Dummy" + str(i + 1)] = np.nan
+            df["Dummy " + str(i + 1)] = np.nan
+
+        # Replace column names with setup channel names (should only be different if user names supplied)
+        df.columns = ["Timestamp"] + self.channel_names
 
         # Convert first column (should be timestamps string) to datetimes (not required for Pulse-acc format)
         if self.logger.file_format != "Pulse-acc":
@@ -169,7 +174,8 @@ class DataScreen(object):
             # Calculate resolution for each channel
             self.res.append(self._resolution(df))
 
-    def _resolution(self, df):
+    @staticmethod
+    def _resolution(df):
         """
         Return smallest difference between rows of a data frame for each
         column. Assumes column names are not multi-indexed.
@@ -208,10 +214,10 @@ class DataScreen(object):
         Move the required rows from data to sample to make len(sample) = sample_length.
         :param df_sample: Current subset data frame of main logger file (initially empty)
         :param df: Current logger file data frame (sample data gets dropped)
-        :return: Updated sample data frame and logger file data frame with sample data dropped.
+        :param sample_length: Number of expected data points sample to have
+        :param type: stats or spectral string
+        :return: Updated sample data frame and logger file data frame with sample data dropped
         """
-
-        # TODO: Do units conversion here
 
         # Current number of points in sample
         ns = len(df_sample)
@@ -229,7 +235,7 @@ class DataScreen(object):
 
             # TODO: Allowing short sample length (revisit)
             # Store start and end times of sample data if data frame contains target length
-            # if len(sample_df) == sample_length:
+            # if len(df_sample) == sample_length:
             if len(df_sample) <= sample_length:
                 if type == "stats":
                     self.stats_sample_start.append(df_sample.iloc[0, 0])

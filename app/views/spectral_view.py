@@ -42,8 +42,8 @@ class SpectrogramWidget(QtWidgets.QWidget):
         self.nat_freqs = {}
         self.timestamps = []
         self.t = None
-        self.freqs = []
-        self.z = []
+        self.freqs = np.array([])
+        self.z = np.array([])
         self.zmin = 0
         self.zmax = 0
         self.ts_i = 0
@@ -72,20 +72,20 @@ class SpectrogramWidget(QtWidgets.QWidget):
 
     def _init_ui(self):
         # WIDGETS
-        self.openSpectButton = QtWidgets.QPushButton("Open Spectrograms")
+        self.openSpectButton = QtWidgets.QPushButton("Open Spectrograms...")
         self.openSpectButton.setToolTip(
             "Open logger spectrograms (*.h5;*.csv;*.xlsx) (F4)"
         )
         self.lbl = QtWidgets.QLabel("Loaded Datasets")
-        self.datasetList = QtWidgets.QListWidget()
-        self.datasetList.setFixedHeight(100)
+        self.datasetsList = QtWidgets.QListWidget()
+        self.datasetsList.setFixedHeight(100)
         self.datetimeEdit = QtWidgets.QDateTimeEdit()
         self.lbl2 = QtWidgets.QLabel("Timestamps (reversed)")
         self.timestampList = QtWidgets.QListWidget()
         self.slider = QtWidgets.QSlider()
         self.slider.setOrientation(QtCore.Qt.Vertical)
         self.slider.setValue(50)
-        self.openPlotSettingsButton = QtWidgets.QPushButton("Plot Settings")
+        self.openPlotSettingsButton = QtWidgets.QPushButton("Plot Settings...")
         self.calcNatFreqButton = QtWidgets.QPushButton("Estimate Nat. Freq.")
         self.clearDatasetsButton = QtWidgets.QPushButton("Clear Datasets")
 
@@ -119,7 +119,7 @@ class SpectrogramWidget(QtWidgets.QWidget):
         self.grid.addWidget(self.openSpectButton, 0, 0)
         self.grid.addWidget(self.clearDatasetsButton, 1, 0)
         self.grid.addWidget(self.lbl, 2, 0)
-        self.grid.addWidget(self.datasetList, 3, 0)
+        self.grid.addWidget(self.datasetsList, 3, 0)
         self.grid.addWidget(self.datetimeEdit, 4, 0)
         self.grid.addWidget(self.lbl2, 5, 0)
         self.grid.addWidget(self.timestampList, 6, 0)
@@ -143,7 +143,7 @@ class SpectrogramWidget(QtWidgets.QWidget):
         self.calcNatFreqButton.clicked.connect(self.on_calc_nat_freq_clicked)
         self.clearDatasetsButton.clicked.connect(self.on_clear_datasets_clicked)
         self.openPlotSettingsButton.clicked.connect(self.on_open_plot_settings_clicked)
-        self.datasetList.itemDoubleClicked.connect(self.on_dataset_double_clicked)
+        self.datasetsList.itemDoubleClicked.connect(self.on_dataset_double_clicked)
         self.timestampList.itemDoubleClicked.connect(
             self.on_timestamp_list_double_clicked
         )
@@ -175,7 +175,7 @@ class SpectrogramWidget(QtWidgets.QWidget):
         self.create_plots()
 
         # Check dataset key exists
-        dataset = self.datasetList.currentItem().text()
+        dataset = self.datasetsList.currentItem().text()
         if dataset in self.nat_freqs:
             mean_nat_freq = self.nat_freqs[dataset]
             self.natFreq.setText(
@@ -218,14 +218,14 @@ class SpectrogramWidget(QtWidgets.QWidget):
     def on_calc_nat_freq_clicked(self):
         """Estimate mean natural frequency for selected dataset."""
 
-        if self.datasetList.count() == 0:
+        if self.datasetsList.count() == 0:
             self.parent.error(
                 "No data currently plotted. Load a spectrogram file first."
             )
             return
 
         # self.parent.statusbar.showMessage('Calculating estimate natural frequency...')
-        dataset = self.datasetList.currentItem().text()
+        dataset = self.datasetsList.currentItem().text()
         df = self.datasets[dataset]
 
         # Get the frequency of the max PSD in the given frequency range for all events
@@ -251,7 +251,7 @@ class SpectrogramWidget(QtWidgets.QWidget):
         self.datasets = {}
         self.nat_freqs = {}
         self.timestamps = []
-        self.datasetList.clear()
+        self.datasetsList.clear()
         self.timestampList.clear()
         self.natFreq.setText("")
         self._draw_axes()
@@ -260,39 +260,28 @@ class SpectrogramWidget(QtWidgets.QWidget):
     def append_spect_to_datasets_list(self, dataset_id):
         """Add loaded spectrogram to datasets list."""
 
-        self.datasetList.addItem(dataset_id)
-        n = self.datasetList.count()
-        self.datasetList.setCurrentRow(n - 1)
-
-        # Get and plot data
-        try:
-            self.create_plots()
-        except Exception as e:
-            msg = "Unexpected error loading plotting spectrogram"
-            self.parent.error(f"{msg}:\n{e}\n{sys.exc_info()[0]}")
-            logging.exception(e)
+        self.datasetsList.addItem(dataset_id)
+        n = self.datasetsList.count()
+        self.datasetsList.setCurrentRow(n - 1)
 
     def append_multiple_spect_to_datasets_list(self, dataset_ids):
         """Add multiple spectrogram to datasets list."""
 
-        self.datasetList.addItems(dataset_ids)
-        self.datasetList.setCurrentRow(0)
-
-        # Get and plot data
-        try:
-            self.create_plots()
-        except Exception as e:
-            msg = "Unexpected error loading plotting spectrogram"
-            self.parent.error(f"{msg}:\n{e}\n{sys.exc_info()[0]}")
-            logging.exception(e)
+        self.datasetsList.addItems(dataset_ids)
+        self.datasetsList.setCurrentRow(0)
 
     def create_plots(self):
         """Create spectrograms plots dashboard."""
 
-        self._set_plot_data()
-        self._draw_axes()
-        self._plot_spectrogram()
-        self._plot_event_psd()
+        try:
+            self._set_plot_data()
+            self._draw_axes()
+            self._plot_spectrogram()
+            self._plot_event_psd()
+        except Exception as e:
+            msg = "Unexpected error loading plotting spectrogram"
+            self.parent.error(f"{msg}:\n{e}\n{sys.exc_info()[0]}")
+            logging.exception(e)
 
     def _set_datetime_edit(self, t):
         yr = t.year
@@ -307,12 +296,12 @@ class SpectrogramWidget(QtWidgets.QWidget):
         """Retrieve spectrogram dataset from list and extract relevant data."""
 
         # Get plot data
-        dataset = self.datasetList.currentItem().text()
+        dataset = self.datasetsList.currentItem().text()
         df = self.datasets[dataset]
 
         # Extract data
         self.timestamps = df.index
-        self.freqs = df.columns
+        self.freqs = df.columns.values
 
         if self.log_scale is True:
             self.z = np.log10(df.values)
@@ -321,7 +310,12 @@ class SpectrogramWidget(QtWidgets.QWidget):
 
         # Min/max amplitudes
         self.zmin = math.floor(self.z.min())
-        self.zmax = math.ceil(self.z.max())
+
+        # If amplitudes are < 1 don't integer round (need to plot on a smaller scale)
+        if self.z.max() < 1:
+            self.zmax = self.z.max()
+        else:
+            self.zmax = math.ceil(self.z.max())
 
         # Populate timestamps list
         self.timestampList.clear()
@@ -475,7 +469,7 @@ class SpectrogramWidget(QtWidgets.QWidget):
         if campaign_name == "":
             campaign_name = "Campaign Title"
 
-        dataset = self.datasetList.currentItem().text()
+        dataset = self.datasetsList.currentItem().text()
         title = f"{project_name} - {campaign_name}\n{dataset} Spectrogram"
         self.ax1.set_title(title, **title_args)
 
@@ -591,7 +585,7 @@ class SpectroPlotSettings(QtWidgets.QDialog):
             self.parent.log_scale = self.logScale.isChecked()
 
             # Check a spectrogram dataset has already been loaded
-            if self.parent.datasetList.count() > 0:
+            if self.parent.datasetsList.count() > 0:
                 self.parent.create_plots()
 
     def reset_values(self):

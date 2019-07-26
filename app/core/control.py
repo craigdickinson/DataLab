@@ -55,6 +55,14 @@ class Control(object):
         self.campaign_name = ""
         self.project_path = ""
 
+        # Global stats and spectral screening flags
+        self.global_process_stats = True
+        self.global_process_spect = True
+
+        # Azure account settings
+        self.azure_account_name = ""
+        self.azure_account_key = ""
+
         # Output folders and paths
         self.report_output_folder = "Screening Report"
         self.stats_output_folder = "Statistics"
@@ -90,7 +98,9 @@ class Control(object):
         self.control_file = filename
 
     def analyse(self):
-        """Read all data from control file"""
+        """DEPRECATED DAT ROUTINE - TO DELETE
+        Read all data from control file
+        """
 
         self.read_data_from_control_file()
         self.get_project_name()
@@ -145,7 +155,9 @@ class Control(object):
 
     @staticmethod
     def _ensure_dir_exists(directory):
-        """Create directory (and intermediate directories) if do not exist."""
+        """DEPRECATED DAT ROUTINE - TO DELETE
+        Create directory (and intermediate directories) if do not exist.
+        """
 
         if directory != "" and os.path.exists(directory) is False:
             os.makedirs(directory)
@@ -489,7 +501,8 @@ class Control(object):
         else:
             self.copy_stats_format(key, ref_logger_name, logger)
 
-    def detect_fugro_file_properties(self, logger, file):
+    @staticmethod
+    def detect_fugro_file_properties(logger, file):
         """
         For Fugro logger file detect:
             sampling frequency
