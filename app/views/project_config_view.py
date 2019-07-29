@@ -1387,7 +1387,14 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
         logger.datetime_format = get_datetime_format(logger.timestamp_format)
         logger.num_columns = int(self.numColumns.text())
         logger.freq = int(self.loggingFreq.text())
-        logger.duration = float(self.loggingDuration.text())
+
+        if float(self.loggingDuration.text()) < 0:
+            msg = "Logging duration must be positive."
+            QtWidgets.QMessageBox.information(
+                self, "Invalid Logging Duration Input", msg
+            )
+        else:
+            logger.duration = float(self.loggingDuration.text())
 
     def _detect_header(self):
         """Store all channel and units names from a test file, if present. Header info will then be set in the gui."""
@@ -1822,12 +1829,12 @@ class EditStatsAndSpectralDialog(QtWidgets.QDialog):
         self.statsFolder = QtWidgets.QLineEdit()
         self.statsFolder.setFixedWidth(210)
         self.statsInterval = QtWidgets.QLineEdit()
-        self.statsInterval.setFixedWidth(40)
+        self.statsInterval.setFixedWidth(50)
         self.statsInterval.setValidator(int_validator)
         self.spectFolder = QtWidgets.QLineEdit()
         self.spectFolder.setFixedWidth(210)
         self.spectInterval = QtWidgets.QLineEdit()
-        self.spectInterval.setFixedWidth(40)
+        self.spectInterval.setFixedWidth(50)
         self.spectInterval.setValidator(int_validator)
 
         # CONTAINERS
@@ -1962,9 +1969,15 @@ class EditStatsAndSpectralDialog(QtWidgets.QDialog):
     def on_ok_clicked(self):
         """Assign logger stats settings to the control object and update the dashboard."""
 
-        self._set_control_data()
-        if self.parent is not None:
-            self.parent.set_analysis_dashboard(self.logger)
+        try:
+            self._set_control_data()
+
+            if self.parent is not None:
+                self.parent.set_analysis_dashboard(self.logger)
+        except Exception as e:
+            msg = "Unexpected error assigning stats and spectral properties"
+            self.error(f"{msg}:\n{e}\n{sys.exc_info()[0]}")
+            logging.exception(e)
 
     def _set_control_data(self):
         """Assign values to the control object."""
@@ -2038,16 +2051,22 @@ class EditStatsAndSpectralDialog(QtWidgets.QDialog):
         logger.process_type = self.processType.currentText()
 
         # Stats settings group
-        if self.statsInterval.text() == "":
-            logger.stats_interval = 0
+        if (
+            self.statsInterval.text() == ""
+            or int(float(self.statsInterval.text())) == 0
+        ):
+            logger.stats_interval = int(logger.duration)
         else:
-            logger.stats_interval = int(self.statsInterval.text())
+            logger.stats_interval = int(float(self.statsInterval.text()))
 
         # Spectral settings group
-        if self.spectInterval.text() == "":
-            logger.spect_interval = 0
+        if (
+            self.spectInterval.text() == ""
+            or int(float(self.spectInterval.text())) == 0
+        ):
+            logger.spect_interval = int(logger.duration)
         else:
-            logger.spect_interval = int(self.spectInterval.text())
+            logger.spect_interval = int(float(self.spectInterval.text()))
 
         # Output folders - store as global control settings
         if self.parent is not None:

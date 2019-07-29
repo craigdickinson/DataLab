@@ -1,7 +1,7 @@
 __author__ = "Craig Dickinson"
 __program__ = "DataLab"
 __version__ = "1.1.0"
-__date__ = "26 July 2019"
+__date__ = "29 July 2019"
 
 import logging
 import os
@@ -484,19 +484,46 @@ class DataLab(DataLabGui):
 
         control = self.control
 
+        # Perform some input checks
         # Check project path exists
         if control.project_path == "":
-            self.warning("Cannot process: Project location not set")
+            self.warning("Cannot process: Project location not set.")
             return False
 
         # Check at least one logger exists
         if not control.loggers:
-            self.warning("Cannot process: No loggers exist in setup")
+            self.warning("Cannot process: No loggers exist in setup.")
             return False
 
-        # Get all raw data filenames for all loggers to be processed and perform some screening checks
         # Check all ids are unique
-        control.check_logger_ids(control.logger_ids)
+        control.check_logger_ids()
+
+        # Checking logging durations and sample lengths are positive
+        for logger in control.loggers:
+            if logger.duration <= 0:
+                self.warning(
+                    f"Cannot process: Logging duration for logger {logger.logger_id} is {logger.duration}.\n"
+                    f"Logging duration must be greater than zero."
+                )
+                return False
+
+            if control.global_process_stats is True and logger.process_stats is True:
+                if logger.stats_interval <= 0:
+                    self.warning(
+                        f"Cannot process: Statistics sample length for logger "
+                        f"{logger.logger_id} is {logger.stats_interval}.\n"
+                        f"Statistics sample length must be greater than zero."
+                    )
+                    return False
+
+            if control.global_process_spect is True and logger.process_spect is True:
+                if logger.spect_interval <= 0:
+                    self.warning(
+                        f"Cannot process: Spectral sample length for logger "
+                        f"{logger.logger_id} is {logger.spect_interval}.\n"
+                        f"Spectral sample length must be greater than zero."
+                    )
+                    return False
 
         # Set up output folders
         control.set_up_output_folders()
@@ -518,8 +545,8 @@ class DataLab(DataLabGui):
 
             # Get all channel names and units if not already stored in logger object
             if (
-                    len(logger.all_channel_names) == 0
-                    and len(logger.all_channel_units) == 0
+                len(logger.all_channel_names) == 0
+                and len(logger.all_channel_units) == 0
             ):
                 logger.get_all_channel_and_unit_names()
 
@@ -755,7 +782,7 @@ class ScreeningWorker(QtCore.QThread):
 
 
 if __name__ == "__main__":
-    # os.chdir(r"C:\Users\dickinsc\PycharmProjects\DataLab\demo_data\2. Project Configs")
+    os.chdir(r"C:\Users\dickinsc\PycharmProjects\DataLab\demo_data\2. Project Configs")
     app = QtWidgets.QApplication(sys.argv)
     # win = QtDesignerGui()
     win = DataLab()

@@ -165,13 +165,11 @@ class Screening(QThread):
                     logger_id=logger.logger_id,
                     output_dir=self.control.spect_output_path,
                 )
-                spect_unfilt.set_freq(n=spect_sample_length, T=logger.spect_interval)
 
                 spect_filt = Spectrogram(
                     logger_id=logger.logger_id,
                     output_dir=self.control.spect_output_path,
                 )
-                spect_filt.set_freq(n=spect_sample_length, T=logger.spect_interval)
 
             # Initialise sample pandas data frame for logger
             df_stats_sample = pd.DataFrame()

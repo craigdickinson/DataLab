@@ -163,16 +163,20 @@ class Control(object):
             os.makedirs(directory)
 
     def process_logger_names(self):
-        """Extract all logger names from control file and check for uniqueness."""
+        """DEPRECATED DAT ROUTINE - TO DELETE
+        Extract all logger names from control file and check for uniqueness.
+        """
 
         # Find lines in control file with *LOGGER_ID
         self.get_logger_ids()
 
         # Check all ids are unique
-        self.check_logger_ids(self.logger_ids)
+        self.check_logger_ids()
 
     def get_logger_ids(self):
-        """Get *LOGGER_ID line numbers from control data."""
+        """DEPRECATED DAT ROUTINE - TO DELETE
+        Get *LOGGER_ID line numbers from control data.
+        """
 
         i = 0
         j = 0
@@ -188,17 +192,17 @@ class Control(object):
 
         # Check at least one logger id was found
         if len(self.logger_id_lines) == 0:
-            msg = "No logger id found in control file"
+            msg = "No logger id found in control file."
             raise InputError(msg)
 
         # List of upper case logger IDs
         self.logger_ids_upper = [log_id.upper() for log_id in self.logger_ids]
 
-    def check_logger_ids(self, id_list):
+    def check_logger_ids(self):
         """Check for duplicate logger names."""
 
-        if len(id_list) != len(set(id_list)):
-            msg = "Duplicate logger ids detected"
+        if len(self.logger_ids) != len(set(self.logger_ids)):
+            msg = "Duplicate logger ids detected."
             raise InputError(msg)
 
     def add_loggers(self):
