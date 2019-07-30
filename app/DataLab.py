@@ -27,8 +27,8 @@ from app.core.read_files import read_wcfat_results
 from app.core.screening import Screening
 from app.views.main_window_view import DataLabGui
 from app.views.processing_progress_view import ProcessingProgressBar
-from app.views.stats_view import StatsDataset
 from app.views.project_config_view import AzureAccountSetupDialog
+from app.views.stats_view import StatsDataset
 
 
 # if hasattr(QtCore.Qt, 'AA_EnableHighDpiScaling'):
