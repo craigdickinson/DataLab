@@ -116,7 +116,6 @@ class LoggerProperties(QObject):
         self.raw_filenames = []
         self.files = []
         self.file_timestamps = []
-        self.dates = []
 
         # Dictionary of files with bad timestamps
         self.dict_bad_filenames = {}

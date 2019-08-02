@@ -3,8 +3,6 @@ Class to calculate and hold logger statistics.
 """
 __author__ = "Craig Dickinson"
 
-import numpy as np
-
 
 class LoggerStats(object):
     """Screen data from a list of filenames and store stats."""

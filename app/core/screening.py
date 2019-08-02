@@ -118,7 +118,7 @@ class Screening(QThread):
         h5_write_mode = "w"
         file_suffix = ""
 
-        # Scan loggers to get total # files, list of loggers anmes, files source (local or Azure)
+        # Scan loggers to get total # files, list of logger names, files source (local or Azure)
         # and flags for whether stats and spectrograms are to be processed
         for logger in loggers:
             total_files += len(logger.files)
@@ -214,7 +214,7 @@ class Screening(QThread):
                 df = data_screen[i].read_logger_file(file)
 
                 # Data munging/wrangling to prepare dataset for processing
-                df = data_screen[i].munge_data(df)
+                df = data_screen[i].munge_data(df, logger.file_timestamps[j])
 
                 # Data screening module
                 # Perform basic screening checks on file - check file has expected number of data points

@@ -279,7 +279,7 @@ class SpectrogramWidget(QtWidgets.QWidget):
             self._plot_spectrogram()
             self._plot_event_psd()
         except Exception as e:
-            msg = "Unexpected error loading plotting spectrogram"
+            msg = "Unexpected error plotting spectrogram"
             self.parent.error(f"{msg}:\n{e}\n{sys.exc_info()[0]}")
             logging.exception(e)
 
@@ -552,8 +552,8 @@ class SpectroPlotSettings(QtWidgets.QDialog):
         """Get plot parameters from the spectrogram widget and assign to settings widget."""
 
         self.optProject.setText(self.parent.project)
-        self.optFreqMin.setText(str(round(self.parent.ax1.get_xlim()[0], 1)))
-        self.optFreqMax.setText(str(round(self.parent.ax1.get_xlim()[1], 1)))
+        self.optFreqMin.setText(str(round(self.parent.ax1.get_xlim()[0], 3)))
+        self.optFreqMax.setText(str(round(self.parent.ax1.get_xlim()[1], 3)))
 
         if self.parent.log_scale is True:
             self.logScale.setChecked(True)
@@ -574,8 +574,8 @@ class SpectroPlotSettings(QtWidgets.QDialog):
             )
 
             # Now apply decimal formatting to plot settings
-            self.optFreqMin.setText(str(round(self.parent.xlim[0], 1)))
-            self.optFreqMax.setText(str(round(self.parent.xlim[1], 1)))
+            self.optFreqMin.setText(str(round(self.parent.xlim[0], 3)))
+            self.optFreqMax.setText(str(round(self.parent.xlim[1], 3)))
         except ValueError as e:
             # Notify error in main DataLab class
             val = str(e).split("'")[-2]

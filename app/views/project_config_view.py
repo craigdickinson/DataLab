@@ -713,9 +713,9 @@ class EditCampaignInfoDialog(QtWidgets.QDialog):
 
 
 class LoggerPropertiesTab(QtWidgets.QWidget):
-    """Widget tabs for logger properties and analyis settings."""
+    """Widget tabs for logger properties and analysis settings."""
 
-    delims_logger_to_gui = {",": "comma", " ": "space"}
+    delims_logger_to_gui = {",": "comma", " ": "space", "\t": "tab"}
 
     def __init__(self, parent=None, control=Control()):
         super(LoggerPropertiesTab, self).__init__(parent)
@@ -846,10 +846,10 @@ class LoggerPropertiesTab(QtWidgets.QWidget):
 
 
 class EditLoggerPropertiesDialog(QtWidgets.QDialog):
-    delims_gui_to_logger = {"comma": ",", "space": " "}
-    delims_logger_to_gui = {",": "comma", " ": "space", "": ""}
+    delims_gui_to_logger = {"comma": ",", "space": " ", "tab": "\t"}
+    delims_logger_to_gui = {",": "comma", " ": "space", "\t": "tab"}
     file_types = ["Fugro-csv", "Pulse-acc", "General-csv"]
-    delimiters = ["comma", "space"]
+    delimiters = ["comma", "space", "tab"]
 
     def __init__(self, parent=None, control=Control(), logger_idx=0):
         super(EditLoggerPropertiesDialog, self).__init__(parent)
@@ -952,7 +952,7 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
         self.numColumns.setValidator(int_validator)
         self.loggingFreq = QtWidgets.QLineEdit()
         self.loggingFreq.setFixedWidth(30)
-        self.loggingFreq.setValidator(int_validator)
+        self.loggingFreq.setValidator(dbl_validator)
         self.loggingDuration = QtWidgets.QLineEdit()
         self.loggingDuration.setFixedWidth(50)
         self.loggingDuration.setValidator(dbl_validator)
@@ -1386,7 +1386,7 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
         # Get datetime format string by converting user input timestamp format
         logger.datetime_format = get_datetime_format(logger.timestamp_format)
         logger.num_columns = int(self.numColumns.text())
-        logger.freq = int(self.loggingFreq.text())
+        logger.freq = float(self.loggingFreq.text())
 
         if float(self.loggingDuration.text()) < 0:
             msg = "Logging duration must be positive."

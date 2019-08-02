@@ -137,6 +137,13 @@ class Spectrogram(object):
             if self.output_dir != "" and os.path.exists(self.output_dir) is False:
                 os.makedirs(self.output_dir)
 
+            # Check shape of spect data is valid - if contains only one event need to reshape
+            try:
+                # Check second dimension exists
+                spect.shape[1]
+            except:
+                spect = spect.reshape(1, -1)
+
             # Create spectrogram data frame for channel and add to dictionary
             f = self.freq
             t = self.datetimes
