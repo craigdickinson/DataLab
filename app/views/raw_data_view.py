@@ -10,7 +10,12 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 
 # from gui.gui_zoom_pan_factory import ZoomPan
-from app.core.read_files import read_fugro_csv, read_logger_hdf5, read_pulse_acc
+from app.core.read_files import (
+    read_fugro_csv,
+    read_logger_hdf5,
+    read_pulse_acc,
+    read_mcdermott_txt,
+)
 from app.core.signal_processing import calc_psd, filter_signal
 
 # "2H blue"
@@ -244,6 +249,8 @@ class RawDataDashboard(QtWidgets.QWidget):
             df = read_pulse_acc(file)
         elif ext == "h5":
             df = read_logger_hdf5(file)
+        elif ext == "txt":
+            df = read_mcdermott_txt(file)
         else:
             raise FileNotFoundError(f"No files with the extension {ext} found.")
 
@@ -407,7 +414,8 @@ class RawDataDashboard(QtWidgets.QWidget):
         """Plot time series."""
 
         # Ignore timestamp column
-        df = df.select_dtypes("number")
+        # df = df.select_dtypes("number")
+        df = df.iloc[:, 1:]
 
         self.ax1.cla()
         self.ax1b.cla()
@@ -596,9 +604,13 @@ class RawDataDashboard(QtWidgets.QWidget):
         """Write main plot title."""
 
         # Store start and end timestamp of plot data for title
-        tstart = df.iloc[0, 0].strftime("%d %b %Y %H:%M:%S").lstrip("0")
-        tend = df.iloc[-1, 0].strftime("%d %b %Y %H:%M:%S")[-8:]
-        self.subtitle = f"{self.logger_id} Logger - {tstart} to {tend}"
+        try:
+            tstart = df.iloc[0, 0].strftime("%d %b %Y %H:%M:%S").lstrip("0")
+            tend = df.iloc[-1, 0].strftime("%d %b %Y %H:%M:%S")[-8:]
+            self.subtitle = f"{self.logger_id} Logger - {tstart} to {tend}"
+        except:
+            self.subtitle = f"{self.logger_id}"
+
         title = self.project + "\n" + self.subtitle
         fig.suptitle(
             title,
@@ -870,7 +882,7 @@ class LoggerPlotSettings(QtWidgets.QDialog):
         # Assign parent objects
         self.parent = parent
 
-        # List of pairs of window combo options and corresponding signal.welch argument
+        # Window combo options
         self.windows = ["None", "Hann", "Hamming", "Bartlett", "Blackman"]
 
         self._init_ui()

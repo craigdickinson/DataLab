@@ -281,7 +281,12 @@ class Screening(QThread):
                                 # Unfiltered data
                                 if logger.process_type != "Filtered only":
                                     # Calculate sample PSD and add to spectrogram array
-                                    spect_unfilt.add_data(df_spect_sample)
+                                    spect_unfilt.add_data(
+                                        df_spect_sample,
+                                        window=logger.psd_window,
+                                        nperseg=logger.psd_nperseg,
+                                        noverlap=logger.psd_overlap,
+                                    )
                                     spect_processed = True
 
                                 # Filtered data
@@ -293,7 +298,12 @@ class Screening(QThread):
                                         )
 
                                         # Calculate sample PSD and add to spectrogram array
-                                        spect_filt.add_data(df_filt)
+                                        spect_filt.add_data(
+                                            df_filt,
+                                            window=logger.psd_window,
+                                            nperseg=logger.psd_nperseg,
+                                            noverlap=logger.psd_overlap,
+                                        )
                                         spect_processed = True
 
                                 # Clear sample data frame so as ready for next sample set

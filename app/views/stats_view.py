@@ -162,6 +162,7 @@ class AxesPlotData:
             df = datasets[i].df
 
             # Column name in stats dataset
+            # TODO: Handle KeyError (McDermott: Std -> Slope)
             stat_col = dict_stats[stat]
 
             # Check for preferred stat label for legend

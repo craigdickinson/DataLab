@@ -270,11 +270,13 @@ class SpectrogramWidget(QtWidgets.QWidget):
         self.datasetsList.addItems(dataset_ids)
         self.datasetsList.setCurrentRow(0)
 
-    def create_plots(self):
+    def create_plots(self, set_init_xlim=False):
         """Create spectrograms plots dashboard."""
 
         try:
             self._set_plot_data()
+            if set_init_xlim is True:
+                self._set_init_xlim()
             self._draw_axes()
             self._plot_spectrogram()
             self._plot_event_psd()
@@ -282,6 +284,12 @@ class SpectrogramWidget(QtWidgets.QWidget):
             msg = "Unexpected error plotting spectrogram"
             self.parent.error(f"{msg}:\n{e}\n{sys.exc_info()[0]}")
             logging.exception(e)
+
+    def _set_init_xlim(self):
+        """Set spectrogram plot frequency limits on loading a file."""
+
+        self.xlim = (self.freqs.min(), self.freqs.max())
+        self.init_xlim = self.xlim
 
     def _set_datetime_edit(self, t):
         yr = t.year

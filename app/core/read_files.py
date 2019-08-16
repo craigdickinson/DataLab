@@ -97,6 +97,25 @@ def read_pulse_acc(filename):
     return df
 
 
+def read_mcdermott_txt(filename):
+    """Read McDermott txt file into pandas data frame. Index is time in seconds."""
+
+    header1 = ["Timestamp", "Yaw", "Offset East", "Offset North"]
+    header2 = ["", "deg", "m", "m"]
+    cols = pd.MultiIndex.from_arrays([header1, header2], names=["channels", "units"])
+
+    try:
+        df = pd.read_csv(filename, header=None, skiprows=10, sep="\t")
+        df = df.dropna(axis=1)
+        df.index = df.iloc[:, 0]
+        df.index.name = "Time (s)"
+        df.columns = cols
+    except:
+        raise FileNotFoundError(f"Could not load file {filename}. File not found.")
+
+    return df
+
+
 def read_pulse_acc_single_header_format(filename):
     """
     Read Pulse-acc file into pandas data in a format used for stats and spectral processing.
