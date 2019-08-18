@@ -1878,11 +1878,11 @@ class EditStatsAndSpectralDialog(QtWidgets.QDialog):
         self.psdNperseg.setValidator(int_validator)
         self.psdWindowCombo = QtWidgets.QComboBox()
         self.psdWindowCombo.setFixedWidth(70)
-        self.psdNperseg.setToolTip("PSD window function to apply.")
+        self.psdWindowCombo.setToolTip("PSD window function to apply.")
         self.psdWindowCombo.addItems(windows)
         self.psdOverlap = QtWidgets.QLineEdit()
         self.psdOverlap.setFixedWidth(50)
-        self.psdOverlap.setToolTip("Percentage of points to overlap per PSD segment.")
+        self.psdOverlap.setToolTip("Percentage of points to overlap each PSD segment.")
         self.psdOverlap.setValidator(dbl_validator)
 
         # CONTAINERS
