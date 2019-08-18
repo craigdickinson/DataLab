@@ -97,9 +97,10 @@ def read_pulse_acc(filename):
     return df
 
 
-def read_mcdermott_txt(filename):
+def read_logger_txt(filename):
     """Read McDermott txt file into pandas data frame. Index is time in seconds."""
 
+    # TODO: McDermott-specifc. Need to generalise
     header1 = ["Timestamp", "Yaw", "Offset East", "Offset North"]
     header2 = ["", "deg", "m", "m"]
     cols = pd.MultiIndex.from_arrays([header1, header2], names=["channels", "units"])

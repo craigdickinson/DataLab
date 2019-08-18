@@ -4,13 +4,12 @@ Class to create spectrograms.
 __author__ = "Craig Dickinson"
 
 import os
-from datetime import timedelta
 from time import time
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from scipy import signal
+
 from app.core.signal_processing import calc_psd
 
 
@@ -68,10 +67,13 @@ class Spectrogram(object):
         if window == "none":
             window = "boxcar"
 
+        # Calculate number of segment overlap points - set nperseg to length of sample if not provided
         if nperseg:
             noverlap = nperseg * noverlap // 100
+        else:
+            nperseg = len(df)
 
-        # self.freq, psd = calc_psd(data=df.iloc[:, 1:].T.values, fs=fs, window="hann")
+        # Calculate PSD using Welch method
         self.freq, psd = calc_psd(
             data=df.iloc[:, 1:].T.values,
             fs=fs,
@@ -93,7 +95,7 @@ class Spectrogram(object):
                     msg = (
                         f"Error during spectrograms processing:\n\n"
                         f"Length of sample is {df.shape[0]} which is less than the "
-                        f"expected length of 256 used per PSD ensemble. "
+                        f"expected length of {nperseg} used per PSD ensemble. "
                         f"Set a spectral sample length that does not result in such a "
                         f"short sample data length when processing the tail of a file."
                     )
@@ -105,7 +107,7 @@ class Spectrogram(object):
         self.datetimes = np.asarray(dates)
 
     def plot_spectrogram(self):
-        """Plot and save spectrograms"""
+        """Plot and save spectrograms."""
 
         f = self.freq
         t = self.datetimes

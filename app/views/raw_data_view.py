@@ -13,8 +13,8 @@ from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as Navigatio
 from app.core.read_files import (
     read_fugro_csv,
     read_logger_hdf5,
+    read_logger_txt,
     read_pulse_acc,
-    read_mcdermott_txt,
 )
 from app.core.signal_processing import calc_psd, filter_signal
 
@@ -250,7 +250,7 @@ class RawDataDashboard(QtWidgets.QWidget):
         elif ext == "h5":
             df = read_logger_hdf5(file)
         elif ext == "txt":
-            df = read_mcdermott_txt(file)
+            df = read_logger_txt(file)
         else:
             raise FileNotFoundError(f"No files with the extension {ext} found.")
 
@@ -510,7 +510,7 @@ class RawDataDashboard(QtWidgets.QWidget):
             self.ax2b.grid(True)
 
         # Calculate PSD of selected channels
-        f, pxx = self.calc_psd(df)
+        f, pxx = self.compute_psd(df)
 
         # Set x-axis as frequency or period based on plot options
         if self.plot_period:
@@ -561,7 +561,7 @@ class RawDataDashboard(QtWidgets.QWidget):
         self.ax2.margins(x=0, y=0)
         self.ax2b.margins(x=0, y=0)
 
-    def calc_psd(self, df):
+    def compute_psd(self, df):
         """Compute PSD of all channels using the Welch method."""
 
         # TODO: Unit test this!
@@ -576,10 +576,10 @@ class RawDataDashboard(QtWidgets.QWidget):
         try:
             # Note the default Welch parameters are equivalent to running
             # f, pxx = signal.welch(df.T, fs=fs)
-            # TODO: Make PSD calc a core script
             # f, pxx = signal.welch(
             #     df.T, fs=fs, window=window, nperseg=nperseg, noverlap=noverlap
             # )
+            # Calculate PSD using Welch method
             f, pxx = calc_psd(
                 data=df.T.values,
                 fs=fs,
