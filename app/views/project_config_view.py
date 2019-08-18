@@ -1539,7 +1539,7 @@ class StatsAndSpectralSettingsTab(QtWidgets.QWidget):
             QtWidgets.QLabel("Number of points per segment:"), self.psdNperseg
         )
         self.spectForm.addRow(QtWidgets.QLabel("Window:"), self.psdWindow)
-        self.spectForm.addRow(QtWidgets.QLabel("Window overlap (%):"), self.psdOverlap)
+        self.spectForm.addRow(QtWidgets.QLabel("Segment overlap (%):"), self.psdOverlap)
 
         # Stats output file formats group
         self.statsOutputGroup = QtWidgets.QGroupBox("Stats File Formats to Output")
@@ -1940,7 +1940,7 @@ class EditStatsAndSpectralDialog(QtWidgets.QDialog):
             QtWidgets.QLabel("Number of points per segment:"), self.psdNperseg
         )
         self.spectForm.addRow(QtWidgets.QLabel("Window:"), self.psdWindowCombo)
-        self.spectForm.addRow(QtWidgets.QLabel("Window overlap (%):"), self.psdOverlap)
+        self.spectForm.addRow(QtWidgets.QLabel("Segment overlap (%):"), self.psdOverlap)
 
         self.buttonBox = QtWidgets.QDialogButtonBox(
             QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel
