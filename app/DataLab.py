@@ -1,7 +1,7 @@
 __author__ = "Craig Dickinson"
 __program__ = "DataLab"
-__version__ = "1.1.0"
-__date__ = "29 July 2019"
+__version__ = "1.2.0"
+__date__ = "18 August 2019"
 
 import logging
 import os
@@ -141,7 +141,9 @@ class DataLab(DataLabGui):
         """Load raw logger time series file."""
 
         self.ts_file, _ = QtWidgets.QFileDialog.getOpenFileName(
-            self, caption="Open Logger File", filter="Logger Files (*.csv;*.acc;*.h5)"
+            self,
+            caption="Open Logger File",
+            filter="Logger Files (*.csv;*.acc;*.h5;*.txt)",
         )
 
         if self.ts_file:
@@ -258,7 +260,14 @@ class DataLab(DataLabGui):
             # Store spectrogram datasets and update plot tab
             self.spectrogramTab.datasets[dataset_id] = df
             self.spectrogramTab.append_spect_to_datasets_list(dataset_id)
-            self.spectrogramTab.create_plots()
+
+            # Create spectrogram plot
+            # Set plot x-limits to be min-max frequency
+            if len(self.spectrogramTab.datasets) == 1:
+                self.spectrogramTab.create_plots(set_init_xlim=True)
+            # Don't adjust plot x-limits if an existing dataset is already loaded
+            else:
+                self.spectrogramTab.create_plots(set_init_xlim=False)
 
             # Show dashboard
             self.view_tab_spectrogram()
@@ -628,7 +637,7 @@ class DataLab(DataLabGui):
             self.spectrogramTab.datasets = screening.dict_spectrograms
             dataset_ids = list(screening.dict_spectrograms.keys())
             self.spectrogramTab.append_multiple_spect_to_datasets_list(dataset_ids)
-            self.spectrogramTab.create_plots()
+            self.spectrogramTab.create_plots(set_init_xlim=True)
 
     def calc_seascatter(self):
         """Create seascatter diagram if vessel stats data is loaded."""

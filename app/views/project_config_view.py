@@ -282,6 +282,10 @@ class ConfigModule(QtWidgets.QWidget):
         # Map settings objects to associated child widget objects
         self._map_setup_objects_to_tabs()
 
+        # Reset global process check box states
+        self.statsScreenChkBox.setChecked(self.control.global_process_stats)
+        self.spectScreenChkBox.setChecked(self.control.global_process_spect)
+
         # Map settings objects to parent DataLab instance
         if self.parent is not None:
             self.parent.control = self.control
@@ -485,6 +489,10 @@ class ConfigModule(QtWidgets.QWidget):
 
         # Map the loaded settings objects to the associated tab widget objects
         self._map_setup_objects_to_tabs()
+
+        # Set global process check box states
+        self.statsScreenChkBox.setChecked(self.control.global_process_stats)
+        self.spectScreenChkBox.setChecked(self.control.global_process_spect)
 
         # Set campaign data to dashboard
         self.campaignTab.set_campaign_dashboard()
@@ -713,9 +721,9 @@ class EditCampaignInfoDialog(QtWidgets.QDialog):
 
 
 class LoggerPropertiesTab(QtWidgets.QWidget):
-    """Widget tabs for logger properties and analyis settings."""
+    """Widget tabs for logger properties and analysis settings."""
 
-    delims_logger_to_gui = {",": "comma", " ": "space"}
+    delims_logger_to_gui = {",": "comma", " ": "space", "\t": "tab"}
 
     def __init__(self, parent=None, control=Control()):
         super(LoggerPropertiesTab, self).__init__(parent)
@@ -846,10 +854,10 @@ class LoggerPropertiesTab(QtWidgets.QWidget):
 
 
 class EditLoggerPropertiesDialog(QtWidgets.QDialog):
-    delims_gui_to_logger = {"comma": ",", "space": " "}
-    delims_logger_to_gui = {",": "comma", " ": "space", "": ""}
+    delims_gui_to_logger = {"comma": ",", "space": " ", "tab": "\t"}
+    delims_logger_to_gui = {",": "comma", " ": "space", "\t": "tab"}
     file_types = ["Fugro-csv", "Pulse-acc", "General-csv"]
-    delimiters = ["comma", "space"]
+    delimiters = ["comma", "space", "tab"]
 
     def __init__(self, parent=None, control=Control(), logger_idx=0):
         super(EditLoggerPropertiesDialog, self).__init__(parent)
@@ -952,7 +960,7 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
         self.numColumns.setValidator(int_validator)
         self.loggingFreq = QtWidgets.QLineEdit()
         self.loggingFreq.setFixedWidth(30)
-        self.loggingFreq.setValidator(int_validator)
+        self.loggingFreq.setValidator(dbl_validator)
         self.loggingDuration = QtWidgets.QLineEdit()
         self.loggingDuration.setFixedWidth(50)
         self.loggingDuration.setValidator(dbl_validator)
@@ -1386,7 +1394,7 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
         # Get datetime format string by converting user input timestamp format
         logger.datetime_format = get_datetime_format(logger.timestamp_format)
         logger.num_columns = int(self.numColumns.text())
-        logger.freq = int(self.loggingFreq.text())
+        logger.freq = float(self.loggingFreq.text())
 
         if float(self.loggingDuration.text()) < 0:
             msg = "Logging duration must be positive."
@@ -1467,6 +1475,11 @@ class StatsAndSpectralSettingsTab(QtWidgets.QWidget):
         self.spectCSVChkBox = QtWidgets.QCheckBox(".csv")
         self.spectXLSXChkBox = QtWidgets.QCheckBox(".xlsx")
 
+        # PSD parameters
+        self.psdNperseg = QtWidgets.QLabel("-")
+        self.psdWindow = QtWidgets.QLabel("-")
+        self.psdOverlap = QtWidgets.QLabel("-")
+
         # CONTAINERS
         # Columns to process group
         self.colsGroup = QtWidgets.QGroupBox("Columns to Process Settings")
@@ -1522,6 +1535,11 @@ class StatsAndSpectralSettingsTab(QtWidgets.QWidget):
         self.spectForm.addRow(
             QtWidgets.QLabel("Sample length (s):"), self.spectInterval
         )
+        self.spectForm.addRow(
+            QtWidgets.QLabel("Number of points per segment:"), self.psdNperseg
+        )
+        self.spectForm.addRow(QtWidgets.QLabel("Window:"), self.psdWindow)
+        self.spectForm.addRow(QtWidgets.QLabel("Segment overlap (%):"), self.psdOverlap)
 
         # Stats output file formats group
         self.statsOutputGroup = QtWidgets.QGroupBox("Stats File Formats to Output")
@@ -1545,10 +1563,15 @@ class StatsAndSpectralSettingsTab(QtWidgets.QWidget):
         self.hboxStats.addWidget(self.statsGroup)
         self.hboxStats.addWidget(self.statsOutputGroup)
 
+        self.vboxSpect = QtWidgets.QVBoxLayout()
+        self.vboxSpect.addWidget(self.spectOutputGroup)
+        self.vboxSpect.addStretch()
+
         self.hboxSpect = QtWidgets.QHBoxLayout()
         self.hboxSpect.setAlignment(QtCore.Qt.AlignLeft)
         self.hboxSpect.addWidget(self.spectGroup)
-        self.hboxSpect.addWidget(self.spectOutputGroup)
+        # self.hboxSpect.addWidget(self.spectOutputGroup)
+        self.hboxSpect.addLayout(self.vboxSpect)
 
         self.vbox = QtWidgets.QVBoxLayout()
         self.vbox.addWidget(self.editButton, stretch=0, alignment=QtCore.Qt.AlignLeft)
@@ -1707,6 +1730,11 @@ class StatsAndSpectralSettingsTab(QtWidgets.QWidget):
         self.statsInterval.setText(str(logger.stats_interval))
         self.spectInterval.setText(str(logger.spect_interval))
 
+        # PSD parameters
+        self.psdNperseg.setText(str(logger.psd_nperseg))
+        self.psdWindow.setText(logger.psd_window)
+        self.psdOverlap.setText(f"{logger.psd_overlap:.1f}")
+
         # Output folders
         self.statsFolder.setText(self.parent.control.stats_output_folder)
         self.spectFolder.setText(self.parent.control.spect_output_folder)
@@ -1757,6 +1785,9 @@ class StatsAndSpectralSettingsTab(QtWidgets.QWidget):
         self.processType.setText("-")
         self.statsInterval.setText("-")
         self.spectInterval.setText("-")
+        self.psdNperseg.setText("-")
+        self.psdWindow.setText("-")
+        self.psdOverlap.setText("-")
         self.statsFolder.setText("Statistics")
         self.spectFolder.setText("Spectrograms")
 
@@ -1783,6 +1814,9 @@ class EditStatsAndSpectralDialog(QtWidgets.QDialog):
         int_validator = QtGui.QIntValidator()
         int_validator.setBottom(1)
         dbl_validator = QtGui.QDoubleValidator()
+
+        # Window combo options
+        windows = ["None", "Hann", "Hamming", "Bartlett", "Blackman"]
 
         # WIDGETS
         self.columns = QtWidgets.QLineEdit()
@@ -1837,6 +1871,20 @@ class EditStatsAndSpectralDialog(QtWidgets.QDialog):
         self.spectInterval.setFixedWidth(50)
         self.spectInterval.setValidator(int_validator)
 
+        # PSD parameters
+        self.psdNperseg = QtWidgets.QLineEdit()
+        self.psdNperseg.setFixedWidth(50)
+        self.psdNperseg.setToolTip("Number of points to use per PSD.")
+        self.psdNperseg.setValidator(int_validator)
+        self.psdWindowCombo = QtWidgets.QComboBox()
+        self.psdWindowCombo.setFixedWidth(70)
+        self.psdWindowCombo.setToolTip("PSD window function to apply.")
+        self.psdWindowCombo.addItems(windows)
+        self.psdOverlap = QtWidgets.QLineEdit()
+        self.psdOverlap.setFixedWidth(50)
+        self.psdOverlap.setToolTip("Percentage of points to overlap each PSD segment.")
+        self.psdOverlap.setValidator(dbl_validator)
+
         # CONTAINERS
         # Columns to process settings group
         self.colsGroup = QtWidgets.QGroupBox("Columns to Process Settings")
@@ -1888,6 +1936,11 @@ class EditStatsAndSpectralDialog(QtWidgets.QDialog):
         self.spectForm.addRow(
             QtWidgets.QLabel("Sample length (s):"), self.spectInterval
         )
+        self.spectForm.addRow(
+            QtWidgets.QLabel("Number of points per segment:"), self.psdNperseg
+        )
+        self.spectForm.addRow(QtWidgets.QLabel("Window:"), self.psdWindowCombo)
+        self.spectForm.addRow(QtWidgets.QLabel("Segment overlap (%):"), self.psdOverlap)
 
         self.buttonBox = QtWidgets.QDialogButtonBox(
             QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel
@@ -1960,6 +2013,11 @@ class EditStatsAndSpectralDialog(QtWidgets.QDialog):
         # Stats and spectral sample length
         self.statsInterval.setText(str(logger.stats_interval))
         self.spectInterval.setText(str(logger.spect_interval))
+
+        # PSD parameters
+        self.psdNperseg.setText(str(logger.psd_nperseg))
+        self.psdWindowCombo.setCurrentText(logger.psd_window)
+        self.psdOverlap.setText(f"{logger.psd_overlap:.1f}")
 
         # Folders - global control settings
         if self.parent is not None:
@@ -2067,6 +2125,24 @@ class EditStatsAndSpectralDialog(QtWidgets.QDialog):
             logger.spect_interval = int(logger.duration)
         else:
             logger.spect_interval = int(float(self.spectInterval.text()))
+
+        # PSD parameters
+        try:
+            logger.psd_nperseg = int(self.psdNperseg.text())
+
+            if logger.psd_nperseg == 0 or logger.psd_nperseg > int(
+                logger.spect_interval * logger.freq
+            ):
+                logger.psd_nperseg = int(logger.spect_interval * logger.freq)
+        except:
+            logger.psd_nperseg = int(logger.spect_interval * logger.freq)
+
+        logger.psd_window = self.psdWindowCombo.currentText()
+
+        try:
+            logger.psd_overlap = float(self.psdOverlap.text())
+        except:
+            logger.psd_overlap = 50
 
         # Output folders - store as global control settings
         if self.parent is not None:
@@ -2750,9 +2826,9 @@ if __name__ == "__main__":
     # win = CampaignInfoTab()
     # win = EditCampaignInfoDialog()
     # win = LoggerPropertiesTab()
-    win = EditLoggerPropertiesDialog()
+    # win = EditLoggerPropertiesDialog()
     # win = StatsAndSpectralSettingsTab()
-    # win = EditStatsAndSpectralDialog()
+    win = EditStatsAndSpectralDialog()
     # win = SeascatterTab()
     # win = EditSeascatterDialog()
     # win = TransferFunctionsTab()

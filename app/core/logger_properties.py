@@ -43,20 +43,21 @@ class LoggerProperties(QObject):
     def __init__(self, logger_id=""):
         super().__init__()
 
+        # LOGGER PROPERTIES
         # Name and location
         self.logger_id = logger_id  # *LOGGER_ID
         self.data_on_azure = False
         self.logger_path = ""  # *PATH
 
-        # Azure account access settings, container name and blobs (files) list
+        # Azure account access settings, container name and blobs list
         self.azure_account_name = ""
         self.azure_account_key = ""
         self.container_name = ""
         self.blobs = []
 
         # File format variables
-        self.file_format = ""  # *FILE_FORMAT
         self.file_timestamp_format = ""  # *FILE_TIMESTAMP
+        self.file_format = ""  # *FILE_FORMAT
         self.timestamp_format = ""  # *TIMESTAMP
 
         # Datetime format string to convert timestamp strings to datetimes, e.g. %d-%b-%Y %H:%M:%S.%f
@@ -73,10 +74,38 @@ class LoggerProperties(QObject):
         self.channel_header_row = 0  # *CHANNEL_HEADER
         self.units_header_row = 0  # *UNITS_HEADER
 
+        # Logging data properties
+        self.freq = 0  # *LOGGING_FREQUENCY
+        self.duration = 0  # *LOGGING_DURATION
+        self.expected_data_points = 0
+
         # Channel names and units lists
         self.all_channel_names = []
         self.all_channel_units = []
 
+        # List of raw filenames and of accepted files and file timestamps for each filename
+        self.raw_filenames = []
+        self.files = []
+        self.file_timestamps = []
+
+        # Dictionary of files with bad timestamps
+        self.dict_bad_filenames = {}
+
+        # Processing start and end dates
+        # These hold sampling dates and not the control file stats start/end dates (which may not be provided)
+        self.start_date = None
+        self.end_date = None
+
+        # File timestamp component start and end indexes
+        self.year_span = None
+        self.month_span = None
+        self.day_span = None
+        self.hour_span = None
+        self.min_span = None
+        self.sec_span = None
+        self.ms_span = None
+
+        # SCREENING PROPERTIES
         # Channel columns to process
         self.cols_to_process = []
 
@@ -95,50 +124,27 @@ class LoggerProperties(QObject):
         self.process_start = None  # *STATS_START
         self.process_end = None  # *STATS_END
 
+        # Data type to screen on (unfiltered only, filtered only, both unfiltered and filtered)
+        self.process_type = "Both unfiltered and filtered"
+
         # Cut-off frequencies for filtered screening analysis
         self.low_cutoff_freq = 0.05
         self.high_cutoff_freq = 0.5
-
-        # Data type to screen on (unfiltered only, filtered only, both unfiltered and filtered)
-        self.process_type = "Both unfiltered and filtered"
 
         # Logger stats and spectral processing flags
         self.process_stats = True
         self.process_spect = True
 
-        # Interval (in seconds) to process stats over
+        # Interval (in seconds) to process stats on
         self.stats_interval = 0  # *STATS_INTERVAL
 
-        # Interval (in seconds) to process stats over
+        # Interval (in seconds) to process spectral on
         self.spect_interval = 0
 
-        # List of raw filenames and of accepted file timestamps for each filename
-        self.raw_filenames = []
-        self.files = []
-        self.file_timestamps = []
-        self.dates = []
-
-        # Dictionary of files with bad timestamps
-        self.dict_bad_filenames = {}
-
-        # Recording properties
-        self.freq = 0  # *LOGGING_FREQUENCY
-        self.duration = 0  # *LOGGING_DURATION
-        self.expected_data_points = 0
-
-        # Processing start and end dates
-        # These hold sampling dates and not the control file stats start/end dates (which may not be provided)
-        self.start_date = None
-        self.end_date = None
-
-        # File timestamp component start and end indexes
-        self.year_span = None
-        self.month_span = None
-        self.day_span = None
-        self.hour_span = None
-        self.min_span = None
-        self.sec_span = None
-        self.ms_span = None
+        # Spectral screening - PSD parameters
+        self.psd_nperseg = 1000
+        self.psd_window = "Hann"
+        self.psd_overlap = 50
 
     def process_filenames(self):
         """Read all file timestamps and check that they conform to the specified format."""

@@ -4,6 +4,7 @@ Class to carry out screening checks on logger data.
 __author__ = "Craig Dickinson"
 
 import os.path
+from datetime import timedelta
 
 import numpy as np
 import pandas as pd
@@ -117,16 +118,27 @@ class DataScreen(object):
 
         return df
 
-    def munge_data(self, df):
+    def munge_data(self, df, timestamp=""):
         """Format the logger raw data so it is suitable for processing."""
+
+        # Copy to prevent SettingWithCopyWarning
+        df = df.copy()
+
+        if self.logger.file_format == "General-csv":
+            df = df.dropna(axis=1)
+
+            # Replace time column with timestamp
+            ts = df.iloc[:, 0].values
+            timestamps = [timestamp + timedelta(seconds=t) for t in ts]
+            df.iloc[:, 0] = timestamps
 
         # Check all requested columns exist in file
         n = len(df.columns)
         missing_cols = [x for x in self.use_cols if x >= n]
         valid_cols = [x for x in self.use_cols if x < n]
 
-        # Slice valid columns (copy to prevent SettingWithCopyWarning)
-        df = df.iloc[:, valid_cols].copy()
+        # Slice valid columns
+        df = df.iloc[:, valid_cols]
 
         # Create dummy data for missing columns
         for i in missing_cols:

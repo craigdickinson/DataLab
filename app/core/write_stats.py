@@ -63,6 +63,10 @@ class StatsOutput(object):
             x for chan in channels for x in [f"{chan} (filtered)"] * 4
         ]
         stats_header = ["min", "max", "mean", "std"] * len(channels)
+
+        # TODO: McDermott project hack - don't keep this!
+        # stats_header = ["min", "max", "mean", "E-N slope"] * len(channels)
+
         units_header = [x for unit in logger.channel_units for x in [unit] * 4]
 
         # If both unfiltered and filtered stats generated, join unfiltered and filtered stats columns

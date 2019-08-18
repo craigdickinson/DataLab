@@ -12,7 +12,8 @@ def detect_file_timestamp_format(filename):
     # Drop extension
     filename = os.path.splitext(filename)[0]
 
-    # Extract all numeric elements but only keep matches of even length - don't expect datetime items to be otherwise
+    # Extract all numeric elements but only keep matches of even length
+    # Don't expect any datetime elements to be of odd length
     pattern = re.compile(r"\d+")
     groups = [group for group in pattern.findall(filename) if len(group) % 2 == 0]
     matches = [

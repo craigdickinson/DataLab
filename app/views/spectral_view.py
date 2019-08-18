@@ -270,18 +270,26 @@ class SpectrogramWidget(QtWidgets.QWidget):
         self.datasetsList.addItems(dataset_ids)
         self.datasetsList.setCurrentRow(0)
 
-    def create_plots(self):
+    def create_plots(self, set_init_xlim=False):
         """Create spectrograms plots dashboard."""
 
         try:
             self._set_plot_data()
+            if set_init_xlim is True:
+                self._set_init_xlim()
             self._draw_axes()
             self._plot_spectrogram()
             self._plot_event_psd()
         except Exception as e:
-            msg = "Unexpected error loading plotting spectrogram"
+            msg = "Unexpected error plotting spectrogram"
             self.parent.error(f"{msg}:\n{e}\n{sys.exc_info()[0]}")
             logging.exception(e)
+
+    def _set_init_xlim(self):
+        """Set spectrogram plot frequency limits on loading a file."""
+
+        self.xlim = (self.freqs.min(), self.freqs.max())
+        self.init_xlim = self.xlim
 
     def _set_datetime_edit(self, t):
         yr = t.year
@@ -552,8 +560,8 @@ class SpectroPlotSettings(QtWidgets.QDialog):
         """Get plot parameters from the spectrogram widget and assign to settings widget."""
 
         self.optProject.setText(self.parent.project)
-        self.optFreqMin.setText(str(round(self.parent.ax1.get_xlim()[0], 1)))
-        self.optFreqMax.setText(str(round(self.parent.ax1.get_xlim()[1], 1)))
+        self.optFreqMin.setText(str(round(self.parent.ax1.get_xlim()[0], 3)))
+        self.optFreqMax.setText(str(round(self.parent.ax1.get_xlim()[1], 3)))
 
         if self.parent.log_scale is True:
             self.logScale.setChecked(True)
@@ -574,8 +582,8 @@ class SpectroPlotSettings(QtWidgets.QDialog):
             )
 
             # Now apply decimal formatting to plot settings
-            self.optFreqMin.setText(str(round(self.parent.xlim[0], 1)))
-            self.optFreqMax.setText(str(round(self.parent.xlim[1], 1)))
+            self.optFreqMin.setText(str(round(self.parent.xlim[0], 3)))
+            self.optFreqMax.setText(str(round(self.parent.xlim[1], 3)))
         except ValueError as e:
             # Notify error in main DataLab class
             val = str(e).split("'")[-2]

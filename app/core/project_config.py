@@ -412,6 +412,25 @@ class ProjectConfigJSONFile(QObject):
             key="spectral_interval",
             attr=logger.spect_interval,
         )
+        logger.psd_nperseg = self._get_key_value(
+            section=logger.logger_id,
+            data=dict_logger,
+            key="psd_num_points_per_segment",
+            attr=logger.psd_nperseg,
+        )
+        logger.psd_window = self._get_key_value(
+            section=logger.logger_id,
+            data=dict_logger,
+            key="psd_window",
+            attr=logger.psd_window,
+        )
+        logger.psd_overlap = self._get_key_value(
+            section=logger.logger_id,
+            data=dict_logger,
+            key="psd_overlap",
+            attr=logger.psd_overlap,
+        )
+
         return logger
 
     def _map_seascatter_dict(self, data, scatter):
@@ -630,6 +649,9 @@ class ProjectConfigJSONFile(QObject):
         # Spectral settings group
         dict_props["process_spectral"] = logger.process_spect
         dict_props["spectral_interval"] = logger.spect_interval
+        dict_props["psd_num_points_per_segment"] = logger.psd_nperseg
+        dict_props["psd_window"] = logger.psd_window
+        dict_props["psd_overlap"] = logger.psd_overlap
 
         return dict_props
 
@@ -644,6 +666,4 @@ class ProjectConfigJSONFile(QObject):
         # Save as JSON file
         # Prevent ascii characters in file. Indent gives nicer layout instead of one long line string
         with open(self.full_path, "w", encoding="utf-8") as f:
-            f.write(
-                json.dumps(self.data, indent=4, sort_keys=False, ensure_ascii=False)
-            )
+            json.dump(self.data, f, indent=4, sort_keys=False, ensure_ascii=False)

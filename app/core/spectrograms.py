@@ -4,13 +4,12 @@ Class to create spectrograms.
 __author__ = "Craig Dickinson"
 
 import os
-from datetime import timedelta
 from time import time
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from scipy import signal
+
 from app.core.signal_processing import calc_psd
 
 
@@ -46,7 +45,7 @@ class Spectrogram(object):
         d = T / n
         self.freq = np.fft.rfftfreq(n, d)
 
-    def add_data(self, df):
+    def add_data(self, df, window="none", nperseg=None, noverlap=None):
         """Calculate amplitude spectrum for each channel in sample data frame and store result in dictionary."""
 
         # Drop timestamp column
@@ -62,13 +61,27 @@ class Spectrogram(object):
         #     else:
         #         self.spectrograms[channel] = np.column_stack([self.spectrograms[channel], amps[i]])
 
-        # TODO: Create spectrograms with welch method with user settings
         fs = 1 / ((df.iloc[1, 0] - df.iloc[0, 0]).total_seconds())
-        # self.freq, psd = signal.welch(df.iloc[:, 1:], fs=fs, axis=0)
-        # self.freq, psd = signal.welch(df.iloc[:, 1:].T, fs=fs)
-        self.freq, psd = calc_psd(data=df.iloc[:, 1:].T.values, fs=fs, window="hann")
 
-        # TODO: We are not using any user defined headers here - replace channel names with user header when create df?
+        window = window.lower()
+        if window == "none":
+            window = "boxcar"
+
+        # Calculate number of segment overlap points - set nperseg to length of sample if not provided
+        if nperseg:
+            noverlap = nperseg * noverlap // 100
+        else:
+            nperseg = len(df)
+
+        # Calculate PSD using Welch method
+        self.freq, psd = calc_psd(
+            data=df.iloc[:, 1:].T.values,
+            fs=fs,
+            window=window,
+            nperseg=nperseg,
+            noverlap=noverlap,
+        )
+
         # Add 2d arrays to dictionary
         for i, channel in enumerate(channels):
             if channel not in self.spectrograms:
@@ -82,7 +95,7 @@ class Spectrogram(object):
                     msg = (
                         f"Error during spectrograms processing:\n\n"
                         f"Length of sample is {df.shape[0]} which is less than the "
-                        f"expected length of 256 used per PSD ensemble. "
+                        f"expected length of {nperseg} used per PSD ensemble. "
                         f"Set a spectral sample length that does not result in such a "
                         f"short sample data length when processing the tail of a file."
                     )
@@ -94,7 +107,7 @@ class Spectrogram(object):
         self.datetimes = np.asarray(dates)
 
     def plot_spectrogram(self):
-        """Plot and save spectrograms"""
+        """Plot and save spectrograms."""
 
         f = self.freq
         t = self.datetimes
@@ -136,6 +149,13 @@ class Spectrogram(object):
             # Create directory if does not exist
             if self.output_dir != "" and os.path.exists(self.output_dir) is False:
                 os.makedirs(self.output_dir)
+
+            # Check shape of spect data is valid - if contains only one event need to reshape
+            try:
+                # Check second dimension exists
+                spect.shape[1]
+            except:
+                spect = spect.reshape(1, -1)
 
             # Create spectrogram data frame for channel and add to dictionary
             f = self.freq
