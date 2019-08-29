@@ -63,7 +63,7 @@ def detect_fugro_logger_properties(logger):
 
     # Convert to sample frequency
     if sample_interval > 0:
-        logger.freq = int(1 / sample_interval)
+        logger.freq = float(1 / sample_interval)
     else:
         msg = f"Could not read sample interval for logger {logger.logger_id}\nFile: {test_filename}"
         raise Exception(msg)

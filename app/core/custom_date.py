@@ -6,12 +6,13 @@ import re
 # Dict of strings that may appear in datetime formats
 # Format assumes that mm is month, MM is minute
 replacements = {
-    "dd": "%d",
     "d": "%d",
-    "DD": "%d",
+    "dd": "%d",
     "D": "%d",
-    "mm": "%m",
+    "DD": "%d",
     "m": "%m",
+    "M": "%m",
+    "mm": "%m",
     "mmm": "%b",
     "MMM": "%b",
     "yyyy": "%Y",
@@ -23,12 +24,6 @@ replacements = {
     "MM": "%M",
     "ss": "%S",
     "SS": "%S",
-    "f": "%f",
-    "ff": "%f",
-    "fff": "%f",
-    "F": "%f",
-    "FF": "%f",
-    "FFF": "%f",
 }
 
 
@@ -74,34 +69,30 @@ def make_time_str(h, m, s, f):
 
 def get_datetime_format(timestamp_format_str):
     """
-    Convert a timestamp format string (as input by the user in the Fugro style) to datetime format string for parsing
-    dates to datetime objects in pandas.
+    Convert a Fugro-style timestamp format code to a datetime format string for parsing dates to datetime objects
+    in Pandas.
     Example 1: Timestamp format: dd-mmm-yyyy HH:MM:SS.FFF
                Datetime format:  %d-%b-%Y %H:%M:%S.%f
-    Example 2: Timestamp format: dd/mm/yyyy HH:MM:SS.FFF
-               Datetime format:  %d/%m/%Y %H:%M:%S.%f
-    :param timestamp_format_str: Fugro-style timestamps format string
+    Example 2: Timestamp format: dd/mm/yy HH:MM:SS.FFF
+               Datetime format:  %d/%m/%y %H:%M:%S.%f
+    :param timestamp_format_str: Fugro-style timestamp format code
     :return: Datetime format string
     """
 
-    # Get the datetime format string to parse dates to datetimes
-    datetime_format_str = user_date_to_date_format(timestamp_format_str)
+    # Replace timestamp format string with datetime codes specified in replacements dictionary
+    # The dict_repl function is called for each dictionary key
+    p = "|".join(r"\b" + r + r"\b" for r in replacements)
+    s = re.sub(pattern=p, repl=dict_repl, string=timestamp_format_str)
+
+    # Do a separate substitution for microseconds to handle arbitrary length of code "f" or "F" characters
+    datetime_format_str = re.sub(pattern="f+", repl="%f", string=s, flags=re.I)
+
     return datetime_format_str
-
-
-def user_date_to_date_format(timestamp_fmt_str, rep=replacements):
-    """
-    Replace timestamp format string with datetime specified in replacements dictionary.
-    The dict_repl function is called for each dictionary key.
-    """
-
-    pattern = "|".join(r"\b" + k + r"\b" for k in rep)
-    return re.sub(pattern, dict_repl, timestamp_fmt_str)
 
 
 def dict_repl(match):
     """
-    Return each replacements dictionary value to replace in format date string.
+    Return each replacements' dictionary value to replace in format date string.
     match.group() is each dictionary key.
     :param match: Regular expression match object
     :return: Replacement string

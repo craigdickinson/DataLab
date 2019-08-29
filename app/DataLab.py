@@ -1,7 +1,7 @@
 __author__ = "Craig Dickinson"
 __program__ = "DataLab"
-__version__ = "1.2.0"
-__date__ = "18 August 2019"
+__version__ = "1.3.1"
+__date__ = "29 August 2019"
 
 import logging
 import os
@@ -791,7 +791,7 @@ class ScreeningWorker(QtCore.QThread):
 
 
 if __name__ == "__main__":
-    # os.chdir(r"C:\Users\dickinsc\PycharmProjects\DataLab\demo_data\2. Project Configs")
+    os.chdir(r"C:\Users\dickinsc\PycharmProjects\DataLab\demo_data\2. Project Configs")
     app = QtWidgets.QApplication(sys.argv)
     # win = QtDesignerGui()
     win = DataLab()
