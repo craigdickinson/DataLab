@@ -1219,16 +1219,17 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
         if not path.exists():
             msg = "Logger path does not exist. Set a logger path first."
             return QtWidgets.QMessageBox.information(
-                self, "Detect Logger Properties", msg
+                self, "Detect File Timestamp Format", msg
             )
 
         raw_files = [f for f in Path(logger_path).iterdir() if f.is_file()]
-        # raw_files = [f for f in os.listdir(logger_path) if os.path.isfile(os.path.join(logger_path, f))]
-
-        if len(raw_files) == 0:
+        if not raw_files:
             msg = f"No files found in {logger_path}"
-            raise FileNotFoundError(msg)
+            return QtWidgets.QMessageBox.information(
+                self, "Detect File Timestamp Format", msg
+            )
 
+        # Attempt to decipher file timestamp format code (e.g. xxxxYYYYxmmDDxHHMM)
         test_filename = raw_files[0].name
         file_timestamp_format = detect_file_timestamp_format(test_filename)
 
@@ -1239,6 +1240,13 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
         test_logger.file_timestamp_format = file_timestamp_format
         test_logger.get_timestamp_span()
         test_logger.check_file_timestamps()
+
+        # Initialise with a failure message
+        msg = (
+            "File timestamp embedded in test file name:\n"
+            f"{test_filename} could not be detected.\n\n"
+            "File timestamp format code needs to be set manually."
+        )
 
         # Check file timestamp list is populated
         if test_logger.file_timestamps:
@@ -1265,17 +1273,10 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
                     f"{test_filename} is {test_timestamp}.\n\n"
                     "If this is not correct then the file timestamp format code needs manual correction."
                 )
-            # Fail message
-            else:
-                msg = (
-                    "File timestamp embedded in test file name:\n"
-                    f"{test_filename} could not be detected.\n\n"
-                    "File timestamp format code needs to be set manually."
-                )
 
-            QtWidgets.QMessageBox.information(
-                self, "Detect File Timestamp Format Test", msg
-            )
+        QtWidgets.QMessageBox.information(
+            self, "Detect File Timestamp Format Test", msg
+        )
 
         # Set format to dialog
         self.fileTimestampFormat.setText(file_timestamp_format)
@@ -2110,8 +2111,8 @@ class EditStatsAndSpectralDialog(QtWidgets.QDialog):
 
         # Stats settings group
         if (
-            self.statsInterval.text() == ""
-            or int(float(self.statsInterval.text())) == 0
+                self.statsInterval.text() == ""
+                or int(float(self.statsInterval.text())) == 0
         ):
             logger.stats_interval = int(logger.duration)
         else:
@@ -2119,8 +2120,8 @@ class EditStatsAndSpectralDialog(QtWidgets.QDialog):
 
         # Spectral settings group
         if (
-            self.spectInterval.text() == ""
-            or int(float(self.spectInterval.text())) == 0
+                self.spectInterval.text() == ""
+                or int(float(self.spectInterval.text())) == 0
         ):
             logger.spect_interval = int(logger.duration)
         else:
@@ -2131,7 +2132,7 @@ class EditStatsAndSpectralDialog(QtWidgets.QDialog):
             logger.psd_nperseg = int(self.psdNperseg.text())
 
             if logger.psd_nperseg == 0 or logger.psd_nperseg > int(
-                logger.spect_interval * logger.freq
+                    logger.spect_interval * logger.freq
             ):
                 logger.psd_nperseg = int(logger.spect_interval * logger.freq)
         except:

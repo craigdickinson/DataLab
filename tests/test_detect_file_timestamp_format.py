@@ -36,5 +36,17 @@ def test_detect_file_timestamp_format_5():
     assert timestamp_fmt == "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxYYYYxmmxDDxHHxMMxSS"
 
 
+def test_detect_file_timestamp_format_6():
+    filename = "case0000_2019_0101_0000.txt"
+    timestamp_fmt = detect_file_timestamp_format(filename)
+    assert timestamp_fmt == "xxxxxxxxxYYYYxmmDDxHHMM"
+
+
+def test_detect_file_timestamp_format_7():
+    filename = "FLJ_2019_0827_0000.csv"
+    timestamp_fmt = detect_file_timestamp_format(filename)
+    assert timestamp_fmt == "xxxxYYYYxmmDDxHHMM"
+
+
 if __name__ == "__main__":
     pytest.main()

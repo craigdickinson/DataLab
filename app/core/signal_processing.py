@@ -108,14 +108,14 @@ def filter_signal(df, low_cutoff=None, high_cutoff=None, retain_mean=True):
     cut_fft = fft.copy()
 
     # Apply freq cut-offs (bandpass filter)
-    if low_cutoff is not None:
+    if low_cutoff:
         #  Ignore the 0 Hz (DC) frequency so as to not remove signal mean
         if retain_mean is True:
             cut_fft[1:][f[1:] < low_cutoff] = 0
         else:
             cut_fft[f < low_cutoff] = 0
 
-    if high_cutoff is not None:
+    if high_cutoff:
         cut_fft[f > high_cutoff] = 0
 
     # ifft

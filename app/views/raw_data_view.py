@@ -1225,14 +1225,20 @@ class LoggerPlotSettings(QtWidgets.QDialog):
         """Get plot parameters from the time series widget and assign to settings widget."""
 
         self.optProject.setText(self.parent.project)
-        self.optTSXmin.setText(f"{self.parent.ax1.get_xlim()[0]:.1f}")
-        self.optTSXmax.setText(f"{self.parent.ax1.get_xlim()[1]:.1f}")
-        self.optPSDXmin.setText(f"{self.parent.ax2.get_xlim()[0]:.1f}")
-        self.optPSDXmax.setText(f"{self.parent.ax2.get_xlim()[1]:.1f}")
+        # self.optTSXmin.setText(f"{self.parent.ax1.get_xlim()[0]:.1f}")
+        # self.optTSXmax.setText(f"{self.parent.ax1.get_xlim()[1]:.1f}")
+        # self.optPSDXmin.setText(f"{self.parent.ax2.get_xlim()[0]:.1f}")
+        # self.optPSDXmax.setText(f"{self.parent.ax2.get_xlim()[1]:.1f}")
+        self.optTSXmin.setText(str(self.parent.ax1.get_xlim()[0]))
+        self.optTSXmax.setText(str(self.parent.ax1.get_xlim()[1]))
+        self.optPSDXmin.setText(str(self.parent.ax2.get_xlim()[0]))
+        self.optPSDXmax.setText(str(self.parent.ax2.get_xlim()[1]))
 
         # Freq cut-offs
-        self.lowCutoff.setText(f"{self.parent.low_cutoff:.2f}")
-        self.highCutoff.setText(f"{self.parent.high_cutoff:.2f}")
+        # self.lowCutoff.setText(f"{self.parent.low_cutoff:.2f}")
+        # self.highCutoff.setText(f"{self.parent.high_cutoff:.2f}")
+        self.lowCutoff.setText(str(self.parent.low_cutoff))
+        self.highCutoff.setText(str(self.parent.high_cutoff))
 
         if self.parent.plot_period is True:
             self.radioPeriod.setChecked(True)

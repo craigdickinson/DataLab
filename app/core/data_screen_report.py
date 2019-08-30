@@ -1,8 +1,7 @@
 """
-Created on 22 Sep 2016
-
-@author: bowdenc
+Class to create data screening report.
 """
+__author__ = "Craig Dickinson"
 
 from pathlib import Path
 

@@ -1,7 +1,7 @@
 __author__ = "Craig Dickinson"
 __program__ = "DataLab"
-__version__ = "1.3.1"
-__date__ = "29 August 2019"
+__version__ = "1.3.2"
+__date__ = "30 August 2019"
 
 import logging
 import os
@@ -29,13 +29,6 @@ from app.views.main_window_view import DataLabGui
 from app.views.processing_progress_view import ProcessingProgressBar
 from app.views.project_config_view import AzureAccountSetupDialog
 from app.views.stats_view import StatsDataset
-
-
-# if hasattr(QtCore.Qt, 'AA_EnableHighDpiScaling'):
-#     QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling, True)
-#
-# if hasattr(QtCore.Qt, 'AA_UseHighDpiPixmaps'):
-#     QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_UseHighDpiPixmaps, True)
 
 
 class DataLab(DataLabGui):
