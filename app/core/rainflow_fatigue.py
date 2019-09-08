@@ -6,7 +6,7 @@ __author__ = "Craig Dickinson"
 import numpy as np
 
 
-def condense_peaks(y):
+def reversals(y):
     """Return time series peaks."""
 
     y = np.asarray(y)
@@ -18,16 +18,16 @@ def condense_peaks(y):
     d2y = np.insert(d2y, -1, 1)
 
     peaks = y[d2y == 1]
-    indexes = np.nonzero(d2y == 1)
-    num_peaks = len(peaks)
+    # indexes = np.nonzero(d2y == 1)
 
-    return peaks, num_peaks
+    return peaks
 
 
-def count_cycles(peaks, num_peaks):
+def extract_cycles(peaks):
     """Rainflow counting algorithm from ASTM E 1049-85."""
 
-    cycles_range = np.zeros((num_peaks, 3))
+    num_peaks = len(peaks)
+    cycles_array = np.zeros((num_peaks, 3))
     cycl_count = -1
     points = []
 
@@ -43,51 +43,48 @@ def count_cycles(peaks, num_peaks):
 
             mean_stress = np.mean(points[-3:-1])
 
+            # Half cycle
             if len(points) == 3:
                 points.pop(0)
-
-                # if Y >= 0:
                 cycl_count += 1
-                cycles_range[cycl_count, 0] = Y
-                cycles_range[cycl_count, 1] = 0.5
-                cycles_range[cycl_count, 2] = mean_stress
+                cycles_array[cycl_count, 0] = Y
+                cycles_array[cycl_count, 1] = 0.5
+                cycles_array[cycl_count, 2] = mean_stress
                 break
+            # Full cycle
             else:
                 points[-3] = points[-1]
                 points.pop()
                 points.pop()
-
-                # if Y >= 0:
                 cycl_count += 1
-                cycles_range[cycl_count, 0] = Y
-                cycles_range[cycl_count, 1] = 1
-                cycles_range[cycl_count, 2] = mean_stress
+                cycles_array[cycl_count, 0] = Y
+                cycles_array[cycl_count, 1] = 1
+                cycles_array[cycl_count, 2] = mean_stress
 
+    # Count remaining half cycles
     while len(points) > 1:
         Y = abs(points[1] - points[0])
         mean_stress = np.mean(points[:2])
         points.pop(0)
-
-        # if Y >= 0:
         cycl_count += 1
-        cycles_range[cycl_count, 0] = Y
-        cycles_range[cycl_count, 1] = 0.5
-        cycles_range[cycl_count, 2] = mean_stress
+        cycles_array[cycl_count, 0] = Y
+        cycles_array[cycl_count, 1] = 0.5
+        cycles_array[cycl_count, 2] = mean_stress
 
-    cycles_range = np.delete(cycles_range, np.s_[cycl_count + 1 :], axis=0)
+    cycles_array = np.delete(cycles_array, np.s_[cycl_count + 1:], axis=0)
 
-    return cycles_range
+    return cycles_array
 
 
 def bin_ranges(cycles, bin_size=1):
-    """Group stress ranges into bins of size input."""
+    """Group stress ranges into bins of given size input."""
 
     bin_locs = np.ceil(cycles[:, 0] / bin_size).astype(int)
     unique_bins = np.unique(bin_locs)
     stress_ranges = unique_bins * bin_size
-    stress_cycles = [
+    stress_cycles = np.array([
         cycles[bin_locs == unique_bin, 1].sum() for unique_bin in unique_bins
-    ]
+    ])
 
     return stress_ranges, stress_cycles
 
@@ -124,8 +121,7 @@ def calc_transition_stress(a, n_trans, k):
 
 if __name__ == "__main__":
     # S-N curve parameters
-    SN = []
-    SN.append({})
+    SN = [{}]
     SN[0]["a"] = 4.3072e11
     SN[0]["k"] = 3
     SN[0]["trans"] = 1e7
@@ -140,12 +136,23 @@ if __name__ == "__main__":
     # x = np.arange(10)
     # y = np.sin(x)
     y = [1, 5, 2, 1, 3, 1]
-    peaks, n = condense_peaks(y)
+    peaks = reversals(y)
     print(peaks)
-    cycles_range = count_cycles(peaks, n)
-    print(cycles_range)
-    stress_ranges, stress_cycles = bin_ranges(cycles_range)
-    print(stress_ranges)
-    print(stress_cycles)
+    cycles_array = extract_cycles(peaks)
+    print(cycles_array)
+
+    # Fatigue damage of actual stress ranges
+    stress_ranges = cycles_array[:, 0]
+    stress_cycles = cycles_array[:, 1]
+    print(f"Stress ranges = {stress_ranges}")
+    print(f"Stress cycles = {stress_cycles}")
+    fd = calc_damage(stress_ranges, stress_cycles, SN)
+    print(fd)
+
+    # Fatigue damage of binned stress ranges
+    stress_ranges, stress_cycles = bin_ranges(cycles_array, bin_size=4)
+    # stress_ranges, stress_cycles = bin_ranges(cycles_array, bin_size=1)
+    print(f"Stress ranges = {stress_ranges}")
+    print(f"Stress cycles = {stress_cycles}")
     fd = calc_damage(stress_ranges, stress_cycles, SN)
     print(fd)

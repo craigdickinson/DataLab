@@ -5,13 +5,13 @@ import pytest
 import numpy as np
 from numpy.testing import assert_allclose
 
-from core.rainflow_fatigue import condense_peaks, count_cycles, bin_ranges, calc_damage
+from core.rainflow_fatigue import reversals, extract_cycles, bin_ranges, calc_damage
 import rainflow
 
 
 def test_condense_peaks():
     y = [1, 5, 2, 1, 3, 1]
-    p, n = condense_peaks(y)
+    p = reversals(y)
 
     res = [1, 5, 1, 3, 1]
     assert_allclose(p, res)
@@ -19,8 +19,8 @@ def test_condense_peaks():
 
 def test_count_cycles():
     y = [1, 5, 2, 1, 3, 1]
-    p, n = condense_peaks(y)
-    cycles = count_cycles(p, n)
+    p = reversals(y)
+    cycles = extract_cycles(p)
 
     # range; cycles; mean stress
     res = [[4, 0.5, 3], [2, 1, 2], [4, 0.5, 3]]
@@ -29,8 +29,8 @@ def test_count_cycles():
 
 def test_bin_ranges_1():
     y = [1, 5, 2, 1, 3, 1]
-    p, n = condense_peaks(y)
-    cycles = count_cycles(p, n)
+    p = reversals(y)
+    cycles = extract_cycles(p)
 
     stress_ranges, stress_cycles = bin_ranges(cycles, bin_size=3)
     assert_allclose(stress_ranges, [3, 6])
@@ -45,8 +45,8 @@ def test_bin_ranges_2():
     """Test against rainflow package."""
 
     y = [1, 5, 2, 1, 3, 1]
-    p, n = condense_peaks(y)
-    cycles = count_cycles(p, n)
+    p = reversals(y)
+    cycles = extract_cycles(p)
     stress_ranges, stress_cycles = bin_ranges(cycles)
 
     # Using rainflow package
@@ -73,8 +73,8 @@ def test_calc_damage():
     SN[1]["SCF"] = 1.25
 
     y = np.array([1, 5, 2, 1, 3, 1])
-    p, n = condense_peaks(y)
-    cycles = count_cycles(p, n)
+    p = reversals(y)
+    cycles = extract_cycles(p)
     stress_ranges, stress_cycles = bin_ranges(cycles, bin_size=1)
     fd = calc_damage(stress_ranges, stress_cycles, SN)
     assert float(f'{fd:.6}') == 4.40185e-10

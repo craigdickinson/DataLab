@@ -7,7 +7,7 @@ import pandas as pd
 
 
 def read_fugro_csv(filename):
-    """Read Fugro-csv file into pandas data frame. Index is time in seconds."""
+    """Raw data module: Read Fugro-csv file into pandas data frame. Index is time steps."""
 
     try:
         df = pd.read_csv(filename, header=[1, 2], index_col=0, encoding="latin")
@@ -32,11 +32,18 @@ def read_fugro_csv(filename):
     return df
 
 
-def read_pulse_acc(filename):
+def read_pulse_acc(filename, multi_header=True):
     """
-    Read Pulse-acc file into pandas data in a format used for the raw data module.
-    Header is channel names and units as a multi-index header.
-    Index is time in seconds.
+    Read Pulse-acc file into pandas data frame.
+    multi_header==True for raw data module:
+        Header is channel names and units as a multi-index header;
+        Index is time steps.
+    multi_header==False for screening module:
+        Header is channel names only (units are omitted);
+        Index is range index (note time steps column is replaced by timestamps).
+    :param filename: *.acc file
+    :param multi_header: If true header is a two-row multi-index, otherwise is a single row
+    :return: df
     """
 
     data = []
@@ -51,9 +58,17 @@ def read_pulse_acc(filename):
         header = next(accreader)
         next(accreader)
 
-        # Read the start timestamp marker
+        # Read the start timestamp marker and get start datetime
         ts_marker = next(accreader)[1:]
         ts_marker = list(map(int, ts_marker))
+        dt_start = datetime(
+            ts_marker[5],
+            ts_marker[4],
+            ts_marker[3],
+            ts_marker[2],
+            ts_marker[1],
+            ts_marker[0],
+        )
 
         # Read main data
         for line in accreader:
@@ -66,39 +81,37 @@ def read_pulse_acc(filename):
     # Drop "%Data," from the first column
     header[0] = header[0].split(",")[1]
 
-    # Create multi-index header of channel names and units
-    channels = [col.split("(")[0].strip() for col in header]
-    units = [col.split("(")[1][:-1] for col in header]
-    header = list(zip(channels, units))
-    header.insert(0, ("Timestamp", ""))
-    header = pd.MultiIndex.from_tuples(header, names=["channels", "units"])
-
-    # Create data frame
+    # Create data frame and timestamps using start timestamp marker and time steps column
     df = pd.DataFrame(data, dtype="float")
-    df = df.set_index(df.columns[0])
-    df.index.name = "Time (s)"
-
-    # Create timestamp column using start timestamp marker and time steps column
-    ts = df.index.values
-    dt_start = datetime(
-        ts_marker[5],
-        ts_marker[4],
-        ts_marker[3],
-        ts_marker[2],
-        ts_marker[1],
-        ts_marker[0],
-    )
+    ts = df.iloc[:, 0].values
     timestamps = [dt_start + timedelta(seconds=t) for t in ts]
-    df.insert(loc=0, column="Timestamp", value=timestamps)
 
-    # Assign columns header
+    # For raw data module
+    if multi_header is True:
+        # Create multi-index header of channel names and units and time steps index
+        channels = [col.split("(")[0].strip() for col in header]
+        units = [col.split("(")[1][:-1] for col in header]
+        header = list(zip(channels, units))
+        header.insert(0, ("Timestamp", ""))
+        header = pd.MultiIndex.from_tuples(header, names=["channels", "units"])
+        df = df.set_index(df.columns[0])
+        df.index.name = "Time (s)"
+        df.insert(loc=0, column="Timestamp", value=timestamps)
+    # For screening module
+    else:
+        # Create single row header of only channel names (i.e. strip out the units)
+        # Replace time steps column with timestamps and use range index
+        header = ["Timestamp"] + [col.split("(")[0].strip() for col in header]
+        df.iloc[:, 0] = timestamps
+
+    # Set desired header (single or multi-index)
     df.columns = header
 
     return df
 
 
 def read_logger_txt(filename):
-    """Read McDermott txt file into pandas data frame. Index is time in seconds."""
+    """Raw data module: Rermott txt file into pandas data frame. Index is time steps."""
 
     # TODO: McDermott-specifc. Need to generalise
     header1 = ["Timestamp", "Yaw", "Offset East", "Offset North"]
@@ -113,64 +126,6 @@ def read_logger_txt(filename):
         df.columns = cols
     except:
         raise FileNotFoundError(f"Could not load file {filename}. File not found.")
-
-    return df
-
-
-def read_pulse_acc_single_header_format(filename):
-    """
-    Read Pulse-acc file into pandas data in a format used for stats and spectral processing.
-    Header is channel names and units combined.
-    Index is standard integer indexing (note time steps columns is not included).
-    """
-
-    data = []
-    with open(filename, "r") as f:
-        accreader = csv.reader(f, delimiter=" ")
-
-        # Skip file info headers
-        for i in range(17):
-            next(accreader)
-
-        # Read columns header
-        header = next(accreader)
-        next(accreader)
-
-        # Read the start timestamp marker
-        ts_marker = next(accreader)[1:]
-        ts_marker = list(map(int, ts_marker))
-
-        # Read main data
-        for line in accreader:
-            line = line[:-1]
-            data.append(line)
-
-    # Convert column names list to be split by ":" not space
-    header = " ".join(header).split(":")
-
-    # Drop "%Data," from the first column and create columns header
-    header[0] = header[0].split(",")[1]
-
-    # Create header of only channel names (i.e. strip out the units)
-    header = ["Timestamp"] + [col.split("(")[0].strip() for col in header]
-
-    # Create data frame
-    df = pd.DataFrame(data, columns=header, dtype="float")
-
-    # Create timestamp column using start timestamp marker and time steps column
-    ts = df.iloc[:, 0].values
-    dt_start = datetime(
-        ts_marker[5],
-        ts_marker[4],
-        ts_marker[3],
-        ts_marker[2],
-        ts_marker[1],
-        ts_marker[0],
-    )
-    timestamps = [dt_start + timedelta(seconds=t) for t in ts]
-
-    # Replace time steps column with timestamps
-    df.iloc[:, 0] = timestamps
 
     return df
 
@@ -332,12 +287,12 @@ def read_fatlasa_results(filename):
 
 
 if __name__ == "__main__":
-    folder = r"C:\Users\dickinsc\PycharmProjects\_2. DataLab Analysis Files\21239\4. Dat2Acc\POD001"
+    folder = r"C:\Users\dickinsc\PycharmProjects\DataLab\demo_data\1. Raw Data\21239 Pulse-acc\BOP"
     fname = "MPOD001_2018_06_07_16_20.ACC"
     fpath = os.path.join(folder, fname)
 
-    # df = read_pulse_acc(fpath)
-    df = read_pulse_acc_single_header_format(fpath)
+    df = read_pulse_acc(fpath)
+    # df = read_pulse_acc(fpath, multi_header=True)
     # df = read_logger_csv(r'dd10_2017_0310_0140.csv')
-    # df = read_wcfat_results(r'C:\Users\dickinsc\PycharmProjects\DataLab\Fatigue Test Data\damage_1.dmg')
+    # df = read_wcfat_results(r'C:\Users\dickinsc\PycharmProjects\DataLab\demo_data\Fatigue Test Data\damage_1.dmg')
     print(df.head())

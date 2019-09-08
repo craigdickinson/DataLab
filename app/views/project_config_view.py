@@ -1214,9 +1214,8 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
         """
 
         logger_path = self.loggerPath.toPlainText()
-        path = Path(logger_path)
 
-        if not path.exists():
+        if not os.path.exists(logger_path):
             msg = "Logger path does not exist. Set a logger path first."
             return QtWidgets.QMessageBox.information(
                 self, "Detect File Timestamp Format", msg
