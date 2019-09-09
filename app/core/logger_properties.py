@@ -6,16 +6,17 @@ __author__ = "Craig Dickinson"
 import os
 from glob import glob
 
-from dateutil.parser import parse
 from PyQt5.QtCore import QObject, pyqtSignal
+from dateutil.parser import parse
+from natsort import natsorted
 
-from app.core.custom_date import get_date_code_span, make_time_str
 from app.core.azure_cloud_storage import (
     connect_to_azure_account,
-    get_container_name_and_folders_path,
     get_blobs,
+    get_container_name_and_folders_path,
     stream_blob,
 )
+from app.core.custom_date import get_date_code_span, make_time_str
 
 
 class Error(Exception):
@@ -56,15 +57,17 @@ class LoggerProperties(QObject):
         self.blobs = []
 
         # File format variables
-        self.file_timestamp_format = ""  # *FILE_TIMESTAMP
         self.file_format = ""  # *FILE_FORMAT
+        self.file_timestamp_embedded = True
+        self.file_timestamp_format = ""  # *FILE_TIMESTAMP
+        self.first_col_data = "Timestamp"
         self.timestamp_format = ""  # *TIMESTAMP
 
         # Datetime format string to convert timestamp strings to datetimes, e.g. %d-%b-%Y %H:%M:%S.%f
         self.datetime_format = ""
 
         self.file_ext = ""  # *EXTENSION
-        self.file_delimiter = ""  # *DELIMITER
+        self.file_delimiter = ","  # *DELIMITER
 
         # Number of rows/columns expected
         self.num_headers = 0  # *NUM_HEADERS
@@ -163,6 +166,7 @@ class LoggerProperties(QObject):
         self.raw_filenames = [
             os.path.basename(f) for f in glob(self.logger_path + "/*." + self.file_ext)
         ]
+        self.raw_filenames = natsorted(self.raw_filenames)
 
         if not self.raw_filenames:
             msg = f"No {self.logger_id} logger files found in {self.logger_path}."
@@ -288,7 +292,7 @@ class LoggerProperties(QObject):
 
         # Make sure files are processed in correct order (and make sure they are lists not tuples)
         try:
-            d, f = list(zip(*sorted(dates_files)))
+            d, f = list(zip(dates_files))
             self.file_timestamps = list(d)
             self.files = list(f)
         # Empty lists

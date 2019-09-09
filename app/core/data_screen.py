@@ -118,19 +118,22 @@ class DataScreen(object):
 
         return df
 
-    def munge_data(self, df, timestamp=""):
+    def munge_data(self, df, start_timestamp=""):
         """Format the logger raw data so it is suitable for processing."""
 
         # Copy to prevent SettingWithCopyWarning
         df = df.copy()
+        first_col = "Timestamp"
 
         if self.logger.file_format == "General-csv":
             df = df.dropna(axis=1)
 
             # Replace time column with timestamp
-            ts = df.iloc[:, 0].values
-            timestamps = [timestamp + timedelta(seconds=t) for t in ts]
-            df.iloc[:, 0] = timestamps
+            if self.logger.file_timestamp_embedded is True and self.logger.first_col_data == "Time Step":
+                ts = df.iloc[:, 0].values
+                timestamps = [start_timestamp + timedelta(seconds=t) for t in ts]
+                df.iloc[:, 0] = timestamps
+                # first_col = "Time"
 
         # Check all requested columns exist in file
         n = len(df.columns)
@@ -145,10 +148,11 @@ class DataScreen(object):
             df["Dummy " + str(i + 1)] = np.nan
 
         # Replace column names with setup channel names (should only be different if user names supplied)
-        df.columns = ["Timestamp"] + self.channel_names
+        df.columns = [first_col] + self.channel_names
 
         # Convert first column (should be timestamps string) to datetimes (not required for Pulse-acc format)
-        if self.logger.file_format != "Pulse-acc":
+        # if self.logger.file_format != "Pulse-acc":
+        if not (self.logger.file_timestamp_embedded is False and self.logger.first_col_data == "Time Step"):
             df.iloc[:, 0] = pd.to_datetime(
                 df.iloc[:, 0], format=self.logger.datetime_format, errors="coerce"
             )

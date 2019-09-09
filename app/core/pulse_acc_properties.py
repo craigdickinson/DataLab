@@ -40,7 +40,7 @@ def set_pulse_acc_file_format(logger):
     logger.units_header_row = 18
 
     # Timestamp format is not needed for Pulse-acc files
-    logger.timestamp_format = "Not required"
+    logger.timestamp_format = "N/A"
 
     return logger
 

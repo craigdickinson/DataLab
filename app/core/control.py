@@ -1,5 +1,5 @@
 """
-Class to setup project control.
+Class to set up project control.
 """
 import os.path
 

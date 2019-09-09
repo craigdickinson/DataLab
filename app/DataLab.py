@@ -1,7 +1,7 @@
 __author__ = "Craig Dickinson"
 __program__ = "DataLab"
-__version__ = "1.3.4"
-__date__ = "8 September 2019"
+__version__ = "1.3.5"
+__date__ = "9 September 2019"
 
 import logging
 import os
@@ -547,8 +547,8 @@ class DataLab(DataLabGui):
 
             # Get all channel names and units if not already stored in logger object
             if (
-                len(logger.all_channel_names) == 0
-                and len(logger.all_channel_units) == 0
+                    len(logger.all_channel_names) == 0
+                    and len(logger.all_channel_units) == 0
             ):
                 logger.get_all_channel_and_unit_names()
 
@@ -782,11 +782,18 @@ class ScreeningWorker(QtCore.QThread):
 #
 #         self.setupUi(self)
 
+def run_datalab():
+    """Wrapper to run DataLab from a Jupyter Notebook."""
 
-if __name__ == "__main__":
     os.chdir(r"C:\Users\dickinsc\PycharmProjects\DataLab\demo_data\2. Project Configs")
-    app = QtWidgets.QApplication(sys.argv)
+    app = QtCore.QCoreApplication.instance()
+    if app is None:
+        app = QtWidgets.QApplication(sys.argv)
     # win = QtDesignerGui()
     win = DataLab()
     win.show()
     sys.exit(app.exec_())
+
+
+if __name__ == "__main__":
+    run_datalab()
