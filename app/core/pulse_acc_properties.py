@@ -25,6 +25,9 @@ Example pulse-acc file format is:
 %0001 00 00 19 07 06 2018
 0.000000E+00 7.055314E-02 1.389045E-02 0.000000E+00 0.000000E+00 -1.169407E-01 -2.415017E-01
 """
+
+__author__ = "Craig Dickinson"
+
 import os
 from glob import glob
 
@@ -33,6 +36,8 @@ def set_pulse_acc_file_format(logger):
     """Return a LoggerProperties object populated with known Pulse-acc file format settings."""
 
     logger.file_format = "Pulse-acc"
+    logger.file_timestamp_embedded = True
+    logger.first_col_data = "Time Step"
     logger.file_ext = "acc"
     logger.file_delimiter = " "
     logger.num_headers = 20

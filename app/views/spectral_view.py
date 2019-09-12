@@ -1,3 +1,7 @@
+"""Spectral screening dashboard gui view."""
+
+__author__ = "Craig Dickinson"
+
 import logging
 import sys
 from datetime import timedelta

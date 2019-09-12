@@ -1,6 +1,7 @@
-"""
-Class to set up project control.
-"""
+"""Class to set up project control."""
+
+__author__ = "Craig Dickinson"
+
 import os.path
 
 from dateutil.parser import parse
@@ -284,10 +285,12 @@ class Control(object):
             self.read_or_copy_stats_format(logger, logger_data)
 
             # Get filenames and check timestamps
-            logger.process_filenames()
+            logger.get_filenames()
+            logger.get_timestamp_span()
+            logger.check_file_timestamps()
 
             # Select only files within specified datetime range
-            logger.select_files_in_datetime_range(
+            logger.select_files_in_date_range(
                 logger.process_start, logger.process_end
             )
 
@@ -642,7 +645,8 @@ class Control(object):
         # Return logger path
         return logger_path
 
-    def copy_logger_attributes(self, objfrom, objto, attribute_names):
+    @staticmethod
+    def copy_logger_attributes(objfrom, objto, attribute_names):
         """Function to copy attributes from one object to another."""
 
         for n in attribute_names:

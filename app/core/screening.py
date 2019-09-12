@@ -1,6 +1,5 @@
-"""
-Main class to perform signal processing on logger data.
-"""
+"""Main class to perform signal processing on logger data."""
+
 __author__ = "Craig Dickinson"
 
 import argparse

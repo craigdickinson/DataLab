@@ -1,3 +1,7 @@
+"""Routines to read time series files of various formats."""
+
+__author__ = "Craig Dickinson"
+
 import csv
 import os
 from datetime import datetime, timedelta

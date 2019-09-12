@@ -1,6 +1,5 @@
-"""
-Module to calculate fatigue damage using rainflow counting.
-"""
+"""Module to calculate fatigue damage using rainflow counting."""
+
 __author__ = "Craig Dickinson"
 
 import numpy as np
@@ -35,8 +34,8 @@ def extract_cycles(peaks):
         points.append(x)
 
         while len(points) >= 3:
-            X = abs(points[-1] - points[-2])
-            Y = abs(points[-2] - points[-3])
+            X = abs(points[-2] - points[-1])
+            Y = abs(points[-3] - points[-2])
 
             if X < Y:
                 break

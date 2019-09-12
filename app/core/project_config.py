@@ -1,3 +1,7 @@
+"""Class to read a project config json file and map to a control object and to save a control object as a json file."""
+
+__author__ = "Craig Dickinson"
+
 import json
 import os
 
@@ -228,23 +232,23 @@ class ProjectConfigJSONFile(QObject):
             key="file_format",
             attr=logger.file_format,
         )
+        logger.file_timestamp_embedded = self._get_key_value(
+            section=logger.logger_id,
+            data=dict_logger,
+            key="file_timestamp_embedded",
+            attr=logger.file_timestamp_embedded,
+        )
         logger.file_timestamp_format = self._get_key_value(
             section=logger.logger_id,
             data=dict_logger,
             key="file_timestamp_format",
             attr=logger.file_timestamp_format,
         )
-        logger.timestamp_format = self._get_key_value(
+        logger.first_col_data = self._get_key_value(
             section=logger.logger_id,
             data=dict_logger,
-            key="data_timestamp_format",
-            attr=logger.timestamp_format,
-        )
-        logger.datetime_format = self._get_key_value(
-            section=logger.logger_id,
-            data=dict_logger,
-            key="data_datetime_format",
-            attr=logger.datetime_format,
+            key="first_col_data",
+            attr=logger.first_col_data,
         )
         logger.file_ext = self._get_key_value(
             section=logger.logger_id,
@@ -281,6 +285,18 @@ class ProjectConfigJSONFile(QObject):
             data=dict_logger,
             key="units_header_row",
             attr=logger.units_header_row,
+        )
+        logger.timestamp_format = self._get_key_value(
+            section=logger.logger_id,
+            data=dict_logger,
+            key="data_timestamp_format",
+            attr=logger.timestamp_format,
+        )
+        logger.datetime_format = self._get_key_value(
+            section=logger.logger_id,
+            data=dict_logger,
+            key="data_datetime_format",
+            attr=logger.datetime_format,
         )
         logger.freq = self._get_key_value(
             section=logger.logger_id,
@@ -594,15 +610,17 @@ class ProjectConfigJSONFile(QObject):
         dict_props["data_on_azure"] = logger.data_on_azure
         dict_props["logger_path"] = logger.logger_path
         dict_props["file_format"] = logger.file_format
+        dict_props["file_timestamp_embedded"] = logger.file_timestamp_embedded
         dict_props["file_timestamp_format"] = logger.file_timestamp_format
-        dict_props["data_timestamp_format"] = logger.timestamp_format
-        dict_props["data_datetime_format"] = logger.datetime_format
+        dict_props["first_col_data"] = logger.first_col_data
         dict_props["file_ext"] = logger.file_ext
         dict_props["file_delimiter"] = logger.file_delimiter
         dict_props["num_header_rows"] = logger.num_headers
         dict_props["num_columns"] = logger.num_columns
         dict_props["channel_header_row"] = logger.channel_header_row
         dict_props["units_header_row"] = logger.units_header_row
+        dict_props["data_timestamp_format"] = logger.timestamp_format
+        dict_props["data_datetime_format"] = logger.datetime_format
         dict_props["logging_freq"] = logger.freq
         dict_props["logging_duration"] = logger.duration
         dict_props["all_channel_names"] = logger.all_channel_names

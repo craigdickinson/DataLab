@@ -1,6 +1,5 @@
-"""
-Project config dashboard widget. Handles all project setup.
-"""
+"""Project config dashboard gui view. Handles all project setup."""
+
 __author__ = "Craig Dickinson"
 
 import logging
@@ -13,6 +12,7 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtCore import pyqtSlot
 from dateutil.parser import parse
 
+from app.core.azure_cloud_storage import check_azure_account_exists
 from app.core.calc_seascatter import Seascatter
 from app.core.calc_transfer_functions import TransferFunctions
 from app.core.control import Control, InputError
@@ -21,15 +21,14 @@ from app.core.detect_file_timestamp_format import detect_file_timestamp_format
 from app.core.fugro_csv_properties import (
     detect_fugro_logger_properties,
     set_fugro_csv_file_format,
-    set_general_csv_file_format,
 )
+from app.core.general_csv_properties import set_general_csv_file_format
 from app.core.logger_properties import LoggerError, LoggerProperties
 from app.core.project_config import ProjectConfigJSONFile
 from app.core.pulse_acc_properties import (
     detect_pulse_logger_properties,
     set_pulse_acc_file_format,
 )
-from app.core.azure_cloud_storage import check_azure_account_exists
 
 
 class ConfigModule(QtWidgets.QWidget):
@@ -106,7 +105,7 @@ class ConfigModule(QtWidgets.QWidget):
         # Config tab widgets
         self.campaignTab = CampaignInfoTab(self, self.control)
         self.loggerPropsTab = LoggerPropertiesTab(self, self.control)
-        self.screeningTab = StatsAndSpectralSettingsTab(self, self.control)
+        self.screeningTab = ScreeningSetupTab(self, self.control)
         self.scatterTab = SeascatterTab(self, self.control, self.scatter)
         self.tfSettingsTab = TransferFunctionsTab(self, self.tf)
 
@@ -215,7 +214,7 @@ class ConfigModule(QtWidgets.QWidget):
                 # Assign config data to control object and project dashboard
                 self._set_dashboards()
 
-                if self.parent is not None:
+                if self.parent:
                     self.parent.set_window_title(filename)
             except InputError as e:
                 self.parent.error(str(e))
@@ -287,7 +286,7 @@ class ConfigModule(QtWidgets.QWidget):
         self.spectScreenChkBox.setChecked(self.control.global_process_spect)
 
         # Map settings objects to parent DataLab instance
-        if self.parent is not None:
+        if self.parent:
             self.parent.control = self.control
             self.parent.scatter = self.scatter
             self.parent.tf = self.tf
@@ -305,7 +304,7 @@ class ConfigModule(QtWidgets.QWidget):
         self.tfSettingsTab.clear_dashboard()
 
         # Reset window title
-        if self.parent is not None:
+        if self.parent:
             self.parent.set_window_title()
 
         # Select campaign tab and open setup dialog
@@ -321,7 +320,7 @@ class ConfigModule(QtWidgets.QWidget):
             )
 
     def on_add_logger_clicked(self):
-        """Add new logger to list. Initial logger name format is 'Logger n'."""
+        """Add new logger to list. Initial logger name is 'Logger n'."""
 
         n = self.loggersList.count()
         logger_id = f"Logger {n + 1}"
@@ -695,7 +694,7 @@ class EditCampaignInfoDialog(QtWidgets.QDialog):
         """Assign values to the control object and update the dashboard."""
 
         self.set_control_data()
-        if self.parent is not None:
+        if self.parent:
             self.parent.set_campaign_dashboard()
 
     def set_control_data(self):
@@ -744,15 +743,17 @@ class LoggerPropertiesTab(QtWidgets.QWidget):
         self.dataSource = QtWidgets.QLabel("-")
         self.loggerPath = QtWidgets.QLabel("-")
         self.loggerPath.setWordWrap(True)
-        self.fileTimestampFormat = QtWidgets.QLabel("-")
         self.fileFormat = QtWidgets.QLabel("-")
-        self.dataTimestampFormat = QtWidgets.QLabel("-")
+        self.fileTimestampEmbedded = QtWidgets.QLabel("-")
+        self.fileTimestampFormat = QtWidgets.QLabel("-")
+        self.firstColData = QtWidgets.QLabel("-")
         self.fileExt = QtWidgets.QLabel("-")
         self.fileDelimiter = QtWidgets.QLabel("-")
         self.numHeaderRows = QtWidgets.QLabel("-")
         self.numColumns = QtWidgets.QLabel("-")
         self.channelHeaderRow = QtWidgets.QLabel("-")
         self.unitsHeaderRow = QtWidgets.QLabel("-")
+        self.dataTimestampFormat = QtWidgets.QLabel("-")
         self.loggingFreq = QtWidgets.QLabel("-")
         self.loggingDuration = QtWidgets.QLabel("-")
 
@@ -764,9 +765,12 @@ class LoggerPropertiesTab(QtWidgets.QWidget):
         self.form.addRow(QtWidgets.QLabel("Logger ID:"), self.loggerID)
         self.form.addRow(QtWidgets.QLabel("Logger source:"), self.dataSource)
         self.form.addRow(QtWidgets.QLabel("Logger path:"), self.loggerPath)
-        self.form.addRow(QtWidgets.QLabel("File timestamp:"), self.fileTimestampFormat)
         self.form.addRow(QtWidgets.QLabel("File type:"), self.fileFormat)
-        self.form.addRow(QtWidgets.QLabel("Data timestamp:"), self.dataTimestampFormat)
+        self.form.addRow(
+            QtWidgets.QLabel("File timestamp embedded:"), self.fileTimestampEmbedded
+        )
+        self.form.addRow(QtWidgets.QLabel("File timestamp:"), self.fileTimestampFormat)
+        self.form.addRow(QtWidgets.QLabel("First column data:"), self.firstColData)
         self.form.addRow(QtWidgets.QLabel("Extension:"), self.fileExt)
         self.form.addRow(QtWidgets.QLabel("Delimiter:"), self.fileDelimiter)
         self.form.addRow(QtWidgets.QLabel("Number of header rows:"), self.numHeaderRows)
@@ -775,6 +779,7 @@ class LoggerPropertiesTab(QtWidgets.QWidget):
         )
         self.form.addRow(QtWidgets.QLabel("Channel header row:"), self.channelHeaderRow)
         self.form.addRow(QtWidgets.QLabel("Units header row:"), self.unitsHeaderRow)
+        self.form.addRow(QtWidgets.QLabel("Data timestamp:"), self.dataTimestampFormat)
         self.form.addRow(QtWidgets.QLabel("Logging frequency (Hz):"), self.loggingFreq)
         self.form.addRow(
             QtWidgets.QLabel("Logging duration (s):"), self.loggingDuration
@@ -822,15 +827,22 @@ class LoggerPropertiesTab(QtWidgets.QWidget):
 
         self.dataSource.setText(src)
         self.loggerPath.setText(logger.logger_path)
-        self.fileTimestampFormat.setText(logger.file_timestamp_format)
         self.fileFormat.setText(logger.file_format)
-        self.dataTimestampFormat.setText(logger.timestamp_format)
+
+        if logger.file_timestamp_embedded is True:
+            self.fileTimestampEmbedded.setText("Yes")
+        else:
+            self.fileTimestampEmbedded.setText("No")
+
+        self.fileTimestampFormat.setText(logger.file_timestamp_format)
+        self.firstColData.setText(logger.first_col_data)
         self.fileExt.setText(logger.file_ext)
         self.fileDelimiter.setText(self.delims_logger_to_gui[logger.file_delimiter])
         self.numHeaderRows.setText(str(logger.num_headers))
         self.numColumns.setText(str(logger.num_columns))
         self.channelHeaderRow.setText(str(logger.channel_header_row))
         self.unitsHeaderRow.setText(str(logger.units_header_row))
+        self.dataTimestampFormat.setText(logger.timestamp_format)
         self.loggingFreq.setText(str(logger.freq))
         self.loggingDuration.setText(str(logger.duration))
 
@@ -840,15 +852,17 @@ class LoggerPropertiesTab(QtWidgets.QWidget):
         self.loggerID.setText("-")
         self.dataSource.setText("-")
         self.loggerPath.setText("-")
-        self.fileTimestampFormat.setText("-")
         self.fileFormat.setText("-")
-        self.dataTimestampFormat.setText("-")
+        self.fileTimestampEmbedded("-")
+        self.fileTimestampFormat.setText("-")
+        self.firstColData("-")
         self.fileExt.setText("-")
         self.fileDelimiter.setText("-")
         self.numHeaderRows.setText("-")
         self.numColumns.setText("-")
         self.channelHeaderRow.setText("-")
         self.unitsHeaderRow.setText("-")
+        self.dataTimestampFormat.setText("-")
         self.loggingFreq.setText("-")
         self.loggingDuration.setText("-")
 
@@ -874,12 +888,15 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
         else:
             self.logger = LoggerProperties()
 
-        # Temp parameters to hold initial settings specific to selected file format that can be restored, if need be,
+        # Store settings specific to initial file format that can be restored, if need be,
         # when selecting between file formats in the combo box
-        self.init_file_timestamp_checkstate = False
-        self.init_file_timestamp = ""
-        self.init_first_col_data = "Timestamp"
-        self.init_timestamp_format = ""
+        self.init_logger = LoggerProperties()
+        self.init_file_format = ""
+        # self.init_file_timestamp_checkstate = False
+        # self.init_file_timestamp = ""
+        # self.init_first_col_data = "Timestamp"
+        # self.init_file_ext = ""
+        # self.init_timestamp_format = ""
 
         self.all_channel_names = []
         self.all_channel_units = []
@@ -919,9 +936,6 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
         self.fileFormat = QtWidgets.QComboBox()
         self.fileFormat.setFixedWidth(100)
         self.fileFormat.addItems(self.file_types)
-        self.firstColData = QtWidgets.QComboBox()
-        self.firstColData.setFixedWidth(100)
-        self.firstColData.addItems(self.index_types)
         self.fileTimestampEmbeddedChkBox = QtWidgets.QCheckBox(
             "Timestamp embedded in file name"
         )
@@ -948,6 +962,9 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
             "x = any other character."
         )
         self.fileTimestampFormat.setToolTip(msg)
+        self.firstColData = QtWidgets.QComboBox()
+        self.firstColData.setFixedWidth(100)
+        self.firstColData.addItems(self.index_types)
         self.fileExt = QtWidgets.QLineEdit()
         self.fileExt.setFixedWidth(30)
         self.fileDelimiter = QtWidgets.QComboBox()
@@ -1024,7 +1041,9 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
         self.loggerType = QtWidgets.QGroupBox("Logger File Properties")
         self.typeForm = QtWidgets.QFormLayout(self.loggerType)
         self.typeForm.addRow(self.lblFileFmt, self.fileFormat)
-        self.typeForm.addRow(self.fileTimestampEmbeddedChkBox, self.detectTimestampFormatButton)
+        self.typeForm.addRow(
+            self.fileTimestampEmbeddedChkBox, self.detectTimestampFormatButton
+        )
         self.typeForm.addRow(self.lblFileTimestampFmt, self.fileTimestampFormat)
         self.typeForm.addRow(self.lblFirstColData, self.firstColData)
         self.typeForm.addRow(self.lblExt, self.fileExt)
@@ -1059,10 +1078,13 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
         self.setAzureButton.clicked.connect(self.on_set_azure_settings_clicked)
         self.browseButton.clicked.connect(self.on_browse_path_clicked)
         self.fileFormat.currentIndexChanged.connect(self.on_file_format_changed)
-        self.fileTimestampEmbeddedChkBox.toggled.connect(self.on_file_timestamp_embedded_toggled)
+        self.fileTimestampEmbeddedChkBox.toggled.connect(
+            self.on_file_timestamp_embedded_toggled
+        )
         self.detectTimestampFormatButton.clicked.connect(
             self.on_detect_file_timestamp_format_clicked
         )
+        self.firstColData.currentIndexChanged.connect(self.on_first_col_data_changed)
         self.detectPropsButton.clicked.connect(self.on_detect_props_clicked)
 
     def _set_dialog_data(self):
@@ -1071,11 +1093,17 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
         # Logger properties object of selected logger
         logger = self.logger
 
-        # Store existing parameters so they can be restored upon back and forth file format combo changes
-        self.init_file_timestamp_checkstate = logger.file_timestamp_embedded
-        self.init_file_timestamp_format = logger.file_timestamp_format
-        self.init_first_col_data = logger.first_col_data
-        self.init_timestamp_format = logger.timestamp_format
+        # Store logger properties specific to initial file format that can be restored, if need be,
+        # when selecting between file formats
+        self.init_logger = logger
+        self.init_file_format = logger.file_format
+
+        # # Store existing parameters so they can be restored upon back and forth file format combo changes
+        # self.init_file_timestamp_checkstate = logger.file_timestamp_embedded
+        # self.init_file_timestamp_format = logger.file_timestamp_format
+        # self.init_first_col_data = logger.first_col_data
+        # self.init_file_ext = logger.file_ext
+        # self.init_timestamp_format = logger.timestamp_format
 
         # Set radio for data source type
         if logger.data_on_azure is True:
@@ -1086,7 +1114,14 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
         self.loggerID.setText(logger.logger_id)
         self.loggerPath.setPlainText(logger.logger_path)
         self.fileFormat.setCurrentText(logger.file_format)
+
+        if logger.file_timestamp_embedded is True:
+            self.fileTimestampEmbeddedChkBox.setChecked(True)
+        else:
+            self.fileTimestampEmbeddedChkBox.setChecked(False)
+
         self.fileTimestampFormat.setText(logger.file_timestamp_format)
+        self.firstColData.setCurrentText(logger.first_col_data)
         self.fileExt.setText(logger.file_ext)
         self.fileDelimiter.setCurrentText(
             self.delims_logger_to_gui[logger.file_delimiter]
@@ -1204,50 +1239,50 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
         """
 
         selected_file_format = self.fileFormat.currentText()
-        test_logger = LoggerProperties()
+        logger = LoggerProperties()
 
         # Set which input fields are enabled/disabled based on file format set
         self._set_enabled_inputs(selected_file_format)
 
-        # Create a test logger object with standard file format properties of the selected logger file type and assign
-        # to edit dialog
-        # Note Pulse-acc properties are more for info as they are not directly used by the read pulse-acc function
+        # Depending on selection either: Create a new logger object with standard/initial file format properties
+        # of the selected logger type or revert initial logger properties
+        # (Note Pulse-acc properties are more for info as they are not directly used by the read pulse-acc function)
         if selected_file_format == "General-csv":
-            test_logger = set_general_csv_file_format(test_logger)
-            self.fileTimestampEmbeddedChkBox.setChecked(self.init_file_timestamp_checkstate)
-            self.firstColData.setCurrentText(self.init_first_col_data)
-
-            # Restore timestamp format to value when dialog was opened (useful if previous selection was Pulse-acc)
-            self.dataTimestampFormat.setText(self.init_timestamp_format)
+            if self.init_file_format == "General-csv":
+                logger = self.init_logger
+            else:
+                logger = set_general_csv_file_format(logger)
         elif selected_file_format == "Fugro-csv":
-            test_logger = set_fugro_csv_file_format(test_logger)
-            self.fileTimestampEmbeddedChkBox.setChecked(True)
-            self.firstColData.setCurrentIndex(0)
-
-            # Restore timestamp format to value when dialog was opened (useful if previous selection was Pulse-acc)
-            self.dataTimestampFormat.setText(self.init_timestamp_format)
+            if self.init_file_format == "Fugro-csv":
+                logger = self.init_logger
+            else:
+                logger = set_fugro_csv_file_format(logger)
         elif selected_file_format == "Pulse-acc":
-            test_logger = set_pulse_acc_file_format(test_logger)
+            if self.init_file_format == "Pulse-acc":
+                logger = self.init_logger
+            else:
+                logger = set_pulse_acc_file_format(logger)
+
+        # Set test logger file format properties to the dialog Logger File Properties group
+        if logger.file_timestamp_embedded is True:
             self.fileTimestampEmbeddedChkBox.setChecked(True)
-            self.firstColData.setCurrentIndex(1)
-
-            # Timestamp format field is not required for Pulse-acc
-            self.dataTimestampFormat.setText(test_logger.timestamp_format)
-
-        # Set test logger file format properties to the dialog File Type group
-        self.fileExt.setText(test_logger.file_ext)
+        else:
+            self.fileTimestampEmbeddedChkBox.setChecked(False)
+        self.firstColData.setCurrentText(logger.first_col_data)
+        self.fileExt.setText(logger.file_ext)
         self.fileDelimiter.setCurrentText(
-            self.delims_logger_to_gui[test_logger.file_delimiter]
+            self.delims_logger_to_gui[logger.file_delimiter]
         )
-        self.numHeaderRows.setText(str(test_logger.num_headers))
-        self.channelHeaderRow.setText(str(test_logger.channel_header_row))
-        self.unitsHeaderRow.setText(str(test_logger.units_header_row))
+        self.numHeaderRows.setText(str(logger.num_headers))
+        self.channelHeaderRow.setText(str(logger.channel_header_row))
+        self.unitsHeaderRow.setText(str(logger.units_header_row))
+        self.dataTimestampFormat.setText(logger.timestamp_format)
 
     def on_file_timestamp_embedded_toggled(self):
         if self.fileTimestampEmbeddedChkBox.isChecked():
             self.detectTimestampFormatButton.setEnabled(True)
             self.fileTimestampFormat.setEnabled(True)
-            self.fileTimestampFormat.setText(self.init_file_timestamp_format)
+            self.fileTimestampFormat.setText(self.logger.file_timestamp_format)
         else:
             self.detectTimestampFormatButton.setEnabled(False)
             self.fileTimestampFormat.setEnabled(False)
@@ -1327,6 +1362,14 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
         # Set format to dialog
         self.fileTimestampFormat.setText(file_timestamp_format)
 
+    def on_first_col_data_changed(self):
+        """Set appropriate timestamp format input based on first column data selection."""
+
+        if self.firstColData.currentText() == "Time Step":
+            self.dataTimestampFormat.setText("N/A")
+        else:
+            self.dataTimestampFormat.setText(self.logger.timestamp_format)
+
     def on_detect_props_clicked(self):
         """Detect standard logger properties for selected file format."""
 
@@ -1384,7 +1427,7 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
             self._set_control_data()
             self._detect_header()
 
-            if self.parent is not None:
+            if self.parent:
                 self.parent.set_logger_dashboard(self.logger)
                 self.parent.parent.update_logger_id_list(
                     self.logger.logger_id, self.logger_idx
@@ -1484,11 +1527,11 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
         return QtWidgets.QMessageBox.critical(self, "Error", msg)
 
 
-class StatsAndSpectralSettingsTab(QtWidgets.QWidget):
+class ScreeningSetupTab(QtWidgets.QWidget):
     """GUI screen to control project setup."""
 
     def __init__(self, parent=None, control=Control()):
-        super(StatsAndSpectralSettingsTab, self).__init__(parent)
+        super(ScreeningSetupTab, self).__init__(parent)
 
         self.parent = parent
         self.control = control
@@ -1669,7 +1712,7 @@ class StatsAndSpectralSettingsTab(QtWidgets.QWidget):
         logger.azure_account_key = self.control.azure_account_key
 
         # Edit stats dialog class
-        editStatsSettings = EditStatsAndSpectralDialog(self, logger, logger_idx)
+        editStatsSettings = EditScreeningSetupDialog(self, logger, logger_idx)
         editStatsSettings.show()
 
     def on_process_stats_check_box_toggled(self):
@@ -1751,18 +1794,24 @@ class StatsAndSpectralSettingsTab(QtWidgets.QWidget):
         units_items_str = " ".join([i for i in logger.user_channel_units])
         self.channelUnits.setText(units_items_str)
 
-        # Start datetime
+        # Start timestamp/index
         if logger.process_start is None:
             process_start = "First file"
         else:
-            process_start = logger.process_start.strftime("%Y-%m-%d %H:%M")
+            if logger.file_timestamp_embedded is True:
+                process_start = logger.process_start.strftime("%Y-%m-%d %H:%M")
+            else:
+                process_start = str(logger.process_start)
         self.processStart.setText(process_start)
 
-        # End datetime
+        # End timestamp/index
         if logger.process_end is None:
             process_end = "Last file"
         else:
-            process_end = logger.process_end.strftime("%Y-%m-%d %H:%M")
+            if logger.file_timestamp_embedded is True:
+                process_end = logger.process_end.strftime("%Y-%m-%d %H:%M")
+            else:
+                process_end = str(logger.process_end)
         self.processEnd.setText(process_end)
 
         # Low cut-off frequency
@@ -1846,9 +1895,9 @@ class StatsAndSpectralSettingsTab(QtWidgets.QWidget):
         self.spectFolder.setText("Spectrograms")
 
 
-class EditStatsAndSpectralDialog(QtWidgets.QDialog):
+class EditScreeningSetupDialog(QtWidgets.QDialog):
     def __init__(self, parent=None, logger=LoggerProperties(), logger_idx=0):
-        super(EditStatsAndSpectralDialog, self).__init__(parent)
+        super(EditScreeningSetupDialog, self).__init__(parent)
 
         self.parent = parent
 
@@ -1944,8 +1993,14 @@ class EditStatsAndSpectralDialog(QtWidgets.QDialog):
         self.lblUnitConvs = QtWidgets.QLabel("Unit conversion factors (optional):")
         self.lblChannelNames = QtWidgets.QLabel("Channel names override (optional):")
         self.lblChannelUnits = QtWidgets.QLabel("Channel units override (optional):")
-        self.lblProcessStart = QtWidgets.QLabel("Start timestamp:")
-        self.lblProcessEnd = QtWidgets.QLabel("End timestamp:")
+
+        if self.logger.file_timestamp_embedded is True:
+            self.lblProcessStart = QtWidgets.QLabel("Start timestamp:")
+            self.lblProcessEnd = QtWidgets.QLabel("End timestamp:")
+        else:
+            self.lblProcessStart = QtWidgets.QLabel("Start file number:")
+            self.lblProcessEnd = QtWidgets.QLabel("End file number:")
+
         self.lblProcessType = QtWidgets.QLabel("Screen on:")
         self.lblLowCutoff = QtWidgets.QLabel("Low cut-off frequency (Hz):")
         self.lblHighCutoff = QtWidgets.QLabel("High cut-off frequency (Hz):")
@@ -2037,14 +2092,22 @@ class EditStatsAndSpectralDialog(QtWidgets.QDialog):
         if logger.process_start is None:
             process_start = "First file"
         else:
-            process_start = logger.process_start.strftime("%Y-%m-%d %H:%M")
+            # Determine if process start is a file number or timestamp
+            if type(logger.process_start) is int:
+                process_start = str(logger.process_start)
+            else:
+                process_start = logger.process_start.strftime("%Y-%m-%d %H:%M")
         self.processStart.setText(process_start)
 
         # Process end
         if logger.process_end is None:
             process_end = "Last file"
         else:
-            process_end = logger.process_end.strftime("%Y-%m-%d %H:%M")
+            # Determine if process end is a file number or timestamp
+            if type(logger.process_end) is int:
+                process_end = str(logger.process_end)
+            else:
+                process_end = logger.process_end.strftime("%Y-%m-%d %H:%M")
         self.processEnd.setText(process_end)
 
         # Low cut-off frequency
@@ -2072,7 +2135,7 @@ class EditStatsAndSpectralDialog(QtWidgets.QDialog):
         self.psdOverlap.setText(f"{logger.psd_overlap:.1f}")
 
         # Folders - global control settings
-        if self.parent is not None:
+        if self.parent:
             self.statsFolder.setText(self.parent.control.stats_output_folder)
             self.spectFolder.setText(self.parent.control.spect_output_folder)
 
@@ -2082,7 +2145,7 @@ class EditStatsAndSpectralDialog(QtWidgets.QDialog):
         try:
             self._set_control_data()
 
-            if self.parent is not None:
+            if self.parent:
                 self.parent.set_analysis_dashboard(self.logger)
         except Exception as e:
             msg = "Unexpected error assigning stats and spectral properties"
@@ -2121,25 +2184,53 @@ class EditStatsAndSpectralDialog(QtWidgets.QDialog):
         logger.user_channel_names = self.channelNames.text().split()
         logger.user_channel_units = self.channelUnits.text().split()
 
+        # Process start and end dates or file indexes
         process_start = self.processStart.text()
-        if process_start == "" or process_start == "First file":
-            logger.process_start = self.get_timestamp_in_filename(logger, file_idx=0)
-        else:
-            try:
-                logger.process_start = parse(process_start, yearfirst=True)
-            except ValueError:
-                msg = "Stats start datetime format not recognised; timestamp unchanged"
-                QtWidgets.QMessageBox.information(self, "Stats Start Input", msg)
-
         process_end = self.processEnd.text()
-        if process_end == "" or process_end == "Last file":
-            logger.process_end = self.get_timestamp_in_filename(logger, file_idx=-1)
+
+        # Process selection made by timestamps
+        if logger.file_timestamp_embedded is True:
+            if process_start == "" or process_start == "First file":
+                logger.process_start = self.get_timestamp_in_filename(
+                    logger, file_idx=0
+                )
+            else:
+                try:
+                    logger.process_start = parse(process_start, yearfirst=True)
+                except ValueError:
+                    msg = "Process start datetime format not recognised; timestamp unchanged."
+                    QtWidgets.QMessageBox.information(self, "Process Start Input", msg)
+
+            if process_end == "" or process_end == "Last file":
+                logger.process_end = self.get_timestamp_in_filename(logger, file_idx=-1)
+            else:
+                try:
+                    logger.process_end = parse(process_end, yearfirst=True)
+                except ValueError:
+                    msg = "Process end datetime format not recognised; timestamp unchanged."
+                    QtWidgets.QMessageBox.information(self, "Process End Input", msg)
+        # Process selection made by file (load case) number
         else:
             try:
-                logger.process_end = parse(process_end, yearfirst=True)
+                if process_start == "" or process_start == "First file":
+                    process_start = 1
+                logger.process_start = int(process_start)
             except ValueError:
-                msg = "Stats end datetime format not recognised; timestamp unchanged"
-                QtWidgets.QMessageBox.information(self, "Stats End Input", msg)
+                msg = "Process start file number must be an integer."
+                QtWidgets.QMessageBox.information(self, "Process Start Input", msg)
+
+            try:
+                if process_end == "" or process_end == "Last file":
+                    if logger.data_on_azure is True:
+                        logger.get_filenames_on_azure()
+                    else:
+                        logger.get_filenames_on_local()
+                    process_end = len(logger.raw_filenames)
+
+                logger.process_end = int(process_end)
+            except ValueError:
+                msg = "Process end file number must be an integer."
+                QtWidgets.QMessageBox.information(self, "Process End Input", msg)
 
         # Low cut-off freq
         try:
@@ -2197,7 +2288,7 @@ class EditStatsAndSpectralDialog(QtWidgets.QDialog):
             logger.psd_overlap = 50
 
         # Output folders - store as global control settings
-        if self.parent is not None:
+        if self.parent:
             self.parent.control.stats_output_folder = self.statsFolder.text()
             self.parent.control.spect_output_folder = self.spectFolder.text()
 
@@ -2209,7 +2300,7 @@ class EditStatsAndSpectralDialog(QtWidgets.QDialog):
             if logger.data_on_azure is True:
                 logger.get_filenames_on_azure()
             else:
-                logger.get_filenames()
+                logger.get_filenames_on_local()
 
             logger.get_timestamp_span()
 
@@ -2382,7 +2473,7 @@ class EditSeascatterDialog(QtWidgets.QDialog):
         """Store time traces paths in transfer functions class."""
 
         self._set_seascatter_data()
-        if self.parent is not None:
+        if self.parent:
             self.parent.set_scatter_dashboard()
 
     def _set_seascatter_data(self):
@@ -2696,7 +2787,7 @@ class EditTransferFunctionsDialog(QtWidgets.QDialog):
         """Store time traces paths in transfer functions class."""
 
         self._set_tf_data()
-        if self.parent is not None:
+        if self.parent:
             self.parent.set_tf_dashboard()
 
     def _set_tf_data(self):

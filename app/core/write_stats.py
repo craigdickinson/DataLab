@@ -1,6 +1,5 @@
-"""
-Class to compile and export logger stats.
-"""
+"""Class to compile and export logger stats."""
+
 __author__ = "Craig Dickinson"
 
 import os.path

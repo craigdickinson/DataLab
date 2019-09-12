@@ -1,6 +1,5 @@
-"""
-Class to hold logger properties.
-"""
+"""Class to hold logger properties."""
+
 __author__ = "Craig Dickinson"
 
 import os
@@ -61,11 +60,6 @@ class LoggerProperties(QObject):
         self.file_timestamp_embedded = True
         self.file_timestamp_format = ""  # *FILE_TIMESTAMP
         self.first_col_data = "Timestamp"
-        self.timestamp_format = ""  # *TIMESTAMP
-
-        # Datetime format string to convert timestamp strings to datetimes, e.g. %d-%b-%Y %H:%M:%S.%f
-        self.datetime_format = ""
-
         self.file_ext = ""  # *EXTENSION
         self.file_delimiter = ","  # *DELIMITER
 
@@ -78,6 +72,10 @@ class LoggerProperties(QObject):
         self.units_header_row = 0  # *UNITS_HEADER
 
         # Logging data properties
+        self.timestamp_format = ""  # *TIMESTAMP
+
+        # Datetime format string to convert timestamp strings to datetimes, e.g. %d-%b-%Y %H:%M:%S.%f
+        self.datetime_format = ""
         self.freq = 0  # *LOGGING_FREQUENCY
         self.duration = 0  # *LOGGING_DURATION
         self.expected_data_points = 0
@@ -123,7 +121,7 @@ class LoggerProperties(QObject):
         self.user_channel_names = []  # *CHANNEL_NAMES
         self.user_channel_units = []  # *CHANNEL_UNITS
 
-        # Datetime range to process over
+        # Datetime or file index range to process over
         self.process_start = None  # *STATS_START
         self.process_end = None  # *STATS_END
 
@@ -149,23 +147,22 @@ class LoggerProperties(QObject):
         self.psd_window = "Hann"
         self.psd_overlap = 50
 
-    def process_filenames(self):
+    def get_filenames(self):
         """Read all file timestamps and check that they conform to the specified format."""
 
         if self.data_on_azure is True:
             self.get_filenames_on_azure()
         else:
-            self.get_filenames()
+            self.get_filenames_on_local()
 
-        self.get_timestamp_span()
-        self.check_file_timestamps()
-
-    def get_filenames(self):
+    def get_filenames_on_local(self):
         """Get all filenames with specified extension in logger path."""
 
         self.raw_filenames = [
             os.path.basename(f) for f in glob(self.logger_path + "/*." + self.file_ext)
         ]
+
+        # Use natsort to ensure files are sorted correctly (i.e. not lexicographically e.g. 0, 1, 10, 2)
         self.raw_filenames = natsorted(self.raw_filenames)
 
         if not self.raw_filenames:
@@ -187,6 +184,7 @@ class LoggerProperties(QObject):
                 self.logger_path
             )
             blobs = get_blobs(bloc_blob_service, container_name, virtual_folders_path)
+            blobs = natsorted(blobs)
 
             # Store container name and blobs list
             self.container_name = container_name
@@ -243,13 +241,13 @@ class LoggerProperties(QObject):
         :return: filename datetime as string
         """
 
-        y = f[self.year_span[0] : self.year_span[1]]
-        m = f[self.month_span[0] : self.month_span[1]]
-        d = f[self.day_span[0] : self.day_span[1]]
-        h = f[self.hour_span[0] : self.hour_span[1]]
-        minute = f[self.min_span[0] : self.min_span[1]]
-        sec = f[self.sec_span[0] : self.sec_span[1]]
-        ms = f[self.ms_span[0] : self.ms_span[1]]
+        y = f[self.year_span[0]: self.year_span[1]]
+        m = f[self.month_span[0]: self.month_span[1]]
+        d = f[self.day_span[0]: self.day_span[1]]
+        h = f[self.hour_span[0]: self.hour_span[1]]
+        minute = f[self.min_span[0]: self.min_span[1]]
+        sec = f[self.sec_span[0]: self.sec_span[1]]
+        ms = f[self.ms_span[0]: self.ms_span[1]]
 
         # Date must contain y, m and d
         date_str = y + "-" + m + "-" + d
@@ -266,9 +264,9 @@ class LoggerProperties(QObject):
         except ValueError:
             return None
 
-    def select_files_in_datetime_range(self, start_date=None, end_date=None):
+    def select_files_in_date_range(self, start_date=None, end_date=None):
         """
-        Filter out dates outside start_date, end_date range.
+        Select files for processing within start_date, end_date range range.
         :param start_date: datetime
         :param end_date: datetime
         :return: New list of file_timestamps and files within date range
@@ -302,6 +300,10 @@ class LoggerProperties(QObject):
                 f"Check date range and file timestamp inputs."
             )
             raise LoggerError(msg)
+
+    def select_files_in_index_range(self, start_idx, end_idx):
+        """Select files for processing within start_idx, end_idx range range."""
+        pass
 
     def get_all_channel_and_unit_names(self):
         """Store in logger object lists of all channel and units header in test file."""
@@ -412,8 +414,8 @@ class LoggerProperties(QObject):
 
             # Keep headers requested (append dummy channel names if exist)
             self.channel_names = [
-                all_channels[i - 2] for i in present_cols
-            ] + dummy_cols
+                                     all_channels[i - 2] for i in present_cols
+                                 ] + dummy_cols
 
             if missing_cols:
                 warn_flag = True

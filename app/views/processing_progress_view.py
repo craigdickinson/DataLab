@@ -1,3 +1,7 @@
+"""Screening processing progress bar dialog."""
+
+__author__ = "Craig Dickinson"
+
 import sys
 from PyQt5 import QtWidgets
 from PyQt5.QtCore import pyqtSignal, pyqtSlot

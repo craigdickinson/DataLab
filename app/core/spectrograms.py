@@ -1,6 +1,5 @@
-"""
-Class to create spectrograms.
-"""
+"""Class to create spectrograms."""
+
 __author__ = "Craig Dickinson"
 
 import os

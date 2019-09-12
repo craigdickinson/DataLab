@@ -1,3 +1,7 @@
+"""Signal processing functions."""
+
+__author__ = "Craig Dickinson"
+
 import numpy as np
 import pandas as pd
 from scipy import signal

@@ -1,3 +1,5 @@
+"""Main DataLab gui hub."""
+
 __author__ = "Craig Dickinson"
 
 import sys

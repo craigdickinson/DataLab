@@ -1,3 +1,7 @@
+"""Raw data inspection plots dashboard gui view."""
+
+__author__ = "Craig Dickinson"
+
 import logging
 import os
 import sys

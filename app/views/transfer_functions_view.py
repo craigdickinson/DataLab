@@ -1,11 +1,14 @@
+"""Transfer functions dashboard gui view."""
+
+__author__ = "Craig Dickinson"
+
 import os
 import logging
 import sys
 
 import matplotlib.pyplot as plt
 import numpy as np
-import pandas as pd
-from PyQt5 import QtCore, QtGui, QtWidgets
+from PyQt5 import QtCore, QtWidgets
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 
@@ -108,7 +111,7 @@ class TransferFunctionsWidget(QtWidgets.QWidget):
         """Export individual sea state transfer functions to csv files."""
 
         root_dir = ""
-        if self.parent is not None:
+        if self.parent:
             root_dir = self.parent.control.project_path
 
         if root_dir == "":
@@ -128,7 +131,7 @@ class TransferFunctionsWidget(QtWidgets.QWidget):
         """Export sea state percentage occurrence averaged transfer functions to csv files."""
 
         root_dir = ""
-        if self.parent is not None:
+        if self.parent:
             root_dir = self.parent.control.project_path
 
         if root_dir == "":

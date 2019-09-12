@@ -1,7 +1,7 @@
 __author__ = "Craig Dickinson"
 __program__ = "DataLab"
-__version__ = "1.3.5"
-__date__ = "9 September 2019"
+__version__ = "1.3.6"
+__date__ = "12 September 2019"
 
 import logging
 import os
@@ -537,18 +537,27 @@ class DataLab(DataLabGui):
                 f"Checking setup: Checking file names for {logger.logger_id}. Please wait..."
             )
             self.repaint()
-            logger.process_filenames()
+            logger.get_filenames()
 
-            # Select only files in date range to process on
-            logger.select_files_in_datetime_range(
-                logger.process_start, logger.process_end
-            )
+            # If filenames contain timestamp, check and retrieve timestamps for all files
+            if logger.file_timestamp_embedded is True:
+                logger.get_timestamp_span()
+                logger.check_file_timestamps()
+
+                # Select only files in date range to process on
+                logger.select_files_in_date_range(
+                    logger.process_start, logger.process_end
+                )
+            else:
+                logger.select_files_in_index_range()
+
+            # Store expected file length
             logger.expected_data_points = logger.freq * logger.duration
 
             # Get all channel names and units if not already stored in logger object
             if (
-                    len(logger.all_channel_names) == 0
-                    and len(logger.all_channel_units) == 0
+                len(logger.all_channel_names) == 0
+                and len(logger.all_channel_units) == 0
             ):
                 logger.get_all_channel_and_unit_names()
 
@@ -781,6 +790,7 @@ class ScreeningWorker(QtCore.QThread):
 #         super().__init__()
 #
 #         self.setupUi(self)
+
 
 def run_datalab():
     """Wrapper to run DataLab from a Jupyter Notebook."""

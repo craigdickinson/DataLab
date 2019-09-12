@@ -31,7 +31,7 @@ def detect_file_timestamp_format(filename):
     # First replace non-numeric characters with x
     f = re.sub(pattern=r"\D", repl="x", string=filename)
 
-    # Substitute timestamp components with appropriate timestamp code for various expected file name formats
+    # Substitute timestamp components with appropriate timestamp code for various expected filename formats
     # Fugro vessel file
     if len(groups) == 2:
         f, end = create_format_string_fugro_vessel(f, groups, matches)

@@ -16,24 +16,13 @@ def set_fugro_csv_file_format(logger):
     """Return a LoggerProperties object populated with known Fugro-csv file format settings."""
 
     logger.file_format = "Fugro-csv"
+    logger.file_timestamp_embedded = True
+    logger.first_col_data = "Timestamp"
     logger.file_ext = "csv"
     logger.file_delimiter = ","
     logger.num_headers = 3
     logger.channel_header_row = 2
     logger.units_header_row = 3
-
-    return logger
-
-
-def set_general_csv_file_format(logger):
-    """Return a LoggerProperties object populated with default settings for a General-csv file format."""
-
-    logger.file_format = "General-csv"
-    logger.file_ext = "csv"
-    logger.file_delimiter = ","
-    logger.num_headers = 2
-    logger.channel_header_row = 1
-    logger.units_header_row = 2
 
     return logger
 

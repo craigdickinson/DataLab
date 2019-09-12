@@ -1,3 +1,7 @@
+"""Pairplot gui view."""
+
+__author__ = "Craig Dickinson"
+
 import sys
 import seaborn as sns
 import pandas as pd
