@@ -179,7 +179,6 @@ class Screening(QThread):
             for j, file in enumerate(data_screen[i].files):
                 # TODO: Consider adding multiprocessing pool here
                 # TODO: If expected file in sequence is missing, store results as nan
-
                 # Update console
                 filename = os.path.basename(file)
                 progress = (
@@ -202,6 +201,10 @@ class Screening(QThread):
 
                 # Send data package to progress bar
                 self.signal_notify_progress.emit(dict_progress)
+
+                file_num_processed = 0
+                if logger.first_col_data == "Time Step":
+                    file_num_processed = logger.process_start + j
 
                 # If streaming data from Azure Cloud read as a file stream
                 if logger.data_on_azure is True:
@@ -231,6 +234,9 @@ class Screening(QThread):
                     # Stats processing module
                     if global_process_stats is True and logger.process_stats is True:
                         while len(df_stats) > 0:
+                            # Store the file number of processed sample (only of use for time step indexes)
+                            data_screen[i].file_nums.append(file_num_processed)
+
                             # Extract sample data frame from main dataset
                             df_stats_sample, df_stats = data_screen[i].sample_data(
                                 df_stats_sample,
@@ -325,6 +331,7 @@ class Screening(QThread):
                 # Create and store a data frame of logger stats
                 df_stats = stats_out.compile_stats(
                     logger,
+                    data_screen[i].file_nums,
                     data_screen[i].stats_sample_start,
                     data_screen[i].stats_sample_end,
                     logger_stats,

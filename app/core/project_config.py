@@ -358,11 +358,13 @@ class ProjectConfigJSONFile(QObject):
             key="process_start",
             attr=logger.process_start,
         )
-        if process_start is None:
-            logger.process_start = None
+
+        # Start file index used
+        if type(process_start) is int:
+            logger.process_start = process_start
+        # Start date used - convert to datetime
         else:
             try:
-                # Need to convert process start to datetime
                 logger.process_start = parse(process_start, yearfirst=True)
             except ValueError:
                 msg = f"Process start format not recognised for logger {logger.logger_id}."
@@ -374,11 +376,13 @@ class ProjectConfigJSONFile(QObject):
             key="process_end",
             attr=logger.process_end,
         )
-        if process_end is None:
-            logger.process_end = None
+
+        # End file index used
+        if type(process_end) is int:
+            logger.process_end = process_end
+        # End date used - convert to datetime
         else:
             try:
-                # Need to convert process end to datetime
                 logger.process_end = parse(process_end, yearfirst=True)
             except ValueError:
                 msg = (
@@ -643,15 +647,26 @@ class ProjectConfigJSONFile(QObject):
         if logger.process_start is None:
             dict_props["process_start"] = None
         else:
-            dict_props["process_start"] = logger.process_start.strftime(
-                "%Y-%m-%d %H:%M"
-            )
+            # Start date used
+            if logger.file_timestamp_embedded is True:
+                dict_props["process_start"] = logger.process_start.strftime(
+                    "%Y-%m-%d %H:%M"
+                )
+            # Start file index used
+            else:
+                dict_props["process_start"] = logger.process_start
 
         # Process end
         if logger.process_end is None:
             dict_props["process_end"] = None
         else:
-            dict_props["process_end"] = logger.process_end.strftime("%Y-%m-%d %H:%M")
+            # End date used
+            if logger.file_timestamp_embedded is True:
+                dict_props["process_end"] = logger.process_end.strftime(
+                    "%Y-%m-%d %H:%M"
+                )
+            else:
+                dict_props["process_end"] = logger.process_end
 
         # Data type to screen on
         dict_props["process_type"] = logger.process_type

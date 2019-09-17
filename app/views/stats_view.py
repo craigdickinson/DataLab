@@ -8,7 +8,12 @@ import logging
 import PIL
 import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
-from matplotlib.ticker import AutoLocator, AutoMinorLocator, MultipleLocator
+from matplotlib.ticker import (
+    AutoLocator,
+    AutoMinorLocator,
+    MultipleLocator,
+    MaxNLocator,
+)
 
 import numpy as np
 import pandas as pd
@@ -83,24 +88,24 @@ class StatsDataset:
         except:
             self.channels = ["N/A"]
 
-        df = self._insert_seconds_column(df)
+        # If timestamp index exists create a time steps column, otherwise set flag that file number index is used
+        if isinstance(df.index[0], pd.Timestamp):
+            df = self._add_time_steps_column(df)
+            self.index_type = "Timestamp"
+        else:
+            self.index_type = "File Number"
+
         self.logger_id = logger_id
         self.df = df
 
     @staticmethod
-    def _insert_seconds_column(df):
+    def _add_time_steps_column(df):
         """Calculate time delta from t0 and convert to seconds (float)."""
 
         t = (df.index - df.index[0]).total_seconds().values.round(3)
         df.insert(loc=0, column="Time (s)", value=t)
 
         return df
-
-    def set_column_to_index(self, col):
-        """Set index to column name provided."""
-
-        self.df.reset_index(inplace=True)
-        self.df.set_index(col, inplace=True)
 
 
 class AxesPlotData:
@@ -175,8 +180,9 @@ class AxesPlotData:
             else:
                 stat_label = stat
 
-            # Store time/duration column as potential plot x-axis index - convert from seconds to days
-            t = df["Time (s)"].values / 86400
+            # Store time steps column as potential plot x-axis index - convert from seconds to days
+            if "Time (s)" in df.columns:
+                t = df["Time (s)"].values / 86400
 
             # Slice data frame for the selected statistic and then on channel
             if stat == "Combined":
@@ -207,7 +213,7 @@ class AxesPlotData:
             self.channel_2 = channel_name
             self.stat_2 = stat
 
-    def plot_data(self, plot_type, axis=0, num_plots=1, use_index="Timestamps"):
+    def plot_data(self, stat, axis, num_plots, index_type):
         """Plot channel statistic(s) on selected subplot axes (i.e. primary or secondary)."""
 
         if axis == 0:
@@ -229,19 +235,26 @@ class AxesPlotData:
             color = self.color_2
             color2 = "green"
 
-        # Override time values with timestamps for x-axis, if selected
-        if use_index == "Timestamps":
+        # Determine x-axis values to use: time steps or data frame index (timestamps or file numbers)
+        if index_type != "Time Step":
             t = df.index.values
+
+        if index_type == "File Number":
+            linestyle = "None"
+            marker = "o"
+        else:
+            linestyle = "-"
+            marker = ""
 
         # Construct y-axis label
         ylabel, ylabel_size = self._create_ylabel(channel, units, num_plots)
-
         ax.cla()
         handles = []
         ax_in_use = False
+
         if not df.empty:
             # Plot all stats on selected axes
-            if plot_type == "Combined":
+            if stat == "Combined":
                 mn = df["min"].values.ravel()
                 mx = df["max"].values.ravel()
                 ave = df["mean"].values.ravel()
@@ -252,7 +265,15 @@ class AxesPlotData:
                 label_3 = f"Std. Dev. {label}"
 
                 # Plot mean, range and SD range
-                line1 = ax.plot(t, ave, label=label_1, color=color, lw=1)
+                line1 = ax.plot(
+                    t,
+                    ave,
+                    label=label_1,
+                    color=color,
+                    ls=linestyle,
+                    lw=1,
+                    marker=marker,
+                )
                 line2 = ax.fill_between(
                     t, mn, mx, label=label_2, facecolor=color, alpha=0.2
                 )
@@ -264,7 +285,19 @@ class AxesPlotData:
                 handles = [line1[0], line2, line3]
             # Plot a single channel stat on selected axes
             else:
-                line = ax.plot(t, df, label=label, c=color, lw=1)
+                y = df.values.ravel()
+                if index_type == "File Number":
+                    line = ax.bar(t, y, label=label, color=color, tick_label=t)
+                else:
+                    line = ax.plot(
+                        t,
+                        y,
+                        label=label,
+                        color=color,
+                        ls=linestyle,
+                        lw=1,
+                        marker=marker,
+                    )
                 handles.append(line[0])
 
             ax.set_ylabel(ylabel, size=ylabel_size)
@@ -349,6 +382,7 @@ class StatsWidget(QtWidgets.QWidget):
         self.removing_channel_items = False
         self.resetting_dashboard = False
         self.presets_set = False
+        self.skip_on_xaxis_type_changed = False
 
         # X-axis datetime interval settings
         self.date_locator = "days"
@@ -357,17 +391,20 @@ class StatsWidget(QtWidgets.QWidget):
         self.hour_interval = 12
 
         # X-axis values type
-        self.xaxis_type = "Timestamps"
+        self.xaxis_type = "Timestamp"
+
+        # Stats data frame index type of current plot "session" (either Timestamp of File Number)
+        # Purpose is to prevent mix and match of plotted indexes - which wouldn't make sense
+        self.df_index_type = ""
 
         # Shared axes flags
         self.equal_pri_sec_yaxis = False
         self.share_subplot_yaxes1 = False
         self.share_subplot_yaxes2 = False
 
-        # Set layout and initialise combo boxes
+        # Set layout and initialise combo boxes and create plot figure
         self._init_ui()
         self._init_combos()
-
         self._connect_signals()
         self._create_subplots()
         self.fig.tight_layout()
@@ -485,8 +522,7 @@ class StatsWidget(QtWidgets.QWidget):
         self.stat = self.statCombo.currentText()
         self.loggerCombo.addItem("-")
         self.channelCombo.addItem("-")
-        self.xaxisTypeCombo.addItems(["Duration", "Timestamps"])
-        self.xaxisTypeCombo.setCurrentIndex(1)
+        self.xaxisTypeCombo.addItems(["Timestamp", "Time Step"])
         date_intervals = ["14 days", "7 days", "1 day", "12 hours"]
         self.xaxisIntervalsCombo.addItems(date_intervals)
         self.xaxisIntervalsCombo.setCurrentIndex(1)
@@ -610,12 +646,15 @@ class StatsWidget(QtWidgets.QWidget):
                 logging.exception(e)
 
     def on_xaxis_type_changed(self):
-        """Set x-axis type: timestamps or duration."""
+        """Set x-axis type: timestamps or time steps."""
+
+        if self.skip_on_xaxis_type_changed is True:
+            return
 
         self.xaxis_type = self.xaxisTypeCombo.currentText()
 
         # Disable the x-axis interval combo box if x-axis type is not set to Timestamps
-        if self.xaxis_type == "Timestamps":
+        if self.xaxis_type == "Timestamp":
             self.xaxisIntervalsCombo.setEnabled(True)
         else:
             self.xaxisIntervalsCombo.setEnabled(False)
@@ -625,18 +664,18 @@ class StatsWidget(QtWidgets.QWidget):
             # Check data exists
             if subplot.ax1_in_use is True:
                 subplot.plot_data(
-                    plot_type=subplot.stat_1,
+                    stat=subplot.stat_1,
                     axis=0,
                     num_plots=self.num_plots,
-                    use_index=self.xaxis_type,
+                    index_type=self.xaxis_type,
                 )
 
             if subplot.ax2_in_use is True:
                 subplot.plot_data(
-                    plot_type=subplot.stat_2,
+                    stat=subplot.stat_2,
                     axis=1,
                     num_plots=self.num_plots,
-                    use_index=self.xaxis_type,
+                    index_type=self.xaxis_type,
                 )
 
             self._set_yaxes_and_gridlines(subplot)
@@ -717,6 +756,24 @@ class StatsWidget(QtWidgets.QWidget):
             self.parent.error(f"{msg}:\n{e}\n{sys.exc_info()[0]}")
             logging.exception(e)
 
+    def set_xaxis_type_combo(self):
+        """Set x-axis type drop-down options depending on stats dataset type."""
+
+        self.skip_on_xaxis_type_changed = True
+        i = self.xaxisTypeCombo.currentIndex()
+        self.xaxisTypeCombo.clear()
+
+        if self.df_index_type == "File Number":
+            self.xaxisTypeCombo.addItem("File Number")
+            self.xaxisTypeCombo.setEnabled(False)
+        else:
+            self.xaxisTypeCombo.addItems(["Timestamp", "Time Step"])
+            self.xaxisTypeCombo.setCurrentIndex(i)
+            self.xaxisTypeCombo.setEnabled(True)
+
+        self.xaxis_type = self.xaxisTypeCombo.currentText()
+        self.skip_on_xaxis_type_changed = False
+
     def _create_subplots(self):
         """Create figure with required number of subplots."""
 
@@ -770,6 +827,8 @@ class StatsWidget(QtWidgets.QWidget):
         self.datasetsList.clear()
         self.channelsList.clear()
         self.channelsLabel.setText("Available Channels")
+        self.df_index_type = ""
+        self.set_xaxis_type_combo()
 
         # Remove all but the first item in each combo box
         [self.loggerCombo.removeItem(i) for i in range(self.loggerCombo.count(), 0, -1)]
@@ -921,10 +980,10 @@ class StatsWidget(QtWidgets.QWidget):
 
             # Plot the data
             subplot.plot_data(
-                plot_type=self.stat,
+                stat=self.stat,
                 axis=0,
                 num_plots=self.num_plots,
-                use_index=self.xaxis_type,
+                index_type=self.xaxis_type,
             )
 
             # Check if no data was plotted on primary axes but the secondary axes is in use.
@@ -932,10 +991,10 @@ class StatsWidget(QtWidgets.QWidget):
             # screwing up ax2
             if subplot.ax1_in_use is False and subplot.ax2_in_use is True:
                 subplot.plot_data(
-                    plot_type=subplot.stat_2,
+                    stat=subplot.stat_2,
                     axis=1,
                     num_plots=self.num_plots,
-                    use_index=self.xaxis_type,
+                    index_type=self.xaxis_type,
                 )
         # Plot on the secondary axes
         else:
@@ -950,10 +1009,10 @@ class StatsWidget(QtWidgets.QWidget):
 
             # Create combined stats plot
             subplot.plot_data(
-                plot_type=self.stat,
+                stat=self.stat,
                 axis=1,
                 num_plots=self.num_plots,
-                use_index=self.xaxis_type,
+                index_type=self.xaxis_type,
             )
 
         # Format plot
@@ -975,18 +1034,18 @@ class StatsWidget(QtWidgets.QWidget):
             # Check data exists
             if subplot.ax1_in_use is True:
                 subplot.plot_data(
-                    plot_type=subplot.stat_1,
+                    stat=subplot.stat_1,
                     axis=0,
                     num_plots=self.num_plots,
-                    use_index=self.xaxis_type,
+                    index_type=self.xaxis_type,
                 )
                 data_plotted = True
             if subplot.ax2_in_use is True:
                 subplot.plot_data(
-                    plot_type=subplot.stat_2,
+                    stat=subplot.stat_2,
                     axis=1,
                     num_plots=self.num_plots,
-                    use_index=self.xaxis_type,
+                    index_type=self.xaxis_type,
                 )
                 data_plotted = True
 
@@ -1115,6 +1174,7 @@ class StatsWidget(QtWidgets.QWidget):
     def _set_xaxis(self):
         """Set x-axis format."""
 
+        # Select bottom axes
         ax = self.subplots[-1].ax1
         # plt.rcParams['xtick.major.size'] = 3.5
         # plt.rcParams['xtick.minor.size'] = 2.0
@@ -1127,7 +1187,7 @@ class StatsWidget(QtWidgets.QWidget):
         else:
             xlabel_size = 11
 
-        if self.xaxisTypeCombo.currentText() == "Timestamps":
+        if self.xaxis_type == "Timestamp":
             ax.set_xlabel("", size=xlabel_size)
 
             if self.date_locator == "days":
@@ -1139,11 +1199,19 @@ class StatsWidget(QtWidgets.QWidget):
             ax.xaxis.set_major_locator(interval)
             ax.xaxis.set_major_formatter(fmt)
             self.fig.autofmt_xdate()
-        else:
+        elif self.xaxis_type == "Time Step":
             ax.set_xlabel("Time (days)", size=xlabel_size)
             # x0, x1 = ax.get_xlim()
             # dt = 5
             # ax.xaxis.set_ticks(np.arange(x0, x1 + dt, dt))
+
+            # Hide x-axis tick labels from all but the bottom (last) subplot
+            for subplot in self.subplots[:-1]:
+                plt.setp(subplot.ax1.get_xticklabels(), visible=False)
+                plt.setp(subplot.ax2.get_xticklabels(), visible=False)
+        elif self.xaxis_type == "File Number":
+            ax.set_xlabel("File Number", size=xlabel_size)
+            # ax.xaxis.set_major_locator(MaxNLocator(integer=True))
 
             # Hide x-axis tick labels from all but the bottom (last) subplot
             for subplot in self.subplots[:-1]:

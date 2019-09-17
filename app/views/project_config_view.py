@@ -397,7 +397,7 @@ class ConfigModule(QtWidgets.QWidget):
             if logger_idx == 1:
                 logger_idx = 0
 
-            # If second to last logger has been removed, set selected logger to be the new last logger
+            # If second to last logger has been removed, set selected logger to be the last logger
             n = len(self.control.loggers) - 1
             if logger_idx > n:
                 logger_idx = n
@@ -1433,6 +1433,12 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
                     self.logger.logger_id, self.logger_idx
                 )
                 self.parent.parent.set_logger_header_list(self.logger)
+
+                # Set the process start/end labels in the Screening dashboard that pertain to the logger
+                file_timestamp_embedded = self.logger.file_timestamp_embedded
+                self.parent.parent.screening_tab.set_process_date_labels(
+                    file_timestamp_embedded
+                )
         except Exception as e:
             msg = "Unexpected error assigning logger properties"
             self.error(f"{msg}:\n{e}\n{sys.exc_info()[0]}")
@@ -1577,6 +1583,10 @@ class ScreeningSetupTab(QtWidgets.QWidget):
         self.psdWindow = QtWidgets.QLabel("-")
         self.psdOverlap = QtWidgets.QLabel("-")
 
+        # Process range labels
+        self.lblProcessStart = QtWidgets.QLabel("Start timestamp:")
+        self.lblProcessEnd = QtWidgets.QLabel("End timestamp:")
+
         # CONTAINERS
         # Columns to process group
         self.colsGroup = QtWidgets.QGroupBox("Columns to Process Settings")
@@ -1595,12 +1605,10 @@ class ScreeningSetupTab(QtWidgets.QWidget):
         )
 
         # Processing date range group
-        self.dateRangeGroup = QtWidgets.QGroupBox("Processing Date Range")
+        self.dateRangeGroup = QtWidgets.QGroupBox("Events to Process")
         self.dateRangeForm = QtWidgets.QFormLayout(self.dateRangeGroup)
-        self.dateRangeForm.addRow(
-            QtWidgets.QLabel("Start timestamp:"), self.processStart
-        )
-        self.dateRangeForm.addRow(QtWidgets.QLabel("End timestamp:"), self.processEnd)
+        self.dateRangeForm.addRow(self.lblProcessStart, self.processStart)
+        self.dateRangeForm.addRow(self.lblProcessEnd, self.processEnd)
 
         # Filters group
         self.filtersGroup = QtWidgets.QGroupBox("Frequency Filters")
@@ -1794,6 +1802,9 @@ class ScreeningSetupTab(QtWidgets.QWidget):
         units_items_str = " ".join([i for i in logger.user_channel_units])
         self.channelUnits.setText(units_items_str)
 
+        # Set the process start/end labels in the Screening dashboard that pertain to the first logger (if exists)
+        self.set_process_date_labels(logger.file_timestamp_embedded)
+
         # Start timestamp/index
         if logger.process_start is None:
             process_start = "First file"
@@ -1893,6 +1904,16 @@ class ScreeningSetupTab(QtWidgets.QWidget):
         self.psdOverlap.setText("-")
         self.statsFolder.setText("Statistics")
         self.spectFolder.setText("Spectrograms")
+
+    def set_process_date_labels(self, file_timestamp_embedded):
+        """Set process start and end labels to refer to dates or file indexes depending on setup of current logger."""
+
+        if file_timestamp_embedded is True:
+            self.lblProcessStart.setText("Start timestamp:")
+            self.lblProcessEnd.setText("End timestamp:")
+        else:
+            self.lblProcessStart.setText("Start file number:")
+            self.lblProcessEnd.setText("End file number:")
 
 
 class EditScreeningSetupDialog(QtWidgets.QDialog):
@@ -2253,8 +2274,8 @@ class EditScreeningSetupDialog(QtWidgets.QDialog):
 
         # Stats settings group
         if (
-                self.statsInterval.text() == ""
-                or int(float(self.statsInterval.text())) == 0
+            self.statsInterval.text() == ""
+            or int(float(self.statsInterval.text())) == 0
         ):
             logger.stats_interval = int(logger.duration)
         else:
@@ -2262,8 +2283,8 @@ class EditScreeningSetupDialog(QtWidgets.QDialog):
 
         # Spectral settings group
         if (
-                self.spectInterval.text() == ""
-                or int(float(self.spectInterval.text())) == 0
+            self.spectInterval.text() == ""
+            or int(float(self.spectInterval.text())) == 0
         ):
             logger.spect_interval = int(logger.duration)
         else:
@@ -2274,7 +2295,7 @@ class EditScreeningSetupDialog(QtWidgets.QDialog):
             logger.psd_nperseg = int(self.psdNperseg.text())
 
             if logger.psd_nperseg == 0 or logger.psd_nperseg > int(
-                    logger.spect_interval * logger.freq
+                logger.spect_interval * logger.freq
             ):
                 logger.psd_nperseg = int(logger.spect_interval * logger.freq)
         except:

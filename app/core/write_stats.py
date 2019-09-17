@@ -34,11 +34,18 @@ class StatsOutput(object):
         self.wb.remove(ws)
 
     def compile_stats(
-        self, logger, sample_start, sample_end, logger_stats, logger_stats_filt
+        self,
+        logger,
+        file_nums,
+        sample_start,
+        sample_end,
+        logger_stats,
+        logger_stats_filt,
     ):
         """
         Compile statistics into data frame for exporting and for use by gui.
         :param logger: object
+        :param file_nums: Load case list assigned to each sample
         :param sample_start
         :param sample_end
         :param logger_stats: object
@@ -93,14 +100,19 @@ class StatsOutput(object):
         header = self._create_header(channels_header, stats_header, units_header)
 
         # Create stats data frame for internal use
-        df_stats = self._create_stats_dataframe(self.stats, sample_start, header)
+        if logger.first_col_data == "Timestamp":
+            df_stats = pd.DataFrame(data=self.stats, index=sample_start, columns=header)
+            df_stats.index.name = "Date"
+        else:
+            df_stats = pd.DataFrame(data=self.stats, index=file_nums, columns=header)
+            df_stats.index.name = "File Number"
 
         # Create an alternative stats data frame in a layout for writing to file (includes end timestamps column)
         self.df_stats_export = self._create_export_stats_dataframe(
-            self.stats, sample_start, sample_end, header
+            self.stats, file_nums, sample_start, sample_end, header
         )
 
-        # If unfiltered and filtered processed reorder stats data frame columns to
+        # If unfiltered and filtered processed, reorder stats data frame columns to
         # preferred order of (channel, channel (filtered)) pairs
         if stats_unfilt and stats_filt:
             cols = self._reorder_columns(df_stats)
@@ -155,11 +167,9 @@ class StatsOutput(object):
         return header
 
     @staticmethod
-    def _create_stats_dataframe(stats, sample_start, header):
-        return pd.DataFrame(data=stats, index=sample_start, columns=header)
-
-    @staticmethod
-    def _create_export_stats_dataframe(stats, sample_start, sample_end, header):
+    def _create_export_stats_dataframe(
+        stats, file_nums, sample_start, sample_end, header
+    ):
         """
         Create an alternative statistics data frame layout for exporting to file (csv/xlsx/hdf5).
         The only difference is that the sample end timestamps column is included and a standard integer index is used.
@@ -167,12 +177,16 @@ class StatsOutput(object):
 
         # Add End time column, reset index and rename first column to Start
         df = pd.DataFrame(data=stats, columns=header)
-        df.insert(loc=0, column="Start", value=sample_start)
-        df.insert(loc=1, column="End", value=sample_end)
+        df.insert(loc=0, column="File Number", value=file_nums)
+        df.insert(loc=1, column="Start", value=sample_start)
+        df.insert(loc=2, column="End", value=sample_end)
 
-        # Convert start and end columns to strings
-        df["Start"] = df["Start"].dt.strftime("%Y-%m-%d %H:%M:%S")
-        df["End"] = df["End"].dt.strftime("%Y-%m-%d %H:%M:%S")
+        # Convert start and end column datetimes to strings for writing (if required)
+        try:
+            df["Start"] = df["Start"].dt.strftime("%Y-%m-%d %H:%M:%S")
+            df["End"] = df["End"].dt.strftime("%Y-%m-%d %H:%M:%S")
+        except:
+            pass
 
         return df
 
@@ -222,9 +236,9 @@ class StatsOutput(object):
         data = self.df_stats_export.values.tolist()
 
         # Reformat channels header so as not to have repeating channels
-        channels = channels_header[2:]
+        channels = channels_header[3:]
         channels = [x for chan in channels for x in [chan] + ["", "", ""]]
-        channels_header = channels_header[:2] + channels
+        channels_header = channels_header[:3] + channels
 
         # Create worksheet for logger
         logger_id = replace_space_with_underscore(self.logger_id)
@@ -249,11 +263,11 @@ class StatsOutput(object):
         max_col = ws.max_column
         max_row = ws.max_row
         for row in range(4, max_row + 1):
-            for col in range(3, max_col + 1):
+            for col in range(4, max_col + 1):
                 ws.cell(row=row, column=col).number_format = "0.00E+00"
 
         # Set width of date columns
-        for col in range(1, 3):
+        for col in range(2, 4):
             ws.column_dimensions[get_column_letter(col)].width = 20
 
     @staticmethod

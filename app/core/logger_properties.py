@@ -94,8 +94,8 @@ class LoggerProperties(QObject):
 
         # Processing start and end dates
         # These hold sampling dates and not the control file stats start/end dates (which may not be provided)
-        self.start_date = None
-        self.end_date = None
+        # self.start_date = None
+        # self.end_date = None
 
         # File timestamp component start and end indexes
         self.year_span = None
@@ -241,13 +241,13 @@ class LoggerProperties(QObject):
         :return: filename datetime as string
         """
 
-        y = f[self.year_span[0]: self.year_span[1]]
-        m = f[self.month_span[0]: self.month_span[1]]
-        d = f[self.day_span[0]: self.day_span[1]]
-        h = f[self.hour_span[0]: self.hour_span[1]]
-        minute = f[self.min_span[0]: self.min_span[1]]
-        sec = f[self.sec_span[0]: self.sec_span[1]]
-        ms = f[self.ms_span[0]: self.ms_span[1]]
+        y = f[self.year_span[0] : self.year_span[1]]
+        m = f[self.month_span[0] : self.month_span[1]]
+        d = f[self.day_span[0] : self.day_span[1]]
+        h = f[self.hour_span[0] : self.hour_span[1]]
+        minute = f[self.min_span[0] : self.min_span[1]]
+        sec = f[self.sec_span[0] : self.sec_span[1]]
+        ms = f[self.ms_span[0] : self.ms_span[1]]
 
         # Date must contain y, m and d
         date_str = y + "-" + m + "-" + d
@@ -272,25 +272,21 @@ class LoggerProperties(QObject):
         :return: New list of file_timestamps and files within date range
         """
 
-        # Set range of dates
-        self.start_date = start_date
-        self.end_date = end_date
-
-        # Use first and last raw logger filenames if no start-end dates read from control file
-        if self.start_date is None:
-            self.start_date = min(self.file_timestamps)
-        if self.end_date is None:
-            self.end_date = max(self.file_timestamps)
+        # Use first and last raw logger filenames if no start/end dates read from control file
+        if start_date is None:
+            start_date = min(self.file_timestamps)
+        if end_date is None:
+            end_date = max(self.file_timestamps)
 
         dates_files = [
             (d, f)
             for d, f in zip(self.file_timestamps, self.files)
-            if self.start_date <= d <= self.end_date
+            if start_date <= d <= end_date
         ]
 
         # Make sure files are processed in correct order (and make sure they are lists not tuples)
         try:
-            d, f = list(zip(dates_files))
+            d, f = list(zip(*dates_files))
             self.file_timestamps = list(d)
             self.files = list(f)
         # Empty lists
@@ -302,8 +298,18 @@ class LoggerProperties(QObject):
             raise LoggerError(msg)
 
     def select_files_in_index_range(self, start_idx, end_idx):
-        """Select files for processing within start_idx, end_idx range range."""
-        pass
+        """Select files for processing within start_idx, end_idx range."""
+
+        # Use first and last raw logger filenames if no start/end indexes read from control file
+        if start_idx is None:
+            start_idx = 1
+        if end_idx is None:
+            end_idx = -1
+
+        self.files = self.raw_filenames[start_idx - 1 : end_idx]
+
+        # Dummy input of file indexes since there are no timestamps
+        self.file_timestamps = list(range(len(self.files)))
 
     def get_all_channel_and_unit_names(self):
         """Store in logger object lists of all channel and units header in test file."""
@@ -414,8 +420,8 @@ class LoggerProperties(QObject):
 
             # Keep headers requested (append dummy channel names if exist)
             self.channel_names = [
-                                     all_channels[i - 2] for i in present_cols
-                                 ] + dummy_cols
+                all_channels[i - 2] for i in present_cols
+            ] + dummy_cols
 
             if missing_cols:
                 warn_flag = True

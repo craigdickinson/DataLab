@@ -22,6 +22,7 @@ class DataScreen(object):
 
         self.logger = LoggerProperties()
         self.files = []
+        self.file_nums = []
 
         # Dictionary of files with errors for specified logger
         self.dict_bad_files = {}
@@ -129,11 +130,13 @@ class DataScreen(object):
             df = df.dropna(axis=1)
 
             # Replace time column with timestamp
-            if self.logger.file_timestamp_embedded is True and self.logger.first_col_data == "Time Step":
+            if (
+                self.logger.file_timestamp_embedded is True
+                and self.logger.first_col_data == "Time Step"
+            ):
                 ts = df.iloc[:, 0].values
                 timestamps = [start_timestamp + timedelta(seconds=t) for t in ts]
                 df.iloc[:, 0] = timestamps
-                # first_col = "Time"
 
         # Check all requested columns exist in file
         n = len(df.columns)
@@ -147,15 +150,16 @@ class DataScreen(object):
         for i in missing_cols:
             df["Dummy " + str(i + 1)] = np.nan
 
-        # Replace column names with setup channel names (should only be different if user names supplied)
-        df.columns = [first_col] + self.channel_names
-
         # Convert first column (should be timestamps string) to datetimes (not required for Pulse-acc format)
-        # if self.logger.file_format != "Pulse-acc":
-        if not (self.logger.file_timestamp_embedded is False and self.logger.first_col_data == "Time Step"):
+        if not (
+            self.logger.file_timestamp_embedded is False
+            and self.logger.first_col_data == "Time Step"
+        ):
             df.iloc[:, 0] = pd.to_datetime(
                 df.iloc[:, 0], format=self.logger.datetime_format, errors="coerce"
             )
+        else:
+            first_col = "Time"
 
         # Convert any non-numeric data to NaN
         df.iloc[:, 1:] = df.iloc[:, 1:].apply(pd.to_numeric, errors="coerce")
@@ -163,6 +167,9 @@ class DataScreen(object):
         # Apply any unit conversions
         if len(self.unit_conv_factors) == len(df.columns) - 1:
             df.iloc[:, 1:] = np.multiply(df.iloc[:, 1:], self.unit_conv_factors)
+
+        # Replace column names with setup channel names (should only be different if user names supplied)
+        df.columns = [first_col] + self.channel_names
 
         return df
 

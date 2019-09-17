@@ -1038,7 +1038,9 @@ class LoggerPlotSettings(QtWidgets.QDialog):
             QtWidgets.QLabel("Number of ensembles:"), self.optNumEnsembles
         )
         self.formLayout.addRow(QtWidgets.QLabel("Window:"), self.optWindow)
-        self.formLayout.addRow(QtWidgets.QLabel("Segment overlap (%):"), self.optOverlap)
+        self.formLayout.addRow(
+            QtWidgets.QLabel("Segment overlap (%):"), self.optOverlap
+        )
         self.formLayout.addRow(
             QtWidgets.QLabel("Number of points per ensemble (echo):"), self.optNperseg
         )

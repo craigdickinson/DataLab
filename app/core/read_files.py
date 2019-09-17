@@ -157,10 +157,23 @@ def read_stats_hdf5(filename):
 
     for key in datasets:
         df = pd.read_hdf(filename, key=key)
-        df = df.drop(df.columns[1], axis=1)
-        df = df.set_index(df.columns[0])
-        df.index = pd.to_datetime(df.index, format="%Y-%m-%d %H:%M:%S")
-        df.index.name = "Datetime"
+
+        # Use start date as index
+        if df["End"].dtype == pd.Timestamp:
+            # Drop redundant columns
+            if "File Number" in df.columns:
+                df = df.drop("File Number", axis=1, level=0)
+            df = df.drop("End", axis=1, level=0)
+
+            # Set index
+            df = df.set_index(df.columns[0])
+            df.index = pd.to_datetime(df.index, format="%Y-%m-%d %H:%M:%S")
+            df.index.name = "Date"
+        # Use file number as index
+        else:
+            df = df.drop(["Start", "End"], axis=1, level=0)
+            df = df.set_index(df.columns[0])
+            df.index.name = "File Number"
 
         # Remove preceding "/" from key
         key = key[1:]
@@ -170,23 +183,36 @@ def read_stats_hdf5(filename):
 
 
 def read_stats_csv(filename):
-    """Read processed statistics Excel file for plotting."""
+    """Read processed statistics csv file for plotting."""
 
     df_dict = {}
-    df = pd.read_csv(filename, header=[0, 1, 2], index_col=0)
-    df.drop(df.columns[0], axis=1, inplace=True)
+    df = pd.read_csv(filename, header=[0, 1, 2])
 
-    # TODO: This is ugly - revisit
-    try:
-        df.index = pd.to_datetime(df.index, format="%Y-%m-%d %H:%M:%S")
-    except:
+    # Check if End column data type is datetime - if so use start date as index, otherwise use file number;
+    # Use start date as index - Note: df["End"] is interpreted as a dataframe here not a series as in hdf5
+    if df["End"].dtypes.all() == pd.Timestamp:
+        # Drop redundant columns
+        if "File Number" in df.columns:
+            df = df.drop("File Number", axis=1, level=0)
+        df = df.drop("End", axis=1, level=0)
+        df = df.set_index(df.columns[0])
+        df.index.name = "Date"
+
+        # Convert timestamps to datetime
         try:
-            # Timestamp will likely be in this format if csv file has been subsequently edited and saved
-            df.index = pd.to_datetime(df.index, format="%d/%m/%Y %H:%M")
-        except Exception as e:
-            raise
+            df.index = pd.to_datetime(df.index, format="%Y-%m-%d %H:%M:%S")
+        except:
+            try:
+                # Timestamp will likely be in local (UK) format if csv file has been subsequently edited and saved
+                df.index = pd.to_datetime(df.index, format="%d/%m/%Y %H:%M")
+            except Exception as e:
+                raise
+    # Use file number as index
+    else:
+        df = df.drop(["Start", "End"], axis=1, level=0)
+        df = df.set_index(df.columns[0])
+        df.index.name = "File Number"
 
-    df.index.name = "Datetime"
     df.columns.rename(["channels", "stats", "units"], inplace=True)
     logger = filename.split("Statistics_")[-1].split(".")[0]
     df_dict[logger] = df
@@ -201,10 +227,22 @@ def read_stats_excel(filename):
     xl = pd.ExcelFile(filename)
 
     for sh in xl.sheet_names:
-        df = pd.read_excel(xl, sheet_name=sh, header=[0, 1, 2], index_col=0)
-        df.drop(df.columns[0], axis=1, inplace=True)
-        df.index = pd.to_datetime(df.index, format="%Y-%m-%d %H:%M:%S")
-        df.index.name = "Datetime"
+        df = pd.read_excel(xl, sheet_name=sh, header=[0, 1, 2])
+
+        # Use start date as index
+        if df["End"].dtypes.all() == pd.Timestamp:
+            if "File Number" in df.columns:
+                df = df.drop("File Number", axis=1, level=0)
+            df = df.drop("End", axis=1, level=0)
+            df = df.set_index(df.columns[0])
+            df.index = pd.to_datetime(df.index, format="%Y-%m-%d %H:%M:%S")
+            df.index.name = "Date"
+        # Use file number as index
+        else:
+            df = df.drop(["Start", "End"], axis=1, level=0)
+            df = df.set_index(df.columns[0])
+            df.index.name = "File Number"
+
         df.columns.rename(["channels", "stats", "units"], inplace=True)
         df_dict[sh] = df
 

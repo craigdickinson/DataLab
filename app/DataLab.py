@@ -1,7 +1,7 @@
 __author__ = "Craig Dickinson"
 __program__ = "DataLab"
-__version__ = "1.3.6"
-__date__ = "12 September 2019"
+__version__ = "1.3.7"
+__date__ = "17 September 2019"
 
 import logging
 import os
@@ -167,9 +167,9 @@ class DataLab(DataLabGui):
     def on_open_stats_file_triggered(self):
         """Open stats file when actioned from file menu."""
 
-        self.on_open_stats_file(src="logger_stats")
+        self.on_open_stats_file(dashboard_tab="logger_stats")
 
-    def on_open_stats_file(self, src=None):
+    def on_open_stats_file(self, dashboard_tab=""):
         """Open stats file."""
 
         try:
@@ -196,13 +196,35 @@ class DataLab(DataLabGui):
                 # Set update plot flag so that plot is not updated if datasets dictionary already contains data
                 # (i.e. a plot already exists)
                 if self.statsTab.datasets:
-                    plot_flag = False
+                    create_init_plot = False
                 else:
-                    plot_flag = True
+                    create_init_plot = True
 
                 # For each logger create a stats dataset object
                 for logger_id, df in dict_stats.items():
                     dataset = StatsDataset(logger_id, df)
+
+                    # If this is the first dataset to add, store the index type:
+                    # i.e. whether index contains timestamps or file numbers;
+                    # this is to lock down the type of stats plots allowed
+                    if not self.statsTab.datasets:
+                        self.statsTab.df_index_type = dataset.index_type
+
+                        # Adjust x-axis type combo items according to index type
+                        self.statsTab.set_xaxis_type_combo()
+                    # Check dataset being added has the same index type as existing datasets
+                    elif dataset.index_type != self.statsTab.df_index_type:
+                        msg = (
+                            f"You have tried to load a stats file that contains a {dataset.index_type.upper()} "
+                            f"index but the currently loaded stats datasets use a "
+                            f"{self.statsTab.df_index_type.upper()} index.\n\n"
+                            f"You cannot plot stats that use a different type of index. "
+                            f"To load this stats file, first clear the existing datasets from the stats dashboard."
+                        )
+                        return self._message_information(
+                            "Unable to Load Statistics File", msg
+                        )
+
                     self.statsTab.datasets.append(dataset)
                     self.vesselStatsTab.datasets.append(dataset)
                     # self.pairplotTab.datasets.append(dataset)
@@ -213,7 +235,7 @@ class DataLab(DataLabGui):
                 self.vesselStatsTab.update_stats_datasets_list(logger_ids)
 
                 # Plot stats
-                if plot_flag is True:
+                if create_init_plot is True:
                     # Select preset logger and channel index if no dataset previously exist and plot stats tabs
                     self.statsTab.set_preset_logger_and_channel()
                     self.statsTab.update_plot()
@@ -221,7 +243,7 @@ class DataLab(DataLabGui):
                     self.vesselStatsTab.update_plots()
 
                 # Show dashboard
-                if src == "logger_stats":
+                if dashboard_tab == "logger_stats":
                     self.view_tab_stats()
         except Exception as e:
             msg = "Unexpected error loading stats file"
@@ -549,7 +571,9 @@ class DataLab(DataLabGui):
                     logger.process_start, logger.process_end
                 )
             else:
-                logger.select_files_in_index_range()
+                logger.select_files_in_index_range(
+                    logger.process_start, logger.process_end
+                )
 
             # Store expected file length
             logger.expected_data_points = logger.freq * logger.duration
@@ -618,6 +642,7 @@ class DataLab(DataLabGui):
         if screening.dict_stats:
             for logger_id, df in screening.dict_stats.items():
                 dataset = StatsDataset(logger_id, df)
+                self.statsTab.df_index_type = dataset.index_type
                 self.statsTab.datasets.append(dataset)
                 self.vesselStatsTab.datasets.append(dataset)
 

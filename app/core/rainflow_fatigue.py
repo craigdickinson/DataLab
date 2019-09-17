@@ -70,7 +70,7 @@ def extract_cycles(peaks):
         cycles_array[cycl_count, 1] = 0.5
         cycles_array[cycl_count, 2] = mean_stress
 
-    cycles_array = np.delete(cycles_array, np.s_[cycl_count + 1:], axis=0)
+    cycles_array = np.delete(cycles_array, np.s_[cycl_count + 1 :], axis=0)
 
     return cycles_array
 
@@ -81,9 +81,9 @@ def bin_ranges(cycles, bin_size=1):
     bin_locs = np.ceil(cycles[:, 0] / bin_size).astype(int)
     unique_bins = np.unique(bin_locs)
     stress_ranges = unique_bins * bin_size
-    stress_cycles = np.array([
-        cycles[bin_locs == unique_bin, 1].sum() for unique_bin in unique_bins
-    ])
+    stress_cycles = np.array(
+        [cycles[bin_locs == unique_bin, 1].sum() for unique_bin in unique_bins]
+    )
 
     return stress_ranges, stress_cycles
 

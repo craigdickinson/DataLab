@@ -290,9 +290,7 @@ class Control(object):
             logger.check_file_timestamps()
 
             # Select only files within specified datetime range
-            logger.select_files_in_date_range(
-                logger.process_start, logger.process_end
-            )
+            logger.select_files_in_date_range(logger.process_start, logger.process_end)
 
             # Select first logger file to detect additional properties and checks on
             test_file = logger.files[0]
