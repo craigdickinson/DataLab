@@ -5,7 +5,6 @@ __author__ = "Craig Dickinson"
 import csv
 import os
 from datetime import datetime, timedelta
-from time import time
 
 import pandas as pd
 
@@ -256,11 +255,8 @@ def read_spectrograms_hdf5(filename):
         # info = store.info().split('\n')
         datasets = store.keys()
 
-    t0 = time()
     key = datasets[0]
     df = pd.read_hdf(filename, key=key)
-    t1 = round(time() - t0)
-    # print("Read hdf5 file time = {}".format(str(timedelta(seconds=t1))))
     key = key[1:]
 
     # Replace _ with " "
@@ -272,10 +268,11 @@ def read_spectrograms_hdf5(filename):
 def read_spectrograms_csv(filename):
     """Read spectrograms data csv file."""
 
-    t0 = time()
     key = filename.split("Spectrograms_Data_")[-1].split(".")[0]
     df = pd.read_csv(filename, index_col=0)
-    df.index = pd.to_datetime(df.index, format="%Y-%m-%d %H:%M:%S")
+
+    if df.index.dtype == pd.Timestamp:
+        df.index = pd.to_datetime(df.index, format="%Y-%m-%d %H:%M:%S")
 
     # Need to convert frequencies (header) from object/string to float
     df.columns = df.columns.astype(float)
@@ -283,26 +280,21 @@ def read_spectrograms_csv(filename):
     # Replace _ with " "
     key = " ".join(key.split("_"))
 
-    t1 = round(time() - t0)
-    # print("Read csv file time = {}".format(str(timedelta(seconds=t1))))
-
     return key, df
 
 
 def read_spectrograms_excel(filename):
     """Read spectrograms data Excel file."""
 
-    t0 = time()
     xl = pd.ExcelFile(filename)
     key = xl.sheet_names[0]
     df = pd.read_excel(xl, index_col=0)
-    df.index = pd.to_datetime(df.index, format="%Y-%m-%d %H:%M:%S")
+
+    if df.index.dtype == pd.Timestamp:
+        df.index = pd.to_datetime(df.index, format="%Y-%m-%d %H:%M:%S")
 
     # Replace _ with " "
     key = " ".join(key.split("_"))
-
-    t1 = round(time() - t0)
-    # print("Read xlsx file time = {}".format(str(timedelta(seconds=t1))))
 
     return key, df
 

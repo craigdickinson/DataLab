@@ -175,12 +175,16 @@ class Screening(QThread):
             df_spect_sample = pd.DataFrame()
             n = len(data_screen[i].files)
 
+            # Get file number of first file to be processed (this is akin to load case number for no timestamp files)
+            first_file_num = logger.file_indexes[0] + 1
+
             # Expose each sample here; that way it can be sent to different processing modules
             for j, file in enumerate(data_screen[i].files):
                 # TODO: Consider adding multiprocessing pool here
                 # TODO: If expected file in sequence is missing, store results as nan
                 # Update console
                 filename = os.path.basename(file)
+                processed_file_num = first_file_num + j
                 progress = (
                     f"Processing {logger.logger_id} file {j + 1} of {n} ({filename})"
                 )
@@ -202,10 +206,6 @@ class Screening(QThread):
                 # Send data package to progress bar
                 self.signal_notify_progress.emit(dict_progress)
 
-                file_num_processed = 0
-                if logger.first_col_data == "Time Step":
-                    file_num_processed = logger.process_start + j
-
                 # If streaming data from Azure Cloud read as a file stream
                 if logger.data_on_azure is True:
                     file = stream_blob(
@@ -216,7 +216,7 @@ class Screening(QThread):
                 df = data_screen[i].read_logger_file(file)
 
                 # Data munging/wrangling to prepare dataset for processing
-                df = data_screen[i].munge_data(df, logger.file_timestamps[j])
+                df = data_screen[i].munge_data(df, file_idx=j)
 
                 # Data screening module
                 # Perform basic screening checks on file - check file has expected number of data points
@@ -235,7 +235,7 @@ class Screening(QThread):
                     if global_process_stats is True and logger.process_stats is True:
                         while len(df_stats) > 0:
                             # Store the file number of processed sample (only of use for time step indexes)
-                            data_screen[i].file_nums.append(file_num_processed)
+                            data_screen[i].stats_file_nums.append(processed_file_num)
 
                             # Extract sample data frame from main dataset
                             df_stats_sample, df_stats = data_screen[i].sample_data(
@@ -273,6 +273,9 @@ class Screening(QThread):
                     # Spectrograms processing module
                     if global_process_spect is True and logger.process_spect is True:
                         while len(df_spect) > 0:
+                            # Store the file number of processed sample (only of use for time step indexes)
+                            data_screen[i].spect_file_nums.append(processed_file_num)
+
                             # Extract sample data frame from main dataset
                             df_spect_sample, df_spect = data_screen[i].sample_data(
                                 df_spect_sample,
@@ -331,7 +334,7 @@ class Screening(QThread):
                 # Create and store a data frame of logger stats
                 df_stats = stats_out.compile_stats(
                     logger,
-                    data_screen[i].file_nums,
+                    data_screen[i].stats_file_nums,
                     data_screen[i].stats_sample_start,
                     data_screen[i].stats_sample_end,
                     logger_stats,
@@ -378,10 +381,12 @@ class Screening(QThread):
                     csv=self.control.spect_to_csv,
                     xlsx=self.control.spect_to_xlsx,
                 )
+                dates = data_screen[i].spect_sample_start
+                file_nums = data_screen[i].spect_file_nums
 
                 # Export spectrograms to requested file formats
                 if spect_unfilt.spectrograms:
-                    spect_unfilt.add_timestamps(dates=data_screen[i].spect_sample_start)
+                    spect_unfilt.add_index(dates, file_nums)
                     df_dict = spect_unfilt.export_spectrograms_data(
                         dict_formats_to_write
                     )
@@ -392,7 +397,7 @@ class Screening(QThread):
                     self.signal_update_output_info.emit(output_files)
 
                 if spect_filt.spectrograms:
-                    spect_filt.add_timestamps(dates=data_screen[i].spect_sample_start)
+                    spect_filt.add_index(dates, file_nums)
                     df_dict = spect_filt.export_spectrograms_data(
                         dict_formats_to_write, filtered=True
                     )

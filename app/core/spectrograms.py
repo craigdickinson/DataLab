@@ -26,7 +26,7 @@ class Spectrogram(object):
         # Dictionary to hold spectrograms for each channel
         self.spectrograms = {}
         self.freq = np.array([])
-        self.datetimes = np.array([])
+        self.index = np.array([])
 
     def set_freq(self, n, T):
         """
@@ -47,7 +47,7 @@ class Spectrogram(object):
     def add_data(self, df, window="none", nperseg=None, noverlap=None):
         """Calculate amplitude spectrum for each channel in sample data frame and store result in dictionary."""
 
-        # Drop timestamp column
+        # Column names - omit column 1 (timestamp/time)
         channels = df.columns[1:].astype(str)
 
         # Calculate amplitude spectrum
@@ -60,7 +60,10 @@ class Spectrogram(object):
         #     else:
         #         self.spectrograms[channel] = np.column_stack([self.spectrograms[channel], amps[i]])
 
-        fs = 1 / ((df.iloc[1, 0] - df.iloc[0, 0]).total_seconds())
+        if isinstance(df.iloc[0, 0], pd.Timestamp):
+            fs = 1 / ((df.iloc[1, 0] - df.iloc[0, 0]).total_seconds())
+        else:
+            fs = 1 / (df.iloc[1, 0] - df.iloc[0, 0])
 
         window = window.lower()
         if window == "none":
@@ -100,16 +103,19 @@ class Spectrogram(object):
                     )
                     raise ValueError(msg)
 
-    def add_timestamps(self, dates):
-        """Store all sample start dates."""
+    def add_index(self, dates, file_nums):
+        """Store all sample start dates if timestamps used, or file numbers if not."""
 
-        self.datetimes = np.asarray(dates)
+        if isinstance(dates[0], pd.Timestamp):
+            self.index = dates
+        else:
+            self.index = file_nums
 
     def plot_spectrogram(self):
         """Plot and save spectrograms."""
 
         f = self.freq
-        t = self.datetimes
+        t = self.index
 
         for channel, spect in self.spectrograms.items():
             # plt.pcolormesh(t, f, np.log10(spect))
@@ -158,7 +164,7 @@ class Spectrogram(object):
 
             # Create spectrogram data frame for channel and add to dictionary
             f = self.freq
-            t = self.datetimes
+            t = self.index
             df = pd.DataFrame(data=spect, index=t, columns=f)
 
             # Replace _ in key with " "

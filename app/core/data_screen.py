@@ -22,7 +22,8 @@ class DataScreen(object):
 
         self.logger = LoggerProperties()
         self.files = []
-        self.file_nums = []
+        self.stats_file_nums = []
+        self.spect_file_nums = []
 
         # Dictionary of files with errors for specified logger
         self.dict_bad_files = {}
@@ -119,7 +120,7 @@ class DataScreen(object):
 
         return df
 
-    def munge_data(self, df, start_timestamp=""):
+    def munge_data(self, df, file_idx=0):
         """Format the logger raw data so it is suitable for processing."""
 
         # Copy to prevent SettingWithCopyWarning
@@ -129,12 +130,13 @@ class DataScreen(object):
         if self.logger.file_format == "General-csv":
             df = df.dropna(axis=1)
 
-            # Replace time column with timestamp
+            # If raw data uses time steps but filename contains timestamp info, replace time column with timestamp
             if (
                 self.logger.file_timestamp_embedded is True
                 and self.logger.first_col_data == "Time Step"
             ):
                 ts = df.iloc[:, 0].values
+                start_timestamp = self.logger.file_timestamps[file_idx]
                 timestamps = [start_timestamp + timedelta(seconds=t) for t in ts]
                 df.iloc[:, 0] = timestamps
 

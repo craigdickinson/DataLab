@@ -1,7 +1,7 @@
 __author__ = "Craig Dickinson"
 __program__ = "DataLab"
-__version__ = "1.3.7"
-__date__ = "17 September 2019"
+__version__ = "1.3.8"
+__date__ = "18 September 2019"
 
 import logging
 import os
@@ -204,13 +204,11 @@ class DataLab(DataLabGui):
                 for logger_id, df in dict_stats.items():
                     dataset = StatsDataset(logger_id, df)
 
-                    # If this is the first dataset to add, store the index type:
-                    # i.e. whether index contains timestamps or file numbers;
-                    # this is to lock down the type of stats plots allowed
+                    # If this is the first dataset to add, store the index type (i.e. whether index contains
+                    # timestamps or file numbers) and configure x-axis type combo accordingly
+                    # This is to lock down the type of stats plots allowed to a single format
                     if not self.statsTab.datasets:
                         self.statsTab.df_index_type = dataset.index_type
-
-                        # Adjust x-axis type combo items according to index type
                         self.statsTab.set_xaxis_type_combo()
                     # Check dataset being added has the same index type as existing datasets
                     elif dataset.index_type != self.statsTab.df_index_type:
@@ -225,6 +223,7 @@ class DataLab(DataLabGui):
                             "Unable to Load Statistics File", msg
                         )
 
+                    # Add stats dataset to stats and vessel stats tabs
                     self.statsTab.datasets.append(dataset)
                     self.vesselStatsTab.datasets.append(dataset)
                     # self.pairplotTab.datasets.append(dataset)
@@ -642,7 +641,13 @@ class DataLab(DataLabGui):
         if screening.dict_stats:
             for logger_id, df in screening.dict_stats.items():
                 dataset = StatsDataset(logger_id, df)
+
+                # Store data frame index type (timestamp or file number) and
+                # configure x-axis type combo accordingly
                 self.statsTab.df_index_type = dataset.index_type
+                self.statsTab.set_xaxis_type_combo()
+
+                # Add stats dataset to stats and vessel stats tabs
                 self.statsTab.datasets.append(dataset)
                 self.vesselStatsTab.datasets.append(dataset)
 

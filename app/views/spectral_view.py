@@ -4,7 +4,7 @@ __author__ = "Craig Dickinson"
 
 import logging
 import sys
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 import math
 import matplotlib.dates as mdates
@@ -44,8 +44,9 @@ class SpectrogramWidget(QtWidgets.QWidget):
         self.project = "Project Title"  # 'Total WoS Glendronach Well Monitoring'
         self.datasets = {}
         self.nat_freqs = {}
-        self.timestamps = []
-        self.t = None
+        self.index = []
+        self.index_is_dates = True
+        self.t = 0
         self.freqs = np.array([])
         self.z = np.array([])
         self.zmin = 0
@@ -176,17 +177,22 @@ class SpectrogramWidget(QtWidgets.QWidget):
     def on_dataset_double_clicked(self):
         """Plot spectrogram."""
 
-        self.create_plots()
+        try:
+            self.create_plots()
 
-        # Check dataset key exists
-        dataset = self.datasetsList.currentItem().text()
-        if dataset in self.nat_freqs:
-            mean_nat_freq = self.nat_freqs[dataset]
-            self.natFreq.setText(
-                f"Estimated natural response: {mean_nat_freq:.2f} Hz, {1 / mean_nat_freq:.2f} s"
-            )
-        else:
-            self.natFreq.setText("")
+            # Check dataset key exists
+            dataset = self.datasetsList.currentItem().text()
+            if dataset in self.nat_freqs:
+                mean_nat_freq = self.nat_freqs[dataset]
+                self.natFreq.setText(
+                    f"Estimated natural response: {mean_nat_freq:.2f} Hz, {1 / mean_nat_freq:.2f} s"
+                )
+            else:
+                self.natFreq.setText("")
+        except Exception as e:
+            msg = "Unexpected error on spectrogram dataset double click"
+            self.parent.error(f"{msg}:\n{e}\n{sys.exc_info()[0]}")
+            logging.exception(e)
 
     def on_slider_changed(self):
         """Update event PSD plot."""
@@ -195,21 +201,30 @@ class SpectrogramWidget(QtWidgets.QWidget):
         if self.skip_on_slider_change_event is True:
             return
 
-        i = self.slider.value()
-        n = self.slider.maximum()
-        row = n - i
-        self.timestampList.setCurrentRow(row)
+        try:
+            i = self.slider.value()
+            n = self.slider.maximum()
+            row = n - i
+            self.timestampList.setCurrentRow(row)
 
-        if self.timestampList.count() > 0:
-            t = self.timestamps[i]
-            self._set_datetime_edit(t)
+            if self.timestampList.count() > 0:
+                t = self.index[i]
+                # self._set_datetime_edit(t)
 
-            # Update plot data (faster than replotting)
-            t_psd = mdates.date2num(t)
-            self._update_event_marker(t_psd)
-            self._update_psd_plot(i)
-            self.canvas.draw()
-            self.canvas.flush_events()
+                # Update plot data (faster than replotting)
+                if self.index_is_dates:
+                    t_psd = mdates.date2num(t)
+                else:
+                    t_psd = t
+
+                self._update_event_marker(t_psd)
+                self._update_psd_plot(i)
+                self.canvas.draw()
+                self.canvas.flush_events()
+        except Exception as e:
+            msg = "Unexpected error on spectrogram slider change"
+            self.parent.error(f"{msg}:\n{e}\n{sys.exc_info()[0]}")
+            logging.exception(e)
 
     def on_timestamp_list_double_clicked(self):
         """Update the PSD event slice for the selected timestamp."""
@@ -223,10 +238,9 @@ class SpectrogramWidget(QtWidgets.QWidget):
         """Estimate mean natural frequency for selected dataset."""
 
         if self.datasetsList.count() == 0:
-            self.parent.error(
+            return self.parent.error(
                 "No data currently plotted. Load a spectrogram file first."
             )
-            return
 
         # self.parent.statusbar.showMessage('Calculating estimate natural frequency...')
         dataset = self.datasetsList.currentItem().text()
@@ -254,7 +268,7 @@ class SpectrogramWidget(QtWidgets.QWidget):
 
         self.datasets = {}
         self.nat_freqs = {}
-        self.timestamps = []
+        self.index = []
         self.datasetsList.clear()
         self.timestampList.clear()
         self.natFreq.setText("")
@@ -312,8 +326,14 @@ class SpectrogramWidget(QtWidgets.QWidget):
         df = self.datasets[dataset]
 
         # Extract data
-        self.timestamps = df.index
+        self.index = df.index
         self.freqs = df.columns.values
+
+        # Determine if have a datetime or numeric index
+        if isinstance(self.index[0], datetime):
+            self.index_is_dates = True
+        else:
+            self.index_is_dates = False
 
         if self.log_scale is True:
             self.z = np.log10(df.values)
@@ -329,16 +349,18 @@ class SpectrogramWidget(QtWidgets.QWidget):
         else:
             self.zmax = math.ceil(self.z.max())
 
-        # Populate timestamps list
+        # Populate index/timestamps list
+        if self.index_is_dates:
+            idx = [t.strftime("%Y-%m-%d %H:%M") for t in reversed(self.index)]
+        else:
+            idx = [str(t) for t in reversed(self.index)]
+
         self.timestampList.clear()
-        [
-            self.timestampList.addItem(t.strftime("%Y-%m-%d %H:%M"))
-            for t in reversed(self.timestamps)
-        ]
+        self.timestampList.addItems(idx)
 
         # Set slider to middle event
         # if self.slider.value() == 50:
-        n = len(self.timestamps)
+        n = len(self.index)
         i = n // 2 - 1
         j = n - i - 1
         self.ts_i = i
@@ -351,8 +373,8 @@ class SpectrogramWidget(QtWidgets.QWidget):
 
         # Set timestamp list and datetime edit widget
         self.timestampList.setCurrentRow(j)
-        self.t = self.timestamps[i]
-        self._set_datetime_edit(self.t)
+        self.t = self.index[i]
+        # self._set_datetime_edit(self.t)
 
     def _plot_spectrogram(self):
         ax1 = self.ax1
@@ -361,13 +383,13 @@ class SpectrogramWidget(QtWidgets.QWidget):
 
         f0 = self.freqs[0]
         f1 = self.freqs[-1]
-        t0 = mdates.date2num(self.timestamps[0])
-        t1 = mdates.date2num(self.timestamps[-1])
 
         # Set colour map
         cmap = cm.get_cmap("coolwarm")
 
         # Continuous contour plot option
+        # t0 = mdates.date2num(self.index[0])
+        # t1 = mdates.date2num(self.index[-1])
         # im = ax1.imshow(
         #     self.z,
         #     aspect="auto",
@@ -378,7 +400,7 @@ class SpectrogramWidget(QtWidgets.QWidget):
         # )
 
         # Contour plot with discrete levels
-        im = ax1.contourf(self.freqs, self.timestamps, self.z, cmap=cmap)
+        im = ax1.contourf(self.freqs, self.index, self.z, cmap=cmap)
         # ticks = np.linspace(self.zmin, self.zmax, 8, endpoint=True)
         # im = ax1.contourf(self.freqs, self.timestamps, self.z, levels=ticks, cmap=cmap)
 
@@ -404,33 +426,34 @@ class SpectrogramWidget(QtWidgets.QWidget):
         # self.cbar.outline.set_edgecolor('black')
         # self.cbar.outline.set_linewidth(1)
 
-        # Plot event slice line for middle timestamp
-        ti = mdates.date2num(self.t)
+        # Plot event slice line for middle index/timestamp
+        if self.index_is_dates:
+            ti = mdates.date2num(self.t)
+        else:
+            ti = self.t
         self.event_line, = ax1.plot([f0, f1], [ti, ti], "k--")
 
         self._set_title()
         ax1.margins(0)
         ax1.set_xlim(self.xlim)
-        ax1.yaxis.set_major_formatter(mdates.DateFormatter("%d %b"))
-        ax1.yaxis.set_major_locator(mdates.DayLocator(interval=7))
-        plt.sca(ax1)
+
+        if self.index_is_dates:
+            ax1.yaxis.set_major_formatter(mdates.DateFormatter("%d %b"))
+            ax1.yaxis.set_major_locator(mdates.DayLocator(interval=7))
+
+        # plt.sca(ax1)
         # plt.xticks(fontsize=11)
         # plt.yticks(fontsize=11)
-        # self.fig.tight_layout()
 
     def _plot_event_psd(self):
         """Plot PSD of spectrogram timestamp slice."""
 
-        # Slice spectrogram dataset at middle timestamp
+        # Slice spectrogram dataset at middle index/timestamp
         i = self.ts_i
         zi = self.z[i, :]
 
         # Create legend label
-        timestamp1 = self.timestamps[i]
-        timestamp2 = timestamp1 + timedelta(minutes=20)
-        msg_d1 = timestamp1.strftime("%d %b %Y %H:%M").lstrip("0")
-        msg_d2 = timestamp2.strftime("%d %b %Y %H:%M")[-5:]
-        label = f"{msg_d1} to {msg_d2}"
+        label = self._get_psd_label(i)
 
         self.ax2.cla()
         # self.ax2.patch.set_facecolor('none')
@@ -459,15 +482,34 @@ class SpectrogramWidget(QtWidgets.QWidget):
         zi = self.z[i, :]
 
         # Create new legend label
-        timestamp1 = self.timestamps[i]
-        timestamp2 = timestamp1 + timedelta(minutes=20)
-        msg_d1 = timestamp1.strftime("%d %b %Y %H:%M").lstrip("0")
-        msg_d2 = timestamp2.strftime("%d %b %Y %H:%M")[-5:]
-        label = " ".join((msg_d1, "to", msg_d2))
+        label = self._get_psd_label(i)
 
         # Update plot data and label text
         self.psd_line.set_ydata(zi)
         self.label.set_text(label)
+
+    def _get_psd_label(self, i):
+        """
+        Create new legend label for PSD plot.
+        :param i: Timestamp or file number list index
+        :return: PSD legend label
+        """
+
+        if self.index_is_dates:
+            ts1 = self.index[i]
+            msg_d1 = ts1.strftime("%d %b %Y %H:%M").lstrip("0")
+
+            # Get time delta between selected index and next one
+            try:
+                ts2 = self.index[i + 1]
+                msg_d2 = ts2.strftime("%d %b %Y %H:%M")[-5:]
+                label = " ".join((msg_d1, "to", msg_d2))
+            except:
+                label = msg_d1
+        else:
+            label = f"File {self.index[i]}"
+
+        return label
 
     def _set_title(self):
         """Set plot title."""

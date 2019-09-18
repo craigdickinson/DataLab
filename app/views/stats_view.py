@@ -1681,12 +1681,16 @@ class VesselStatsWidget(QtWidgets.QWidget):
             self.ax3.margins(x=0, y=0)
             self.ax3b.margins(x=0, y=0)
 
-            days = mdates.DayLocator(interval=7)
-            fmt = mdates.DateFormatter("%d-%b-%y")
-            self.ax3.xaxis.set_major_locator(days)
-            self.ax3.xaxis.set_major_formatter(fmt)
+            # Format x-axis if index is timestamps
+            if isinstance(df.index[0], pd.Timestamp):
+                days = mdates.DayLocator(interval=7)
+                fmt = mdates.DateFormatter("%d-%b-%y")
+                self.ax3.xaxis.set_major_locator(days)
+                self.ax3.xaxis.set_major_formatter(fmt)
+                self.fig.autofmt_xdate()
+            else:
+                self.ax3.set_xlabel("File Number")
 
-            self.fig.autofmt_xdate()
             self.fig.legend(loc="lower center", ncol=4, fontsize=11)
             # Ensure plots don't overlap suptitle and legend
             self.fig.tight_layout(

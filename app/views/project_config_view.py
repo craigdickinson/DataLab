@@ -1668,16 +1668,21 @@ class ScreeningSetupTab(QtWidgets.QWidget):
         self.hboxStats.addWidget(self.statsGroup)
         self.hboxStats.addWidget(self.statsOutputGroup)
 
+        # Create vertical layouts for spectral settings to prevent vertical expansion of group box
         self.vboxSpect = QtWidgets.QVBoxLayout()
-        self.vboxSpect.addWidget(self.spectOutputGroup)
+        self.vboxSpect.addWidget(self.spectGroup)
         self.vboxSpect.addStretch()
+        self.vboxSpectOuput = QtWidgets.QVBoxLayout()
+        self.vboxSpectOuput.addWidget(self.spectOutputGroup)
+        self.vboxSpectOuput.addStretch()
 
+        # Now add spectral group box vertical layouts to a horizontal one
         self.hboxSpect = QtWidgets.QHBoxLayout()
         self.hboxSpect.setAlignment(QtCore.Qt.AlignLeft)
-        self.hboxSpect.addWidget(self.spectGroup)
-        # self.hboxSpect.addWidget(self.spectOutputGroup)
         self.hboxSpect.addLayout(self.vboxSpect)
+        self.hboxSpect.addLayout(self.vboxSpectOuput)
 
+        # Combine all layouts
         self.vbox = QtWidgets.QVBoxLayout()
         self.vbox.addWidget(self.editButton, stretch=0, alignment=QtCore.Qt.AlignLeft)
         self.vbox.addWidget(self.colsGroup)
@@ -2291,15 +2296,14 @@ class EditScreeningSetupDialog(QtWidgets.QDialog):
             logger.spect_interval = int(float(self.spectInterval.text()))
 
         # PSD parameters
+        num_pts = int(logger.spect_interval * logger.freq)
         try:
             logger.psd_nperseg = int(self.psdNperseg.text())
 
-            if logger.psd_nperseg == 0 or logger.psd_nperseg > int(
-                logger.spect_interval * logger.freq
-            ):
-                logger.psd_nperseg = int(logger.spect_interval * logger.freq)
+            if logger.psd_nperseg == 0 or logger.psd_nperseg > num_pts:
+                logger.psd_nperseg = num_pts
         except:
-            logger.psd_nperseg = int(logger.spect_interval * logger.freq)
+            logger.psd_nperseg = num_pts
 
         logger.psd_window = self.psdWindowCombo.currentText()
 

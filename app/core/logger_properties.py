@@ -84,10 +84,14 @@ class LoggerProperties(QObject):
         self.all_channel_names = []
         self.all_channel_units = []
 
-        # List of raw filenames and of accepted files and file timestamps for each filename
+        # List of raw filenames
         self.raw_filenames = []
+
+        # Lists of accepted filenames to process, their file timestamps (if applicable)
+        # and file index (out of the raw filenames list)
         self.files = []
         self.file_timestamps = []
+        self.file_indexes = []
 
         # Dictionary of files with bad timestamps
         self.dict_bad_filenames = {}
@@ -223,8 +227,9 @@ class LoggerProperties(QObject):
 
         self.files = []
         self.file_timestamps = []
+        self.file_indexes = []
 
-        for f in self.raw_filenames:
+        for i, f in enumerate(self.raw_filenames):
             date = self.get_file_timestamp(f)
 
             if date is None:
@@ -233,6 +238,7 @@ class LoggerProperties(QObject):
                 # Append if date is successfully parsed
                 self.files.append(f)
                 self.file_timestamps.append(date)
+                self.file_indexes.append(i)
 
     def get_file_timestamp(self, f):
         """
@@ -279,14 +285,15 @@ class LoggerProperties(QObject):
             end_date = max(self.file_timestamps)
 
         dates_files = [
-            (d, f)
-            for d, f in zip(self.file_timestamps, self.files)
+            (i, d, f)
+            for i, d, f in zip(self.file_indexes, self.file_timestamps, self.files)
             if start_date <= d <= end_date
         ]
 
         # Make sure files are processed in correct order (and make sure they are lists not tuples)
         try:
-            d, f = list(zip(*dates_files))
+            i, d, f = list(zip(*dates_files))
+            self.file_indexes = list(i)
             self.file_timestamps = list(d)
             self.files = list(f)
         # Empty lists
@@ -307,9 +314,7 @@ class LoggerProperties(QObject):
             end_idx = -1
 
         self.files = self.raw_filenames[start_idx - 1 : end_idx]
-
-        # Dummy input of file indexes since there are no timestamps
-        self.file_timestamps = list(range(len(self.files)))
+        self.file_indexes = list(range(start_idx - 1, end_idx))
 
     def get_all_channel_and_unit_names(self):
         """Store in logger object lists of all channel and units header in test file."""
