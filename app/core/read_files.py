@@ -10,16 +10,16 @@ import pandas as pd
 
 
 def read_fugro_csv(filename):
-    """Raw data module: Read Fugro-csv file into pandas data frame. Index is time steps."""
+    """Raw data module: Read Fugro-csv file to data frame. Index is time steps."""
 
     try:
         df = pd.read_csv(filename, header=[1, 2], index_col=0, encoding="latin")
-    except:
+    except FileNotFoundError:
         raise FileNotFoundError(f"Could not load file {filename}. File not found.")
 
     try:
         df.index = pd.to_datetime(df.index, format="%d-%b-%Y %H:%M:%S.%f")
-    except:
+    except ValueError:
         raise ValueError(
             f"Could not load file {filename}.\n\nCSV files must be of Fugro format (for now...)."
         )
@@ -127,7 +127,7 @@ def read_logger_txt(filename):
         df.index = df.iloc[:, 0]
         df.index.name = "Time (s)"
         df.columns = cols
-    except:
+    except FileNotFoundError:
         raise FileNotFoundError(f"Could not load file {filename}. File not found.")
 
     return df

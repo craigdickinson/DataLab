@@ -200,14 +200,14 @@ class FatigueProcessingWidget(QtWidgets.QWidget):
         ax1.set_ylabel(f"{log10}Fatigue Damage (1/{self.period})")
         title = f"Unfactored Fatigue Damage"
         ax1.set_title(title)
-        ax1.margins(x=0, y=0)
+        ax1.margins(0)
 
         # Cumulative fatigue damage plot
         ax2.plot(cum_dam)
         ax2.set_ylabel("Cumulative Fatigue Damage")
         title = f"Unfactored Cumulative Fatigue Damage"
         ax2.set_title(title)
-        ax2.margins(x=0, y=0)
+        ax2.margins(0)
         ax2.xaxis.set_major_formatter(mdates.DateFormatter("%d-%b-%y"))
         ax2.xaxis.set_major_locator(mdates.DayLocator(interval=7))
 

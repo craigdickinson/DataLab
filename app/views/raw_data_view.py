@@ -489,8 +489,8 @@ class RawDataDashboard(QtWidgets.QWidget):
             self.ax1.set_xlim(self.ts_xlim)
 
         # Tight axes
-        self.ax1.margins(x=0, y=0)
-        self.ax1b.margins(x=0, y=0)
+        self.ax1.margins(0)
+        self.ax1b.margins(0)
         # self.ax.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M:%S'))
         # self.ax.xaxis.set_major_locator(mdates.MinuteLocator(interval=2))
         # plt.sca(self.ax)
@@ -562,8 +562,8 @@ class RawDataDashboard(QtWidgets.QWidget):
         self.ax2.set_xlim(self.psd_xlim)
 
         # Tight axes
-        self.ax2.margins(x=0, y=0)
-        self.ax2b.margins(x=0, y=0)
+        self.ax2.margins(0)
+        self.ax2b.margins(0)
 
     def compute_psd(self, df):
         """Compute PSD of all channels using the Welch method."""

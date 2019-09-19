@@ -130,15 +130,42 @@ class DataScreen(object):
         if self.logger.file_format == "General-csv":
             df = df.dropna(axis=1)
 
-            # If raw data uses time steps but filename contains timestamp info, replace time column with timestamp
-            if (
-                self.logger.file_timestamp_embedded is True
-                and self.logger.first_col_data == "Time Step"
-            ):
-                ts = df.iloc[:, 0].values
-                start_timestamp = self.logger.file_timestamps[file_idx]
-                timestamps = [start_timestamp + timedelta(seconds=t) for t in ts]
-                df.iloc[:, 0] = timestamps
+            # Time steps data
+            if self.logger.first_col_data == "Time Step":
+                # If filename contains timestamp info, replace time column with timestamp
+                if self.logger.file_timestamp_embedded is True:
+                    ts = df.iloc[:, 0].values
+                    start_timestamp = self.logger.file_timestamps[file_idx]
+                    timestamps = [start_timestamp + timedelta(seconds=t) for t in ts]
+                    df.iloc[:, 0] = timestamps
+                else:
+                    first_col = "Time"
+            #  Convert first column (should be timestamps string) to datetimes
+            else:
+                try:
+                    df.iloc[:, 0] = pd.to_datetime(
+                        df.iloc[:, 0], format=self.logger.datetime_format
+                    )
+                except ValueError as e:
+                    if not isinstance(df.iloc[0, 0], pd.Timestamp):
+                        raise ValueError(
+                            f"Expected the first column of {self.logger.files[file_idx]} "
+                            f"to contain dates.\n"
+                            f"The time series appears to use a time step index but the "
+                            f"'First column data' property is set to 'Timestamp'. Change this to 'Time Step'."
+                        )
+                    else:
+                        raise ValueError(
+                            f"Could not convert the first column of {self.logger.files[file_idx]} "
+                            f"to datetime.\n"
+                            f"Check the 'Data Timestamp' property has the correct format.\n\n<{e}>"
+                        )
+
+        #  Convert first column (should be timestamps string) to datetimes
+        if self.logger.file_format == "Fugro-csv":
+            df.iloc[:, 0] = pd.to_datetime(
+                df.iloc[:, 0], format=self.logger.datetime_format, errors="coerce"
+            )
 
         # Check all requested columns exist in file
         n = len(df.columns)
@@ -151,17 +178,6 @@ class DataScreen(object):
         # Create dummy data for missing columns
         for i in missing_cols:
             df["Dummy " + str(i + 1)] = np.nan
-
-        # Convert first column (should be timestamps string) to datetimes (not required for Pulse-acc format)
-        if not (
-            self.logger.file_timestamp_embedded is False
-            and self.logger.first_col_data == "Time Step"
-        ):
-            df.iloc[:, 0] = pd.to_datetime(
-                df.iloc[:, 0], format=self.logger.datetime_format, errors="coerce"
-            )
-        else:
-            first_col = "Time"
 
         # Convert any non-numeric data to NaN
         df.iloc[:, 1:] = df.iloc[:, 1:].apply(pd.to_numeric, errors="coerce")

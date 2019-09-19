@@ -9,6 +9,7 @@ from datetime import datetime, timedelta
 import math
 import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
+from matplotlib.ticker import MaxNLocator
 import numpy as np
 from PyQt5 import QtCore, QtGui, QtWidgets
 from matplotlib import cm
@@ -81,11 +82,10 @@ class SpectrogramWidget(QtWidgets.QWidget):
         self.openSpectButton.setToolTip(
             "Open logger spectrograms (*.h5;*.csv;*.xlsx) (F4)"
         )
-        self.lbl = QtWidgets.QLabel("Loaded Datasets")
+        self.lblDatasets = QtWidgets.QLabel("Loaded Datasets")
         self.datasetsList = QtWidgets.QListWidget()
         self.datasetsList.setFixedHeight(100)
-        self.datetimeEdit = QtWidgets.QDateTimeEdit()
-        self.lbl2 = QtWidgets.QLabel("Timestamps (reversed)")
+        self.lblIndex = QtWidgets.QLabel("Timestamps (reversed)")
         self.timestampList = QtWidgets.QListWidget()
         self.slider = QtWidgets.QSlider()
         self.slider.setOrientation(QtCore.Qt.Vertical)
@@ -123,14 +123,13 @@ class SpectrogramWidget(QtWidgets.QWidget):
         self.grid = QtWidgets.QGridLayout(self.selection)
         self.grid.addWidget(self.openSpectButton, 0, 0)
         self.grid.addWidget(self.clearDatasetsButton, 1, 0)
-        self.grid.addWidget(self.lbl, 2, 0)
+        self.grid.addWidget(self.lblDatasets, 2, 0)
         self.grid.addWidget(self.datasetsList, 3, 0)
-        self.grid.addWidget(self.datetimeEdit, 4, 0)
-        self.grid.addWidget(self.lbl2, 5, 0)
-        self.grid.addWidget(self.timestampList, 6, 0)
-        self.grid.addWidget(self.slider, 6, 1)
-        self.grid.addWidget(self.openPlotSettingsButton, 7, 0)
-        self.grid.addWidget(self.calcNatFreqButton, 8, 0)
+        self.grid.addWidget(self.lblIndex, 4, 0)
+        self.grid.addWidget(self.timestampList, 5, 0)
+        self.grid.addWidget(self.slider, 5, 1)
+        self.grid.addWidget(self.openPlotSettingsButton, 6, 0)
+        self.grid.addWidget(self.calcNatFreqButton, 7, 0)
 
         # Plot layout
         # Create plot figure, canvas widget to display figure and navbar
@@ -209,7 +208,6 @@ class SpectrogramWidget(QtWidgets.QWidget):
 
             if self.timestampList.count() > 0:
                 t = self.index[i]
-                # self._set_datetime_edit(t)
 
                 # Update plot data (faster than replotting)
                 if self.index_is_dates:
@@ -309,15 +307,6 @@ class SpectrogramWidget(QtWidgets.QWidget):
         self.xlim = (self.freqs.min(), self.freqs.max())
         self.init_xlim = self.xlim
 
-    def _set_datetime_edit(self, t):
-        yr = t.year
-        mth = t.month
-        day = t.day
-        hr = t.hour
-        m = t.minute
-        dt = QtCore.QDateTime(yr, mth, day, hr, m)
-        self.datetimeEdit.setDateTime(dt)
-
     def _set_plot_data(self):
         """Retrieve spectrogram dataset from list and extract relevant data."""
 
@@ -349,11 +338,13 @@ class SpectrogramWidget(QtWidgets.QWidget):
         else:
             self.zmax = math.ceil(self.z.max())
 
-        # Populate index/timestamps list
+        # Populate index/timestamps list and update list label
         if self.index_is_dates:
             idx = [t.strftime("%Y-%m-%d %H:%M") for t in reversed(self.index)]
+            self.lblIndex.setText("Timestamps (reversed)")
         else:
             idx = [str(t) for t in reversed(self.index)]
+            self.lblIndex.setText("File Numbers (reversed)")
 
         self.timestampList.clear()
         self.timestampList.addItems(idx)
@@ -365,16 +356,13 @@ class SpectrogramWidget(QtWidgets.QWidget):
         j = n - i - 1
         self.ts_i = i
 
-        # Update slider parameters but disable it's event change first while setting up plot
+        # Update slider parameters but disable its event change while setting up plot
         self.skip_on_slider_change_event = True
         self.slider.setMaximum(n - 1)
         self.slider.setValue(i)
         self.skip_on_slider_change_event = False
-
-        # Set timestamp list and datetime edit widget
         self.timestampList.setCurrentRow(j)
         self.t = self.index[i]
-        # self._set_datetime_edit(self.t)
 
     def _plot_spectrogram(self):
         ax1 = self.ax1
@@ -402,29 +390,12 @@ class SpectrogramWidget(QtWidgets.QWidget):
         # Contour plot with discrete levels
         im = ax1.contourf(self.freqs, self.index, self.z, cmap=cmap)
         # ticks = np.linspace(self.zmin, self.zmax, 8, endpoint=True)
-        # im = ax1.contourf(self.freqs, self.timestamps, self.z, levels=ticks, cmap=cmap)
-
-        # Maximise figure space before applying colour bar as colour bar will not reposition if applied after
-        self.fig.tight_layout(
-            rect=[0, 0.1, 1, 0.92]
-        )  # (rect=[left, bottom, right, top])
-
-        # Apply colour bar
-        self.cbar = self.fig.colorbar(im, ax=[ax1, ax2])
-        # self.cbar = self.fig.colorbar(im, ax=[ax1, ax2], ticks=ticks)
+        # im = ax1.contourf(self.freqs, self.index, self.z, levels=ticks, cmap=cmap)
 
         if self.log_scale is True:
             log10 = r"$\mathregular{log_{10}}$"
         else:
             log10 = ""
-
-        # TODO: Store and read units!
-        units = r"$\mathregular{(mm/s^2)^2/Hz}$"
-        label = f"{log10}PSD ({units})".lstrip()
-        self.cbar.set_label(label)
-        # self.cbar.ax.tick_params(length=3.5)
-        # self.cbar.outline.set_edgecolor('black')
-        # self.cbar.outline.set_linewidth(1)
 
         # Plot event slice line for middle index/timestamp
         if self.index_is_dates:
@@ -440,6 +411,26 @@ class SpectrogramWidget(QtWidgets.QWidget):
         if self.index_is_dates:
             ax1.yaxis.set_major_formatter(mdates.DateFormatter("%d %b"))
             ax1.yaxis.set_major_locator(mdates.DayLocator(interval=7))
+        else:
+            ax1.yaxis.set_major_locator(MaxNLocator(integer=True))
+            ax1.set_ylabel("File Number (Load Case)")
+
+        # Maximise figure space before applying colour bar as colour bar will not reposition if applied after
+        self.fig.tight_layout(
+            rect=[0, 0.1, 1, 0.92]
+        )  # (rect=[left, bottom, right, top])
+
+        # Apply colour bar
+        self.cbar = self.fig.colorbar(im, ax=[ax1, ax2])
+        # self.cbar = self.fig.colorbar(im, ax=[ax1, ax2], ticks=ticks)
+
+        # TODO: Store and read units!
+        units = r"$\mathregular{(units/s^2)^2/Hz}$"
+        label = f"{log10}PSD ({units})".lstrip()
+        self.cbar.set_label(label)
+        # self.cbar.ax.tick_params(length=3.5)
+        # self.cbar.outline.set_edgecolor('black')
+        # self.cbar.outline.set_linewidth(1)
 
         # plt.sca(ax1)
         # plt.xticks(fontsize=11)

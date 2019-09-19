@@ -310,6 +310,12 @@ class ProjectConfigJSONFile(QObject):
             key="logging_duration",
             attr=logger.duration,
         )
+        logger.enforce_max_duration = self._get_key_value(
+            section=logger.logger_id,
+            data=dict_logger,
+            key="enforce_max_duration",
+            attr=logger.enforce_max_duration,
+        )
         logger.all_channel_names = self._get_key_value(
             section=logger.logger_id,
             data=dict_logger,
@@ -579,34 +585,6 @@ class ProjectConfigJSONFile(QObject):
             # Add logger props dictionary to loggers dictionary
             self.data["loggers"][logger.logger_id] = dict_props
 
-    def add_seascatter_settings(self, scatter):
-        """Add seascatter settings."""
-
-        d = dict()
-        d["metocean_logger_id"] = scatter.metocean_logger
-        d["hs_column"] = scatter.hs_col
-        d["tp_column"] = scatter.tp_col
-        d["hs_col_idx"] = scatter.hs_col_idx
-        d["tp_col_idx"] = scatter.tp_col_idx
-
-        self.data["seascatter"] = d
-
-    def add_transfer_functions_settings(self, tf):
-        """Add transfer functions settings."""
-
-        d = dict()
-        d["logger_disp_path"] = tf.disp_dir
-        d["logger_rot_path"] = tf.rot_dir
-        d["location_bm_path"] = tf.bm_dir
-        d["num_fea_loggers"] = tf.num_loggers
-        d["num_fea_locations"] = tf.num_locs
-        d["num_fea_seastates"] = tf.num_ss
-        d["logger_names"] = tf.logger_names
-        d["location_names"] = tf.loc_names
-        d["seastate_perc_occ"] = tf.perc_occ
-
-        self.data["transfer_functions"] = d
-
     @staticmethod
     def _add_logger_props(logger, dict_props):
         """Add control object logger properties to JSON dictionary."""
@@ -627,6 +605,7 @@ class ProjectConfigJSONFile(QObject):
         dict_props["data_datetime_format"] = logger.datetime_format
         dict_props["logging_freq"] = logger.freq
         dict_props["logging_duration"] = logger.duration
+        dict_props["enforce_max_duration"] = logger.enforce_max_duration
         dict_props["all_channel_names"] = logger.all_channel_names
         dict_props["all_channel_units"] = logger.all_channel_units
 
@@ -687,6 +666,34 @@ class ProjectConfigJSONFile(QObject):
         dict_props["psd_overlap"] = logger.psd_overlap
 
         return dict_props
+
+    def add_seascatter_settings(self, scatter):
+        """Add seascatter settings."""
+
+        d = dict()
+        d["metocean_logger_id"] = scatter.metocean_logger
+        d["hs_column"] = scatter.hs_col
+        d["tp_column"] = scatter.tp_col
+        d["hs_col_idx"] = scatter.hs_col_idx
+        d["tp_col_idx"] = scatter.tp_col_idx
+
+        self.data["seascatter"] = d
+
+    def add_transfer_functions_settings(self, tf):
+        """Add transfer functions settings."""
+
+        d = dict()
+        d["logger_disp_path"] = tf.disp_dir
+        d["logger_rot_path"] = tf.rot_dir
+        d["location_bm_path"] = tf.bm_dir
+        d["num_fea_loggers"] = tf.num_loggers
+        d["num_fea_locations"] = tf.num_locs
+        d["num_fea_seastates"] = tf.num_ss
+        d["logger_names"] = tf.logger_names
+        d["location_names"] = tf.loc_names
+        d["seastate_perc_occ"] = tf.perc_occ
+
+        self.data["transfer_functions"] = d
 
     def save_config(self, proj_num, proj_name, proj_path):
         """Export project configuration data as JSON file."""

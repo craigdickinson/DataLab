@@ -28,7 +28,6 @@ register_matplotlib_converters()
 
 # from matplotlib.colors import BoundaryNorm, LinearSegmentedColormap
 # from matplotlib.patches import Rectangle
-# from matplotlib.ticker import MaxNLocator
 # from matplotlib.font_manager import findfont, FontProperties
 # import colormap as cmaps
 
@@ -286,18 +285,15 @@ class AxesPlotData:
             # Plot a single channel stat on selected axes
             else:
                 y = df.values.ravel()
-                if index_type == "File Number":
-                    line = ax.bar(t, y, label=label, color=color, tick_label=t)
-                else:
-                    line = ax.plot(
-                        t,
-                        y,
-                        label=label,
-                        color=color,
-                        ls=linestyle,
-                        lw=1,
-                        marker=marker,
-                    )
+                line = ax.plot(
+                    t,
+                    y,
+                    label=label,
+                    color=color,
+                    ls=linestyle,
+                    lw=1,
+                    marker=marker,
+                )
                 handles.append(line[0])
 
             ax.set_ylabel(ylabel, size=ylabel_size)
@@ -1210,8 +1206,8 @@ class StatsWidget(QtWidgets.QWidget):
                 plt.setp(subplot.ax1.get_xticklabels(), visible=False)
                 plt.setp(subplot.ax2.get_xticklabels(), visible=False)
         elif self.xaxis_type == "File Number":
-            ax.set_xlabel("File Number", size=xlabel_size)
-            # ax.xaxis.set_major_locator(MaxNLocator(integer=True))
+            ax.set_xlabel("File Number (Load Case)", size=xlabel_size)
+            ax.xaxis.set_major_locator(MaxNLocator(integer=True))
 
             # Hide x-axis tick labels from all but the bottom (last) subplot
             for subplot in self.subplots[:-1]:
@@ -1674,12 +1670,12 @@ class VesselStatsWidget(QtWidgets.QWidget):
 
         # Complete plot if at least one channel was plotted
         if plot is True:
-            self.ax1.margins(x=0, y=0)
-            self.ax1b.margins(x=0, y=0)
-            self.ax2.margins(x=0, y=0)
-            self.ax2b.margins(x=0, y=0)
-            self.ax3.margins(x=0, y=0)
-            self.ax3b.margins(x=0, y=0)
+            self.ax1.margins(0)
+            self.ax1b.margins(0)
+            self.ax2.margins(0)
+            self.ax2b.margins(0)
+            self.ax3.margins(0)
+            self.ax3b.margins(0)
 
             # Format x-axis if index is timestamps
             if isinstance(df.index[0], pd.Timestamp):
@@ -1689,7 +1685,7 @@ class VesselStatsWidget(QtWidgets.QWidget):
                 self.ax3.xaxis.set_major_formatter(fmt)
                 self.fig.autofmt_xdate()
             else:
-                self.ax3.set_xlabel("File Number")
+                self.ax3.set_xlabel("File Number (Load Case)")
 
             self.fig.legend(loc="lower center", ncol=4, fontsize=11)
             # Ensure plots don't overlap suptitle and legend

@@ -140,11 +140,14 @@ class LoggerProperties(QObject):
         self.process_stats = True
         self.process_spect = True
 
-        # Interval (in seconds) to process stats on
+        # Interval (in seconds) to process stats and spectral on
         self.stats_interval = 0  # *STATS_INTERVAL
-
-        # Interval (in seconds) to process spectral on
         self.spect_interval = 0
+
+        # Flag to force maximum interval length (i.e. file length) if file format is general-csv format
+        # with raw files containing a time steps index;
+        # this is to ensure results files contain a unique file number index
+        self.enforce_max_duration = False
 
         # Spectral screening - PSD parameters
         self.psd_nperseg = 1000

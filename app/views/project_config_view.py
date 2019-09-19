@@ -853,7 +853,7 @@ class LoggerPropertiesTab(QtWidgets.QWidget):
         self.dataSource.setText("-")
         self.loggerPath.setText("-")
         self.fileFormat.setText("-")
-        self.fileTimestampEmbedded("-")
+        self.fileTimestampEmbedded.setText("-")
         self.fileTimestampFormat.setText("-")
         self.firstColData("-")
         self.fileExt.setText("-")
@@ -1436,7 +1436,7 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
 
                 # Set the process start/end labels in the Screening dashboard that pertain to the logger
                 file_timestamp_embedded = self.logger.file_timestamp_embedded
-                self.parent.parent.screening_tab.set_process_date_labels(
+                self.parent.parent.screeningTab.set_process_date_labels(
                     file_timestamp_embedded
                 )
         except Exception as e:
@@ -1506,6 +1506,14 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
             )
         else:
             logger.duration = float(self.loggingDuration.text())
+
+        # If file format is general-csv, enforce stats/spectral sample length to the total file length
+        if logger.file_format == "General-csv" and logger.first_col_data == "Time Step":
+            logger.enforce_max_duration = True
+            logger.stats_interval = logger.duration
+            logger.spect_interval = logger.duration
+        else:
+            logger.enforce_max_duration = False
 
     def _detect_header(self):
         """Store all channel and units names from a test file, if present. Header info will then be set in the gui."""
@@ -1604,11 +1612,11 @@ class ScreeningSetupTab(QtWidgets.QWidget):
             QtWidgets.QLabel("Channel units override (optional):"), self.channelUnits
         )
 
-        # Processing date range group
-        self.dateRangeGroup = QtWidgets.QGroupBox("Events to Process")
-        self.dateRangeForm = QtWidgets.QFormLayout(self.dateRangeGroup)
-        self.dateRangeForm.addRow(self.lblProcessStart, self.processStart)
-        self.dateRangeForm.addRow(self.lblProcessEnd, self.processEnd)
+        # Processing range group
+        self.processRangeGroup = QtWidgets.QGroupBox("Processing Range")
+        self.processRangeForm = QtWidgets.QFormLayout(self.processRangeGroup)
+        self.processRangeForm.addRow(self.lblProcessStart, self.processStart)
+        self.processRangeForm.addRow(self.lblProcessEnd, self.processEnd)
 
         # Filters group
         self.filtersGroup = QtWidgets.QGroupBox("Frequency Filters")
@@ -1686,7 +1694,7 @@ class ScreeningSetupTab(QtWidgets.QWidget):
         self.vbox = QtWidgets.QVBoxLayout()
         self.vbox.addWidget(self.editButton, stretch=0, alignment=QtCore.Qt.AlignLeft)
         self.vbox.addWidget(self.colsGroup)
-        self.vbox.addWidget(self.dateRangeGroup)
+        self.vbox.addWidget(self.processRangeGroup)
         self.vbox.addWidget(self.filtersGroup)
         self.vbox.addLayout(self.hboxStats)
         self.vbox.addLayout(self.hboxSpect)
@@ -1934,6 +1942,7 @@ class EditScreeningSetupDialog(QtWidgets.QDialog):
         self._init_ui()
         self._connect_signals()
         self._set_dialog_data()
+        self._configure_interval_inputs()
 
     def _init_ui(self):
         self.setWindowTitle("Edit Logger Statistics and Spectral Analysis Settings")
@@ -1943,6 +1952,10 @@ class EditScreeningSetupDialog(QtWidgets.QDialog):
         int_validator = QtGui.QIntValidator()
         int_validator.setBottom(1)
         dbl_validator = QtGui.QDoubleValidator()
+
+        # Message for stats/spectral interval inputs
+        tooltip_msg = "Note: This input will be disabled if logger file format is 'General-csv' " \
+                      "and first column data is set to 'Time Step'"
 
         # Window combo options
         windows = ["None", "Hann", "Hamming", "Bartlett", "Blackman"]
@@ -1994,11 +2007,13 @@ class EditScreeningSetupDialog(QtWidgets.QDialog):
         self.statsInterval = QtWidgets.QLineEdit()
         self.statsInterval.setFixedWidth(50)
         self.statsInterval.setValidator(int_validator)
+        self.statsInterval.setToolTip(tooltip_msg)
         self.spectFolder = QtWidgets.QLineEdit()
         self.spectFolder.setFixedWidth(210)
         self.spectInterval = QtWidgets.QLineEdit()
         self.spectInterval.setFixedWidth(50)
         self.spectInterval.setValidator(int_validator)
+        self.spectInterval.setToolTip(tooltip_msg)
 
         # PSD parameters
         self.psdNperseg = QtWidgets.QLineEdit()
@@ -2047,11 +2062,11 @@ class EditScreeningSetupDialog(QtWidgets.QDialog):
         self.colsForm.addRow(self.lblChannelNames, self.channelNames)
         self.colsForm.addRow(self.lblChannelUnits, self.channelUnits)
 
-        # Processing date range group
-        self.dateRangeGroup = QtWidgets.QGroupBox("Processing Date Range")
-        self.dateRangeForm = QtWidgets.QFormLayout(self.dateRangeGroup)
-        self.dateRangeForm.addRow(self.lblProcessStart, self.processStart)
-        self.dateRangeForm.addRow(self.lblProcessEnd, self.processEnd)
+        # Processing range group
+        self.processRangeGroup = QtWidgets.QGroupBox("Processing Range")
+        self.processRangeForm = QtWidgets.QFormLayout(self.processRangeGroup)
+        self.processRangeForm.addRow(self.lblProcessStart, self.processStart)
+        self.processRangeForm.addRow(self.lblProcessEnd, self.processEnd)
 
         # Filters group
         self.filtersGroup = QtWidgets.QGroupBox("Frequency Filters")
@@ -2082,7 +2097,7 @@ class EditScreeningSetupDialog(QtWidgets.QDialog):
         # LAYOUT
         self.layout = QtWidgets.QVBoxLayout(self)
         self.layout.addWidget(self.colsGroup)
-        self.layout.addWidget(self.dateRangeGroup)
+        self.layout.addWidget(self.processRangeGroup)
         self.layout.addWidget(self.filtersGroup)
         self.layout.addWidget(self.statsGroup)
         self.layout.addWidget(self.spectGroup)
@@ -2165,6 +2180,14 @@ class EditScreeningSetupDialog(QtWidgets.QDialog):
             self.statsFolder.setText(self.parent.control.stats_output_folder)
             self.spectFolder.setText(self.parent.control.spect_output_folder)
 
+    def _configure_interval_inputs(self):
+        if self.logger.enforce_max_duration is True:
+            self.statsInterval.setEnabled(False)
+            self.spectInterval.setEnabled(False)
+        else:
+            self.statsInterval.setEnabled(True)
+            self.spectInterval.setEnabled(True)
+
     def on_ok_clicked(self):
         """Assign logger stats settings to the control object and update the dashboard."""
 
@@ -2235,7 +2258,7 @@ class EditScreeningSetupDialog(QtWidgets.QDialog):
                 except ValueError:
                     msg = "Process end datetime format not recognised; timestamp unchanged."
                     QtWidgets.QMessageBox.information(self, "Process End Input", msg)
-        # Process selection made by file (load case) number
+        # Process selection made by file number (load case)
         else:
             try:
                 if process_start == "" or process_start == "First file":
@@ -2279,8 +2302,8 @@ class EditScreeningSetupDialog(QtWidgets.QDialog):
 
         # Stats settings group
         if (
-            self.statsInterval.text() == ""
-            or int(float(self.statsInterval.text())) == 0
+                self.statsInterval.text() == ""
+                or int(float(self.statsInterval.text())) == 0
         ):
             logger.stats_interval = int(logger.duration)
         else:
@@ -2288,8 +2311,8 @@ class EditScreeningSetupDialog(QtWidgets.QDialog):
 
         # Spectral settings group
         if (
-            self.spectInterval.text() == ""
-            or int(float(self.spectInterval.text())) == 0
+                self.spectInterval.text() == ""
+                or int(float(self.spectInterval.text())) == 0
         ):
             logger.spect_interval = int(logger.duration)
         else:
