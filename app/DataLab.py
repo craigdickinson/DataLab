@@ -1,7 +1,7 @@
 __author__ = "Craig Dickinson"
 __program__ = "DataLab"
-__version__ = "1.3.0.9"
-__date__ = "19 September 2019"
+__version__ = "1.3.0.10"
+__date__ = "20 September 2019"
 
 import logging
 import os
@@ -827,7 +827,7 @@ def run_datalab():
 
     os.chdir(r"C:\Users\dickinsc\PycharmProjects\DataLab\demo_data\2. Project Configs")
     app = QtCore.QCoreApplication.instance()
-    if app is None:
+    if not app:
         app = QtWidgets.QApplication(sys.argv)
     # win = QtDesignerGui()
     win = DataLab()

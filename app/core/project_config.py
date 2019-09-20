@@ -366,7 +366,9 @@ class ProjectConfigJSONFile(QObject):
         )
 
         # Start file index used
-        if type(process_start) is int:
+        if process_start is None:
+            logger.process_start = None
+        elif type(process_start) is int:
             logger.process_start = process_start
         # Start date used - convert to datetime
         else:
@@ -384,7 +386,9 @@ class ProjectConfigJSONFile(QObject):
         )
 
         # End file index used
-        if type(process_end) is int:
+        if process_end is None:
+            logger.process_end = None
+        elif type(process_end) is int:
             logger.process_end = process_end
         # End date used - convert to datetime
         else:

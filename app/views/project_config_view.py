@@ -190,6 +190,9 @@ class ConfigModule(QtWidgets.QWidget):
     def on_open_config_clicked(self):
         """Load config JSON file."""
 
+        if not self.parent:
+            return
+
         filename, _ = QtWidgets.QFileDialog.getOpenFileName(
             self, caption="Open Config File", filter="Config Files (*.json)"
         )
@@ -213,9 +216,7 @@ class ConfigModule(QtWidgets.QWidget):
 
                 # Assign config data to control object and project dashboard
                 self._set_dashboards()
-
-                if self.parent:
-                    self.parent.set_window_title(filename)
+                self.parent.set_window_title(filename)
             except InputError as e:
                 self.parent.error(str(e))
                 logging.exception(e)
@@ -273,6 +274,9 @@ class ConfigModule(QtWidgets.QWidget):
     def on_new_project_clicked(self):
         """Clear project control object and all config dashboard values."""
 
+        if not self.parent:
+            return
+
         # Create new settings objects
         self.control = Control()
         self.scatter = Seascatter()
@@ -286,10 +290,9 @@ class ConfigModule(QtWidgets.QWidget):
         self.spectScreenChkBox.setChecked(self.control.global_process_spect)
 
         # Map settings objects to parent DataLab instance
-        if self.parent:
-            self.parent.control = self.control
-            self.parent.scatter = self.scatter
-            self.parent.tf = self.tf
+        self.parent.control = self.control
+        self.parent.scatter = self.scatter
+        self.parent.tf = self.tf
 
         # Clear logger combo box
         # Note: This will trigger the clearing of the logger properties, stats and spectral dashboards
@@ -304,8 +307,7 @@ class ConfigModule(QtWidgets.QWidget):
         self.tfSettingsTab.clear_dashboard()
 
         # Reset window title
-        if self.parent:
-            self.parent.set_window_title()
+        self.parent.set_window_title()
 
         # Select campaign tab and open setup dialog
         self.setupTabs.setCurrentWidget(self.campaignTab)
@@ -361,7 +363,7 @@ class ConfigModule(QtWidgets.QWidget):
             i = self.loggersList.currentRow()
             logger = self.loggersList.currentItem().text()
 
-        # Confirm with user
+        # Confirm with users
         msg = f"Are you sure you want to remove logger {logger}?"
         response = QtWidgets.QMessageBox.question(self, "Remove Logger", msg)
 
@@ -388,21 +390,21 @@ class ConfigModule(QtWidgets.QWidget):
     def on_logger_selected(self):
         """Update dashboard data pertaining to selected logger."""
 
-        logger_idx = self.loggersList.currentRow()
-        if logger_idx == -1:
+        i = self.loggersList.currentRow()
+        if i == -1:
             return
 
         if self.del_logger is True:
             # If first logger has been removed, set selected logger to be the new first logger
-            if logger_idx == 1:
-                logger_idx = 0
+            if i == 1:
+                i = 0
 
             # If second to last logger has been removed, set selected logger to be the last logger
             n = len(self.control.loggers) - 1
-            if logger_idx > n:
-                logger_idx = n
+            if i > n:
+                i = n
 
-        logger = self.control.loggers[logger_idx]
+        logger = self.control.loggers[i]
         self.loggerPropsTab.set_logger_dashboard(logger)
         self.screeningTab.set_analysis_dashboard(logger)
         self.set_logger_header_list(logger)
@@ -693,9 +695,11 @@ class EditCampaignInfoDialog(QtWidgets.QDialog):
     def on_ok_clicked(self):
         """Assign values to the control object and update the dashboard."""
 
+        if not self.parent:
+            return
+
         self.set_control_data()
-        if self.parent:
-            self.parent.set_campaign_dashboard()
+        self.parent.set_campaign_dashboard()
 
     def set_control_data(self):
         """Assign values to the control object."""
@@ -739,6 +743,11 @@ class LoggerPropertiesTab(QtWidgets.QWidget):
         self.editButton = QtWidgets.QPushButton("Edit Data...")
         self.editButton.setShortcut("Ctrl+E")
         self.editButton.setToolTip("Ctrl+E")
+        self.openFolderButton = QtWidgets.QPushButton("Open Source Folder...")
+        self.openFolderButton.setShortcut("Ctrl+F")
+        self.openFolderButton.setToolTip(
+            "Ctrl+F (Not enabled if source files stored on Azure Cloud Storage)"
+        )
         self.loggerID = QtWidgets.QLabel("-")
         self.dataSource = QtWidgets.QLabel("-")
         self.loggerPath = QtWidgets.QLabel("-")
@@ -786,8 +795,13 @@ class LoggerPropertiesTab(QtWidgets.QWidget):
         )
 
         # LAYOUT
+        self.hboxButtons = QtWidgets.QHBoxLayout()
+        self.hboxButtons.addWidget(self.editButton)
+        self.hboxButtons.addWidget(self.openFolderButton)
+        self.hboxButtons.setAlignment(QtCore.Qt.AlignLeft)
+
         self.vbox = QtWidgets.QVBoxLayout()
-        self.vbox.addWidget(self.editButton, stretch=0, alignment=QtCore.Qt.AlignLeft)
+        self.vbox.addLayout(self.hboxButtons)
         self.vbox.addWidget(self.loggerPropsGroup)
         self.vbox.addStretch()
 
@@ -797,9 +811,10 @@ class LoggerPropertiesTab(QtWidgets.QWidget):
 
     def _connect_signals(self):
         self.editButton.clicked.connect(self.on_edit_clicked)
+        self.openFolderButton.clicked.connect(self.on_open_folder_clicked)
 
     def on_edit_clicked(self):
-        """Open logger properties edit form."""
+        """Open logger properties edit dialog."""
 
         if self.parent.loggersList.count() == 0:
             msg = f"No loggers exist to edit. Add a logger first."
@@ -815,15 +830,36 @@ class LoggerPropertiesTab(QtWidgets.QWidget):
         editLoggerProps = EditLoggerPropertiesDialog(self, self.control, logger_idx)
         editLoggerProps.show()
 
+    def on_open_folder_clicked(self):
+        """Open logger files source folder."""
+
+        try:
+            i = self.parent.loggersList.currentRow()
+        except:
+            return
+
+        if i == -1:
+            return
+
+        try:
+            os.startfile(self.control.loggers[i].logger_path)
+        except:
+            QtWidgets.QMessageBox.warning(
+                self, "Open Raw Files Folder", "Couldn't open folder."
+            )
+
     def set_logger_dashboard(self, logger):
         """Set dashboard with logger properties from logger object."""
 
         self.loggerID.setText(logger.logger_id)
 
+        # Disable open folder button if files not stored locally
         if logger.data_on_azure is True:
             src = "Azure Cloud Storage"
+            self.openFolderButton.setEnabled(False)
         else:
             src = "Local files"
+            self.openFolderButton.setEnabled(True)
 
         self.dataSource.setText(src)
         self.loggerPath.setText(logger.logger_path)
@@ -855,7 +891,7 @@ class LoggerPropertiesTab(QtWidgets.QWidget):
         self.fileFormat.setText("-")
         self.fileTimestampEmbedded.setText("-")
         self.fileTimestampFormat.setText("-")
-        self.firstColData("-")
+        self.firstColData.setText("-")
         self.fileExt.setText("-")
         self.fileDelimiter.setText("-")
         self.numHeaderRows.setText("-")
@@ -892,11 +928,6 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
         # when selecting between file formats in the combo box
         self.init_logger = LoggerProperties()
         self.init_file_format = ""
-        # self.init_file_timestamp_checkstate = False
-        # self.init_file_timestamp = ""
-        # self.init_first_col_data = "Timestamp"
-        # self.init_file_ext = ""
-        # self.init_timestamp_format = ""
 
         self.all_channel_names = []
         self.all_channel_units = []
@@ -1097,13 +1128,6 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
         # when selecting between file formats
         self.init_logger = logger
         self.init_file_format = logger.file_format
-
-        # # Store existing parameters so they can be restored upon back and forth file format combo changes
-        # self.init_file_timestamp_checkstate = logger.file_timestamp_embedded
-        # self.init_file_timestamp_format = logger.file_timestamp_format
-        # self.init_first_col_data = logger.first_col_data
-        # self.init_file_ext = logger.file_ext
-        # self.init_timestamp_format = logger.timestamp_format
 
         # Set radio for data source type
         if logger.data_on_azure is True:
@@ -1423,22 +1447,23 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
     def on_ok_clicked(self):
         """Assign logger properties to the control object and update the dashboard."""
 
+        if not self.parent:
+            return
+
         try:
             self._set_control_data()
             self._detect_header()
+            self.parent.set_logger_dashboard(self.logger)
+            self.parent.parent.update_logger_id_list(
+                self.logger.logger_id, self.logger_idx
+            )
+            self.parent.parent.set_logger_header_list(self.logger)
 
-            if self.parent:
-                self.parent.set_logger_dashboard(self.logger)
-                self.parent.parent.update_logger_id_list(
-                    self.logger.logger_id, self.logger_idx
-                )
-                self.parent.parent.set_logger_header_list(self.logger)
-
-                # Set the process start/end labels in the Screening dashboard that pertain to the logger
-                file_timestamp_embedded = self.logger.file_timestamp_embedded
-                self.parent.parent.screeningTab.set_process_date_labels(
-                    file_timestamp_embedded
-                )
+            # Set the process start/end labels in the Screening dashboard that pertain to the logger
+            file_timestamp_embedded = self.logger.file_timestamp_embedded
+            self.parent.parent.screeningTab.set_process_date_labels(
+                file_timestamp_embedded
+            )
         except Exception as e:
             msg = "Unexpected error assigning logger properties"
             self.error(f"{msg}:\n{e}\n{sys.exc_info()[0]}")
@@ -1954,8 +1979,10 @@ class EditScreeningSetupDialog(QtWidgets.QDialog):
         dbl_validator = QtGui.QDoubleValidator()
 
         # Message for stats/spectral interval inputs
-        tooltip_msg = "Note: This input will be disabled if logger file format is 'General-csv' " \
-                      "and first column data is set to 'Time Step'"
+        tooltip_msg = (
+            "Note: This input will be disabled if logger file format is 'General-csv' "
+            "and first column data is set to 'Time Step'"
+        )
 
         # Window combo options
         windows = ["None", "Hann", "Hamming", "Bartlett", "Blackman"]
@@ -2111,6 +2138,9 @@ class EditScreeningSetupDialog(QtWidgets.QDialog):
     def _set_dialog_data(self):
         """Set dialog data with logger stats from control object."""
 
+        if not self.parent:
+            return
+
         logger = self.logger
 
         # Columns to process
@@ -2176,9 +2206,8 @@ class EditScreeningSetupDialog(QtWidgets.QDialog):
         self.psdOverlap.setText(f"{logger.psd_overlap:.1f}")
 
         # Folders - global control settings
-        if self.parent:
-            self.statsFolder.setText(self.parent.control.stats_output_folder)
-            self.spectFolder.setText(self.parent.control.spect_output_folder)
+        self.statsFolder.setText(self.parent.control.stats_output_folder)
+        self.spectFolder.setText(self.parent.control.spect_output_folder)
 
     def _configure_interval_inputs(self):
         if self.logger.enforce_max_duration is True:
@@ -2191,11 +2220,12 @@ class EditScreeningSetupDialog(QtWidgets.QDialog):
     def on_ok_clicked(self):
         """Assign logger stats settings to the control object and update the dashboard."""
 
+        if not self.parent:
+            return
+
         try:
             self._set_control_data()
-
-            if self.parent:
-                self.parent.set_analysis_dashboard(self.logger)
+            self.parent.set_analysis_dashboard(self.logger)
         except Exception as e:
             msg = "Unexpected error assigning stats and spectral properties"
             self.error(f"{msg}:\n{e}\n{sys.exc_info()[0]}")
@@ -2203,6 +2233,9 @@ class EditScreeningSetupDialog(QtWidgets.QDialog):
 
     def _set_control_data(self):
         """Assign values to the control object."""
+
+        if not self.parent:
+            return
 
         logger = self.logger
 
@@ -2302,8 +2335,8 @@ class EditScreeningSetupDialog(QtWidgets.QDialog):
 
         # Stats settings group
         if (
-                self.statsInterval.text() == ""
-                or int(float(self.statsInterval.text())) == 0
+            self.statsInterval.text() == ""
+            or int(float(self.statsInterval.text())) == 0
         ):
             logger.stats_interval = int(logger.duration)
         else:
@@ -2311,8 +2344,8 @@ class EditScreeningSetupDialog(QtWidgets.QDialog):
 
         # Spectral settings group
         if (
-                self.spectInterval.text() == ""
-                or int(float(self.spectInterval.text())) == 0
+            self.spectInterval.text() == ""
+            or int(float(self.spectInterval.text())) == 0
         ):
             logger.spect_interval = int(logger.duration)
         else:
@@ -2336,9 +2369,8 @@ class EditScreeningSetupDialog(QtWidgets.QDialog):
             logger.psd_overlap = 50
 
         # Output folders - store as global control settings
-        if self.parent:
-            self.parent.control.stats_output_folder = self.statsFolder.text()
-            self.parent.control.spect_output_folder = self.spectFolder.text()
+        self.parent.control.stats_output_folder = self.statsFolder.text()
+        self.parent.control.spect_output_folder = self.spectFolder.text()
 
     def get_timestamp_in_filename(self, logger, file_idx):
         """Attempt to retrieve the timestamp embedded in the filename of the file in the parsed list index."""
@@ -2520,9 +2552,11 @@ class EditSeascatterDialog(QtWidgets.QDialog):
     def on_ok_clicked(self):
         """Store time traces paths in transfer functions class."""
 
+        if not self.parent:
+            return
+
         self._set_seascatter_data()
-        if self.parent:
-            self.parent.set_scatter_dashboard()
+        self.parent.set_scatter_dashboard()
 
     def _set_seascatter_data(self):
         """Assign values to the transfer functions object."""
@@ -2834,9 +2868,11 @@ class EditTransferFunctionsDialog(QtWidgets.QDialog):
     def on_ok_clicked(self):
         """Store time traces paths in transfer functions class."""
 
+        if not self.parent:
+            return
+
         self._set_tf_data()
-        if self.parent:
-            self.parent.set_tf_dashboard()
+        self.parent.set_tf_dashboard()
 
     def _set_tf_data(self):
         """Assign values to the transfer functions object."""
@@ -3016,8 +3052,8 @@ if __name__ == "__main__":
     # win = ConfigModule()
     # win = CampaignInfoTab()
     # win = EditCampaignInfoDialog()
-    # win = LoggerPropertiesTab()
-    win = EditLoggerPropertiesDialog()
+    win = LoggerPropertiesTab()
+    # win = EditLoggerPropertiesDialog()
     # win = StatsAndSpectralSettingsTab()
     # win = EditStatsAndSpectralDialog()
     # win = SeascatterTab()

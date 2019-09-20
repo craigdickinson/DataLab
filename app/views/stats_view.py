@@ -286,13 +286,7 @@ class AxesPlotData:
             else:
                 y = df.values.ravel()
                 line = ax.plot(
-                    t,
-                    y,
-                    label=label,
-                    color=color,
-                    ls=linestyle,
-                    lw=1,
-                    marker=marker,
+                    t, y, label=label, color=color, ls=linestyle, lw=1, marker=marker
                 )
                 handles.append(line[0])
 

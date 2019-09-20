@@ -110,10 +110,10 @@ class TransferFunctionsWidget(QtWidgets.QWidget):
     def on_export_ss_tf_button_clicked(self):
         """Export individual sea state transfer functions to csv files."""
 
-        root_dir = ""
-        if self.parent:
-            root_dir = self.parent.control.project_path
+        if not self.parent:
+            return
 
+        root_dir = self.parent.control.project_path
         if root_dir == "":
             root_dir = os.getcwd()
 
@@ -130,10 +130,10 @@ class TransferFunctionsWidget(QtWidgets.QWidget):
     def on_export_ave_tf_button_clicked(self):
         """Export sea state percentage occurrence averaged transfer functions to csv files."""
 
-        root_dir = ""
-        if self.parent:
-            root_dir = self.parent.control.project_path
+        if not self.parent:
+            return
 
+        root_dir = self.parent.control.project_path
         if root_dir == "":
             root_dir = os.getcwd()
 
