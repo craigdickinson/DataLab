@@ -5,6 +5,7 @@ __author__ = "Craig Dickinson"
 import logging
 import os
 import sys
+from glob import glob
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -13,8 +14,10 @@ from PyQt5 import QtCore, QtWidgets
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 
-# from gui.gui_zoom_pan_factory import ZoomPan
+from app.core.control import Control
 from app.core.read_files import (
+    RawDataRead,
+    read_2hps2_acc,
     read_fugro_csv,
     read_logger_hdf5,
     read_logger_txt,
@@ -22,6 +25,7 @@ from app.core.read_files import (
 )
 from app.core.signal_processing import calc_psd, filter_signal
 
+# from gui.gui_zoom_pan_factory import ZoomPan
 # "2H blue"
 color_2H = np.array([0, 49, 80]) / 255
 
@@ -34,15 +38,18 @@ class RawDataDashboard(QtWidgets.QWidget):
 
         # So can access parent class
         self.parent = parent
-        plt.style.use("seaborn")
+        self.control = Control()
 
-        self.root = ""
-        self.files_list = []
+        # List of read RawDataRead class instances to read time series files
+        self.raw_datasets = []
+
+        self.path_to_files = ""
         self.logger_id = ""
-        # self.project = 'Project Title'
-        self.project = "Total WoS Glendronach Well Monitoring"
+        self.project = "Project Title"
+        # self.project = "Total WoS Glendronach Well Monitoring"
 
         # Plot settings
+        plt.style.use("seaborn")
         self.plot_pri = False
         self.plot_sec = False
         self.plot_period = False
@@ -115,17 +122,28 @@ class RawDataDashboard(QtWidgets.QWidget):
         # WIDGETS
         self.openRawButton = QtWidgets.QPushButton("Open Raw Logger File...")
         self.openRawButton.setToolTip("Open raw logger data (*.csv;*.acc) (F2)")
-        self.filesLabel = QtWidgets.QLabel("Logger Files")
+        self.lblDataset = QtWidgets.QLabel("Dataset:")
+        self.datasetCombo = QtWidgets.QComboBox()
+        self.datasetCombo.addItem("None")
+        self.lblSeriesNum = QtWidgets.QLabel("Axis 1 series:")
+        self.seriesNumCombo = QtWidgets.QComboBox()
+        self.seriesNumCombo.setFixedWidth(40)
+        self.seriesNumCombo.addItems(["1", "2", "3", "4"])
+        self.lblAxis1 = QtWidgets.QLabel("Axis 1 column:")
+        self.axis1ColCombo = QtWidgets.QComboBox()
+        self.lblAxis2 = QtWidgets.QLabel("Axis 2 column:")
+        self.axis2ColCombo = QtWidgets.QComboBox()
+        self.lblFiles = QtWidgets.QLabel("Files")
         self.filesList = QtWidgets.QListWidget()
         self.channelsLabel = QtWidgets.QLabel("Channels (echo)")
         self.channelsList = QtWidgets.QListWidget()
         self.channelsList.setFixedHeight(120)
-        self.priLabel = QtWidgets.QLabel("Primary Axis Channel:")
-        self.secLabel = QtWidgets.QLabel("Secondary Axis Channel:")
-        self.priAxis = QtWidgets.QComboBox()
-        self.secAxis = QtWidgets.QComboBox()
-        self.priAxis.addItem("None")
-        self.secAxis.addItem("None")
+        self.lblPri = QtWidgets.QLabel("Primary Axis Channel:")
+        self.lblSec = QtWidgets.QLabel("Secondary Axis Channel:")
+        self.priAxisCombo = QtWidgets.QComboBox()
+        self.secAxisCombo = QtWidgets.QComboBox()
+        self.priAxisCombo.addItem("None")
+        self.secAxisCombo.addItem("None")
         self.line = QtWidgets.QFrame()
         self.line.setFrameShape(QtWidgets.QFrame.HLine)
         self.line.setFrameShadow(QtWidgets.QFrame.Sunken)
@@ -141,19 +159,32 @@ class RawDataDashboard(QtWidgets.QWidget):
         navbar = NavigationToolbar(self.canvas, self)
 
         # CONTAINERS
+        # Dataset combo
+        self.formDataset = QtWidgets.QFormLayout()
+        self.formDataset.addRow(self.lblDataset, self.datasetCombo)
+
+        # Plot selection group
+        self.plotGroup = QtWidgets.QGroupBox("Select Plot Data")
+        self.form = QtWidgets.QFormLayout(self.plotGroup)
+        self.form.addRow(self.lblSeriesNum, self.seriesNumCombo)
+        self.form.addRow(self.lblAxis1, self.axis1ColCombo)
+        self.form.addRow(self.lblAxis2, self.axis2ColCombo)
+
         # Setup container
         self.setupWidget = QtWidgets.QWidget()
         self.setupWidget.setFixedWidth(230)
         self.vboxSetup = QtWidgets.QVBoxLayout(self.setupWidget)
         self.vboxSetup.addWidget(self.openRawButton)
-        self.vboxSetup.addWidget(self.filesLabel)
+        self.vboxSetup.addLayout(self.formDataset)
+        self.vboxSetup.addWidget(self.lblFiles)
         self.vboxSetup.addWidget(self.filesList)
         self.vboxSetup.addWidget(self.channelsLabel)
         self.vboxSetup.addWidget(self.channelsList)
-        self.vboxSetup.addWidget(self.priLabel)
-        self.vboxSetup.addWidget(self.priAxis)
-        self.vboxSetup.addWidget(self.secLabel)
-        self.vboxSetup.addWidget(self.secAxis)
+        self.vboxSetup.addWidget(self.plotGroup)
+        # self.vboxSetup.addWidget(self.lblPri)
+        # self.vboxSetup.addWidget(self.priAxisCombo)
+        # self.vboxSetup.addWidget(self.lblSec)
+        # self.vboxSetup.addWidget(self.secAxisCombo)
         self.vboxSetup.addWidget(self.line)
         self.vboxSetup.addWidget(self.plotSettingsButton)
         self.vboxSetup.addWidget(self.replotButton)
@@ -169,9 +200,45 @@ class RawDataDashboard(QtWidgets.QWidget):
         self.layout.addLayout(self.vbox)
 
     def _connect_signals(self):
+        self.datasetCombo.currentIndexChanged.connect(self.on_dataset_changed)
         self.plotSettingsButton.clicked.connect(self.on_plot_settings_clicked)
         self.replotButton.clicked.connect(self.on_replot_clicked)
         self.filesList.itemDoubleClicked.connect(self.on_file_double_clicked)
+
+    def on_dataset_changed(self):
+        """Update source files list."""
+
+        i = self.datasetCombo.currentIndex()
+        if i == -1:
+            return
+
+        if self.datasetCombo.currentText() == "None":
+            self.filesList.clear()
+            return
+
+        try:
+            self._update_files_list(i)
+        except Exception as e:
+            logging.exception(e)
+
+    def on_file_double_clicked(self):
+        """Update current plot series and channel for selected file."""
+
+        if self.filesList.count() == 0:
+            return
+
+        filename = self.filesList.currentItem().text()
+        file = os.path.join(self.path_to_files, filename)
+
+        try:
+            self.load_file(file)
+        except ValueError as e:
+            self.parent.error(f"Error: {e}")
+            logging.exception(e)
+        except Exception as e:
+            msg = "Unexpected error loading logger file"
+            self.parent.error(f"{msg}:\n{e}\n{sys.exc_info()[0]}")
+            logging.exception(e)
 
     def on_plot_settings_clicked(self):
         """Show plot options window."""
@@ -187,7 +254,7 @@ class RawDataDashboard(QtWidgets.QWidget):
             return
 
         filename = self.filesList.currentItem().text()
-        file = os.path.join(self.root, filename)
+        file = os.path.join(self.path_to_files, filename)
 
         try:
             self.load_file(file)
@@ -199,13 +266,93 @@ class RawDataDashboard(QtWidgets.QWidget):
             self.parent.error(f"{msg}:\n{e}\n{sys.exc_info()[0]}")
             logging.exception(e)
 
-    def on_file_double_clicked(self):
-        self.on_replot_clicked()
+    def add_dataset(self, dataset_name, control, index):
+        """Add dataset to combo box and update mapping of control object"""
 
-    def load_file(self, file):
+        # Create new dataset object containing dataset file properties
+        logger = control.loggers[index]
+        self.raw_datasets.append(RawDataRead(logger))
+
+        # Add to combo box
+        if self.datasetCombo.itemText(0) == "None":
+            self.datasetCombo.clear()
+        self.datasetCombo.addItem(dataset_name)
+        self.control = control
+
+    def add_datasets(self, control):
+        """Add datasets to combo box and update mapping of control object upon opening a project config JSON file."""
+
+        # For each logger create a new dataset object containing dataset file properties
+        for i in range(len(control.logger_ids)):
+            logger = control.loggers[i]
+            self.raw_datasets.append(RawDataRead(logger))
+
+        # Add to combo box
+        self.datasetCombo.clear()
+        self.datasetCombo.addItems(control.logger_ids)
+        self.control = control
+
+        # Plot first file
+        if self.filesList.count() > 0:
+            filename = self.filesList.currentItem().text()
+            file = os.path.join(self.path_to_files, filename)
+            self.load_file(file)
+
+    def remove_dataset(self, index):
+        """Remove dataset from combo box."""
+
+        self.datasetCombo.removeItem(index)
+        del self.raw_datasets[index]
+        if self.datasetCombo.count() == 0:
+            self.datasetCombo.addItem("None")
+
+    def update_dateset_name(self, index, dataset_name):
+        """Update dataset name pertaining to changed logger id in setup module."""
+
+        self.datasetCombo.setItemText(index, dataset_name)
+
+    def update_dataset_properties(self, index):
+        """
+        Map updated logger properties to dataset and check if selected dataset is the same as the logger in
+        project config; if so, update files list.
+        """
+
+        # Update dataset properties of current logger (in case file read properties have been updated)
+        logger = self.control.loggers[index]
+        self.raw_datasets[index].set_logger(logger)
+
+        if self.datasetCombo.currentIndex() == index:
+            self._update_files_list(index)
+
+    def _update_files_list(self, index):
+        """Update dataset files list widget for current selected dataset."""
+
+        filenames = self.raw_datasets[index].filenames
+        self.path_to_files = self.raw_datasets[index].path_to_files
+        self.filesList.clear()
+        self.filesList.addItems(filenames)
+        self.filesList.setCurrentRow(0)
+
+    def update_files_list_from_open_file_dialog(self, file):
+        """Update files list widget using a file selected using QFileDialog."""
+
+        self.path_to_files = os.path.dirname(file)
+        filename = os.path.basename(file)
+        ext = os.path.splitext(file)[1]
+        files = glob(self.path_to_files + "/*" + ext)
+        filenames = [os.path.basename(f) for f in files]
+        self.filesList.clear()
+        self.filesList.addItems(filenames)
+        self.filesList.setCurrentRow(filenames.index(filename))
+
+    def load_file(self, file, open_file_dialog=False):
         """Load logger file, update widget and plot first channel."""
 
-        self.df = self.read_logger_file(file)
+        if open_file_dialog is True:
+            self.df = self.read_logger_file_from_open_file_dialog(file)
+        else:
+            self.df = self.read_logger_file(file)
+            i = self.datasetCombo.currentIndex()
 
         # Store logger ID (assume the first portion of the filename)
         filename = os.path.basename(file)
@@ -213,7 +360,15 @@ class RawDataDashboard(QtWidgets.QWidget):
 
         # Store channel names and units - ignore column 1 (Timestamps)
         self.channel_names = self.df.columns.get_level_values(0).tolist()[1:]
-        self.units = self.df.columns.get_level_values(1).tolist()[1:]
+
+        try:
+            self.units = self.df.columns.get_level_values(1).tolist()[1:]
+        except:
+            if self.raw_datasets[i].channel_units:
+                self.units = self.raw_datasets[i].channel_units
+            else:
+                self.units = ["-"] * len(self.channel_names)
+
         self.update_channels()
 
         # Extract data to be plotted based on selected channels and plot settings
@@ -229,20 +384,16 @@ class RawDataDashboard(QtWidgets.QWidget):
         self.update_plots()
         self.ignore_on_xlim_change = False
 
-    def update_files_list(self, files_list, file_name):
-        """Populate files list widget."""
+    def read_logger_file(self, file):
+        """Read a raw logger file based on logger file properties provided in setup."""
 
-        # Store list
-        self.files_list = files_list
+        i = self.datasetCombo.currentIndex()
+        df = self.raw_datasets[i].read_file(file)
 
-        # Repopulate files list widget
-        self.filesList.clear()
-        self.filesList.addItems(files_list)
-        i = files_list.index(file_name)
-        self.filesList.setCurrentRow(i)
+        return df
 
     @staticmethod
-    def read_logger_file(file):
+    def read_logger_file_from_open_file_dialog(file):
         """Read a raw logger file."""
 
         ext = file.split(".")[-1].lower()
@@ -250,7 +401,12 @@ class RawDataDashboard(QtWidgets.QWidget):
         if ext == "csv":
             df = read_fugro_csv(file)
         elif ext == "acc":
-            df = read_pulse_acc(file)
+            try:
+                # Read expected, new acc file format
+                df = read_pulse_acc(file)
+            except:
+                # Attempt to read older acc file format generated by (obsolete) 2HPS2
+                df = read_2hps2_acc(file)
         elif ext == "h5":
             df = read_logger_hdf5(file)
         elif ext == "txt":
@@ -264,14 +420,14 @@ class RawDataDashboard(QtWidgets.QWidget):
         """Populate drop-down channels if required."""
 
         # Store selected primary and secondary axis channel combo boxes indexes
-        self.pri_ix = self.priAxis.currentIndex()
-        self.sec_ix = self.secAxis.currentIndex()
+        self.pri_ix = self.priAxisCombo.currentIndex()
+        self.sec_ix = self.secAxisCombo.currentIndex()
 
         # Redefine channels list and plot series combo boxes if current channels don't match those in selected file
         if self.channel_names != self.current_channels:
             self.channelsList.clear()
-            self.priAxis.clear()
-            self.secAxis.clear()
+            self.priAxisCombo.clear()
+            self.secAxisCombo.clear()
 
             # Add channels to list and make unselectable since they are just an echo for reference
             for channel in self.channel_names:
@@ -279,10 +435,10 @@ class RawDataDashboard(QtWidgets.QWidget):
                 item.setFlags(item.flags() & ~QtCore.Qt.ItemIsSelectable)
                 self.channelsList.addItem(item)
 
-            self.priAxis.addItem("None")
-            self.secAxis.addItem("None")
-            self.priAxis.addItems(self.channel_names)
-            self.secAxis.addItems(self.channel_names)
+            self.priAxisCombo.addItem("None")
+            self.secAxisCombo.addItem("None")
+            self.priAxisCombo.addItems(self.channel_names)
+            self.secAxisCombo.addItems(self.channel_names)
             self.current_channels = self.channel_names
 
             if self.channelsList.count() == 0:
@@ -291,8 +447,8 @@ class RawDataDashboard(QtWidgets.QWidget):
             # Initialise so that only first channel is plotted on primary axis
             self.pri_ix = 1
             self.sec_ix = 0
-            self.priAxis.setCurrentIndex(self.pri_ix)
-            self.secAxis.setCurrentIndex(self.sec_ix)
+            self.priAxisCombo.setCurrentIndex(self.pri_ix)
+            self.secAxisCombo.setCurrentIndex(self.sec_ix)
 
             # Flag to set axis limits to dataset length
             self.set_init_axis_limits = True
@@ -329,7 +485,8 @@ class RawDataDashboard(QtWidgets.QWidget):
     def calc_filtered_data(self, df_raw):
         """Filter out low frequencies (drift) and high frequencies (noise)."""
 
-        df_raw = df_raw.select_dtypes("number")
+        # Drop timestamp column
+        df_raw = df_raw.iloc[:, 1:]
         low_cutoff = self.low_cutoff
         high_cutoff = self.high_cutoff
 
@@ -417,8 +574,7 @@ class RawDataDashboard(QtWidgets.QWidget):
     def plot_time_series(self, df, df_filtered=pd.DataFrame()):
         """Plot time series."""
 
-        # Ignore timestamp column
-        # df = df.select_dtypes("number")
+        # Drop timestamp column
         df = df.iloc[:, 1:]
 
         self.ax1.cla()
@@ -514,7 +670,7 @@ class RawDataDashboard(QtWidgets.QWidget):
             self.ax2b.grid(True)
 
         # Calculate PSD of selected channels
-        f, pxx = self.compute_psd(df)
+        f, pxx = self._compute_psd(df)
 
         # Set x-axis as frequency or period based on plot options
         if self.plot_period:
@@ -565,7 +721,7 @@ class RawDataDashboard(QtWidgets.QWidget):
         self.ax2.margins(0)
         self.ax2b.margins(0)
 
-    def compute_psd(self, df):
+    def _compute_psd(self, df):
         """Compute PSD of all channels using the Welch method."""
 
         # TODO: Unit test this!

@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd
 
 from app.core.logger_properties import LoggerProperties
-from app.core.read_files import read_pulse_acc
+from app.core.read_files import read_2hps2_acc, read_pulse_acc
 from app.core.signal_processing import filter_signal
 
 
@@ -68,9 +68,7 @@ class DataScreen(object):
         self.channel_names = logger.channel_names
 
         # Set full file path
-        self.files = [
-            os.path.join(self.logger.logger_path, f) for f in self.logger.files
-        ]
+        self.files = [os.path.join(logger.logger_path, f) for f in logger.files]
 
         # Set file format (i.e. Fugro/Pulse/General)
         self.file_format = self.logger.file_format
@@ -102,11 +100,11 @@ class DataScreen(object):
             self.apply_filters = False
 
     def read_logger_file(self, filename):
-        """Read logger file into pandas data frame."""
+        """Read logger file into data frame."""
 
         df = pd.DataFrame()
 
-        # Read data into pandas data frame
+        # Read data to data frame
         if self.file_format == "Fugro-csv" or self.file_format == "General-csv":
             df = pd.read_csv(
                 filename,
@@ -117,6 +115,8 @@ class DataScreen(object):
             )
         elif self.file_format == "Pulse-acc":
             df = read_pulse_acc(filename, multi_header=False)
+        elif self.file_format == "2HPS2-acc":
+            df = read_2hps2_acc(filename, multi_header=False)
 
         return df
 
@@ -183,6 +183,7 @@ class DataScreen(object):
         df.iloc[:, 1:] = df.iloc[:, 1:].apply(pd.to_numeric, errors="coerce")
 
         # Apply any unit conversions
+        # TODO: If no cols to process selected should default to all columns
         if len(self.unit_conv_factors) == len(df.columns) - 1:
             df.iloc[:, 1:] = np.multiply(df.iloc[:, 1:], self.unit_conv_factors)
 
@@ -244,7 +245,6 @@ class DataScreen(object):
 
         # Total expected data points in logger campaign
         n = len(self.files) * self.logger.expected_data_points
-
         self.data_completeness = self.cum_pts_per_channel / n * 100
 
         return self.data_completeness

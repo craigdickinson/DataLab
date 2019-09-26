@@ -6,7 +6,7 @@ import logging
 import os
 import sys
 from datetime import datetime
-from pathlib import Path
+from glob import glob
 
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtCore import pyqtSlot
@@ -18,17 +18,21 @@ from app.core.calc_transfer_functions import TransferFunctions
 from app.core.control import Control, InputError
 from app.core.custom_date import get_datetime_format
 from app.core.detect_file_timestamp_format import detect_file_timestamp_format
-from app.core.fugro_csv_properties import (
+from app.core.file_props_2hps2_acc import (
+    detect_2hps2_logger_properties,
+    set_2hps2_acc_file_format,
+)
+from app.core.file_props_fugro_csv import (
     detect_fugro_logger_properties,
     set_fugro_csv_file_format,
 )
-from app.core.general_csv_properties import set_general_csv_file_format
-from app.core.logger_properties import LoggerError, LoggerProperties
-from app.core.project_config import ProjectConfigJSONFile
-from app.core.pulse_acc_properties import (
+from app.core.file_props_general_csv import set_general_csv_file_format
+from app.core.file_props_pulse_acc import (
     detect_pulse_logger_properties,
     set_pulse_acc_file_format,
 )
+from app.core.logger_properties import LoggerError, LoggerProperties
+from app.core.project_config import ProjectConfigJSONFile
 
 
 class ConfigModule(QtWidgets.QWidget):
@@ -341,6 +345,12 @@ class ConfigModule(QtWidgets.QWidget):
         self.loggersList.addItem(item)
         self.loggersList.setCurrentRow(n)
 
+        # Also add logger id to raw data module dataset combo box
+        try:
+            self.parent.rawDataModule.add_dataset(logger_id, self.control, index=n)
+        except Exception as e:
+            logging.exception(e)
+
         # Initialise dashboard layouts
         self.loggerPropsTab.set_logger_dashboard(logger)
         self.screeningTab.set_analysis_dashboard(logger)
@@ -380,6 +390,9 @@ class ConfigModule(QtWidgets.QWidget):
             self.loggersList.takeItem(i)
             self.del_logger = False
 
+            # Remove logger from raw data dashboard combo box
+            self.parent.rawDataModule.remove_dataset(i)
+
             # Clear relevant dashboards if all loggers removed
             if self.loggersList.count() == 0:
                 self.columnsList.clear()
@@ -407,7 +420,7 @@ class ConfigModule(QtWidgets.QWidget):
         logger = self.control.loggers[i]
         self.loggerPropsTab.set_logger_dashboard(logger)
         self.screeningTab.set_analysis_dashboard(logger)
-        self.set_logger_header_list(logger)
+        self.set_logger_columns_list(logger)
 
     def on_logger_item_edited(self):
         """Update logger combo box to match logger names of list widget."""
@@ -425,6 +438,13 @@ class ConfigModule(QtWidgets.QWidget):
 
         # Update dashboard logger id
         self.loggerPropsTab.loggerID.setText(new_logger_id)
+
+        # Update the logger ids lists in the control object
+        self.control.logger_ids[i] = new_logger_id
+        self.control.logger_ids_upper[i] = new_logger_id.upper()
+
+        # Update logger id in raw dashboard dataset combo box
+        self.parent.rawDataModule.update_dateset_name(i, new_logger_id)
 
     def on_stats_screen_toggled(self):
         if self.statsScreenChkBox.isChecked():
@@ -458,8 +478,15 @@ class ConfigModule(QtWidgets.QWidget):
         self.loggersList.item(logger_idx).setText(logger_id)
         self.skip_on_logger_item_edited = False
 
-    def set_logger_header_list(self, logger):
-        """Populate logger header details list with the header info from a test file."""
+        # Update the logger ids lists in the control object
+        self.control.logger_ids[logger_idx] = logger_id
+        self.control.logger_ids_upper[logger_idx] = logger_id.upper()
+
+        # Update logger id in raw dashboard dataset combo box
+        self.parent.rawDataModule.update_dateset_name(logger_idx, logger_id)
+
+    def set_logger_columns_list(self, logger):
+        """Populate logger columns list with the column details from a test file."""
 
         self.columnsList.clear()
         channels = logger.all_channel_names
@@ -501,20 +528,22 @@ class ConfigModule(QtWidgets.QWidget):
         self.loggersList.clear()
         self.columnsList.clear()
 
-        # Add loggers to logger list if loggers have been loaded to the control object
+        # Add loggers in control object to loggers list
         if self.control.loggers:
             for logger_id in self.control.logger_ids:
                 item = QtWidgets.QListWidgetItem(logger_id)
                 item.setFlags(item.flags() | QtCore.Qt.ItemIsEditable)
                 self.loggersList.addItem(item)
 
+            # Add logger ids to raw data module dataset combo box
+            self.parent.rawDataModule.add_datasets(self.control)
+
             # Select first logger and set dashboards
             self.loggersList.setCurrentRow(0)
             logger = self.control.loggers[0]
-
+            self.set_logger_columns_list(logger)
             self.loggerPropsTab.set_logger_dashboard(logger)
             self.screeningTab.set_analysis_dashboard(logger)
-            self.set_logger_header_list(logger)
 
         # Set seascatter dashboard
         self.scatterTab.set_scatter_dashboard()
@@ -746,7 +775,7 @@ class LoggerPropertiesTab(QtWidgets.QWidget):
         self.openFolderButton = QtWidgets.QPushButton("Open Source Folder...")
         self.openFolderButton.setShortcut("Ctrl+F")
         self.openFolderButton.setToolTip(
-            "Ctrl+F (Not enabled if source files stored on Azure Cloud Storage)"
+            "Ctrl+F (Disabled if source files stored on Azure Cloud Storage)"
         )
         self.loggerID = QtWidgets.QLabel("-")
         self.dataSource = QtWidgets.QLabel("-")
@@ -906,7 +935,7 @@ class LoggerPropertiesTab(QtWidgets.QWidget):
 class EditLoggerPropertiesDialog(QtWidgets.QDialog):
     delims_gui_to_logger = {"comma": ",", "space": " ", "tab": "\t"}
     delims_logger_to_gui = {",": "comma", " ": "space", "\t": "tab"}
-    file_types = ["General-csv", "Fugro-csv", "Pulse-acc"]
+    file_types = ["General-csv", "Fugro-csv", "Pulse-acc", "2HPS2-acc"]
     index_types = ["Timestamp", "Time Step"]
     delimiters = ["comma", "space", "tab"]
 
@@ -1268,9 +1297,10 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
         # Set which input fields are enabled/disabled based on file format set
         self._set_enabled_inputs(selected_file_format)
 
-        # Depending on selection either: Create a new logger object with standard/initial file format properties
+        # Depending on selection either: Create a new logger object with standard/default file format properties
         # of the selected logger type or revert initial logger properties
-        # (Note Pulse-acc properties are more for info as they are not directly used by the read pulse-acc function)
+        # (Note Pulse-acc and 2HPS2-acc properties are more for info as they are not directly used by the
+        # respective read_pulse_acc and read_2hps2_acc functions)
         if selected_file_format == "General-csv":
             if self.init_file_format == "General-csv":
                 logger = self.init_logger
@@ -1286,6 +1316,11 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
                 logger = self.init_logger
             else:
                 logger = set_pulse_acc_file_format(logger)
+        elif selected_file_format == "2HPS2-acc":
+            if self.init_file_format == "2HPS2-acc":
+                logger = self.init_logger
+            else:
+                logger = set_2hps2_acc_file_format(logger)
 
         # Set test logger file format properties to the dialog Logger File Properties group
         if logger.file_timestamp_embedded is True:
@@ -1320,14 +1355,13 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
         """
 
         logger_path = self.loggerPath.toPlainText()
-
         if not os.path.exists(logger_path):
             msg = "Logger path does not exist. Set a logger path first."
             return QtWidgets.QMessageBox.information(
                 self, "Detect File Timestamp Format", msg
             )
 
-        raw_files = [f for f in Path(logger_path).iterdir() if f.is_file()]
+        raw_files = glob(logger_path + "/*." + self.fileExt.text())
         if not raw_files:
             msg = f"No files found in {logger_path}"
             return QtWidgets.QMessageBox.information(
@@ -1414,13 +1448,7 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
 
         try:
             # Detect logger properties from file and assign to test logger object
-            if file_format == "Fugro-csv":
-                test_logger = set_fugro_csv_file_format(test_logger)
-                test_logger = detect_fugro_logger_properties(test_logger)
-            elif file_format == "Pulse-acc":
-                test_logger = set_pulse_acc_file_format(test_logger)
-                test_logger = detect_pulse_logger_properties(test_logger)
-            elif file_format == "General-csv":
+            if file_format == "General-csv":
                 # Set current file format properties in the dialog
                 test_logger.file_format = "General-csv"
                 test_logger.file_ext = self.fileExt.text()
@@ -1430,6 +1458,15 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
                 test_logger.num_headers = int(self.numHeaderRows.text())
                 test_logger.channel_header_row = int(self.channelHeaderRow.text())
                 test_logger.units_header_row = int(self.unitsHeaderRow.text())
+            elif file_format == "Fugro-csv":
+                test_logger = set_fugro_csv_file_format(test_logger)
+                test_logger = detect_fugro_logger_properties(test_logger)
+            elif file_format == "Pulse-acc":
+                test_logger = set_pulse_acc_file_format(test_logger)
+                test_logger = detect_pulse_logger_properties(test_logger)
+            elif file_format == "2HPS2-acc":
+                test_logger = set_2hps2_acc_file_format(test_logger)
+                test_logger = detect_2hps2_logger_properties(test_logger)
 
             # Set detected file properties to dialog
             self._set_detected_file_props_to_dialog(test_logger)
@@ -1457,7 +1494,12 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
             self.parent.parent.update_logger_id_list(
                 self.logger.logger_id, self.logger_idx
             )
-            self.parent.parent.set_logger_header_list(self.logger)
+            self.parent.parent.set_logger_columns_list(self.logger)
+
+            # Check if files list in raw data module should be updated
+            self.parent.parent.parent.rawDataModule.update_dataset_properties(
+                self.logger_idx
+            )
 
             # Set the process start/end labels in the Screening dashboard that pertain to the logger
             file_timestamp_embedded = self.logger.file_timestamp_embedded
@@ -1701,7 +1743,7 @@ class ScreeningSetupTab(QtWidgets.QWidget):
         self.hboxStats.addWidget(self.statsGroup)
         self.hboxStats.addWidget(self.statsOutputGroup)
 
-        # Create vertical layouts for spectral settings to prevent vertical expansion of group box
+        # Create vertical layout for spectral settings to prevent vertical expansion of group box
         self.vboxSpect = QtWidgets.QVBoxLayout()
         self.vboxSpect.addWidget(self.spectGroup)
         self.vboxSpect.addStretch()
@@ -2303,10 +2345,7 @@ class EditScreeningSetupDialog(QtWidgets.QDialog):
 
             try:
                 if process_end == "" or process_end == "Last file":
-                    if logger.data_on_azure is True:
-                        logger.get_filenames_on_azure()
-                    else:
-                        logger.get_filenames_on_local()
+                    logger.get_filenames()
                     process_end = len(logger.raw_filenames)
 
                 logger.process_end = int(process_end)
@@ -2377,13 +2416,8 @@ class EditScreeningSetupDialog(QtWidgets.QDialog):
 
         try:
             # Process filenames to get list of files and extract the datetimes embedded in each filename
-            if logger.data_on_azure is True:
-                logger.get_filenames_on_azure()
-            else:
-                logger.get_filenames_on_local()
-
+            logger.get_filenames()
             logger.get_timestamp_span()
-
             return logger.get_file_timestamp(logger.raw_filenames[file_idx])
         except LoggerError as e:
             self.error(str(e))

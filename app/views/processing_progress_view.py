@@ -111,7 +111,11 @@ class ProcessingProgressBar(QtWidgets.QDialog):
         )
         self.elapsedTimeLabel.setText(f"Elapsed time = {elapsed_time}")
 
-        perc = total_file_count / total_files * 100
+        # Set percentage progress
+        try:
+            perc = total_file_count / total_files * 100
+        except ZeroDivisionError:
+            perc = 100
         self.pb.setValue(perc)
 
         # On 100% update last logger in list to "Complete", report runtime and re-enable OK button

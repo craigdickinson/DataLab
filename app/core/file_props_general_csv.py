@@ -2,7 +2,7 @@ __author__ = "Craig Dickinson"
 
 
 def set_general_csv_file_format(logger):
-    """Return a LoggerProperties object populated with default settings for a General-csv file format."""
+    """Return a LoggerProperties object populated with default file format properties of a General-csv file."""
 
     logger.file_format = "General-csv"
     logger.file_timestamp_embedded = True

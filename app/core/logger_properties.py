@@ -96,11 +96,6 @@ class LoggerProperties(QObject):
         # Dictionary of files with bad timestamps
         self.dict_bad_filenames = {}
 
-        # Processing start and end dates
-        # These hold sampling dates and not the control file stats start/end dates (which may not be provided)
-        # self.start_date = None
-        # self.end_date = None
-
         # File timestamp component start and end indexes
         self.year_span = None
         self.month_span = None
@@ -157,10 +152,15 @@ class LoggerProperties(QObject):
     def get_filenames(self):
         """Read all file timestamps and check that they conform to the specified format."""
 
-        if self.data_on_azure is True:
-            self.get_filenames_on_azure()
-        else:
-            self.get_filenames_on_local()
+        filenames = []
+
+        if self.logger_path:
+            if self.data_on_azure is True:
+                filenames = self.get_filenames_on_azure()
+            else:
+                filenames = self.get_filenames_on_local()
+
+        return filenames
 
     def get_filenames_on_local(self):
         """Get all filenames with specified extension in logger path."""
@@ -175,6 +175,8 @@ class LoggerProperties(QObject):
         if not self.raw_filenames:
             msg = f"No {self.logger_id} logger files found in {self.logger_path}."
             raise LoggerError(msg)
+
+        return self.raw_filenames
 
     def get_filenames_on_azure(self):
         """Get all filenames with specified extension stored on Azure Cloud Storage container."""
@@ -210,6 +212,8 @@ class LoggerProperties(QObject):
             msg = f"No {self.logger_id} logger files found in {self.logger_path} on Azure Cloud Storage account."
             raise LoggerError(msg)
 
+        return self.raw_filenames
+
     def get_timestamp_span(self):
         """Extract timestamp code spans using filename format given in control file."""
 
@@ -242,6 +246,14 @@ class LoggerProperties(QObject):
                 self.files.append(f)
                 self.file_timestamps.append(date)
                 self.file_indexes.append(i)
+
+        # Check at least one valid file was found
+        # if not self.files:
+        #     msg = (
+        #         f"No file names with a valid embedded timestamp found for logger {self.logger_id}.\n\n"
+        #         f"Check the file timestamp format input and the files in\n{self.logger_path}."
+        #     )
+        #     raise LoggerError(msg)
 
     def get_file_timestamp(self, f):
         """
@@ -281,6 +293,9 @@ class LoggerProperties(QObject):
         :return: New list of file_timestamps and files within date range
         """
 
+        if not self.files:
+            return
+
         # Use first and last raw logger filenames if no start/end dates read from control file
         if start_date is None:
             start_date = min(self.file_timestamps)
@@ -310,13 +325,18 @@ class LoggerProperties(QObject):
     def select_files_in_index_range(self, start_idx, end_idx):
         """Select files for processing within start_idx, end_idx range."""
 
-        # Use first and last raw logger filenames if no start/end indexes read from control file
+        # Use first file if no start index read from control file
         if start_idx is None:
             start_idx = 1
-        if end_idx is None:
-            end_idx = -1
 
+        # Slice files to process
         self.files = self.raw_filenames[start_idx - 1 : end_idx]
+
+        # Use last file if no end index read from control file
+        if end_idx is None:
+            end_idx = len(self.files)
+
+        # Slice file indexes to process
         self.file_indexes = list(range(start_idx - 1, end_idx))
 
     def get_all_channel_and_unit_names(self):

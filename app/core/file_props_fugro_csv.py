@@ -13,7 +13,7 @@ from glob import glob
 
 
 def set_fugro_csv_file_format(logger):
-    """Return a LoggerProperties object populated with known Fugro-csv file format settings."""
+    """Return a LoggerProperties object populated with file format properties of a Fugro-csv file."""
 
     logger.file_format = "Fugro-csv"
     logger.file_timestamp_embedded = True
@@ -95,9 +95,9 @@ def read_fugro_sample_interval(filename):
     if len(words) == 4:
         samp_str = words[2]
 
-    if is_number(samp_str):
+    try:
         return float(samp_str)
-    else:
+    except ValueError:
         return 0
 
 
@@ -111,13 +111,3 @@ def read_fugro_headers(filename):
         units = f.readline().strip().split(",")
 
     return header, units
-
-
-def is_number(s):
-    """Return True if a string represents a float, otherwise return False."""
-
-    try:
-        float(s)
-        return True
-    except ValueError:
-        return False

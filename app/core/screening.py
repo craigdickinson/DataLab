@@ -99,9 +99,8 @@ class Screening(QThread):
         # Create output stats to workbook object
         stats_out = StatsOutput(output_dir=self.control.stats_output_path)
 
-        # List of output files
+        # Initialise containers and settings
         output_files = []
-
         logger_ids = []
         total_files = 0
         global_process_stats = self.control.global_process_stats
@@ -176,7 +175,14 @@ class Screening(QThread):
             n = len(data_screen[i].files)
 
             # Get file number of first file to be processed (this is akin to load case number for no timestamp files)
-            first_file_num = logger.file_indexes[0] + 1
+            try:
+                first_file_num = logger.file_indexes[0] + 1
+            except IndexError:
+                pass
+
+            # Initialise file parameters in case there are no files to process
+            j = 0
+            filename = ""
 
             # Expose each sample here; that way it can be sent to different processing modules
             for j, file in enumerate(data_screen[i].files):
@@ -320,10 +326,11 @@ class Screening(QThread):
                 file_count += 1
 
             # Operations for logger i after all logger i files have been processed
-            coverage = data_screen[i].calc_data_completeness()
-            print(
-                f"\nData coverage for {logger.logger_id} logger = {coverage.min():.1f}%\n"
-            )
+            if logger.files:
+                coverage = data_screen[i].calc_data_completeness()
+                print(
+                    f"\nData coverage for {logger.logger_id} logger = {coverage.min():.1f}%\n"
+                )
 
             # Add any files containing errors to screening report
             data_report.add_files_with_bad_data(

@@ -73,7 +73,12 @@ class DataQualityReport(QtWidgets.QWidget):
         # Update report
         self.numFiles.setText(str(len(logger_data_screen.files)))
         self.numBadFilenames.setText(str(len(logger.dict_bad_filenames)))
-        perc_complete_data = f"{int(logger_data_screen.data_completeness.min())}%"
+
+        # Calculate min percentage of complete data of all channels
+        try:
+            perc_complete_data = f"{int(logger_data_screen.data_completeness.min())}%"
+        except ValueError:
+            perc_complete_data = "N/A"
         self.percCompleteData.setText(perc_complete_data)
 
     def populate_logger_combo(self, logger_ids):

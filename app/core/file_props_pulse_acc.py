@@ -33,7 +33,7 @@ from glob import glob
 
 
 def set_pulse_acc_file_format(logger):
-    """Return a LoggerProperties object populated with known Pulse-acc file format settings."""
+    """Return a LoggerProperties object populated with file format properties of a Pulse-acc file."""
 
     logger.file_format = "Pulse-acc"
     logger.file_timestamp_embedded = True
@@ -92,30 +92,28 @@ def read_pulse_header_info(filename):
     Retrieve the following information from the header of a Pulse-acc file:
     sample frequency
     logging duration
-    channels names
-    units
+    channel  names
+    channel units
     """
 
     with open(filename, "r") as f:
         # Read sampling frequency
         [next(f) for _ in range(9)]
-        fs = next(f).strip().split(" ")[1]
+        fs = f.readline().strip().split(" ")[-1]
 
         # Read columns header
         [next(f) for _ in range(7)]
-        cols = next(f).strip().split(":")
+        cols = f.readline().strip().split(":")
 
+        # Skip remaining header and read body
         [next(f) for _ in range(2)]
         data = f.readlines()
 
-    # Manipulate and check info read
-    # Check sample frequency is numeric
-    if is_number(fs):
+    # Check sample frequency is numeric and calculate expected logging duration
+    try:
         fs = float(fs)
-
-        # Calculate expected logging duration
         duration = len(data) / fs
-    else:
+    except ValueError:
         fs = 0
         duration = 0
 
@@ -134,19 +132,8 @@ def read_pulse_header_info(filename):
     return fs, duration, channels, units
 
 
-def is_number(s):
-    """Return True if a string represents a float, otherwise return False."""
-
-    try:
-        float(s)
-        return True
-    except ValueError:
-        return False
-
-
 if __name__ == "__main__":
-    folder = r"C:\Users\dickinsc\PycharmProjects\_2. DataLab Analysis Files\21239\4. Dat2Acc\POD001"
+    folder = r"C:\Users\dickinsc\PycharmProjects\DataLab\demo_data\1. Raw Data\21239 Pulse-acc\BOP"
     fname = "MPOD001_2018_06_07_16_20.ACC"
     f = os.path.join(folder, fname)
-
     read_pulse_header_info(f)

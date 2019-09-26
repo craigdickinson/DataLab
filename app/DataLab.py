@@ -1,13 +1,12 @@
 __author__ = "Craig Dickinson"
 __program__ = "DataLab"
-__version__ = "1.3.0.10"
-__date__ = "20 September 2019"
+__version__ = "1.3.0.11"
+__date__ = "26 September 2019"
 
 import logging
 import os
 import sys
 import webbrowser
-from glob import glob
 
 from PyQt5 import QtCore, QtWidgets
 from PyQt5.QtCore import pyqtSignal, pyqtSlot
@@ -133,24 +132,17 @@ class DataLab(DataLabGui):
     def on_open_logger_file(self):
         """Load raw logger time series file."""
 
-        self.ts_file, _ = QtWidgets.QFileDialog.getOpenFileName(
+        file, _ = QtWidgets.QFileDialog.getOpenFileName(
             self,
             caption="Open Logger File",
             filter="Logger Files (*.csv;*.acc;*.h5;*.txt)",
         )
 
-        if self.ts_file:
-            root = os.path.dirname(self.ts_file)
-            self.rawDataModule.root = root
-            filename = os.path.basename(self.ts_file)
-            ext = os.path.splitext(self.ts_file)[1]
-            files_list = glob(root + "/*" + ext)
-            files = [os.path.basename(f) for f in files_list]
-
+        if file:
             try:
                 # Populate files list widget and read file
-                self.rawDataModule.update_files_list(files, filename)
-                self.rawDataModule.load_file(self.ts_file)
+                self.rawDataModule.update_files_list_from_open_file_dialog(file)
+                self.rawDataModule.load_file(file, open_file_dialog=True)
             except FileNotFoundError as e:
                 self.error(str(e))
                 logging.exception(e)
