@@ -32,24 +32,30 @@ def detect_file_timestamp_format(filename):
     f = re.sub(pattern=r"\D", repl="x", string=filename)
 
     # Substitute timestamp components with appropriate timestamp code for various expected filename formats
+    n = len(groups)
+
     # Fugro vessel file
-    if len(groups) == 2:
+    if n == 2:
         f, end = create_format_string_fugro_vessel(f, groups, matches)
 
     # Fugro logger file
-    if len(groups) == 3:
+    if n == 3:
         f, end = create_format_string_fugro_logger(f, groups, matches)
 
     # Fugro logger file with numeric in logger name (e.g. dd10_)
-    if len(groups) == 4:
+    if n == 4:
         f, end = create_format_string_fugro_logger_dd(f, groups, matches)
 
     # Pulse acc file
-    if len(groups) == 5:
+    if n == 5:
         f, end = create_format_string_pulse_acc(f, groups, matches)
 
+    # 2HPS2 acc file
+    if n == 7:
+        f, end = create_format_string_2hps2_acc(f, groups, matches)
+
     # Pulse csv file
-    if len(groups) == 12:
+    if n == 12:
         f, end = create_format_string_pulse_csv(f, groups, matches)
 
     # Drop any characters after the last match as they're not required
@@ -63,13 +69,13 @@ def detect_file_timestamp_format(filename):
 
 
 def substitute_code(string, match, code):
-    """Replace segment of file name with timestamp format code."""
+    """Replace segment of filename with timestamp format code."""
 
-    return "".join((string[: match.start()], code, string[match.end() :]))
+    return "".join((string[: match.start()], code, string[match.end():]))
 
 
 def create_format_string_fugro_vessel(string, groups, matches):
-    """Substitute file name with timestamp format codes expected of a Fugro vessel file."""
+    """Substitute filename with timestamp format codes expected of a Fugro vessel file."""
 
     if len(groups[0]) == 6:
         string = substitute_code(string, matches[0], code="YYmmDD")
@@ -81,7 +87,7 @@ def create_format_string_fugro_vessel(string, groups, matches):
 
 
 def create_format_string_fugro_logger(string, groups, matches):
-    """Substitute file name with timestamp format codes expected of a Fugro logger file."""
+    """Substitute filename with timestamp format codes expected of a Fugro logger file."""
 
     if len(groups[0]) == 4:
         string = substitute_code(string, matches[0], code="YYYY")
@@ -97,7 +103,7 @@ def create_format_string_fugro_logger(string, groups, matches):
 
 def create_format_string_fugro_logger_dd(string, groups, matches):
     """
-    Substitute file name with timestamp format codes expected of a Fugro logger file
+    Substitute filename with timestamp format codes expected of a Fugro logger file
     containing a numeric id (e.g. dd10).
     """
 
@@ -114,7 +120,7 @@ def create_format_string_fugro_logger_dd(string, groups, matches):
 
 
 def create_format_string_pulse_acc(string, groups, matches):
-    """Substitute file name with timestamp format codes expected of a Pulse acc file."""
+    """Substitute filename with timestamp format codes expected of a Pulse acc file."""
 
     if len(groups[0]) == 4:
         string = substitute_code(string, matches[0], code="YYYY")
@@ -135,7 +141,7 @@ def create_format_string_pulse_acc(string, groups, matches):
 
 
 def create_format_string_pulse_csv(string, groups, matches):
-    """Substitute file name with timestamp format codes expected of a Pulse csv file."""
+    """Substitute filename with timestamp format codes expected of a Pulse csv file."""
 
     if len(groups[0]) == 4:
         string = substitute_code(string, matches[0], code="YYYY")
@@ -156,3 +162,24 @@ def create_format_string_pulse_csv(string, groups, matches):
         string = substitute_code(string, matches[5], code="SS")
 
     return string, matches[5].end()
+
+
+def create_format_string_2hps2_acc(string, groups, matches):
+    """Substitute filename with timestamp format codes expected of a 2HPS2 acc file."""
+
+    if len(groups[2]) == 4:
+        string = substitute_code(string, matches[2], code="YYYY")
+
+    if len(groups[3]) == 2:
+        string = substitute_code(string, matches[3], code="mm")
+
+    if len(groups[4]) == 2:
+        string = substitute_code(string, matches[4], code="DD")
+
+    if len(groups[5]) == 2:
+        string = substitute_code(string, matches[5], code="HH")
+
+    if len(groups[6]) == 2:
+        string = substitute_code(string, matches[6], code="MM")
+
+    return string, matches[6].end()

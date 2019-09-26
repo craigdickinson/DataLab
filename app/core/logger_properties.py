@@ -34,6 +34,16 @@ class LoggerError(Error):
     def __init__(self, message):
         self.message = message
 
+class LoggerWarning(Error):
+    """Exception raised for errors in the logger properties that wish to report as warnings.
+
+    Attributes:
+        message -- explanation of the error
+    """
+
+    def __init__(self, message):
+        self.message = message
+
 
 class LoggerProperties(QObject):
     """Holds properties of a logger."""

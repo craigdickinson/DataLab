@@ -1,6 +1,6 @@
 __author__ = "Craig Dickinson"
 __program__ = "DataLab"
-__version__ = "1.3.0.11"
+__version__ = "1.3.0.12"
 __date__ = "26 September 2019"
 
 import logging
@@ -13,7 +13,7 @@ from PyQt5.QtCore import pyqtSignal, pyqtSlot
 
 # import datalab_gui_layout
 from app.core.control import InputError
-from app.core.logger_properties import LoggerError
+from app.core.logger_properties import LoggerError, LoggerWarning
 from app.core.read_files import (
     read_spectrograms_csv,
     read_spectrograms_excel,
@@ -467,15 +467,12 @@ class DataLab(DataLabGui):
 
         try:
             self.repaint()
-            status = self.analyse_screening_setup()
+            self.analyse_screening_setup()
             self.statusbar.showMessage("")
-
-            if status is True:
-                self.statusbar.showMessage(
-                    "Checking setup: Complete. Processing loggers..."
-                )
-                self.repaint()
-                self.run_screening()
+            msg = "Checking setup: Complete. Processing loggers..."
+            self.statusbar.showMessage(msg)
+            self.repaint()
+            self.run_screening()
         except InputError as e:
             self.statusbar.showMessage("")
             self.error(str(e))
@@ -483,6 +480,10 @@ class DataLab(DataLabGui):
         except LoggerError as e:
             self.statusbar.showMessage("")
             self.error(str(e))
+            logging.exception(e)
+        except LoggerWarning as e:
+            self.statusbar.showMessage("")
+            self.warning(str(e))
             logging.exception(e)
         except FileNotFoundError as e:
             self.statusbar.showMessage("")
@@ -502,43 +503,37 @@ class DataLab(DataLabGui):
         # Perform some input checks
         # Check project path exists
         if control.project_path == "":
-            self.warning("Cannot process: Project location not set.")
-            return False
+            msg = "Cannot process: Project location not set."
+            raise LoggerWarning(msg)
 
         # Check at least one logger exists
         if not control.loggers:
-            self.warning("Cannot process: No loggers exist in setup.")
-            return False
+            msg = "Cannot process: No loggers exist in setup."
+            raise LoggerWarning(msg)
 
         # Check all ids are unique
         control.check_logger_ids()
 
-        # Checking logging durations and sample lengths are positive
+        # Check logging durations and sample lengths are positive
         for logger in control.loggers:
             if logger.duration <= 0:
-                self.warning(
-                    f"Cannot process: Logging duration for logger {logger.logger_id} is {logger.duration}.\n"
-                    f"Logging duration must be greater than zero."
-                )
-                return False
+                msg = f"Cannot process: Logging duration for logger {logger.logger_id} is {logger.duration}.\n"
+                f"Logging duration must be greater than zero."
+                raise LoggerWarning(msg)
 
             if control.global_process_stats is True and logger.process_stats is True:
                 if logger.stats_interval <= 0:
-                    self.warning(
-                        f"Cannot process: Statistics sample length for logger "
-                        f"{logger.logger_id} is {logger.stats_interval}.\n"
-                        f"Statistics sample length must be greater than zero."
-                    )
-                    return False
+                    msg = f"Cannot process: Statistics sample length for logger "
+                    f"{logger.logger_id} is {logger.stats_interval}.\n"
+                    f"Statistics sample length must be greater than zero."
+                    raise LoggerWarning(msg)
 
             if control.global_process_spect is True and logger.process_spect is True:
                 if logger.spect_interval <= 0:
-                    self.warning(
-                        f"Cannot process: Spectral sample length for logger "
-                        f"{logger.logger_id} is {logger.spect_interval}.\n"
-                        f"Spectral sample length must be greater than zero."
-                    )
-                    return False
+                    msg = f"Cannot process: Spectral sample length for logger "
+                    f"{logger.logger_id} is {logger.spect_interval}.\n"
+                    f"Spectral sample length must be greater than zero."
+                    raise LoggerWarning(msg)
 
         # Set up output folders
         control.set_up_output_folders()
@@ -591,8 +586,6 @@ class DataLab(DataLabGui):
 
                 # Check number of headers match number of columns to process
                 logger.check_headers()
-
-        return True
 
     def run_screening(self):
         """Run statistical and spectral analysis in config setup."""
@@ -780,6 +773,9 @@ class ScreeningWorker(QtCore.QThread):
             self.screening.screen_loggers()
             self.signal_screening_output_to_gui.emit(self.screening)
         except ValueError as e:
+            self.signal_error.emit(str(e))
+            logging.exception(e)
+        except TypeError as e:
             self.signal_error.emit(str(e))
             logging.exception(e)
         except ZeroDivisionError as e:

@@ -185,7 +185,11 @@ class DataScreen(object):
         # Apply any unit conversions
         # TODO: If no cols to process selected should default to all columns
         if len(self.unit_conv_factors) == len(df.columns) - 1:
-            df.iloc[:, 1:] = np.multiply(df.iloc[:, 1:], self.unit_conv_factors)
+            try:
+                df.iloc[:, 1:] = np.multiply(df.iloc[:, 1:], self.unit_conv_factors)
+            except TypeError as e:
+                msg = f"Data screen error: Data frame contains no channel columns.\n {e}"
+                raise TypeError(msg)
 
         # Replace column names with setup channel names (should only be different if user names supplied)
         df.columns = [first_col] + self.channel_names

@@ -48,5 +48,11 @@ def test_detect_file_timestamp_format_7():
     assert timestamp_fmt == "xxxxYYYYxmmDDxHHMM"
 
 
+def test_detect_file_timestamp_format_8():
+    filename = "SMA0096_0000_2019_06_08_18_00.acc"
+    timestamp_fmt = detect_file_timestamp_format(filename)
+    assert timestamp_fmt == "xxxxxxxxxxxxxYYYYxmmxDDxHHxMM"
+
+
 if __name__ == "__main__":
     pytest.main()

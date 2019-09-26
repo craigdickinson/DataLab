@@ -1206,7 +1206,6 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
 
         # Initialise for General-csv
         self.fileTimestampEmbeddedChkBox.setEnabled(True)
-        # self.detectTimestampFormatButton.setEnabled(True)
         self.firstColData.setEnabled(True)
         self.fileExt.setEnabled(True)
         self.fileDelimiter.setEnabled(True)
@@ -1233,8 +1232,7 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
             self.numHeaderRows.setEnabled(False)
             self.channelHeaderRow.setEnabled(False)
             self.unitsHeaderRow.setEnabled(False)
-
-        elif file_format == "Pulse-acc":
+        elif file_format == "Pulse-acc" or file_format == "2HPS2-acc":
             # self.lblTimestampFmt.setHidden(True)
             # self.dataTimestampFormat.setHidden(True)
             self.fileTimestampEmbeddedChkBox.setEnabled(False)
@@ -1369,7 +1367,7 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
             )
 
         # Attempt to decipher file timestamp format code (e.g. xxxxYYYYxmmDDxHHMM)
-        test_filename = raw_files[0].name
+        test_filename = os.path.basename(raw_files[0])
         file_timestamp_format = detect_file_timestamp_format(test_filename)
 
         # Test file timestamp format code
@@ -1408,8 +1406,8 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
             # Success message
             if test_timestamp:
                 msg = (
-                    "Detected file timestamp embedded in test file name:\n"
-                    f"{test_filename} is {test_timestamp}.\n\n"
+                    f"File name tested: {test_filename}\n"
+                    f"Timestamp detected in file name: {test_timestamp}\n\n"
                     "If this is not correct then the file timestamp format code needs manual correction."
                 )
 
@@ -2374,8 +2372,8 @@ class EditScreeningSetupDialog(QtWidgets.QDialog):
 
         # Stats settings group
         if (
-            self.statsInterval.text() == ""
-            or int(float(self.statsInterval.text())) == 0
+                self.statsInterval.text() == ""
+                or int(float(self.statsInterval.text())) == 0
         ):
             logger.stats_interval = int(logger.duration)
         else:
@@ -2383,8 +2381,8 @@ class EditScreeningSetupDialog(QtWidgets.QDialog):
 
         # Spectral settings group
         if (
-            self.spectInterval.text() == ""
-            or int(float(self.spectInterval.text())) == 0
+                self.spectInterval.text() == ""
+                or int(float(self.spectInterval.text())) == 0
         ):
             logger.spect_interval = int(logger.duration)
         else:
