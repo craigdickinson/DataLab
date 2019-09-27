@@ -359,11 +359,15 @@ class RawDataDashboard(QtWidgets.QWidget):
         self.logger_id = filename.split("_")[0]
 
         # Store channel names and units - ignore column 1 (Timestamps)
-        self.channel_names = self.df.columns.get_level_values(0).tolist()[1:]
+        # Also ensure str type (will be int if no header used)
+        channel_names = self.df.columns.get_level_values(0).tolist()[1:]
+        self.channel_names = [str(c) for c in channel_names]
 
+        # Attempt to retrieve channel units from second column index row
         try:
             self.units = self.df.columns.get_level_values(1).tolist()[1:]
-        except:
+        except IndexError:
+            # Use units for all channels stored in control object if exists, else create dummy list
             if self.raw_datasets[i].channel_units:
                 self.units = self.raw_datasets[i].channel_units
             else:

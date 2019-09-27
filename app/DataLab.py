@@ -1,7 +1,7 @@
 __author__ = "Craig Dickinson"
 __program__ = "DataLab"
-__version__ = "1.3.0.12"
-__date__ = "26 September 2019"
+__version__ = "1.3.0.13"
+__date__ = "27 September 2019"
 
 import logging
 import os
@@ -572,20 +572,19 @@ class DataLab(DataLabGui):
                 logger.get_all_channel_and_unit_names()
 
             # Check requested channels exist
-            if logger.process_stats is True or logger.process_spect is True:
-                # Connect warning signal to warning message box in DataLab class
-                try:
-                    # Disconnect any existing connection to prevent repeated triggerings
-                    logger.signal_warning.disconnect()
-                except:
-                    pass
-                logger.signal_warning.connect(self.warning)
+            # Connect warning signal to warning message box in DataLab class
+            try:
+                # Disconnect any existing connection to prevent repeated triggerings
+                logger.signal_warning.disconnect()
+            except TypeError:
+                pass
+            logger.signal_warning.connect(self.warning)
 
-                # Set user-defined channel names and units if supplied
-                logger.set_processed_columns_headers()
+            # Set processed channel names and units as user values, if supplied, or file header values
+            logger.set_processed_columns_headers()
 
-                # Check number of headers match number of columns to process
-                logger.check_headers()
+            # Check number of headers match number of columns to process
+            logger.check_headers()
 
     def run_screening(self):
         """Run statistical and spectral analysis in config setup."""

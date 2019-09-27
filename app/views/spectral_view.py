@@ -387,8 +387,14 @@ class SpectrogramWidget(QtWidgets.QWidget):
         #     cmap=cmap,
         # )
 
-        # Contour plot with discrete levels
-        im = ax1.contourf(self.freqs, self.index, self.z, cmap=cmap)
+        # Contour plot with discrete levels (z must be at least a 2x2 array)
+        try:
+            im = ax1.contourf(self.freqs, self.index, self.z, cmap=cmap)
+        except TypeError:
+            if len(self.z) == 1:
+                msg = "Warning plotting spectrograms: Cannot plot a spectrogram for only one event."
+                self.parent.warning(msg)
+
         # ticks = np.linspace(self.zmin, self.zmax, 8, endpoint=True)
         # im = ax1.contourf(self.freqs, self.index, self.z, levels=ticks, cmap=cmap)
 
@@ -421,13 +427,19 @@ class SpectrogramWidget(QtWidgets.QWidget):
         )  # (rect=[left, bottom, right, top])
 
         # Apply colour bar
-        self.cbar = self.fig.colorbar(im, ax=[ax1, ax2])
+        try:
+            self.cbar = self.fig.colorbar(im, ax=[ax1, ax2])
+        except UnboundLocalError:
+            pass
         # self.cbar = self.fig.colorbar(im, ax=[ax1, ax2], ticks=ticks)
 
         # TODO: Store and read units!
         units = r"$\mathregular{(units/s^2)^2/Hz}$"
         label = f"{log10}PSD ({units})".lstrip()
-        self.cbar.set_label(label)
+        try:
+            self.cbar.set_label(label)
+        except AttributeError:
+            pass
         # self.cbar.ax.tick_params(length=3.5)
         # self.cbar.outline.set_edgecolor('black')
         # self.cbar.outline.set_linewidth(1)
@@ -450,7 +462,7 @@ class SpectrogramWidget(QtWidgets.QWidget):
         # self.ax2.patch.set_facecolor('none')
         self.psd_line, = self.ax2.plot(self.freqs, zi, "k")
         self.ax2.set_ylim(self.zmin, self.zmax)
-        self.ax2.margins(0, 0)
+        self.ax2.margins(0)
         self.ax2.set_xlabel("Frequency (Hz)")
         self.ax2.set_ylabel("PSD")
         self.label = self.ax2.annotate(

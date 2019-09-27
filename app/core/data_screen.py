@@ -188,7 +188,9 @@ class DataScreen(object):
             try:
                 df.iloc[:, 1:] = np.multiply(df.iloc[:, 1:], self.unit_conv_factors)
             except TypeError as e:
-                msg = f"Data screen error: Data frame contains no channel columns.\n {e}"
+                msg = (
+                    f"Data screen error: Data frame contains no channel columns.\n {e}"
+                )
                 raise TypeError(msg)
 
         # Replace column names with setup channel names (should only be different if user names supplied)

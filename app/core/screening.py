@@ -469,8 +469,8 @@ class Screening(QThread):
 
 
 if __name__ == "__main__":
-    direc = r"C:\Users\dickinsc\PycharmProjects\DataLab\Demo Data\21239 Project DAT"
-    f = "controlfile_fugro_slim.dat"
+    direc = r"C:\Users\dickinsc\PycharmProjects\DataLab\demo_data\2. Project Configs\DAT Files (obsolete)"
+    f = "controlfile_21239_loggers.dat"
     f = os.path.join(direc, f)
     # f = ''
     datalab = Screening(datfile=f, no_dat=False)

@@ -71,7 +71,7 @@ def detect_file_timestamp_format(filename):
 def substitute_code(string, match, code):
     """Replace segment of filename with timestamp format code."""
 
-    return "".join((string[: match.start()], code, string[match.end():]))
+    return "".join((string[: match.start()], code, string[match.end() :]))
 
 
 def create_format_string_fugro_vessel(string, groups, matches):

@@ -76,7 +76,6 @@ class RawDataRead(object):
                 encoding="latin",
             )
             df = df.dropna(axis=1)
-            df.columns = df.columns.astype(str)
         elif self.file_format == "Pulse-acc":
             df = read_pulse_acc(filename, multi_header=True)
         elif self.file_format == "2HPS2-acc":

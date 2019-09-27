@@ -34,6 +34,7 @@ class LoggerError(Error):
     def __init__(self, message):
         self.message = message
 
+
 class LoggerWarning(Error):
     """Exception raised for errors in the logger properties that wish to report as warnings.
 
@@ -208,7 +209,7 @@ class LoggerProperties(QObject):
             # Store container name and blobs list
             self.container_name = container_name
             self.blobs = blobs
-        except:
+        except Exception:
             msg = f"Could not connect to {container_name} container on Azure Cloud Storage account."
             raise LoggerError(msg)
 
@@ -360,8 +361,7 @@ class LoggerProperties(QObject):
 
         # TODO: Need to check file is of expected filename first!
         raw_files = glob(self.logger_path + "/*." + self.file_ext)
-
-        if len(raw_files) == 0:
+        if not raw_files:
             msg = f"No files with the extension {self.file_ext} found in {self.logger_path}"
             raise FileNotFoundError(msg)
 
@@ -411,6 +411,8 @@ class LoggerProperties(QObject):
         self.all_channel_names = channels
         self.all_channel_units = units
 
+        return channels, units
+
     def set_processed_columns_headers(self):
         """
         Assign user-defined channel names and units to logger if supplied.
@@ -418,11 +420,13 @@ class LoggerProperties(QObject):
         to process not found in test file.
         """
 
-        # Check columns to process have been input
-        if len(self.cols_to_process) > 0:
+        # Check columns to process have been set
+        if self.cols_to_process:
             last_col = max(self.cols_to_process)
         else:
-            msg = f"Need to input columns to process for logger {self.logger_id} or disable processing."
+            msg = (
+                f"Need to input column numbers to process for logger {self.logger_id}."
+            )
             raise LoggerError(msg)
 
         # Read first data row from a test file
@@ -443,7 +447,7 @@ class LoggerProperties(QObject):
         warn_flag = False
 
         # Use user-defined channel names
-        if len(self.user_channel_names) > 0:
+        if self.user_channel_names:
             self.channel_names = self.user_channel_names
         # Use channel names detected from test file
         else:
@@ -465,7 +469,7 @@ class LoggerProperties(QObject):
                 warn_flag = True
 
         # Use user-defined channel units
-        if len(self.user_channel_units) > 0:
+        if self.user_channel_units:
             self.channel_units = self.user_channel_units
         # Use channel units detected from test file
         else:
@@ -527,22 +531,22 @@ class LoggerProperties(QObject):
         """Check that there is a channel name and channel units per requested column to process."""
 
         # Check number of analysis headers is correct
-        if self.process_stats is True or self.process_spect is True:
-            # Check length of channel header
-            if len(self.channel_names) != len(self.cols_to_process):
-                msg = (
-                    f"Number of channel names specified does not equal number of "
-                    f"channels to process for logger {self.logger_id}."
-                )
-                raise LoggerError(msg)
+        # if self.process_stats is True or self.process_spect is True:
+        # Check length of channel header
+        if len(self.channel_names) != len(self.cols_to_process):
+            msg = (
+                f"Number of channel names specified does not equal number of "
+                f"channels to process for logger {self.logger_id}."
+            )
+            raise LoggerError(msg)
 
-            # Check length of units header
-            if len(self.channel_units) != len(self.cols_to_process):
-                msg = (
-                    f"Number of units specified does not equal number of "
-                    f"channels to process for logger {self.logger_id}."
-                )
-                raise LoggerError(msg)
+        # Check length of units header
+        if len(self.channel_units) != len(self.cols_to_process):
+            msg = (
+                f"Number of units specified does not equal number of "
+                f"channels to process for logger {self.logger_id}."
+            )
+            raise LoggerError(msg)
 
     def check_header_specification(self):
         """

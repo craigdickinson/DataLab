@@ -958,9 +958,6 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
         self.init_logger = LoggerProperties()
         self.init_file_format = ""
 
-        self.all_channel_names = []
-        self.all_channel_units = []
-
         self._init_ui()
         self._connect_signals()
         self._set_dialog_data()
@@ -1572,13 +1569,25 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
         else:
             logger.duration = float(self.loggingDuration.text())
 
-        # If file format is general-csv, enforce stats/spectral sample length to the total file length
+        # If file format is general-csv, enforce stats/spectral sample length equal to the logger duration
         if logger.file_format == "General-csv" and logger.first_col_data == "Time Step":
             logger.enforce_max_duration = True
             logger.stats_interval = logger.duration
             logger.spect_interval = logger.duration
         else:
             logger.enforce_max_duration = False
+
+        # If stats or spectral sample length is zero set to logger duration and update screening tab
+        if logger.stats_interval == 0:
+            logger.stats_interval = logger.duration
+            self.parent.parent.screeningTab.statsInterval.setText(
+                str(logger.stats_interval)
+            )
+        if logger.spect_interval == 0:
+            logger.spect_interval = logger.duration
+            self.parent.parent.screeningTab.spectInterval.setText(
+                str(logger.spect_interval)
+            )
 
     def _detect_header(self):
         """Store all channel and units names from a test file, if present. Header info will then be set in the gui."""
@@ -1642,14 +1651,14 @@ class ScreeningSetupTab(QtWidgets.QWidget):
         self.spectInterval = QtWidgets.QLabel("-")
         self.statsFolder = QtWidgets.QLabel()
         self.spectFolder = QtWidgets.QLabel()
-        self.statsH5ChkBox = QtWidgets.QCheckBox(".h5 (fast read/write)")
-        self.statsH5ChkBox.setChecked(True)
         self.statsCSVChkBox = QtWidgets.QCheckBox(".csv")
+        self.statsCSVChkBox.setChecked(True)
         self.statsXLSXChkBox = QtWidgets.QCheckBox(".xlsx")
-        self.spectH5ChkBox = QtWidgets.QCheckBox(".h5 (fast read/write)")
-        self.spectH5ChkBox.setChecked(True)
+        self.statsH5ChkBox = QtWidgets.QCheckBox(".h5 (fast read/write)")
         self.spectCSVChkBox = QtWidgets.QCheckBox(".csv")
+        self.spectCSVChkBox.setChecked(True)
         self.spectXLSXChkBox = QtWidgets.QCheckBox(".xlsx")
+        self.spectH5ChkBox = QtWidgets.QCheckBox(".h5 (fast read/write)")
 
         # PSD parameters
         self.psdNperseg = QtWidgets.QLabel("-")
@@ -1723,17 +1732,17 @@ class ScreeningSetupTab(QtWidgets.QWidget):
         self.statsOutputGroup = QtWidgets.QGroupBox("Stats File Formats to Output")
         self.statsOutputGroup.setFixedWidth(170)
         self.vbox = QtWidgets.QVBoxLayout(self.statsOutputGroup)
-        self.vbox.addWidget(self.statsH5ChkBox)
         self.vbox.addWidget(self.statsCSVChkBox)
         self.vbox.addWidget(self.statsXLSXChkBox)
+        self.vbox.addWidget(self.statsH5ChkBox)
 
         # Spectral output file formats group
         self.spectOutputGroup = QtWidgets.QGroupBox("Spectral File Formats to Output")
         self.spectOutputGroup.setFixedWidth(170)
         self.vbox = QtWidgets.QVBoxLayout(self.spectOutputGroup)
-        self.vbox.addWidget(self.spectH5ChkBox)
         self.vbox.addWidget(self.spectCSVChkBox)
         self.vbox.addWidget(self.spectXLSXChkBox)
+        self.vbox.addWidget(self.spectH5ChkBox)
 
         # LAYOUT
         self.hboxStats = QtWidgets.QHBoxLayout()
@@ -1873,7 +1882,7 @@ class ScreeningSetupTab(QtWidgets.QWidget):
         self.unitConvs.setText(unit_conv_factors_str)
 
         # Channel names
-        channel_items_str = " ".join([i for i in logger.user_channel_names])
+        channel_items_str = ", ".join([i for i in logger.user_channel_names])
         self.channelNames.setText(channel_items_str)
 
         # Channel units
@@ -2030,23 +2039,23 @@ class EditScreeningSetupDialog(QtWidgets.QDialog):
         # WIDGETS
         self.columns = QtWidgets.QLineEdit()
         self.columns.setToolTip(
-            "Column numbers to process, separated by a space.\n"
+            "SPACE-separated column numbers to process.\n"
+            "If blank or 'All' all columns will be processed.\n"
             "E.g. 2 3 4 5 (column 1 (time index) does not need to be included)."
         )
         self.unitConvs = QtWidgets.QLineEdit()
         self.unitConvs.setToolTip(
-            "Column unit conversion factors, separated by a space.\n"
+            "SPACE-separated column unit conversion factors.\n"
             "E.g. 0.001 0.001 57.29578 57.29578."
         )
         self.channelNames = QtWidgets.QLineEdit()
         self.channelNames.setToolTip(
-            "Custom channel names, separated by a space.\n"
+            "COMMA-separated custom channel names.\n"
             "E.g. AccelX AccelY AngRateX AngRateY."
         )
         self.channelUnits = QtWidgets.QLineEdit()
         self.channelUnits.setToolTip(
-            "Custom channel units, separated by a space.\n"
-            "E.g. m/s^2 m/s^2 deg/s deg/s."
+            "SPACE-separated custom channel units.\n" "E.g. m/s^2 m/s^2 deg/s deg/s."
         )
         self.processStart = QtWidgets.QLineEdit()
         self.processStart.setToolTip(
@@ -2192,7 +2201,7 @@ class EditScreeningSetupDialog(QtWidgets.QDialog):
         self.unitConvs.setText(unit_conv_factors_str)
 
         # Channel names
-        channel_items_str = " ".join([i for i in logger.user_channel_names])
+        channel_items_str = ", ".join([i for i in logger.user_channel_names])
         self.channelNames.setText(channel_items_str)
 
         # Channel units
@@ -2280,17 +2289,24 @@ class EditScreeningSetupDialog(QtWidgets.QDialog):
         logger = self.logger
 
         # Processed columns group
-        # Convert strings to lists
-        try:
-            logger.cols_to_process = list(map(int, self.columns.text().split()))
-        except ValueError:
-            msg = (
-                "Only integer column numbers are allowed.\n"
-                "Separate each number with a space, e.g. 2 3 4 5."
-            )
-            QtWidgets.QMessageBox.information(
-                self, "Invalid Requested Columns Input", msg
-            )
+        # Set column numbers to process
+        cols_str = self.columns.text()
+        if cols_str == "" or cols_str.lower() == "all":
+            # Use expected number of columns property to set full list
+            n = logger.num_columns
+            logger.cols_to_process = list(range(2, n + 1))
+        else:
+            # Convert strings to lists
+            try:
+                logger.cols_to_process = list(map(int, self.columns.text().split()))
+            except ValueError:
+                msg = (
+                    "Only integer column numbers are allowed.\n"
+                    "Separate each number with a space, e.g. 2 3 4 5."
+                )
+                QtWidgets.QMessageBox.information(
+                    self, "Invalid Requested Columns Input", msg
+                )
 
         try:
             logger.unit_conv_factors = list(map(float, self.unitConvs.text().split()))
@@ -2303,7 +2319,13 @@ class EditScreeningSetupDialog(QtWidgets.QDialog):
                 self, "Invalid Unit Conversion Factors Input", msg
             )
 
-        logger.user_channel_names = self.channelNames.text().split()
+        # Extract channel names to list
+        # Note, because splitting by comma, if input is empty, [""] is returned but want [] so if check populated
+        if self.channelNames.text():
+            channel_names = [c.strip() for c in self.channelNames.text().split(",")]
+        else:
+            channel_names = []
+        logger.user_channel_names = channel_names
         logger.user_channel_units = self.channelUnits.text().split()
 
         # Process start and end dates or file indexes
@@ -2343,8 +2365,8 @@ class EditScreeningSetupDialog(QtWidgets.QDialog):
 
             try:
                 if process_end == "" or process_end == "Last file":
-                    logger.get_filenames()
-                    process_end = len(logger.raw_filenames)
+                    files = logger.get_filenames()
+                    process_end = len(files)
 
                 logger.process_end = int(process_end)
             except ValueError:
@@ -2372,8 +2394,8 @@ class EditScreeningSetupDialog(QtWidgets.QDialog):
 
         # Stats settings group
         if (
-                self.statsInterval.text() == ""
-                or int(float(self.statsInterval.text())) == 0
+            self.statsInterval.text() == ""
+            or int(float(self.statsInterval.text())) == 0
         ):
             logger.stats_interval = int(logger.duration)
         else:
@@ -2381,8 +2403,8 @@ class EditScreeningSetupDialog(QtWidgets.QDialog):
 
         # Spectral settings group
         if (
-                self.spectInterval.text() == ""
-                or int(float(self.spectInterval.text())) == 0
+            self.spectInterval.text() == ""
+            or int(float(self.spectInterval.text())) == 0
         ):
             logger.spect_interval = int(logger.duration)
         else:
@@ -2414,12 +2436,10 @@ class EditScreeningSetupDialog(QtWidgets.QDialog):
 
         try:
             # Process filenames to get list of files and extract the datetimes embedded in each filename
-            logger.get_filenames()
+            files = logger.get_filenames()
             logger.get_timestamp_span()
-            return logger.get_file_timestamp(logger.raw_filenames[file_idx])
-        except LoggerError as e:
-            self.error(str(e))
-            logging.exception(e)
+            return logger.get_file_timestamp(files[file_idx])
+        except IndexError as e:
             return None
 
     def error(self, msg):
