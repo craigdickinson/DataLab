@@ -1,6 +1,6 @@
 __author__ = "Craig Dickinson"
 __program__ = "DataLab"
-__version__ = "1.3.0.13"
+__version__ = "1.3.0.14"
 __date__ = "27 September 2019"
 
 import logging
@@ -570,6 +570,13 @@ class DataLab(DataLabGui):
                 and len(logger.all_channel_units) == 0
             ):
                 logger.get_all_channel_and_unit_names()
+
+                # Update columns list in config dashboard if this logger is the one selected
+                if (
+                    logger.logger_id
+                    == self.projConfigModule.loggersList.currentItem().text()
+                ):
+                    self.projConfigModule.set_logger_columns_list(logger)
 
             # Check requested channels exist
             # Connect warning signal to warning message box in DataLab class

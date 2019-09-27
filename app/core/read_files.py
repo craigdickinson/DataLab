@@ -146,7 +146,7 @@ def read_pulse_acc(filename, multi_header=True):
         # Read body - filter out blanks
         data = [list(filter(None, line)) for line in accreader]
 
-    # Convert column names list so it is split by ":" not " "
+    # Convert column names list so that split by ":" not " "
     header = " ".join(header).split(":")
 
     # Drop "%Data," from the first column
@@ -230,7 +230,7 @@ def read_2hps2_acc(filename, multi_header=True):
         # Read body - filter out blanks
         data = [list(filter(None, line)) for line in accreader]
 
-    # Convert column names list it is split by "," not " " and drop "Time" item and trim
+    # Convert column names list so that split by "," not " ", drop "Time" item and trim
     channels = " ".join(channels).split(",")[1:]
     channels = [c.strip() for c in channels]
 

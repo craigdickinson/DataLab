@@ -91,6 +91,9 @@ class LoggerProperties(QObject):
         self.duration = 0  # *LOGGING_DURATION
         self.expected_data_points = 0
 
+        # Store index column name of raw files (to report in the channels list widget on the config dashboard)
+        self.index_col_name = "Timestamp"
+
         # Channel names and units lists
         self.all_channel_names = []
         self.all_channel_units = []
@@ -261,7 +264,7 @@ class LoggerProperties(QObject):
         # Check at least one valid file was found
         # if not self.files:
         #     msg = (
-        #         f"No file names with a valid embedded timestamp found for logger {self.logger_id}.\n\n"
+        #         f"No file names with a valid embedded timestamp found for {self.logger_id}.\n\n"
         #         f"Check the file timestamp format input and the files in\n{self.logger_path}."
         #     )
         #     raise LoggerError(msg)
@@ -382,30 +385,51 @@ class LoggerProperties(QObject):
 
             # Extract list of channel names and units (drop the first item - expected to be timestamp)
             if c > 0:
+                self.index_col_name = header_lines[c - 1][0]
                 channels = header_lines[c - 1][1:]
-            # If no channels header exists, create a dummy channels list
+            # If no channels header exists
             else:
-                channels = [
-                    f"Column {i + 2}" for i in range(len(header_lines[c - 1][1:]))
-                ]
+                # Set index column name
+                if self.first_col_data == "Timestamp":
+                    self.index_col_name = "Timestamp"
+                else:
+                    self.index_col_name = "Time (s)"
+
+                # Create a dummy channels list
+                channels = [f"Column {i}" for i in range(2, self.num_columns + 1)]
 
             if u > 0:
                 units = header_lines[u - 1][1:]
             # If no units header exists, create a dummy list
             else:
-                units = ["-"] * len(header_lines[u - 1][1:])
+                units = ["-"] * (self.num_columns - 1)
         elif file_format == "Pulse-acc":
             with open(test_file, "r") as f:
                 # Read columns header
                 [next(f) for _ in range(c - 1)]
-                header = next(f).strip().split(":")
+                header = f.readline().strip().split(":")
 
             # Drop "%Data," from the first column
             header[0] = header[0].split(",")[1]
 
             # Extract lists of channel names and units
-            channels = [col.split("(")[0].strip() for col in header]
-            units = [col.split("(")[1][:-1] for col in header]
+            self.index_col_name = "Time (s)"
+            channels = [i.split("(")[0].strip() for i in header]
+            units = [i.split("(")[1][:-1] for i in header]
+        elif file_format == "2HPS2-acc":
+            with open(test_file, "r") as f:
+                # Read channels and units names rows
+                [next(f) for _ in range(c - 1)]
+                channels = f.readline().strip().split(delim)
+                units = f.readline().strip().split(delim)
+
+            # Extract lists of channel names and units
+            # Convert column names list so that split by "," not " ", drop "Time" item and trim
+            self.index_col_name = "Time"
+            channels = " ".join(channels).split(",")[1:]
+            channels = [c.strip() for c in channels]
+            units = " ".join(units).split(",")[1:]
+            units = [i.strip().split("(")[1][:-1] for i in units]
 
         # Assign channels and units list to logger
         self.all_channel_names = channels
@@ -425,19 +449,20 @@ class LoggerProperties(QObject):
             last_col = max(self.cols_to_process)
         else:
             msg = (
-                f"Need to input column numbers to process for logger {self.logger_id}."
+                f"Need to input column numbers to process for {self.logger_id}."
             )
             raise LoggerError(msg)
 
         # Read first data row from a test file
-        test_file, first_row = self.get_first_row_of_data(file_idx=0)
+        test_file, first_row = self._get_first_row_of_data(file_idx=0)
 
         # Check we have at least one full row of data
-        if last_col > len(first_row):
+        n = len(first_row)
+        if last_col > n:
             msg = (
-                f"Number of columns in test file for logger {self.logger_id} is less than {last_col}, "
+                f"Number of columns in test file for {self.logger_id} ({n}) is less than {last_col}, "
                 f"which is the highest column number to be processed."
-                f"\nTest file: {test_file}."
+                f"\n\nTest file: {test_file}."
             )
             self.signal_warning.emit(msg)
 
@@ -492,17 +517,17 @@ class LoggerProperties(QObject):
         # Note emitting a message not raise an error so that screening is not halted
         if warn_flag is True:
             msg = (
-                f"Number of columns in test file for logger {self.logger_id} is less than {last_col}.\n"
-                f"Dummy column names will be created for missing columns.\n"
+                f"Number of columns in test file for {self.logger_id} is less than {last_col}.\n"
+                f"{len(dummy_cols)} dummy column names will be created for missing columns.\n"
                 f"Alternatively, input custom channel and unit names."
-                f"\nTest file: {test_file}."
+                f"\n\nTest file: {test_file}."
             )
             self.signal_warning.emit(msg)
 
-    def get_first_row_of_data(self, file_idx):
+    def _get_first_row_of_data(self, file_idx):
         """
         Read first data row to validate on.
-        :return: name of test file, first data row string
+        :return: name of test file, first data row list
         """
 
         # Stream test file (blob) on Azure Cloud Storage
@@ -520,31 +545,34 @@ class LoggerProperties(QObject):
         else:
             test_file = self.files[file_idx]
             test_path = os.path.join(self.logger_path, test_file)
-
             with open(test_path) as f:
                 [f.readline() for _ in range(self.num_headers)]
                 first_row = f.readline().strip().split(self.file_delimiter)
+
+        # Remove blanks (can happen with space-delimited files)
+        first_row = list(filter(None, first_row))
 
         return test_file, first_row
 
     def check_headers(self):
         """Check that there is a channel name and channel units per requested column to process."""
 
-        # Check number of analysis headers is correct
-        # if self.process_stats is True or self.process_spect is True:
-        # Check length of channel header
-        if len(self.channel_names) != len(self.cols_to_process):
+        # Check length of channels header
+        n = len(self.channel_names)
+        m = len(self.cols_to_process)
+        if n != m:
             msg = (
-                f"Number of channel names specified does not equal number of "
-                f"channels to process for logger {self.logger_id}."
+                f"Number of channel names specified ({n}) does not equal number of "
+                f"channels to process ({m}) for {self.logger_id}."
             )
             raise LoggerError(msg)
 
         # Check length of units header
-        if len(self.channel_units) != len(self.cols_to_process):
+        n = len(self.channel_units)
+        if n != m:
             msg = (
-                f"Number of units specified does not equal number of "
-                f"channels to process for logger {self.logger_id}."
+                f"Number of units specified ({n}) does not equal number of "
+                f"channels to process ({m}) for {self.logger_id}."
             )
             raise LoggerError(msg)
 
@@ -558,14 +586,14 @@ class LoggerProperties(QObject):
         if self.channel_header_row == 0 and len(self.user_channel_names) == 0:
             msg = (
                 f"Either the channel header row or user-defined channel names"
-                f"must be specified for logger {self.logger_id}."
+                f"must be specified for {self.logger_id}."
             )
             raise LoggerError(msg)
 
         # Check something has been entered for units
         # if self.units_header_row == 0 and len(self.user_channel_units) == 0:
         #     msg = f"Either the units header row or user-defined channel units" \
-        #         f"must be specified for logger {self.logger_id}."
+        #         f"must be specified for {self.logger_id}."
         #     raise LoggerError(msg)
 
     def detect_requested_channels_and_units(self, test_file):

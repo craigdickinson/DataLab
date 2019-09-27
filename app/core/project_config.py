@@ -316,6 +316,12 @@ class ProjectConfigJSONFile(QObject):
             key="enforce_max_duration",
             attr=logger.enforce_max_duration,
         )
+        logger.index_col_name = self._get_key_value(
+            section=logger.logger_id,
+            data=dict_logger,
+            key="index_column_name",
+            attr=logger.index_col_name,
+        )
         logger.all_channel_names = self._get_key_value(
             section=logger.logger_id,
             data=dict_logger,
@@ -610,6 +616,7 @@ class ProjectConfigJSONFile(QObject):
         dict_props["logging_freq"] = logger.freq
         dict_props["logging_duration"] = logger.duration
         dict_props["enforce_max_duration"] = logger.enforce_max_duration
+        dict_props["index_column_name"] = logger.index_col_name
         dict_props["all_channel_names"] = logger.all_channel_names
         dict_props["all_channel_units"] = logger.all_channel_units
 

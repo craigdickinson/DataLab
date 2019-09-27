@@ -365,13 +365,14 @@ class ConfigModule(QtWidgets.QWidget):
         if self.loggersList.count() == 0:
             return
 
-        # If a logger isn't selected in the list, remove the last item
-        if self.loggersList.currentItem() is None:
-            i = self.loggersList.count() - 1
-            logger = self.loggersList.item(i).text()
-        else:
+        # Get logger selected in list to remove
+        if self.loggersList.currentItem():
             i = self.loggersList.currentRow()
             logger = self.loggersList.currentItem().text()
+        # Remove last item
+        else:
+            i = self.loggersList.count() - 1
+            logger = self.loggersList.item(i).text()
 
         # Confirm with users
         msg = f"Are you sure you want to remove logger {logger}?"
@@ -494,7 +495,7 @@ class ConfigModule(QtWidgets.QWidget):
 
         # Populate list widget if channels list is not empty
         if channels:
-            items = ["1. Timestamp"] + [
+            items = [f"1. {logger.index_col_name}"] + [
                 f"{i + 2}. {c} ({u})" for i, (c, u) in enumerate(zip(channels, units))
             ]
             for i in items:
@@ -541,7 +542,6 @@ class ConfigModule(QtWidgets.QWidget):
             # Select first logger and set dashboards
             self.loggersList.setCurrentRow(0)
             logger = self.control.loggers[0]
-            self.set_logger_columns_list(logger)
             self.loggerPropsTab.set_logger_dashboard(logger)
             self.screeningTab.set_analysis_dashboard(logger)
 
@@ -1294,8 +1294,8 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
 
         # Depending on selection either: Create a new logger object with standard/default file format properties
         # of the selected logger type or revert initial logger properties
-        # (Note Pulse-acc and 2HPS2-acc properties are more for info as they are not directly used by the
-        # respective read_pulse_acc and read_2hps2_acc functions)
+        # (Note Pulse-acc and 2HPS2-acc properties are not directly used by the respective read_pulse_acc and
+        # read_2hps2_acc functions but they are used in other other file inspection routines)
         if selected_file_format == "General-csv":
             if self.init_file_format == "General-csv":
                 logger = self.init_logger
