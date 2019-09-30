@@ -123,7 +123,7 @@ class Screening(QThread):
             logger_ids.append(logger.logger_id)
 
             # Check whether logger data is to be streamed from Azure
-            if logger.data_on_azure is True:
+            if logger.data_on_azure:
                 any_data_on_azure = True
 
             if global_process_stats is True and logger.process_stats is True:
@@ -213,7 +213,7 @@ class Screening(QThread):
                 self.signal_notify_progress.emit(dict_progress)
 
                 # If streaming data from Azure Cloud read as a file stream
-                if logger.data_on_azure is True:
+                if logger.data_on_azure:
                     file = stream_blob(
                         bloc_blob_service, logger.container_name, logger.blobs[j]
                     )

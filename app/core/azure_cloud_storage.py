@@ -1,5 +1,5 @@
 """
-Routines to access and stream data on Azure Cloud Storage.
+Routines to access and stream data from Azure Cloud Storage.
 """
 __author__ = "Craig Dickinson"
 
@@ -20,7 +20,7 @@ def check_azure_account_exists(account_name, account_key):
     return bloc_blob_service
 
 
-def get_container_name_and_folders_path(fullpath):
+def extract_container_name_and_folders_path(fullpath):
     """Extract container name and virtual folders path."""
 
     # Convert fullpath to system path format then split into container name and virtual folders path

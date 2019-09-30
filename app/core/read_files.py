@@ -38,7 +38,7 @@ class RawDataRead(object):
 
         self.logger_id = logger.logger_id
         self.path_to_files = logger.logger_path
-        self.filenames = logger.get_filenames()
+        self.filenames = logger.raw_filenames
         self.channel_names = logger.all_channel_names
         self.channel_units = logger.all_channel_units
 
@@ -67,13 +67,21 @@ class RawDataRead(object):
         df = pd.DataFrame()
 
         # Read data to data frame
-        if self.file_format == "Fugro-csv" or self.file_format == "General-csv":
+        if self.file_format == "General-csv":
             df = pd.read_csv(
                 filename,
                 sep=self.delim,
                 header=self.header_rows,
                 skiprows=self.skip_rows,
-                encoding="latin",
+            )
+            df = df.dropna(axis=1)
+        elif self.file_format == "Fugro-csv":
+            df = pd.read_csv(
+                filename,
+                sep=self.delim,
+                header=self.header_rows,
+                skiprows=self.skip_rows,
+                encoding="latin1",
             )
             df = df.dropna(axis=1)
         elif self.file_format == "Pulse-acc":
@@ -88,7 +96,7 @@ def read_fugro_csv(filename):
     """Raw data module: Read Fugro-csv file to data frame. Index is time steps."""
 
     try:
-        df = pd.read_csv(filename, header=[1, 2], index_col=0, encoding="latin")
+        df = pd.read_csv(filename, header=[1, 2], index_col=0, encoding="latin1")
     except FileNotFoundError:
         raise FileNotFoundError(f"Could not load file {filename}. File not found.")
 

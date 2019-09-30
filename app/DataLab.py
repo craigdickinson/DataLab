@@ -1,7 +1,7 @@
 __author__ = "Craig Dickinson"
 __program__ = "DataLab"
-__version__ = "1.3.0.14"
-__date__ = "27 September 2019"
+__version__ = "1.3.0.15"
+__date__ = "30 September 2019"
 
 import logging
 import os
@@ -126,6 +126,11 @@ class DataLab(DataLabGui):
 
     @pyqtSlot(str)
     def warning(self, message):
+        print(f"Warning: {message}")
+        self._message_information("Warning", message)
+
+    @pyqtSlot(str)
+    def warn_info(self, message):
         print(f"Warning: {message}")
         self._message_information("Warning", message)
 
@@ -569,7 +574,7 @@ class DataLab(DataLabGui):
                 len(logger.all_channel_names) == 0
                 and len(logger.all_channel_units) == 0
             ):
-                logger.get_all_channel_and_unit_names()
+                logger.get_all_columns()
 
                 # Update columns list in config dashboard if this logger is the one selected
                 if (
@@ -588,7 +593,7 @@ class DataLab(DataLabGui):
             logger.signal_warning.connect(self.warning)
 
             # Set processed channel names and units as user values, if supplied, or file header values
-            logger.set_processed_columns_headers()
+            logger.set_processed_columns()
 
             # Check number of headers match number of columns to process
             logger.check_headers()

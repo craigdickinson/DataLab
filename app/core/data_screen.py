@@ -105,13 +105,20 @@ class DataScreen(object):
         df = pd.DataFrame()
 
         # Read data to data frame
-        if self.file_format == "Fugro-csv" or self.file_format == "General-csv":
+        if self.file_format == "General-csv":
             df = pd.read_csv(
                 filename,
                 sep=self.delim,
                 header=self.header_row,
                 skiprows=self.skip_rows,
-                encoding="latin",
+            )
+        elif self.file_format == "Fugro-csv":
+            df = pd.read_csv(
+                filename,
+                sep=self.delim,
+                header=self.header_row,
+                skiprows=self.skip_rows,
+                encoding="latin1",
             )
         elif self.file_format == "Pulse-acc":
             df = read_pulse_acc(filename, multi_header=False)

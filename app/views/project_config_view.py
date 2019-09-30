@@ -71,7 +71,7 @@ class ConfigModule(QtWidgets.QWidget):
         self.remLoggerButton.setShortcut("Ctrl+Del")
         self.remLoggerButton.setToolTip("Ctrl+Del")
         self.loggersList = QtWidgets.QListWidget()
-        self.columnsList = QtWidgets.QListWidget()
+        self.columnList = QtWidgets.QListWidget()
         self.colSpacer = QtWidgets.QSpacerItem(20, 1)
 
         # Global screening check boxes
@@ -133,7 +133,7 @@ class ConfigModule(QtWidgets.QWidget):
         self.vboxLoggers.addWidget(QtWidgets.QLabel("Loggers"))
         self.vboxLoggers.addWidget(self.loggersList)
         self.vboxLoggers.addWidget(QtWidgets.QLabel("Logger Columns"))
-        self.vboxLoggers.addWidget(self.columnsList)
+        self.vboxLoggers.addWidget(self.columnList)
 
         # Setup container
         self.setupTabs = QtWidgets.QTabWidget()
@@ -219,7 +219,7 @@ class ConfigModule(QtWidgets.QWidget):
                 self.tf = config.map_json_to_transfer_functions(TransferFunctions())
 
                 # Assign config data to control object and project dashboard
-                self._set_dashboards()
+                self._set_dashboards_on_load_config()
                 self.parent.set_window_title(filename)
             except InputError as e:
                 self.parent.error(str(e))
@@ -301,7 +301,7 @@ class ConfigModule(QtWidgets.QWidget):
         # Clear logger combo box
         # Note: This will trigger the clearing of the logger properties, stats and spectral dashboards
         self.loggersList.clear()
-        self.columnsList.clear()
+        self.columnList.clear()
 
         # Clear campaign data dashboard and update window title to include config file path
         self.campaignTab.clear_dashboard()
@@ -396,7 +396,7 @@ class ConfigModule(QtWidgets.QWidget):
 
             # Clear relevant dashboards if all loggers removed
             if self.loggersList.count() == 0:
-                self.columnsList.clear()
+                self.columnList.clear()
                 self.loggerPropsTab.clear_dashboard()
                 self.screeningTab.clear_dashboard()
                 self.scatterTab.clear_dashboard()
@@ -489,7 +489,7 @@ class ConfigModule(QtWidgets.QWidget):
     def set_logger_columns_list(self, logger):
         """Populate logger columns list with the column details from a test file."""
 
-        self.columnsList.clear()
+        self.columnList.clear()
         channels = logger.all_channel_names
         units = logger.all_channel_units
 
@@ -501,7 +501,7 @@ class ConfigModule(QtWidgets.QWidget):
             for i in items:
                 item = QtWidgets.QListWidgetItem(i)
                 item.setFlags(item.flags() & ~QtCore.Qt.ItemIsSelectable)
-                self.columnsList.addItem(item)
+                self.columnList.addItem(item)
 
     def _map_setup_objects_to_tabs(self):
         """Update the various project config tab objects with their associated settings objects."""
@@ -513,7 +513,7 @@ class ConfigModule(QtWidgets.QWidget):
         self.scatterTab.scatter = self.scatter
         self.tfSettingsTab.tf = self.tf
 
-    def _set_dashboards(self):
+    def _set_dashboards_on_load_config(self):
         """Set dashboard values with data in setup objects after loading JSON file."""
 
         # Map the loaded settings objects to the associated tab widget objects
@@ -527,14 +527,20 @@ class ConfigModule(QtWidgets.QWidget):
         self.campaignTab.set_campaign_dashboard()
 
         self.loggersList.clear()
-        self.columnsList.clear()
+        self.columnList.clear()
 
         # Add loggers in control object to loggers list
         if self.control.loggers:
-            for logger_id in self.control.logger_ids:
-                item = QtWidgets.QListWidgetItem(logger_id)
+            for logger in self.control.loggers:
+                item = QtWidgets.QListWidgetItem(logger.logger_id)
                 item.setFlags(item.flags() | QtCore.Qt.ItemIsEditable)
                 self.loggersList.addItem(item)
+
+                try:
+                    # Attempt to retrieve raw filenames to populate dashboard
+                    logger.get_filenames()
+                except FileNotFoundError:
+                    pass
 
             # Add logger ids to raw data module dataset combo box
             self.parent.rawDataModule.add_datasets(self.control)
@@ -883,7 +889,7 @@ class LoggerPropertiesTab(QtWidgets.QWidget):
         self.loggerID.setText(logger.logger_id)
 
         # Disable open folder button if files not stored locally
-        if logger.data_on_azure is True:
+        if logger.data_on_azure:
             src = "Azure Cloud Storage"
             self.openFolderButton.setEnabled(False)
         else:
@@ -1156,7 +1162,7 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
         self.init_file_format = logger.file_format
 
         # Set radio for data source type
-        if logger.data_on_azure is True:
+        if logger.data_on_azure:
             self.azureCloudRadio.setChecked(True)
         else:
             self.localFilesRadio.setChecked(True)
@@ -1491,7 +1497,7 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
             )
             self.parent.parent.set_logger_columns_list(self.logger)
 
-            # Check if files list in raw data module should be updated
+            # Update file list in raw data module if requried
             self.parent.parent.parent.rawDataModule.update_dataset_properties(
                 self.logger_idx
             )
@@ -1593,7 +1599,8 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
         """Store all channel and units names from a test file, if present. Header info will then be set in the gui."""
 
         try:
-            self.logger.get_all_channel_and_unit_names()
+            self.logger.get_filenames()
+            self.logger.get_all_columns()
         except FileNotFoundError as e:
             self.warning(str(e))
             logging.exception(e)
@@ -2365,8 +2372,8 @@ class EditScreeningSetupDialog(QtWidgets.QDialog):
 
             try:
                 if process_end == "" or process_end == "Last file":
-                    files = logger.get_filenames()
-                    process_end = len(files)
+                    filenames = logger.get_filenames()
+                    process_end = len(filenames)
 
                 logger.process_end = int(process_end)
             except ValueError:
@@ -2436,9 +2443,9 @@ class EditScreeningSetupDialog(QtWidgets.QDialog):
 
         try:
             # Process filenames to get list of files and extract the datetimes embedded in each filename
-            files = logger.get_filenames()
+            filenames = logger.get_filenames()
             logger.get_timestamp_span()
-            return logger.get_file_timestamp(files[file_idx])
+            return logger.get_file_timestamp(filenames[file_idx])
         except IndexError as e:
             return None
 
