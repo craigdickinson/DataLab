@@ -133,6 +133,7 @@ def read_pulse_acc(filename, multi_header=True):
     :return: df
     """
 
+    # TODO: Add Azure support
     num_headers = 20
     header_row = 18
     timestamp_row = 20

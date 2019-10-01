@@ -224,10 +224,9 @@ class LoggerProperties(QObject):
             msg = f"Could not connect to {container_name} container on Azure Cloud Storage account."
             raise LoggerError(msg)
 
+        ext = "." + self.file_ext.lower()
         filenames = [
-            os.path.basename(f)
-            for f in blobs
-            if os.path.splitext(f)[1] == "." + self.file_ext
+            os.path.basename(f) for f in blobs if os.path.splitext(f)[1].lower() == ext
         ]
 
         if not filenames:
@@ -440,7 +439,7 @@ class LoggerProperties(QObject):
             else:
                 self.index_col_name = "Time (s)"
 
-            # Create a dummy channels list
+            # Create a dummy channel list
             channels = [f"Column {i}" for i in range(2, self.num_columns + 1)]
 
         if u > 0:
@@ -457,7 +456,7 @@ class LoggerProperties(QObject):
         # Read columns header - from Azure file stream or local file
         if self.data_on_azure:
             [test_file.readline() for _ in range(c - 1)]
-            header = test_file.readline().decode().strip().split(":")
+            header = test_file.readline().decode("latin1").strip().split(":")
         else:
             with open(test_file, "r") as f:
                 [next(f) for _ in range(c - 1)]

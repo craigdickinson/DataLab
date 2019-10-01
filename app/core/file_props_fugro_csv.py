@@ -37,7 +37,7 @@ def detect_fugro_logger_properties(logger):
         expected logging duration
     """
 
-    # TODO: Need to check file is of expected filename first!
+    # TODO: Add Azure support
     raw_files = glob(logger.logger_path + "/*." + logger.file_ext)
 
     if len(raw_files) == 0:

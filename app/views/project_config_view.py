@@ -213,7 +213,6 @@ class ConfigModule(QtWidgets.QWidget):
                 config.load_config_data(filename)
 
                 # Map JSON data to new objects that hold various setup data
-                self.control.config_file = filename
                 self.control = config.map_json_to_control(Control())
                 self.scatter = config.map_json_to_seascatter(Seascatter())
                 self.tf = config.map_json_to_transfer_functions(TransferFunctions())
@@ -228,9 +227,6 @@ class ConfigModule(QtWidgets.QWidget):
                 msg = "Unexpected error loading config file"
                 self.parent.error(f"{msg}:\n{e}\n{sys.exc_info()[0]}")
                 logging.exception(e)
-
-        # Write config filename to campaign tab
-        self.campaignTab.configFile.setText(os.path.basename(filename))
 
         # Map settings objects to parent DataLab object
         self.parent.control = self.control
@@ -259,6 +255,10 @@ class ConfigModule(QtWidgets.QWidget):
                 proj_name=self.control.project_name,
                 proj_path=self.control.project_path,
             )
+        except FileNotFoundError as e:
+            msg = f"Error saving config file. No such directoy:\n{self.control.project_path}."
+            self.parent.error(msg)
+            logging.exception(e)
         except Exception as e:
             msg = "Unexpected error saving project config"
             self.parent.error(f"{msg}:\n{e}\n{sys.exc_info()[0]}")
@@ -268,7 +268,7 @@ class ConfigModule(QtWidgets.QWidget):
         if os.path.exists(config.full_path):
             # Update config dashboard with config filename and inform user
             self.control.config_file = config.filename
-            self.campaignTab.configFile.setText(config.filename)
+            self.campaignTab.configFilename.setText(config.filename)
             msg = f"Project config settings saved to:\n{config.full_path}"
             QtWidgets.QMessageBox.information(self, "Save Project Config", msg)
 
@@ -538,18 +538,25 @@ class ConfigModule(QtWidgets.QWidget):
 
                 try:
                     # Attempt to retrieve raw filenames to populate dashboard
+                    self.parent.repaint()
+                    msg = f"Retrieving {logger.logger_id} raw file names..."
+                    self.parent.statusbar.showMessage(msg)
+                    self.parent.repaint()
                     logger.get_filenames()
                 except FileNotFoundError:
+                    self.parent.statusbar.showMessage("")
                     pass
 
-            # Add logger ids to raw data module dataset combo box
-            self.parent.rawDataModule.add_datasets(self.control)
+            self.parent.statusbar.showMessage("")
 
             # Select first logger and set dashboards
             self.loggersList.setCurrentRow(0)
             logger = self.control.loggers[0]
             self.loggerPropsTab.set_logger_dashboard(logger)
             self.screeningTab.set_analysis_dashboard(logger)
+
+            # Add logger ids to raw data module dataset combo box and plot first file if exists
+            self.parent.rawDataModule.add_datasets(self.control)
 
         # Set seascatter dashboard
         self.scatterTab.set_scatter_dashboard()
@@ -567,10 +574,6 @@ class CampaignInfoTab(QtWidgets.QWidget):
     """GUI screen to control project setup."""
 
     def __init__(self, parent=None, control=Control()):
-        """
-        :param parent:
-        :param control: Control object containing all setup data
-        """
         super(CampaignInfoTab, self).__init__(parent)
 
         self.parent = parent
@@ -589,7 +592,7 @@ class CampaignInfoTab(QtWidgets.QWidget):
         self.campaignName = QtWidgets.QLabel("-")
         self.projPath = QtWidgets.QLabel("-")
         self.projPath.setWordWrap(True)
-        self.configFile = QtWidgets.QLabel("-")
+        self.configFilename = QtWidgets.QLabel("-")
 
         # CONTAINERS
         self.projGroup = QtWidgets.QGroupBox("Project and Campaign Info")
@@ -599,7 +602,7 @@ class CampaignInfoTab(QtWidgets.QWidget):
         self.form.addRow(QtWidgets.QLabel("Project name:"), self.projName)
         self.form.addRow(QtWidgets.QLabel("Campaign name:"), self.campaignName)
         self.form.addRow(QtWidgets.QLabel("Project location:"), self.projPath)
-        self.form.addRow(QtWidgets.QLabel("Config file name:"), self.configFile)
+        self.form.addRow(QtWidgets.QLabel("Config file name:"), self.configFilename)
 
         # LAYOUT
         self.vbox = QtWidgets.QVBoxLayout()
@@ -646,9 +649,12 @@ class CampaignInfoTab(QtWidgets.QWidget):
 
         self.projNum.setText(self.control.project_num)
         self.projName.setText(self.control.project_name)
-        self.campaignName.setText(self.control.campaign_name)
+        if self.control.campaign_name == "":
+            self.campaignName.setText("-")
+        else:
+            self.campaignName.setText(self.control.campaign_name)
         self.projPath.setText(self.control.project_path)
-        self.configFile.setText(self.control.config_file)
+        self.configFilename.setText(self.control.config_file)
 
     def clear_dashboard(self):
         """Initialise all values in logger dashboard."""
@@ -657,7 +663,7 @@ class CampaignInfoTab(QtWidgets.QWidget):
         self.projName.setText("-")
         self.campaignName.setText("-")
         self.projPath.setText("-")
-        self.configFile.setText("-")
+        self.configFilename.setText("-")
 
 
 class EditCampaignInfoDialog(QtWidgets.QDialog):
@@ -1355,6 +1361,7 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
         File timestamp format = xxxxYYYYxmmDDxHHMM
         """
 
+        # TODO: Add Azure support
         logger_path = self.loggerPath.toPlainText()
         if not os.path.exists(logger_path):
             msg = "Logger path does not exist. Set a logger path first."
@@ -1436,6 +1443,7 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
         file_format = self.fileFormat.currentText()
         logger_path = self.loggerPath.toPlainText()
 
+        # TODO: Add Azure support
         if not os.path.exists(logger_path):
             msg = "Logger path does not exist. Set a logger path first."
             return QtWidgets.QMessageBox.information(
@@ -1497,15 +1505,15 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
             )
             self.parent.parent.set_logger_columns_list(self.logger)
 
-            # Update file list in raw data module if requried
-            self.parent.parent.parent.rawDataModule.update_dataset_properties(
-                self.logger_idx
-            )
-
             # Set the process start/end labels in the Screening dashboard that pertain to the logger
             file_timestamp_embedded = self.logger.file_timestamp_embedded
             self.parent.parent.screeningTab.set_process_date_labels(
                 file_timestamp_embedded
+            )
+
+            # Update file list in raw data module if requried
+            self.parent.parent.parent.rawDataModule.update_dataset_properties(
+                self.logger_idx
             )
         except Exception as e:
             msg = "Unexpected error assigning logger properties"
@@ -1536,8 +1544,11 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
 
         logger = self.logger
 
+        # Map Azure account settings (if any) to logger
         if self.azureCloudRadio.isChecked():
             logger.data_on_azure = True
+            logger.azure_account_name = self.control.azure_account_name
+            logger.azure_account_key = self.control.azure_account_key
         else:
             logger.data_on_azure = False
 
@@ -1808,10 +1819,6 @@ class ScreeningSetupTab(QtWidgets.QWidget):
         # Retrieve selected logger object
         logger_idx = self.parent.loggersList.currentRow()
         logger = self.control.loggers[logger_idx]
-
-        # Map Azure account settings (if any) to logger
-        logger.azure_account_name = self.control.azure_account_name
-        logger.azure_account_key = self.control.azure_account_key
 
         # Edit stats dialog class
         editStatsSettings = EditScreeningSetupDialog(self, logger, logger_idx)
@@ -2201,6 +2208,8 @@ class EditScreeningSetupDialog(QtWidgets.QDialog):
 
         # Columns to process
         cols_str = " ".join([str(i) for i in logger.cols_to_process])
+        if cols_str == "":
+            cols_str = "All"
         self.columns.setText(cols_str)
 
         # Unit conversion factors
@@ -2445,8 +2454,11 @@ class EditScreeningSetupDialog(QtWidgets.QDialog):
             # Process filenames to get list of files and extract the datetimes embedded in each filename
             filenames = logger.get_filenames()
             logger.get_timestamp_span()
-            return logger.get_file_timestamp(filenames[file_idx])
-        except IndexError as e:
+            timestamp = logger.get_file_timestamp(filenames[file_idx])
+            return timestamp
+        except IndexError:
+            return None
+        except TypeError:
             return None
 
     def error(self, msg):

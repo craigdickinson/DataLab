@@ -354,6 +354,9 @@ class RawDataDashboard(QtWidgets.QWidget):
         else:
             self.df = self.read_time_series_file(file)
 
+        if self.df is None:
+            return
+
         # Store logger ID (assume the first portion of the filename)
         filename = os.path.basename(file)
         self.logger_id = filename.split("_")[0]
@@ -398,26 +401,35 @@ class RawDataDashboard(QtWidgets.QWidget):
         logger = self.control.loggers[i]
 
         try:
+            # Get filestream from Azure
             if logger.data_on_azure:
                 filename = os.path.basename(file)
                 blob_idx = logger.raw_filenames.index(filename)
-
+                blob = logger.blobs[blob_idx]
                 bloc_blob_service = connect_to_azure_account(
                     self.control.azure_account_name, self.control.azure_account_key
                 )
-
-                # If streaming data from Azure Cloud read as a file stream
-                file = stream_blob(
-                    bloc_blob_service, logger.container_name, logger.blobs[blob_idx]
-                )
+                file = stream_blob(bloc_blob_service, logger.container_name, blob)
 
             # Read file from either local file path or Azure file stream
             df = dataset.read_file(file)
-        except FileNotFoundError:
-            msg = f"Attempted to load {file} to Raw Data Inspection dashboard but file not found."
-            self.parent.warn_info(msg)
 
-        return df
+            return df
+        except FileNotFoundError as e:
+            msg = f"Attempted to load {filename} to Raw Data Inspection dashboard but file not found."
+            self.parent.warn_info(msg)
+            logging.exception(e)
+
+            return None
+        except Exception as e:
+            msg = (
+                f"Unable to load {filename} to Raw Data Inspection dashboard. "
+                f"Check file layout is suitable and logger settings are correct."
+            )
+            self.parent.error(msg)
+            logging.exception(e)
+
+            return None
 
     @staticmethod
     def read_logger_file_from_open_file_dialog(file):

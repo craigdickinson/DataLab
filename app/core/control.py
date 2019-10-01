@@ -73,14 +73,14 @@ class Control(object):
         self.spect_output_path = ""
 
         # Selected stats output file formats
-        self.stats_to_h5 = True
-        self.stats_to_csv = False
+        self.stats_to_csv = True
         self.stats_to_xlsx = False
+        self.stats_to_h5 = False
 
         # Selected spectral output file formats
-        self.spect_to_h5 = True
-        self.spect_to_csv = False
+        self.spect_to_csv = True
         self.spect_to_xlsx = False
+        self.spect_to_h5 = False
 
         # List to store lines with *LOGGER_ID
         self.logger_id_lines = []

@@ -22,14 +22,14 @@ class ProjectConfigJSONFile(QObject):
         self.filename = ""
         self.full_path = ""
 
-    def load_config_data(self, file_name):
+    def load_config_data(self, filename):
         """Load project config JSON file and return the dictionary data."""
 
-        with open(file_name, encoding="utf-8") as f:
+        with open(filename, encoding="utf-8") as f:
             self.data = json.load(f)
 
         # Store filename and set directory to project root
-        self.filename = os.path.basename(file_name)
+        self.filename = os.path.basename(filename)
 
     def map_json_to_control(self, control):
         """
@@ -38,6 +38,8 @@ class ProjectConfigJSONFile(QObject):
         :return: Populated control object.
         """
 
+        # Store config filename
+        control.config_file = self.filename
         data = self.data
         control = self._map_general_dict(data, control)
         control = self._map_campaign_dict(data, control)
