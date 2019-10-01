@@ -11,8 +11,8 @@ from natsort import natsorted
 
 from app.core.azure_cloud_storage import (
     connect_to_azure_account,
-    get_blobs,
     extract_container_name_and_folders_path,
+    get_blobs,
     stream_blob,
 )
 from app.core.custom_date import get_date_code_span, make_time_str
@@ -49,7 +49,7 @@ class LoggerWarning(Error):
 class LoggerProperties(QObject):
     """Holds properties of a logger."""
 
-    signal_warning = pyqtSignal(str)
+    logger_warning_signal = pyqtSignal(str)
 
     def __init__(self, logger_id=""):
         super().__init__()
@@ -166,6 +166,8 @@ class LoggerProperties(QObject):
     def get_filenames(self):
         """Read all file timestamps and check that they conform to the specified format."""
 
+        self.raw_filenames = []
+
         if not self.logger_path:
             return
 
@@ -174,12 +176,12 @@ class LoggerProperties(QObject):
         else:
             filenames = self.get_filenames_on_local()
 
+        self.raw_filenames = filenames
+
         return filenames
 
     def get_filenames_on_local(self):
         """Get all filenames with specified extension in logger path."""
-
-        self.raw_filenames = []
 
         # Get filenames and use natsort to ensure files are sorted correctly
         # (i.e. not lexicographically e.g. 0, 1, 10, 2)
@@ -192,8 +194,6 @@ class LoggerProperties(QObject):
             msg = f"No {self.logger_id} files with the extension {self.file_ext} found in:\n{self.logger_path}."
             raise FileNotFoundError(msg)
 
-        self.raw_filenames = filenames
-
         return filenames
 
     def get_filenames_on_azure(self):
@@ -201,7 +201,6 @@ class LoggerProperties(QObject):
 
         self.container_name = ""
         self.blobs = []
-        self.raw_filenames = []
 
         try:
             bloc_blob_service = connect_to_azure_account(
@@ -235,8 +234,6 @@ class LoggerProperties(QObject):
                 f"on Azure Cloud Storage account."
             )
             raise FileNotFoundError(msg)
-
-        self.raw_filenames = filenames
 
         return filenames
 
@@ -521,7 +518,7 @@ class LoggerProperties(QObject):
                 f"which is the highest column number to be processed."
                 f"\n\nTest file: {test_file}."
             )
-            self.signal_warning.emit(msg)
+            self.logger_warning_signal.emit(msg)
 
         # Now set channel names and units for columns to process
         all_channels = self.all_channel_names
@@ -579,7 +576,7 @@ class LoggerProperties(QObject):
                 f"Alternatively, input custom channel and unit names."
                 f"\n\nTest file: {test_file}."
             )
-            self.signal_warning.emit(msg)
+            self.logger_warning_signal.emit(msg)
 
     def _get_data_first_row(self, file_idx=0):
         """

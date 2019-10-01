@@ -535,17 +535,17 @@ class ConfigModule(QtWidgets.QWidget):
                 item = QtWidgets.QListWidgetItem(logger.logger_id)
                 item.setFlags(item.flags() | QtCore.Qt.ItemIsEditable)
                 self.loggersList.addItem(item)
+                self.parent.repaint()
+                msg = f"Retrieving {logger.logger_id} raw file names..."
+                self.parent.statusbar.showMessage(msg)
+                self.parent.repaint()
 
+                # Attempt to retrieve raw filenames to populate dashboard
                 try:
-                    # Attempt to retrieve raw filenames to populate dashboard
-                    self.parent.repaint()
-                    msg = f"Retrieving {logger.logger_id} raw file names..."
-                    self.parent.statusbar.showMessage(msg)
-                    self.parent.repaint()
                     logger.get_filenames()
-                except FileNotFoundError:
-                    self.parent.statusbar.showMessage("")
-                    pass
+                except Exception as e:
+                    self.warning(str(e))
+                    logging.exception(e)
 
             self.parent.statusbar.showMessage("")
 
@@ -1498,6 +1498,13 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
 
         try:
             self._set_control_data()
+
+            try:
+                self.logger.get_filenames()
+            except Exception as e:
+                self.warning(str(e))
+                logging.exception(e)
+
             self._detect_header()
             self.parent.set_logger_dashboard(self.logger)
             self.parent.parent.update_logger_id_list(
@@ -1610,11 +1617,7 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
         """Store all channel and units names from a test file, if present. Header info will then be set in the gui."""
 
         try:
-            self.logger.get_filenames()
             self.logger.get_all_columns()
-        except FileNotFoundError as e:
-            self.warning(str(e))
-            logging.exception(e)
         except Exception as e:
             msg = "Unexpected error detecting logger file properties"
             self.error(f"{msg}:\n{e}\n{sys.exc_info()[0]}")
@@ -1908,7 +1911,7 @@ class ScreeningSetupTab(QtWidgets.QWidget):
 
         # Start timestamp/index
         if logger.process_start is None:
-            process_start = "First file"
+            process_start = "First"
         else:
             if logger.file_timestamp_embedded is True:
                 process_start = logger.process_start.strftime("%Y-%m-%d %H:%M")
@@ -1918,7 +1921,7 @@ class ScreeningSetupTab(QtWidgets.QWidget):
 
         # End timestamp/index
         if logger.process_end is None:
-            process_end = "Last file"
+            process_end = "Last"
         else:
             if logger.file_timestamp_embedded is True:
                 process_end = logger.process_end.strftime("%Y-%m-%d %H:%M")
@@ -2072,14 +2075,8 @@ class EditScreeningSetupDialog(QtWidgets.QDialog):
             "SPACE-separated custom channel units.\n" "E.g. m/s^2 m/s^2 deg/s deg/s."
         )
         self.processStart = QtWidgets.QLineEdit()
-        self.processStart.setToolTip(
-            "If blank, the timestamp of the first file " "will be used (if detected)."
-        )
         self.processStart.setFixedWidth(100)
         self.processEnd = QtWidgets.QLineEdit()
-        self.processEnd.setToolTip(
-            "If blank, the timestamp of the last file " "will be used (if detected)."
-        )
         self.processEnd.setFixedWidth(100)
         self.processType = QtWidgets.QComboBox()
         self.processType.addItems(
@@ -2125,12 +2122,23 @@ class EditScreeningSetupDialog(QtWidgets.QDialog):
         self.lblChannelNames = QtWidgets.QLabel("Channel names override (optional):")
         self.lblChannelUnits = QtWidgets.QLabel("Channel units override (optional):")
 
+        # Set appropriate process start and end input depending on whether filenames include timestamps
         if self.logger.file_timestamp_embedded is True:
             self.lblProcessStart = QtWidgets.QLabel("Start timestamp:")
             self.lblProcessEnd = QtWidgets.QLabel("End timestamp:")
+            proc_start_tip = "If blank or 'First', the timestamp of the first file will be used (if detected)."
+            proc_end_tip = "If blank or 'Last', the timestamp of the last file will be used (if detected)."
         else:
             self.lblProcessStart = QtWidgets.QLabel("Start file number:")
             self.lblProcessEnd = QtWidgets.QLabel("End file number:")
+            proc_start_tip = "If blank or 'First', the first file number will be used."
+            proc_end_tip = (
+                "If blank or 'Last', the last file number will be used (if detected)."
+            )
+
+        # Set appropriate process start and end tooltip
+        self.processStart.setToolTip(proc_start_tip)
+        self.processEnd.setToolTip(proc_end_tip)
 
         self.lblProcessType = QtWidgets.QLabel("Screen on:")
         self.lblLowCutoff = QtWidgets.QLabel("Low cut-off frequency (Hz):")
@@ -2226,7 +2234,7 @@ class EditScreeningSetupDialog(QtWidgets.QDialog):
 
         # Process start
         if logger.process_start is None:
-            process_start = "First file"
+            process_start = "First"
         else:
             # Determine if process start is a file number or timestamp
             if type(logger.process_start) is int:
@@ -2237,7 +2245,7 @@ class EditScreeningSetupDialog(QtWidgets.QDialog):
 
         # Process end
         if logger.process_end is None:
-            process_end = "Last file"
+            process_end = "Last"
         else:
             # Determine if process end is a file number or timestamp
             if type(logger.process_end) is int:
@@ -2292,7 +2300,7 @@ class EditScreeningSetupDialog(QtWidgets.QDialog):
             self._set_control_data()
             self.parent.set_analysis_dashboard(self.logger)
         except Exception as e:
-            msg = "Unexpected error assigning stats and spectral properties"
+            msg = "Unexpected error assigning screening settings."
             self.error(f"{msg}:\n{e}\n{sys.exc_info()[0]}")
             logging.exception(e)
 
@@ -2350,7 +2358,7 @@ class EditScreeningSetupDialog(QtWidgets.QDialog):
 
         # Process selection made by timestamps
         if logger.file_timestamp_embedded is True:
-            if process_start == "" or process_start == "First file":
+            if process_start == "" or process_start.lower() == "first":
                 logger.process_start = self.get_timestamp_in_filename(
                     logger, file_idx=0
                 )
@@ -2361,7 +2369,7 @@ class EditScreeningSetupDialog(QtWidgets.QDialog):
                     msg = "Process start datetime format not recognised; timestamp unchanged."
                     QtWidgets.QMessageBox.information(self, "Process Start Input", msg)
 
-            if process_end == "" or process_end == "Last file":
+            if process_end == "" or process_end.lower() == "last":
                 logger.process_end = self.get_timestamp_in_filename(logger, file_idx=-1)
             else:
                 try:
@@ -2371,23 +2379,33 @@ class EditScreeningSetupDialog(QtWidgets.QDialog):
                     QtWidgets.QMessageBox.information(self, "Process End Input", msg)
         # Process selection made by file number (load case)
         else:
+            if process_start == "" or process_start.lower() == "first":
+                process_start = 1
+
             try:
-                if process_start == "" or process_start == "First file":
-                    process_start = 1
                 logger.process_start = int(process_start)
             except ValueError:
                 msg = "Process start file number must be an integer."
                 QtWidgets.QMessageBox.information(self, "Process Start Input", msg)
 
-            try:
-                if process_end == "" or process_end == "Last file":
-                    filenames = logger.get_filenames()
-                    process_end = len(filenames)
+            if process_end == "" or process_end.lower() == "last":
+                try:
+                    logger.get_filenames()
+                except Exception as e:
+                    logging.exception(e)
+                finally:
+                    process_end = len(logger.raw_filenames)
 
-                logger.process_end = int(process_end)
-            except ValueError:
-                msg = "Process end file number must be an integer."
+            if process_end == 0:
+                logger.process_end = None
+                msg = "Process end file number could not be set; no files found."
                 QtWidgets.QMessageBox.information(self, "Process End Input", msg)
+            else:
+                try:
+                    logger.process_end = int(process_end)
+                except ValueError:
+                    msg = "Process end file number must be an integer."
+                    QtWidgets.QMessageBox.information(self, "Process End Input", msg)
 
         # Low cut-off freq
         try:
@@ -2456,9 +2474,7 @@ class EditScreeningSetupDialog(QtWidgets.QDialog):
             logger.get_timestamp_span()
             timestamp = logger.get_file_timestamp(filenames[file_idx])
             return timestamp
-        except IndexError:
-            return None
-        except TypeError:
+        except Exception:
             return None
 
     def error(self, msg):

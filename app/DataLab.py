@@ -1,6 +1,6 @@
 __author__ = "Craig Dickinson"
 __program__ = "DataLab"
-__version__ = "1.3.0.16"
+__version__ = "1.3.0.17"
 __date__ = "1 October 2019"
 
 import logging
@@ -587,10 +587,10 @@ class DataLab(DataLabGui):
             # Connect warning signal to warning message box in DataLab class
             try:
                 # Disconnect any existing connection to prevent repeated triggerings
-                logger.signal_warning.disconnect()
+                logger.logger_warning_signal.disconnect()
             except TypeError:
                 pass
-            logger.signal_warning.connect(self.warning)
+            logger.logger_warning_signal.connect(self.warning)
 
             # Set processed channel names and units as user values, if supplied, or file header values
             logger.set_processed_columns()
