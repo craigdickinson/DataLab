@@ -1519,7 +1519,7 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
             )
 
             # Update file list in raw data module if requried
-            self.parent.parent.parent.rawDataModule.update_dataset_properties(
+            self.parent.parent.parent.rawDataModule.map_logger_props_to_dataset(
                 self.logger_idx
             )
         except Exception as e:

@@ -1,7 +1,7 @@
 __author__ = "Craig Dickinson"
 __program__ = "DataLab"
-__version__ = "1.3.0.17"
-__date__ = "1 October 2019"
+__version__ = "1.3.0.18"
+__date__ = "3 October 2019"
 
 import logging
 import os
@@ -146,8 +146,10 @@ class DataLab(DataLabGui):
         if file:
             try:
                 # Populate files list widget and read file
-                self.rawDataModule.update_files_list_from_open_file_dialog(file)
-                self.rawDataModule.load_file(file, open_file_dialog=True)
+                filename = os.path.basename(file)
+                self.rawDataModule.path_to_files = os.path.dirname(file)
+                self.rawDataModule.update_file_list_from_open_file_dialog(filename)
+                self.rawDataModule.load_file(filename, open_file_dialog=True)
             except FileNotFoundError as e:
                 self.error(str(e))
                 logging.exception(e)
@@ -305,14 +307,14 @@ class DataLab(DataLabGui):
         """Show raw data plot settings window."""
 
         # Set current parameters from time series plot widget class
-        self.rawDataModule.plotSettings.get_params()
+        self.rawDataModule.plotSettings.set_dialog_data()
         self.rawDataModule.plotSettings.show()
 
     def open_spect_plot_settings(self):
         """Show spectrogram plot settings window."""
 
         # Set current parameters from spectrogram plot widget class
-        self.spectrogramTab.plotSettings.get_params()
+        self.spectrogramTab.plotSettings._set_dialog_data()
         self.spectrogramTab.plotSettings.show()
 
     def open_azure_account_settings(self):
@@ -629,9 +631,9 @@ class DataLab(DataLabGui):
         self.dataQualityModule.set_data_quality_results()
 
         # Reset stats and spectrograms dashboards
-        self.statsTab.reset_dashboard()
-        self.vesselStatsTab.reset_dashboard()
-        self.spectrogramTab.reset_dashboard()
+        self.statsTab.clear_dashboard()
+        self.vesselStatsTab.clear_dashboard()
+        self.spectrogramTab.clear_dashboard()
 
         # For each logger create a stats dataset object and append to stats and vessel stats objects
         if screening.dict_stats:

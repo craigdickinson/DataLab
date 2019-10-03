@@ -8,104 +8,25 @@ from datetime import datetime, timedelta
 
 import pandas as pd
 
-from app.core.logger_properties import LoggerProperties
 
-
-class RawDataRead(object):
-    def __init__(self, logger=LoggerProperties()):
-        """
-        Set the logger filenames to be assessed and required read file properties.
-        :param logger: LoggerProperties instance
-        """
-
-        self.logger_id = ""
-        self.path_to_files = ""
-        self.filenames = []
-
-        # File read properties
-        self.file_format = ""
-        self.delim = ""
-        self.header_rows = 0
-        self.skip_rows = []
-        self.channel_names = []
-        self.channel_units = []
-
-        # Initialise with current logger settings
-        self.set_logger(logger)
-
-    def set_logger(self, logger):
-        """Set the logger filenames and required read file properties."""
-
-        self.logger_id = logger.logger_id
-        self.path_to_files = logger.logger_path
-        self.filenames = logger.raw_filenames
-        self.channel_names = logger.all_channel_names
-        self.channel_units = logger.all_channel_units
-
-        # Set file read properties
-        self.file_format = logger.file_format
-        self.delim = logger.file_delimiter
-        header_row = logger.channel_header_row - 1
-        units_row = logger.units_header_row - 1
-
-        # Additional header rows to skip - only using the first header row for data frame column names
-        self.skip_rows = [
-            i for i in range(logger.num_headers) if i > header_row and i != units_row
-        ]
-
-        # No header row specified
-        if header_row < 0:
-            self.header_rows = None
-        elif units_row < 0:
-            self.header_rows = header_row
-        else:
-            self.header_rows = [header_row, units_row]
-
-    def read_file(self, filename):
-        """Read time series file into data frame using logger file format settings."""
-
-        df = pd.DataFrame()
-
-        # Read data to data frame
-        if self.file_format == "General-csv":
-            df = pd.read_csv(
-                filename,
-                sep=self.delim,
-                header=self.header_rows,
-                skiprows=self.skip_rows,
-            )
-            df = df.dropna(axis=1)
-        elif self.file_format == "Fugro-csv":
-            df = pd.read_csv(
-                filename,
-                sep=self.delim,
-                header=self.header_rows,
-                skiprows=self.skip_rows,
-                encoding="latin1",
-            )
-            df = df.dropna(axis=1)
-        elif self.file_format == "Pulse-acc":
-            df = read_pulse_acc(filename, multi_header=True)
-        elif self.file_format == "2HPS2-acc":
-            df = read_2hps2_acc(filename, multi_header=True)
-
-        return df
-
-
-def read_fugro_csv(filename):
+def read_fugro_csv(filepath):
     """Raw data module: Read Fugro-csv file to data frame. Index is time steps."""
 
     try:
-        df = pd.read_csv(filename, header=[1, 2], index_col=0, encoding="latin1")
+        df = pd.read_csv(filepath, header=[1, 2], index_col=0, encoding="latin1")
     except FileNotFoundError:
-        raise FileNotFoundError(f"Could not load file {filename}. File not found.")
+        raise FileNotFoundError(f"Could not load file {filepath}. File not found.")
 
     try:
         df.index = pd.to_datetime(df.index, format="%d-%b-%Y %H:%M:%S.%f")
     except ValueError:
-        raise ValueError(
-            f"Could not load file {filename}.\n\nCSV files must be of Fugro format (for now...)."
+        filename = os.path.basename(filepath)
+        msg = (
+            f"Could not load {filename}.\n\nOnly CSV files in the Fugro format can be opened with the "
+            f"open file dialog.\n\nTo load generic CSV file formats, create a logger in the "
+            f"Project Config dashboard with the relevant file format properties."
         )
+        raise ValueError(msg)
 
     # Calculate time delta from t0 and convert to seconds (float)
     t = (df.index - df.index[0]).total_seconds().values.round(3)
@@ -284,7 +205,7 @@ def read_2hps2_acc(filename, multi_header=True):
 
 
 def read_logger_txt(filename):
-    """Raw data module: Rermott txt file into pandas data frame. Index is time steps."""
+    """Raw data module: Read McDermott txt file into pandas data frame. Index is time steps."""
 
     # TODO: McDermott-specifc. Need to generalise
     header1 = ["Timestamp", "Yaw", "Offset East", "Offset North"]
@@ -491,17 +412,22 @@ def read_fatlasa_results(filename):
 
 
 if __name__ == "__main__":
-    folder = r"C:\Users\dickinsc\PycharmProjects\DataLab\demo_data\1. Raw Data\21239 Pulse-acc\BOP"
-    fname = "MPOD001_2018_06_07_16_20.ACC"
+    folder = r"C:\Users\dickinsc\PycharmProjects\DataLab\demo_data\1. Raw Data\21239 Fugro-csv\BOP"
+    fname = "BOP_2018_0607_1620.csv"
+    # folder = r"C:\Users\dickinsc\PycharmProjects\DataLab\demo_data\1. Raw Data\21239 Pulse-acc\BOP"
+    # fname = "MPOD001_2018_06_07_16_20.ACC"
+    # folder = r"C:\Users\dickinsc\PycharmProjects\DataLab\demo_data\1. Raw Data\Perth 2HPS2-acc"
+    # fname = "SMA0096_0000_2019_06_08_18_00.Acc"
+    # folder = r"C:\Users\dickinsc\PycharmProjects\DataLab\demo_data\1. Raw Data\21342 McDermott\Ballast\TimeSeries"
+    # fname = "case0.txt"
 
-    folder = r"C:\Users\dickinsc\PycharmProjects\DataLab\demo_data\1. Raw Data\Mark H Pulse Volts"
-    fname = "SMA0096_0000_2019_06_08_18_00.Acc"
     fpath = os.path.join(folder, fname)
-
+    df = read_fugro_csv(fpath)
+    # df = read_logger_txt(fpath)
     # df = read_pulse_acc(fpath)
     # df = read_pulse_acc(fpath, multi_header=False)
-    df = read_2hps2_acc(fpath)
-    df = read_2hps2_acc(fpath, multi_header=False)
-    # df = read_logger_csv(r'dd10_2017_0310_0140.csv')
+    # df = read_2hps2_acc(fpath)
+    # df = read_2hps2_acc(fpath, multi_header=False)
+    # df = read_logger_txt(fpath)
     # df = read_wcfat_results(r'C:\Users\dickinsc\PycharmProjects\DataLab\demo_data\Fatigue Test Data\damage_1.dmg')
     print(df.head())

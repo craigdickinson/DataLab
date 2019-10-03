@@ -406,9 +406,9 @@ class StatsWidget(QtWidgets.QWidget):
         self.openStatsButton = QtWidgets.QPushButton("Open Statistics...")
         self.openStatsButton.setToolTip("Open logger stats (*.h5;*.csv;*.xlsx) (F3)")
         self.clearDatasetsButton = QtWidgets.QPushButton("Clear Datasets")
-        self.datasetsList = QtWidgets.QListWidget()
+        self.datasetList = QtWidgets.QListWidget()
         self.channelsLabel = QtWidgets.QLabel("Available Channels")
-        self.channelsList = QtWidgets.QListWidget()
+        self.channelList = QtWidgets.QListWidget()
         self.settingsButton = QtWidgets.QPushButton("Plot Settings...")
 
         # Number of plots
@@ -482,9 +482,9 @@ class StatsWidget(QtWidgets.QWidget):
         self.vboxSel.addWidget(self.openStatsButton)
         self.vboxSel.addWidget(self.clearDatasetsButton)
         self.vboxSel.addWidget(QtWidgets.QLabel("Loaded Datasets"))
-        self.vboxSel.addWidget(self.datasetsList)
+        self.vboxSel.addWidget(self.datasetList)
         self.vboxSel.addWidget(self.channelsLabel)
-        self.vboxSel.addWidget(self.channelsList)
+        self.vboxSel.addWidget(self.channelList)
         self.vboxSel.addLayout(self.numPlotsForm)
         self.vboxSel.addWidget(self.plotGroup)
         self.vboxSel.addWidget(self.plotSettingsGroup)
@@ -519,7 +519,7 @@ class StatsWidget(QtWidgets.QWidget):
 
     def _connect_signals(self):
         self.clearDatasetsButton.clicked.connect(self.on_clear_datasets_clicked)
-        self.datasetsList.currentItemChanged.connect(self.on_dataset_list_item_changed)
+        self.datasetList.currentItemChanged.connect(self.on_dataset_list_item_changed)
         self.numPlotsCombo.currentIndexChanged.connect(self.on_num_plots_combo_changed)
         self.plotNumCombo.currentIndexChanged.connect(self.on_plot_num_combo_changed)
         self.axisCombo.currentIndexChanged.connect(self.on_axis_combo_changed)
@@ -543,7 +543,7 @@ class StatsWidget(QtWidgets.QWidget):
         return list(map(str, range(1, n + 1)))
 
     def on_clear_datasets_clicked(self):
-        self.reset_dashboard()
+        self.clear_dashboard()
 
     def on_dataset_list_item_changed(self):
         self._update_channels_list()
@@ -809,13 +809,13 @@ class StatsWidget(QtWidgets.QWidget):
             # subplot.color_1 = self.ax1_colors[i]
             # subplot.color_2 = self.ax2_colors[i]
 
-    def reset_dashboard(self):
+    def clear_dashboard(self):
         """Clear all stored datasets and reset layout."""
 
         self.resetting_dashboard = True
         self.datasets = []
-        self.datasetsList.clear()
-        self.channelsList.clear()
+        self.datasetList.clear()
+        self.channelList.clear()
         self.channelsLabel.setText("Available Channels")
         self.df_index_type = ""
         self.set_xaxis_type_combo()
@@ -848,7 +848,7 @@ class StatsWidget(QtWidgets.QWidget):
         self.presets_set = False
 
     def _set_plot_selections(self):
-        """Set plot drop-downs selections."""
+        """Set plot drop-down selections."""
 
         i = self.plot_i
 
@@ -888,27 +888,27 @@ class StatsWidget(QtWidgets.QWidget):
         """Populate loaded datasets list."""
 
         # Create dataset list and select first item (this will trigger an update of update_channels_list)
-        self.datasetsList.addItems(dataset_ids)
-        self.datasetsList.setCurrentRow(0)
+        self.datasetList.addItems(dataset_ids)
+        self.datasetList.setCurrentRow(0)
         self._update_logger_combo(dataset_ids)
 
     def _update_channels_list(self):
         """Update channels list to match selected dataset."""
 
-        i = self.datasetsList.currentRow()
+        i = self.datasetList.currentRow()
         if i == -1:
             return
 
         # Update channel list label
-        logger_id = self.datasetsList.currentItem().text()
+        logger_id = self.datasetList.currentItem().text()
         self.channelsLabel.setText(f"Available {logger_id} Channels")
 
         # Add channels to list and make non-selectable since they are just an echo for reference
-        self.channelsList.clear()
+        self.channelList.clear()
         for channel in self.datasets[i].channels:
             item = QtWidgets.QListWidgetItem(channel)
             item.setFlags(item.flags() & ~QtCore.Qt.ItemIsSelectable)
-            self.channelsList.addItem(item)
+            self.channelList.addItem(item)
 
     def _update_plot_num_combo(self):
         """Update plot number drop-down."""
@@ -1471,7 +1471,7 @@ class VesselStatsWidget(QtWidgets.QWidget):
         if i == -1:
             return
 
-        # Add channels to list and make unselectable since they are just an echo for reference
+        # Add channels to list and make non-selectable since they are just an echo for reference
         self.channelsList.clear()
         for channel in self.datasets[i].channels:
             item = QtWidgets.QListWidgetItem(channel)
