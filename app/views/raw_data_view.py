@@ -42,7 +42,7 @@ class RawDataDashboard(QtWidgets.QWidget):
         self.control = Control()
 
         # List of RawDataRead class instances to read and stores time series files of a dataset/logger
-        self.raw_datasets = []
+        self.proj_datasets = []
 
         # Flags to skip on change event functions as required
         self.resetting_dashboard = False
@@ -50,6 +50,7 @@ class RawDataDashboard(QtWidgets.QWidget):
         self.skip_on_xlims_changed = True
 
         self.path_to_files = ""
+        self.df = pd.DataFrame()
 
         # Plot settings
         plt.style.use("seaborn")
@@ -80,15 +81,15 @@ class RawDataDashboard(QtWidgets.QWidget):
         self.lblDataset = QtWidgets.QLabel("Dataset:")
         self.datasetCombo = QtWidgets.QComboBox()
         self.datasetCombo.addItem("None")
-        self.lblFiles = QtWidgets.QLabel("Files")
-        self.fileList = QtWidgets.QListWidget()
         self.lblSelectedFile = QtWidgets.QLabel("Selected file:")
         self.lblFile = QtWidgets.QLabel("-")
+        self.lblSelectedColumn = QtWidgets.QLabel("Selected column:")
+        self.lblColumn = QtWidgets.QLabel("-")
+        self.lblFiles = QtWidgets.QLabel("Files")
+        self.fileList = QtWidgets.QListWidget()
         self.columnsLabel = QtWidgets.QLabel("Columns")
         self.columnList = QtWidgets.QListWidget()
         self.columnList.setFixedHeight(120)
-        self.lblSelectedColumn = QtWidgets.QLabel("Selected column:")
-        self.lblColumn = QtWidgets.QLabel("-")
         self.plotSettingsButton = QtWidgets.QPushButton("Plot Settings...")
 
         # Plot figure and canvas to display figure
@@ -115,12 +116,12 @@ class RawDataDashboard(QtWidgets.QWidget):
         self.plotGroup = QtWidgets.QGroupBox("Select Plot Data")
         self.vboxSelect = QtWidgets.QVBoxLayout(self.plotGroup)
         self.vboxSelect.addLayout(self.formSelection)
+        self.vboxSelect.addLayout(self.formFile)
+        self.vboxSelect.addLayout(self.formColumn)
         self.vboxSelect.addWidget(self.lblFiles)
         self.vboxSelect.addWidget(self.fileList)
-        self.vboxSelect.addLayout(self.formFile)
         self.vboxSelect.addWidget(self.columnsLabel)
         self.vboxSelect.addWidget(self.columnList)
-        self.vboxSelect.addLayout(self.formColumn)
 
         # Setup container
         self.setupWidget = QtWidgets.QWidget()
@@ -143,6 +144,8 @@ class RawDataDashboard(QtWidgets.QWidget):
 
     def _connect_signals(self):
         self.clearDatasetsButton.clicked.connect(self.on_clear_datasets_clicked)
+        self.axisCombo.currentIndexChanged.connect(self.on_axis_changed)
+        self.seriesCombo.currentIndexChanged.connect(self.on_series_changed)
         self.datasetCombo.currentIndexChanged.connect(self.on_dataset_changed)
         self.plotSettingsButton.clicked.connect(self.on_plot_settings_clicked)
         self.fileList.itemDoubleClicked.connect(self.on_file_double_clicked)
@@ -152,10 +155,10 @@ class RawDataDashboard(QtWidgets.QWidget):
         self.clear_dashboard()
 
     def on_axis_changed(self):
-        self._set_plot_selections()
+        self._set_widget_series_selections()
 
     def on_series_changed(self):
-        self._set_plot_selections()
+        self._set_widget_series_selections()
 
     def on_dataset_changed(self):
         """Update source files list."""
@@ -166,19 +169,45 @@ class RawDataDashboard(QtWidgets.QWidget):
         if self.skip_on_dataset_changed is True:
             return
 
+        srs = self.get_series()
+
         if self.datasetCombo.currentText() == "None":
+            srs.reset_series()
             self.fileList.clear()
             self.columnList.clear()
+
+            # This flag stops the on_xlims_change event from processing
+            self.skip_on_xlims_changed = True
+            self.update_plots()
+            self.skip_on_xlims_changed = False
+
+            # Report selected file and column
+            self.lblFile.setText(srs.file)
+            self.lblColumn.setText(srs.column)
+
             return
 
         try:
             i = self.datasetCombo.currentIndex() - 1
-            self._update_file_list(i)
+            srs.path_to_files = self.proj_datasets[i].path_to_files
 
-            # Plot first file
+            filenames = self.proj_datasets[i].filenames
+            srs.filenames = filenames
+            self._set_file_list(filenames)
+
+            columns = self.proj_datasets[i].channel_names
+            srs.channel_names = columns
+            self._set_column_list(columns)
+
             if self.fileList.count() > 0:
+                if srs.file_i > -1:
+                    self.fileList.setCurrentRow(srs.file_i)
+                else:
+                    self.fileList.setCurrentRow(0)
+
                 filename = self.fileList.currentItem().text()
-                self.load_file(filename)
+
+                self.process_file(filename)
         except Exception as e:
             logging.exception(e)
 
@@ -189,12 +218,12 @@ class RawDataDashboard(QtWidgets.QWidget):
         filename = self.fileList.currentItem().text()
 
         try:
-            self.load_file(filename)
+            self.process_file(filename)
         except ValueError as e:
             self.parent.error(f"Error: {e}")
             logging.exception(e)
         except Exception as e:
-            msg = "Unexpected error loading logger file"
+            msg = "Unexpected error updating plot"
             self.parent.error(f"{msg}:\n{e}\n{sys.exc_info()[0]}")
             logging.exception(e)
 
@@ -203,31 +232,14 @@ class RawDataDashboard(QtWidgets.QWidget):
 
         try:
             srs = self.get_series()
-
-            # Update stored selections in current series object
+            # Store gui plot selections to current series object
             srs = self._store_series_selections(srs)
-
-            # Extract data to be plotted based on selected channels and plot settings
-            srs.set_series_data(self.df)
-
-            # Check plot data was set and store initial data limits
-            # (note column 1 is Timestamp so looking for > 1 columns)
-            if len(srs.y) > 0:
-                self.plot_setup.init_xlim = (srs.x[0], srs.x[-1])
-
-            self.calc_filtered_data()
-
-            # This flag stops the on_xlims_change event from processing
-            self.skip_on_xlims_changed = True
-            # self.plot_series()
-            self.update_plots2()
-            self.skip_on_xlims_changed = False
-
+            self._plot_update(srs)
         except ValueError as e:
             self.parent.error(f"Error: {e}")
             logging.exception(e)
         except Exception as e:
-            msg = "Unexpected error loading logger file"
+            msg = "Unexpected error updating plot"
             self.parent.error(f"{msg}:\n{e}\n{sys.exc_info()[0]}")
             logging.exception(e)
 
@@ -237,11 +249,28 @@ class RawDataDashboard(QtWidgets.QWidget):
         self.plotSettings.set_dialog_data()
         self.plotSettings.show()
 
+    def on_xlims_changed(self, ax):
+        # Convert to datetime
+        # self.xmin, self.xmax = mdates.num2date(ax.get_xlim())
+
+        if self.skip_on_xlims_changed is False:
+            # Store current time series axis limits
+            self.ts_xlim = tuple(round(x, 1) for x in ax.get_xlim())
+
+            # Also store current PSD axis limits so current PSD limits are retained
+            self.psd_xlim = tuple(round(x, 1) for x in self.ax2.get_xlim())
+
+            # Update PSD plot and plot title with new timestamp range
+            df_slice = self.df_plot[self.ts_xlim[0] : self.ts_xlim[1]]
+            self.plot_psd2(df_slice)
+            self._plot_title(df_slice)
+            # print(f'updated xlims: {self.ts_xlim}')
+
     def clear_dashboard(self):
         """Clear all stored datasets and reset layout."""
 
         self.resetting_dashboard = True
-        self.raw_datasets = []
+        self.proj_datasets = []
         self.plot_setup.reset_series_lists()
         self.datasetCombo.clear()
         self.datasetCombo.addItem("None")
@@ -259,11 +288,11 @@ class RawDataDashboard(QtWidgets.QWidget):
 
         # Create new dataset object containing dataset file properties
         logger = control.loggers[index]
-        self.raw_datasets.append(RawDataRead(logger))
+        self.proj_datasets.append(RawDataRead(logger))
 
         # Add to combo box
-        self.datasetCombo.addItem(dataset_name)
         self.control = control
+        self.datasetCombo.addItem(dataset_name)
 
     def add_datasets(self, control):
         """Add datasets to combo box and update mapping of control object upon opening a project config JSON file."""
@@ -271,7 +300,7 @@ class RawDataDashboard(QtWidgets.QWidget):
         # For each logger create a new dataset object containing dataset file properties
         for i in range(len(control.logger_ids)):
             logger = control.loggers[i]
-            self.raw_datasets.append(RawDataRead(logger))
+            self.proj_datasets.append(RawDataRead(logger))
 
         # Map control properties and add dataset to combo box
         # (triggers dataset changed event))
@@ -284,14 +313,23 @@ class RawDataDashboard(QtWidgets.QWidget):
         self.skip_on_dataset_changed = False
 
         try:
+            srs = self.get_series()
+
             # Set file list for first dataset loaded
-            self._update_file_list(dataset_idx=0)
+            srs.path_to_files = self.proj_datasets[0].path_to_files
+            filenames = self.proj_datasets[0].filenames
+            srs.filenames = filenames
+            self._set_file_list(filenames)
+
+            # Assign first file as selected
+            self.fileList.setCurrentRow(0)
 
             # Plot first file
             if self.fileList.count() > 0:
                 filename = self.fileList.currentItem().text()
-                self.load_file(filename)
+                self.process_file(filename)
         except Exception as e:
+            self.parent.error(str(e))
             logging.exception(e)
 
     def remove_dataset(self, index):
@@ -301,7 +339,7 @@ class RawDataDashboard(QtWidgets.QWidget):
             return
 
         self.datasetCombo.removeItem(index)
-        del self.raw_datasets[index]
+        del self.proj_datasets[index]
 
     def update_dateset_name(self, index, dataset_name):
         """Update dataset name pertaining to changed logger id in setup module."""
@@ -316,67 +354,35 @@ class RawDataDashboard(QtWidgets.QWidget):
 
         # Update dataset properties of current logger (in case file read properties have been updated)
         logger = self.control.loggers[logger_idx]
-        self.raw_datasets[logger_idx].set_logger(logger)
+        self.proj_datasets[logger_idx].set_logger(logger)
 
         # logger_idx + 1 to account for the 'None' dataset
         if self.datasetCombo.currentIndex() == logger_idx + 1:
-            self._update_file_list(logger_idx)
+            srs = self.get_series()
+            srs.path_to_files = self.proj_datasets[logger_idx].path_to_files
 
-    def get_series(self):
-        """Return the series object of the selected series in the dashboard."""
+            filenames = self.proj_datasets[logger_idx].filenames
+            srs.filenames = filenames
+            self._set_file_list(filenames)
 
-        axis_i = self.axisCombo.currentIndex()
-        series_i = self.seriesCombo.currentIndex()
+            columns = self.proj_datasets[logger_idx].channel_names
+            srs.channel_names = columns
+            self._set_column_list(columns)
 
-        if axis_i == 0:
-            srs = self.plot_setup.axis1_series_list[series_i]
-        else:
-            srs = self.plot_setup.axis2_series_list[series_i]
-
-        return srs
-
-    def _store_series_selections(self, srs):
-        """Retrieve current plot selections from the dashboard and store in series object."""
-
-        # Store plot details of selected series
-        srs.dataset_i = self.datasetCombo.currentIndex() - 1
-        srs.dataset = self.datasetCombo.currentText()
-        srs.file_i = self.fileList.currentRow()
-        srs.file = self.fileList.currentItem().text()
-        srs.column_i = self.columnList.currentRow()
-        try:
-            srs.column = self.columnList.currentItem().text()
-        except AttributeError:
-            srs.column = None
-
-        return srs
-
-    def _set_plot_selections(self):
-        """Set plot drop-down selections."""
-
-        axis_i = self.axisCombo.currentIndex()
-        series_i = self.seriesCombo.currentIndex()
-
-        if axis_i == 0:
-            series = self.plot_setup.axis1_series_list[series_i]
-        else:
-            series = self.plot_setup.axis2_series_list[series_i]
-
-        # Update selections as per properties in associated series list
-        self.datasetCombo.setCurrentIndex(series.dataset_i)
-        self.fileList.setCurrentRow(series.file_i)
-        self.columnList.setCurrentRow(series.column_i)
-
-    def _update_file_list(self, dataset_idx):
+    def _set_file_list(self, filenames):
         """Update dataset file list widget for current selected dataset."""
 
-        filenames = self.raw_datasets[dataset_idx].filenames
-        self.path_to_files = self.raw_datasets[dataset_idx].path_to_files
+        # Populate file list widget
         self.fileList.clear()
         self.fileList.addItems(filenames)
-        self.fileList.setCurrentRow(0)
 
-    def update_file_list_from_open_file_dialog(self, filename):
+    def _set_column_list(self, channel_names):
+        """Update column list with column names of selected file."""
+
+        self.columnList.clear()
+        self.columnList.addItems(channel_names)
+
+    def set_file_list_from_open_file_dialog(self, filename):
         """Update file list widget using a file selected using QFileDialog."""
 
         ext = os.path.splitext(filename)[1]
@@ -385,6 +391,22 @@ class RawDataDashboard(QtWidgets.QWidget):
         self.fileList.clear()
         self.fileList.addItems(filenames)
         self.fileList.setCurrentRow(filenames.index(filename))
+
+    def process_file(self, filename, open_file_dialog=False):
+        df = self.load_file(filename, open_file_dialog)
+
+        if df is None:
+            return
+
+        # Get current series object
+        srs = self.get_series()
+
+        self.process_time_series(srs)
+
+        # Store gui plot selections to current series object
+        srs = self._store_series_selections(srs)
+
+        self._plot_update(srs)
 
     def load_file(self, filename, open_file_dialog=False):
         """Load logger file, update widget and plot first channel."""
@@ -404,50 +426,92 @@ class RawDataDashboard(QtWidgets.QWidget):
         else:
             self.df = self._read_time_series_file(filename)
 
-        if self.df is None:
-            return
+        return self.df
+
+    def process_time_series(self, srs):
+        """Process time series data frame and plot."""
 
         # Get and column names and units from data frame
         channel_names, channel_units = self._get_columns()
 
-        # Get current series object
-        srs = self.get_series()
+        # Store channel names and units in plot setup
+        srs.channel_names = channel_names
+        srs.channel_units = channel_units
 
         # Check if series' channel names have changed and update column list widget if so
         if self.columnList.count() == 0 or channel_names != srs.channel_names:
-            srs.channel_names = channel_names
-            srs.channel_units = channel_units
-            self._update_column_list(channel_names)
+            self._set_column_list(channel_names)
+
+            # Set flag to set x axis limits to full extent of time series
+            self.plot_setup.set_init_axis_limits = True
 
         # Select channel
+        if srs.column_i > -1:
+            self.columnList.setCurrentRow(srs.column_i)
+        else:
+            self.columnList.setCurrentRow(0)
+
+    def get_series(self):
+        """Return the series object of the selected series in the dashboard."""
+
+        axis_i = self.axisCombo.currentIndex()
+        series_i = self.seriesCombo.currentIndex()
+
+        if axis_i == 0:
+            srs = self.plot_setup.axis1_series_list[series_i]
+        else:
+            srs = self.plot_setup.axis2_series_list[series_i]
+
+        return srs
+
+    def _store_series_selections(self, srs):
+        """Retrieve current plot selections from the dashboard and store in series object."""
+
+        # Store plot details of selected series
+        srs.dataset_i = self.datasetCombo.currentIndex()
+        srs.dataset = self.datasetCombo.currentText()
+
+        # Retrieve and store filenames for dataset
+        if srs.dataset == "None":
+            srs.filename = []
+        else:
+            filenames = self.proj_datasets[srs.dataset_i - 1].filenames
+            srs.filenames = filenames
+
+        srs.file_i = self.fileList.currentRow()
+        srs.column_i = self.columnList.currentRow()
+
+        if srs.file_i == -1:
+            srs.file = "-"
+        else:
+            srs.file = self.fileList.currentItem().text()
+
+        if srs.column_i == -1:
+            srs.column = "-"
+        else:
+            srs.column = self.columnList.currentItem().text()
+
+        return srs
+
+    def _set_widget_series_selections(self):
+        """Update plot drop-downs of selected series as per properties in associated series object."""
+
+        srs = self.get_series()
+        self.skip_on_dataset_changed = True
+        self.datasetCombo.setCurrentIndex(srs.dataset_i)
+        self.skip_on_dataset_changed = False
+        self.lblFile.setText(srs.file)
+        self.lblColumn.setText(srs.column)
+        self._set_file_list(srs.filenames)
+        self._set_column_list(srs.channel_names)
+        self.fileList.setCurrentRow(srs.file_i)
         self.columnList.setCurrentRow(srs.column_i)
-
-        # Update stored selections in current series object
-        srs = self._store_series_selections(srs)
-
-        # Extract data to be plotted based on selected channels and plot settings
-        srs.set_series_data(self.df)
-
-        # Check plot data was set and store initial data limits (note column 1 is Timestamp so looking for > 1 columns)
-        if len(srs.y) > 0:
-            self.plot_setup.init_xlim = (srs.x[0], srs.x[-1])
-
-        # if len(self.df_plot.columns) > 1:
-        #     self.init_xlim = (self.df_plot.index[0], self.df_plot.index[-1])
-
-        self.calc_filtered_data()
-
-        # This flag stops the on_xlims_change event from processing
-        self.skip_on_xlims_changed = True
-        # self.plot_series()
-        self.update_plots2()
-        self.skip_on_xlims_changed = False
 
     def _read_time_series_file(self, filename):
         """Read a raw logger file based on logger file properties provided in setup."""
 
         i = self.datasetCombo.currentIndex() - 1
-        dataset = self.raw_datasets[i]
+        dataset = self.proj_datasets[i]
         logger = self.control.loggers[i]
 
         try:
@@ -460,7 +524,8 @@ class RawDataDashboard(QtWidgets.QWidget):
                 )
                 filepath = stream_blob(bloc_blob_service, logger.container_name, blob)
             else:
-                filepath = os.path.join(self.path_to_files, filename)
+                srs = self.get_series()
+                filepath = os.path.join(srs.path_to_files, filename)
 
             # Read file from either local file path or Azure file stream
             df = dataset.read_file(filepath)
@@ -521,25 +586,47 @@ class RawDataDashboard(QtWidgets.QWidget):
             i = self.datasetCombo.currentIndex() - 1
 
             # Use units for all channels stored in control object if exists, else create dummy list
-            if self.raw_datasets[i].channel_units:
-                channel_units = self.raw_datasets[i].channel_units
+            if self.proj_datasets[i].channel_units:
+                channel_units = self.proj_datasets[i].channel_units
             else:
                 channel_units = ["-"] * len(self.channel_names)
 
         return channel_names, channel_units
 
-    def _update_column_list(self, channel_names):
-        """Update column list with column names of selected file."""
+    def _plot_update(self, srs):
+        """Update plot series data for current selections and plot."""
 
-        self.columnList.clear()
-        self.columnList.addItems(channel_names)
+        srs = self._set_series_data(srs)
 
-        if self.columnList.count() == 0:
-            raise ValueError("No channels added.")
+        # Check plot data was set and store initial data limits (note column 1 is Timestamp so looking for > 1 columns)
+        if len(srs.y) > 0:
+            self.plot_setup.init_xlim = (srs.x[0], srs.x[-1])
 
-        # Flag to set axis limits to dataset length
-        self.set_init_axis_limits = True
-        # self.columnList.setCurrentRow(0)
+        self.calc_filtered_data()
+
+        # This flag stops the on_xlims_change event from processing
+        self.skip_on_xlims_changed = True
+        self.update_plots()
+        self.skip_on_xlims_changed = False
+
+        # Report selected file and column
+        self.lblFile.setText(srs.file)
+        self.lblColumn.setText(srs.column)
+
+    def _set_series_data(self, srs):
+        """Set series plot data."""
+
+        df = self.df
+        srs.x = df.index.values
+        try:
+            srs.y = df[srs.column].values.ravel()
+        except KeyError:
+            srs.y = []
+        srs.units = srs.channel_units[srs.column_i]
+        srs.timestamps = df.iloc[:, 0].values
+        # srs.set_series_data(self.df, channels, units)
+
+        return srs
 
     def calc_filtered_data(self):
         """
@@ -564,9 +651,9 @@ class RawDataDashboard(QtWidgets.QWidget):
             if len(srs.y) > 0:
                 df = pd.DataFrame(srs.y, index=srs.x)
                 df_filt = filter_signal(df, low_cutoff, high_cutoff)
-                srs.y_filt = df_filt.values
+                srs.y_filt = df_filt.values.ravel()
 
-    def update_plots2(self):
+    def update_plots(self):
         """Create time series plots for selected logger channels."""
 
         self.draw_axes()
@@ -574,97 +661,36 @@ class RawDataDashboard(QtWidgets.QWidget):
         # Event connection to refresh PSD plot upon change of time series x-axis limits
         self.ax1.callbacks.connect("xlim_changed", self.on_xlims_changed)
 
-        # Plot all populated axis 1 series
-        for srs in self.plot_setup.axis1_series_list:
-            # Plot unfiltered time series
-            if len(srs.y) > 0:
-                self.plot_series(srs, axis=1, filtered=False)
+        # try:
+        #     self.plot_time_series(self.df_plot, self.df_filtered)
+        #     self.plot_psd(self.df_plot[self.ts_xlim[0]: self.ts_xlim[1]])
+        # except ValueError as e:
+        #     self.parent.error(str(e))
+        # except Exception as e:
+        #     msg = "Unexpected error processing loggers"
+        #     self.parent.error(f"{msg}:\n{e}\n{sys.exc_info()[0]}")
+        #     logging.exception(e)
 
-            # Plot filtered time series
-            if len(srs.y_filt) > 0:
-                self.plot_series(srs, axis=1, filtered=True)
+        # Update time series plot
+        axis1_is_plotted, axis2_is_plotted = self.plot_time_series()
+        self.plot_setup.axis1_is_plotted = axis1_is_plotted
+        self.plot_setup.axis2_is_plotted = axis2_is_plotted
 
-        # Plot all populated axis 2 series
-        for srs in self.plot_setup.axis2_series_list:
-            # Plot unfiltered time series
-            if len(srs.y) > 0:
-                self.plot_series(srs, axis=2, filtered=False)
+        self.plot_psd()
 
-            # Plot filtered time series
-            if len(srs.y_filt) > 0:
-                self.plot_series(srs, axis=2, filtered=True)
+        self._set_gridlines()
+
+        # Apply axis limits of full file if a new file or a file with a different number of columns is loaded
+        if self.plot_setup.set_init_axis_limits is True:
+            self.plot_setup.ts_xlim = self.plot_setup.init_xlim
+            self.ax1.set_xlim(self.plot_setup.init_xlim)
+            self.plot_setup.set_init_axis_limits = False
+        # Apply currently stored axis limits
+        else:
+            self.ax1.set_xlim(self.plot_setup.ts_xlim)
 
         # Titles and legend
-        self.plot_title()
-        self.ax1.set_title("Time Series", size=12)
-        self.ax2.set_title("Power Spectral Density", size=12)
-        self.fig.legend(
-            loc="lower center",
-            ncol=6,
-            fontsize=11,
-            # frameon=False,
-            # fancybox=False,
-            # edgecolor='none',
-            # facecolor='none',
-        )
-
-        # Ensure plots don't overlap suptitle and legend
-        self.fig.tight_layout(
-            rect=[0, 0.05, 1, 0.9]
-        )  # (rect=[left, bottom, right, top])
-        # (left, bottom, right, top, wspace, hspace)
-        # self.fig.subplots_adjust(bottom=.15, top=.85, hspace=.5)
-        self.canvas.draw()
-
-        # Update parameters in plot settings window (could be open)
-        self.plotSettings.set_dialog_data()
-
-    def plot_series(self, srs, axis, filtered):
-        """Add line plot."""
-
-        if axis == 1:
-            ax = self.ax1
-        else:
-            ax = self.ax1b
-
-        if filtered is True:
-            y = srs.y_filt
-            column = f"{srs.column} (Filtered)"
-        else:
-            y = srs.y
-            column = srs.column
-
-        x = srs.x
-        units = srs.units
-
-        # Add line plot
-        ax.plot(x, y, label=column)
-        ylabel = f"{column} ({units})"
-        ax.set_ylabel(ylabel)
-
-    def update_plots(self):
-        """Create time series plots for selected logger channels."""
-
-        self.draw_axes()
-
-        # Nothing to plot if data frame contains only the Timestamp column
-        if len(self.df_plot.columns) == 1:
-            return
-
-        try:
-            self.plot_time_series(self.df_plot, self.df_filtered)
-            self.plot_psd(self.df_plot[self.ts_xlim[0] : self.ts_xlim[1]])
-        except ValueError as e:
-            self.parent.error(str(e))
-        except Exception as e:
-            msg = "Unexpected error processing loggers"
-            self.parent.error(f"{msg}:\n{e}\n{sys.exc_info()[0]}")
-            logging.exception(e)
-
-        # Titles and legend
-        self.plot_title(self.df_plot)
-        self.ax1.set_title("Time Series", size=12)
-        self.ax2.set_title("Power Spectral Density", size=12)
+        self._plot_title()
         self.fig.legend(
             loc="lower center",
             ncol=6,
@@ -699,7 +725,17 @@ class RawDataDashboard(QtWidgets.QWidget):
         self.ax1b.yaxis.set_visible(False)
         self.ax2b.yaxis.set_visible(False)
 
-        # self.ax2.set_ylabel(ylabel, size=11)  # Leave as example of error
+        # Labels
+        self.ax1.set_title("Time Series")
+        self.ax2.set_title("Power Spectral Density")
+        self.ax1.set_xlabel("Time (s)")
+        self.ax2.set_xlabel("Frequency (Hz)")
+
+        # Tight axes
+        self.ax1.margins(0)
+        self.ax1b.margins(0)
+        self.ax2.margins(0)
+        self.ax2b.margins(0)
 
         # TODO: Mouse scroll zoom - works
         # f = self.zoom_factory(self.ax, base_scale=1.1)
@@ -711,155 +747,82 @@ class RawDataDashboard(QtWidgets.QWidget):
         # figZoom = zp.zoom_factory(self.ax2, base_scale=1.1)
         # figPan = zp.pan_factory(self.ax2)
 
-    def plot_time_series(self, df, df_filtered=pd.DataFrame()):
+    def plot_time_series(self):
         """Plot time series."""
 
-        # Drop timestamp column
-        df = df.iloc[:, 1:]
+        axis1_is_plotted = False
+        axis2_is_plotted = False
 
-        self.ax1.cla()
-        self.ax1b.cla()
+        # Plot all populated axis 1 series
+        for srs in self.plot_setup.axis1_series_list:
+            # Plot unfiltered time series
+            if len(srs.y) > 0:
+                self.add_line_plot(srs, ax=self.ax1, filtered=False)
+                axis1_is_plotted = True
 
-        # Set displayed gridlines
-        self.ax1.grid(True)
-        self.ax1b.grid(False)
+            # Plot filtered time series
+            if len(srs.y_filt) > 0:
+                self.add_line_plot(srs, ax=self.ax1, filtered=True)
+                axis1_is_plotted = True
 
-        # If primary axis not used, switch gridlines to secondary axis
-        if self.plot_pri is False and self.plot_sec is True:
-            self.ax1.grid(False)
-            self.ax1b.grid(True)
+        # Plot all populated axis 2 series
+        for srs in self.plot_setup.axis2_series_list:
+            # Plot unfiltered time series
+            if len(srs.y) > 0:
+                self.add_line_plot(srs, ax=self.ax1b, filtered=False)
+                axis2_is_plotted = True
 
-        # Event connection to refresh PSD plot upon change of time series x-axis limits
-        self.ax1.callbacks.connect("xlim_changed", self.on_xlims_changed)
+            # Plot filtered time series
+            if len(srs.y_filt) > 0:
+                self.add_line_plot(srs, ax=self.ax1b, filtered=True)
+                axis2_is_plotted = True
 
-        # Plot primary axis channel time series
-        if self.plot_pri is True:
-            self.ax1.plot(df.iloc[:, 0], c="blue", label=df.columns[0], lw=1, alpha=0.8)
-            ylabel = f"{df.columns[0]} ({self.plot_units[0]})"
-            self.ax1.set_ylabel(ylabel)
+        return axis1_is_plotted, axis2_is_plotted
 
-            # Plot filtered time series if exists
-            if not df_filtered.empty:
-                self.ax1.plot(
-                    df_filtered.iloc[:, 0],
-                    c="red",
-                    ls="--",
-                    label=f"{df.columns[0]} (Filtered)",
-                    lw=1,
-                    alpha=0.8,
-                )
+    @staticmethod
+    def add_line_plot(srs, ax, filtered):
+        """Add line plot."""
+
+        if filtered is True:
+            y = srs.y_filt
+            column = f"{srs.column} (Filtered)"
         else:
-            self.ax1.yaxis.set_visible(False)
+            y = srs.y
+            column = srs.column
 
-        # Plot secondary axis channel time series
-        if self.plot_sec is True:
-            self.ax1b.plot(
-                df.iloc[:, -1], c="green", label=df.columns[-1], lw=1, alpha=0.8
-            )
-            ylabel = f"{df.columns[-1]} ({self.plot_units[-1]})"
-            self.ax1b.set_ylabel(ylabel)
-            self.ax1b.yaxis.set_visible(True)
+        x = srs.x
+        units = srs.units
 
-            # Plot filtered time series if exists
-            if not df_filtered.empty:
-                self.ax1b.plot(
-                    df_filtered.iloc[:, -1],
-                    c="purple",
-                    ls="--",
-                    label=f"{df.columns[-1]} (Filtered)",
-                    lw=1,
-                    alpha=0.8,
-                )
-        else:
-            self.ax1b.yaxis.set_visible(False)
+        # Add line plot
+        ax.plot(x, y, label=column)
+        ylabel = f"{column} ({units})"
+        ax.set_ylabel(ylabel)
 
-        self.ax1.set_xlabel("Time (s)", size=11)
-
-        # Apply axis limits of full dataset if a new file or a file with a different number of columns is loaded
-        if self.set_init_axis_limits is True:
-            self.ts_xlim = self.init_xlim
-            self.ax1.set_xlim(self.init_xlim)
-            self.set_init_axis_limits = False
-        # Apply currently stored axis limits
-        else:
-            self.ax1.set_xlim(self.ts_xlim)
-
-        # Tight axes
-        self.ax1.margins(0)
-        self.ax1b.margins(0)
-        # self.ax.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M:%S'))
-        # self.ax.xaxis.set_major_locator(mdates.MinuteLocator(interval=2))
-        # plt.sca(self.ax)
-        # plt.xticks(rotation=30, ha='right')
-
-    def plot_psd(self, df):
+    def plot_psd(self):
         """Plot PSD."""
 
-        # If the first column is timestamp, drop it (this will be the case but doing the check for generality)
-        if df.columns[0] == "Timestamp":
-            df = df.drop(df.columns[0], axis=1)
+        # Plot all populated axis 1 series
+        for srs in self.plot_setup.axis1_series_list:
+            # Plot unfiltered time series
+            if len(srs.y) > 0:
+                self.add_psd_line_plot(srs, ax=self.ax2, filtered=False)
 
-        self.ax2.cla()
-        self.ax2b.cla()
-        self.ax2.grid(True)
-        self.ax2b.grid(False)
+            # Plot filtered time series
+            if len(srs.y_filt) > 0:
+                self.add_psd_line_plot(srs, ax=self.ax2, filtered=True)
 
-        # If primary axis not used, switch gridlines to secondary axis
-        if self.plot_pri is False and self.plot_sec is True:
-            self.ax2.grid(False)
-            self.ax2b.grid(True)
+        # Plot all populated axis 2 series
+        for srs in self.plot_setup.axis2_series_list:
+            # Plot unfiltered time series
+            if len(srs.y) > 0:
+                self.add_psd_line_plot(srs, ax=self.ax2b, filtered=False)
 
-        # Calculate PSD of selected channels
-        f, pxx = self._compute_psd(df)
-
-        # Set x-axis as frequency or period based on plot options
-        if self.plot_period:
-            # Handle for divide by zero
-            f = 1 / f[1:]
-            pxx = pxx[:, 1:]
-            self.ax2.set_xlabel("Period (s)", size=11)
-        else:
-            self.ax2.set_xlabel("Frequency (Hz)", size=11)
-
-        # Convert PSD to log10 if plot option selected
-        if self.log_scale is True:
-            pxx = np.log10(pxx)
-            log10 = r"$\mathregular{log_{10}}$"
-        else:
-            log10 = ""
-
-        # Plot primary axis channel PSD
-        if self.plot_pri is True:
-            self.ax2.plot(f, pxx[0], c="blue", alpha=0.8)
-            channel = df.columns[0]
-            units = self.plot_units[0]
-            ylabel = (
-                f"{log10} {channel} PSD ($\mathregular{{({units})^2/Hz}})$".lstrip()
-            )
-            self.ax2.set_ylabel(ylabel, size=11)
-            self.ax2.yaxis.set_visible(True)
-        else:
-            self.ax2.yaxis.set_visible(False)
-
-        # Plot secondary axis channel PSD
-        if self.plot_sec is True:
-            self.ax2b.plot(f, pxx[-1], c="green", alpha=0.8)
-            channel = df.columns[-1]
-            units = self.plot_units[-1]
-            ylabel = (
-                f"{log10} {channel} PSD ($\mathregular{{({units})^2/Hz}})$".lstrip()
-            )
-            self.ax2b.set_ylabel(ylabel, size=11)
-            self.ax2b.yaxis.set_visible(True)
-        else:
-            self.ax2b.yaxis.set_visible(False)
+            # Plot filtered time series
+            if len(srs.y_filt) > 0:
+                self.add_psd_line_plot(srs, ax=self.ax2b, filtered=True)
 
         # Store and set axis limits
-        self.ax2.set_xlim(self.psd_xlim)
-
-        # Tight axes
-        self.ax2.margins(0)
-        self.ax2b.margins(0)
+        self.ax2.set_xlim(self.plot_setup.psd_xlim)
 
     def _compute_psd(self, df):
         """Compute PSD of all channels using the Welch method."""
@@ -867,21 +830,18 @@ class RawDataDashboard(QtWidgets.QWidget):
         # TODO: Unit test this!
         # Sampling frequency
         fs = 1 / (df.index[1] - df.index[0])
-        window = self.window.lower()
+        window = self.plot_setup.window.lower()
         if window == "none":
             window = "boxcar"
-        nperseg = int(len(df) / self.num_ensembles)
-        noverlap = nperseg * self.overlap // 100
+        nperseg = int(len(df) / self.plot_setup.num_ensembles)
+        noverlap = nperseg * self.plot_setup.overlap // 100
 
         try:
             # Note the default Welch parameters are equivalent to running
             # f, pxx = signal.welch(df.T, fs=fs)
-            # f, pxx = signal.welch(
-            #     df.T, fs=fs, window=window, nperseg=nperseg, noverlap=noverlap
-            # )
             # Calculate PSD using Welch method
             f, pxx = calc_psd(
-                data=df.T.values,
+                data=df.values.ravel(),
                 fs=fs,
                 window=window,
                 nperseg=nperseg,
@@ -894,13 +854,81 @@ class RawDataDashboard(QtWidgets.QWidget):
         # df_psd = pd.DataFrame(pxx.T, index=f)
 
         # Store nperseg and sampling frequency so that plot settings window is up to date
-        self.def_nperseg = int(len(df))
-        self.cust_nperseg = nperseg
-        self.fs = int(fs)
+        self.plot_setup.def_nperseg = int(len(df))
+        self.plot_setup.cust_nperseg = nperseg
+        self.plot_setup.fs = int(fs)
 
         return f, pxx
 
-    def plot_title(self, df=None):
+    def add_psd_line_plot(self, srs, ax, filtered):
+        """Add series to PSD plot."""
+
+        if filtered is True:
+            y = srs.y_filt
+        else:
+            y = srs.y
+
+        x = srs.x
+        df = pd.DataFrame(y, index=x)
+
+        # Calculate PSD of series
+        f, pxx = self._compute_psd(df)
+
+        # Set x-axis as frequency or period based on plot options
+        if self.plot_setup.plot_period:
+            # Handle for divide by zero
+            f = 1 / f[1:]
+            pxx = pxx[1:]
+            ax.set_xlabel("Period (s)")
+
+        # Convert PSD to log10 if plot option selected
+        if self.plot_setup.log_scale is True:
+            pxx = np.log10(pxx)
+            log10 = r"$\mathregular{log_{10}}$"
+        else:
+            log10 = ""
+
+        # Plot PSD
+        ax.plot(f, pxx)
+        column = srs.column
+        units = srs.units
+        ylabel = f"{log10} {column} PSD ($\mathregular{{({units})^2/Hz}})$".lstrip()
+        ax.set_ylabel(ylabel)
+
+    def _set_gridlines(self):
+        # Set displayed gridlines
+        # If primary axis not used, switch gridlines axis 2
+
+        axis1_is_plotted = self.plot_setup.axis1_is_plotted
+        axis2_is_plotted = self.plot_setup.axis2_is_plotted
+
+        if not axis1_is_plotted and axis2_is_plotted:
+            self.ax1.grid(False)
+            self.ax1b.grid(True)
+            self.ax2.grid(False)
+            self.ax2b.grid(True)
+        # Standard gridlines on axis 1
+        else:
+            self.ax1.grid(True)
+            self.ax1b.grid(False)
+            self.ax2.grid(True)
+            self.ax2b.grid(False)
+
+        if axis1_is_plotted:
+            self.ax1.yaxis.set_visible(True)
+            self.ax2.yaxis.set_visible(True)
+        else:
+            self.ax1.yaxis.set_visible(False)
+            self.ax2.yaxis.set_visible(False)
+
+        if axis2_is_plotted:
+            self.ax1b.yaxis.set_visible(True)
+            self.ax2b.yaxis.set_visible(True)
+        else:
+            self.ax1b.yaxis.set_visible(False)
+            self.ax2b.yaxis.set_visible(False)
+
+    def _plot_title(self, df=None):
         """Write main plot title."""
 
         # Store start and end timestamp of plot data for title
@@ -919,23 +947,6 @@ class RawDataDashboard(QtWidgets.QWidget):
             color=color_2H,
             weight="bold",
         )
-
-    def on_xlims_changed(self, ax):
-        # Convert to datetime
-        # self.xmin, self.xmax = mdates.num2date(ax.get_xlim())
-
-        if self.skip_on_xlims_changed is False:
-            # Store current time series axis limits
-            self.ts_xlim = tuple(round(x, 1) for x in ax.get_xlim())
-
-            # Also store current PSD axis limits so current PSD limits are retained
-            self.psd_xlim = tuple(round(x, 1) for x in self.ax2.get_xlim())
-
-            # Update PSD plot and plot title with new timestamp range
-            df_slice = self.df_plot[self.ts_xlim[0] : self.ts_xlim[1]]
-            self.plot_psd(df_slice)
-            self.plot_title(df_slice)
-            # print(f'updated xlims: {self.ts_xlim}')
 
     @staticmethod
     def format_data(y):
@@ -1463,8 +1474,7 @@ class LoggerPlotSettings(QtWidgets.QDialog):
             # This flag stops the on_xlims_change event from processing
             self.parent.skip_on_xlims_changed = True
             self.parent.calc_filtered_data()
-            # self.parent.update_plots()
-            self.parent.update_plots2()
+            self.parent.update_plots()
             self.parent.skip_on_xlims_changed = False
 
     def set_dialog_data(self):

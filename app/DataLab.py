@@ -1,7 +1,7 @@
 __author__ = "Craig Dickinson"
 __program__ = "DataLab"
-__version__ = "1.3.0.18"
-__date__ = "3 October 2019"
+__version__ = "1.3.0.19"
+__date__ = "7 October 2019"
 
 import logging
 import os
@@ -148,8 +148,8 @@ class DataLab(DataLabGui):
                 # Populate files list widget and read file
                 filename = os.path.basename(file)
                 self.rawDataModule.path_to_files = os.path.dirname(file)
-                self.rawDataModule.update_file_list_from_open_file_dialog(filename)
-                self.rawDataModule.load_file(filename, open_file_dialog=True)
+                self.rawDataModule.set_file_list_from_open_file_dialog(filename)
+                self.rawDataModule.process_file(filename, open_file_dialog=True)
             except FileNotFoundError as e:
                 self.error(str(e))
                 logging.exception(e)

@@ -1406,7 +1406,7 @@ class VesselStatsWidget(QtWidgets.QWidget):
         self.axis2Channel.addItem("None")
 
     def on_clear_datasets_clicked(self):
-        self.reset_dashboard()
+        self.clear_dashboard()
 
     def on_dataset_list_changed(self):
         self.update_channels_list()
@@ -1443,7 +1443,7 @@ class VesselStatsWidget(QtWidgets.QWidget):
             self.set_plot_data()
             self.update_plots()
 
-    def reset_dashboard(self):
+    def clear_dashboard(self):
         """Clear all stored stats datasets and reset layout."""
 
         # Set flag to prevent channel combo boxes repopulating when clear the dataset combo boxes

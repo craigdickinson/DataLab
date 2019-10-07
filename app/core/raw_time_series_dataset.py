@@ -96,13 +96,12 @@ class RawDataPlotSettings(object):
         self.axis1_series_list = [SeriesPlotData() for _ in range(self.max_num_series)]
         self.axis2_series_list = [SeriesPlotData() for _ in range(self.max_num_series)]
 
-        self.current_srs = None
-
         self.project = "Project Title"
         self.logger_id = ""
+        self.df_file = pd.DataFrame()
 
-        self.plot_pri = False
-        self.plot_sec = False
+        self.axis1_is_plotted = False
+        self.axis2_is_plotted = False
         self.plot_period = False
         self.log_scale = False
         self.psd_params_type = "default"
@@ -160,21 +159,38 @@ class RawDataPlotSettings(object):
 
 class SeriesPlotData(object):
     def __init__(self):
-        self.axis = 1
-        self.series = 1
         self.dataset_i = 0
-        self.dataset = ""
+        self.dataset = "None"
+        self.path_to_files = ""
         self.file_i = 0
-        self.file = ""
+        self.file = "-"
         self.column_i = 0
-        self.column = ""
+        self.column = "-"
         self.units = ""
+        self.filenames = []
+        self.channel_names = []
+        self.channel_units = []
         self.timestamps = []
         self.x = []
         self.y = []
         self.y_filt = []
+
+    def reset_series(self):
+        self.dataset_i = 0
+        self.dataset = "None"
+        self.path_to_files = ""
+        self.file_i = 0
+        self.file = "-"
+        self.column_i = 0
+        self.column = "-"
+        self.units = ""
+        self.filenames = []
         self.channel_names = []
         self.channel_units = []
+        self.timestamps = []
+        self.x = []
+        self.y = []
+        self.y_filt = []
 
     def set_series_data(self, df):
         """Store plot series data."""

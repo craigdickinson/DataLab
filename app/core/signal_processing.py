@@ -12,9 +12,9 @@ def calc_psd(data, fs, window="boxcar", nperseg=None, noverlap=None):
     Compute power spectral density amplitudes and frequencies of an array of time series.
     :param data: Array of time series ordered by column
     :param fs: Sampling frequency
-    :param window: Window to applied; default "boxcar" equates to no window applied
-    :param nperseg: Number of data points per ensemble; default None equates to 256 points
-    :param noverlap: Proportion of ensemble overlap; default None equates to 50% overlap
+    :param window: Window to apply; default "boxcar" equates to no window applied
+    :param nperseg: Number of data points per segment; default None equates to 256 points
+    :param noverlap: Proportion of segment overlap; default None equates to 50% overlap
     :return: Arrays of frequencies and PSD amplitudes
     """
 
