@@ -73,6 +73,9 @@ class RawDataRead(object):
                 header=self.header_rows,
                 skiprows=self.skip_rows,
             )
+
+            # Ensure column names are strings and remove any nan columns (can arise from superfluous delimiters)
+            df.columns = df.columns.astype(str)
             df = df.dropna(axis=1)
         elif self.file_format == "Fugro-csv":
             df = read_fugro_csv(filepath)
@@ -91,12 +94,23 @@ class RawDataRead(object):
         return df
 
 
-class RawDataPlotSettings(object):
+class RawDataPlotProperties(object):
+    """Contains general plot properties for the raw data dashboard."""
+
     def __init__(self):
         # Create 4 potential axis 1 and axis 2 plot series
         self.max_num_series = 4
         self.axis1_series_list = [SeriesPlotData() for _ in range(self.max_num_series)]
         self.axis2_series_list = [SeriesPlotData() for _ in range(self.max_num_series)]
+
+        # Assign axis and series numbers (more for developer reference to help identify a series)
+        for i, srs in enumerate(self.axis1_series_list):
+            srs.axis = 1
+            srs.series = i + 1
+
+        for i, srs in enumerate(self.axis2_series_list):
+            srs.axis = 2
+            srs.series = i + 1
 
         # Plot style
         plt.style.use("seaborn")
@@ -126,8 +140,7 @@ class RawDataPlotSettings(object):
             srs.color = colors2[i]
             srs.color_filt = colors2_filt[i]
 
-        self.project = "Project Title"
-        self.logger_id = ""
+        self.project_name = "Project Title"
         self.df_file = pd.DataFrame()
 
         self.axis1_is_plotted = False
@@ -182,13 +195,16 @@ class RawDataPlotSettings(object):
         self.df_plot = pd.DataFrame()
         self.plot_units = []
 
-    def reset_series_lists(self):
-        self.axis1_series_list = [SeriesPlotData() for _ in range(self.max_num_series)]
-        self.axis2_series_list = [SeriesPlotData() for _ in range(self.max_num_series)]
+    def reset(self):
+        self.__init__()
 
 
 class SeriesPlotData(object):
+    """Contains plot data and setting pertaining to a single plot series of the raw data dashboard."""
+
     def __init__(self):
+        self.axis = 1
+        self.series = 1
         self.dataset_i = 0
         self.dataset = "None"
         self.path_to_files = ""
@@ -204,12 +220,26 @@ class SeriesPlotData(object):
         self.x = []
         self.y = []
         self.y_filt = []
+        self.psd_line = None
+        self.psd_line_filt = None
+        self.label = ""
+
+        # Axes limits
+        # Initial axis limits upon loading a file
+        self.init_xlim = (0.0, 1.0)
+
+        # Current axis limits
+        self.ts_xlim = (0.0, 1.0)
+        self.psd_xlim = (0.0, 1.0)
+
+        # Plot parameters
         self.color = "b"
         self.color_filt = "r"
-        self.linestyle = "-"
-        self.linestyle_filt = "-"
+        self.linewidth = None
 
     def reset_series(self):
+        """Reset series properties pertaining to plot selection and data."""
+
         self.dataset_i = 0
         self.dataset = "None"
         self.path_to_files = ""
@@ -225,6 +255,8 @@ class SeriesPlotData(object):
         self.x = []
         self.y = []
         self.y_filt = []
+        self.handle = None
+        self.label = ""
 
     def set_series_data(self, df):
         """Store plot series data."""

@@ -362,8 +362,8 @@ class ConfigModule(QtWidgets.QWidget):
             self.loggersList.takeItem(i)
             self.del_logger = False
 
-            # Remove logger from raw data dashboard combo box
-            self.parent.rawDataModule.remove_dataset(i)
+            # Remove logger from raw data dashboard combo box (i + 1 because first index is the "None" dataset)
+            self.parent.rawDataModule.remove_dataset(i + 1)
 
             # Clear relevant dashboards if all loggers removed
             if self.loggersList.count() == 0:
