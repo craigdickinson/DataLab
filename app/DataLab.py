@@ -1,7 +1,7 @@
 __author__ = "Craig Dickinson"
 __program__ = "DataLab"
-__version__ = "1.3.0.19"
-__date__ = "7 October 2019"
+__version__ = "1.3.0.20"
+__date__ = "8 October 2019"
 
 import logging
 import os
@@ -307,8 +307,8 @@ class DataLab(DataLabGui):
         """Show raw data plot settings window."""
 
         # Set current parameters from time series plot widget class
-        self.rawDataModule.plotSettings.set_dialog_data()
-        self.rawDataModule.plotSettings.show()
+        self.rawDataModule.plotControls.set_dialog_data()
+        self.rawDataModule.plotControls.show()
 
     def open_spect_plot_settings(self):
         """Show spectrogram plot settings window."""
@@ -832,6 +832,8 @@ def run_datalab():
         app = QtWidgets.QApplication(sys.argv)
     # win = QtDesignerGui()
     win = DataLab()
+    filepath = r"C:\Users\dickinsc\PycharmProjects\DataLab\demo_data\2. Project Configs\Project 21239\21239_Total_WoS_Config.json"
+    win.projConfigModule.load_config_file(filepath)
     win.show()
     sys.exit(app.exec_())
 

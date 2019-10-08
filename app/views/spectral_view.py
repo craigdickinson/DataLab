@@ -167,7 +167,7 @@ class SpectrogramWidget(QtWidgets.QWidget):
         self.fig.subplots_adjust(hspace=0.05)
 
     def on_clear_datasets_clicked(self):
-        self.reset_dashboard()
+        self.clear_dashboard()
 
     def on_open_plot_settings_clicked(self):
         self.plotSettings.get_params()
@@ -261,7 +261,7 @@ class SpectrogramWidget(QtWidgets.QWidget):
         )
         # self.parent.statusbar.showMessage('')
 
-    def reset_dashboard(self):
+    def clear_dashboard(self):
         """Clear all stored spectrogram datasets and reset layout."""
 
         self.datasets = {}

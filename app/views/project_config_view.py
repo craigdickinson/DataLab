@@ -197,41 +197,12 @@ class ConfigModule(QtWidgets.QWidget):
         if not self.parent:
             return
 
-        filename, _ = QtWidgets.QFileDialog.getOpenFileName(
+        filepath, _ = QtWidgets.QFileDialog.getOpenFileName(
             self, caption="Open Config File", filter="Config Files (*.json)"
         )
 
-        if filename:
-            try:
-                # JSON config class - holds config data dictionary
-                config = ProjectConfigJSONFile()
-
-                # Connect warning signal
-                config.signal_warning.connect(self.warning)
-
-                # Read JSON file and store data in config object
-                config.load_config_data(filename)
-
-                # Map JSON data to new objects that hold various setup data
-                self.control = config.map_json_to_control(Control())
-                self.scatter = config.map_json_to_seascatter(Seascatter())
-                self.tf = config.map_json_to_transfer_functions(TransferFunctions())
-
-                # Assign config data to control object and project dashboard
-                self._set_dashboards_on_load_config()
-                self.parent.set_window_title(filename)
-            except InputError as e:
-                self.parent.error(str(e))
-                logging.exception(e)
-            except Exception as e:
-                msg = "Unexpected error loading config file"
-                self.parent.error(f"{msg}:\n{e}\n{sys.exc_info()[0]}")
-                logging.exception(e)
-
-        # Map settings objects to parent DataLab object
-        self.parent.control = self.control
-        self.parent.scatter = self.scatter
-        self.parent.tf = self.tf
+        if filepath:
+            self.load_config_file(filepath)
 
     def on_save_config_clicked(self):
         """Save project configuration settings as a dictionary to a JSON file."""
@@ -471,6 +442,40 @@ class ConfigModule(QtWidgets.QWidget):
     def on_calc_fatigue_clicked(self):
         self.parent.calc_fatigue()
 
+    def load_config_file(self, filepath):
+        """Load config file and map properties."""
+
+        try:
+            # JSON config class - holds config data dictionary
+            config = ProjectConfigJSONFile()
+
+            # Connect warning signal
+            config.signal_warning.connect(self.warning)
+
+            # Read JSON file and store data in config object
+            config.load_config_data(filepath)
+
+            # Map JSON data to new objects that hold various setup data
+            self.control = config.map_json_to_control(Control())
+            self.scatter = config.map_json_to_seascatter(Seascatter())
+            self.tf = config.map_json_to_transfer_functions(TransferFunctions())
+
+            # Assign config data to control object and project dashboard
+            self._set_dashboards_on_load_config()
+            self.parent.set_window_title(filepath)
+        except InputError as e:
+            self.parent.error(str(e))
+            logging.exception(e)
+        except Exception as e:
+            msg = "Unexpected error loading config file"
+            self.parent.error(f"{msg}:\n{e}\n{sys.exc_info()[0]}")
+            logging.exception(e)
+
+        # Map settings objects to parent DataLab object
+        self.parent.control = self.control
+        self.parent.scatter = self.scatter
+        self.parent.tf = self.tf
+
     def update_logger_id_list(self, logger_id, logger_idx):
         """Update logger name in the loggers list if logger id in edit dialog is changed."""
 
@@ -535,10 +540,10 @@ class ConfigModule(QtWidgets.QWidget):
                 item = QtWidgets.QListWidgetItem(logger.logger_id)
                 item.setFlags(item.flags() | QtCore.Qt.ItemIsEditable)
                 self.loggersList.addItem(item)
-                self.parent.repaint()
+                self.repaint()
                 msg = f"Retrieving {logger.logger_id} raw file names..."
                 self.parent.statusbar.showMessage(msg)
-                self.parent.repaint()
+                self.repaint()
 
                 # Attempt to retrieve raw filenames to populate dashboard
                 try:

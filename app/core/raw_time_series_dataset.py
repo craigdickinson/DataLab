@@ -2,10 +2,12 @@
 
 __author__ = "Craig Dickinson"
 
+import matplotlib.pyplot as plt
 import pandas as pd
+import seaborn as sns
 
 from logger_properties import LoggerProperties
-from read_files import read_fugro_csv, read_pulse_acc, read_2hps2_acc
+from read_files import read_2hps2_acc, read_fugro_csv, read_pulse_acc
 
 
 class RawDataRead(object):
@@ -96,6 +98,34 @@ class RawDataPlotSettings(object):
         self.axis1_series_list = [SeriesPlotData() for _ in range(self.max_num_series)]
         self.axis2_series_list = [SeriesPlotData() for _ in range(self.max_num_series)]
 
+        # Plot style
+        plt.style.use("seaborn")
+
+        # Assign plot colours for each series
+        # Use paired colour palette, selecting the even/odd item of each pairing
+        # colors1 = [c for i, c in enumerate(sns.color_palette("Paired").as_hex()) if i % 2 == 0]
+        # colors1_filt = [c for i, c in enumerate(sns.color_palette("Paired").as_hex()) if i % 2 == 1]
+        # colors2 = [c for i, c in enumerate(sns.color_palette("Paired").as_hex()) if i % 2 == 0]
+        # colors_filt = [c for i, c in enumerate(sns.color_palette("Paired").as_hex()) if i % 2 == 1]
+
+        colors1_idx = [0, 1, 2, 3]
+        colors1 = [sns.color_palette("muted").as_hex()[i] for i in colors1_idx]
+        colors1_filt = [sns.color_palette("dark").as_hex()[i] for i in colors1_idx]
+
+        colors2_idx = [6, 7, 8, 9]
+        colors2 = [sns.color_palette("muted").as_hex()[i] for i in colors2_idx]
+        colors2_filt = [sns.color_palette("dark").as_hex()[i] for i in colors2_idx]
+
+        # print(plt.rcParams['axes.prop_cycle'].by_key()['color'])
+
+        for i, srs in enumerate(self.axis1_series_list):
+            srs.color = colors1[i]
+            srs.color_filt = colors1_filt[i]
+
+        for i, srs in enumerate(self.axis2_series_list):
+            srs.color = colors2[i]
+            srs.color_filt = colors2_filt[i]
+
         self.project = "Project Title"
         self.logger_id = ""
         self.df_file = pd.DataFrame()
@@ -174,6 +204,10 @@ class SeriesPlotData(object):
         self.x = []
         self.y = []
         self.y_filt = []
+        self.color = "b"
+        self.color_filt = "r"
+        self.linestyle = "-"
+        self.linestyle_filt = "-"
 
     def reset_series(self):
         self.dataset_i = 0

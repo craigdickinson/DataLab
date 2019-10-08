@@ -10,12 +10,13 @@ from glob import glob
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from PyQt5 import QtCore, QtWidgets
+from PyQt5 import QtWidgets
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 
 from app.core.azure_cloud_storage import connect_to_azure_account, stream_blob
 from app.core.control import Control
+from app.core.raw_time_series_dataset import RawDataPlotSettings, RawDataRead
 from app.core.read_files import (
     read_2hps2_acc,
     read_fugro_csv,
@@ -23,7 +24,6 @@ from app.core.read_files import (
     read_logger_txt,
     read_pulse_acc,
 )
-from app.core.raw_time_series_dataset import RawDataRead, RawDataPlotSettings
 from app.core.signal_processing import calc_psd, filter_signal
 
 # from gui.gui_zoom_pan_factory import ZoomPan
@@ -52,9 +52,6 @@ class RawDataDashboard(QtWidgets.QWidget):
         self.path_to_files = ""
         self.df = pd.DataFrame()
 
-        # Plot settings
-        plt.style.use("seaborn")
-
         self._init_ui()
         self._connect_signals()
 
@@ -62,7 +59,7 @@ class RawDataDashboard(QtWidgets.QWidget):
         self.plot_setup = RawDataPlotSettings()
 
         # Instantiate plot settings dialog
-        self.plotSettings = LoggerPlotSettings(self, self.plot_setup)
+        self.plotControls = PlotControlsDialog(self, self.plot_setup)
 
     def _init_ui(self):
         # WIDGETS
@@ -195,14 +192,14 @@ class RawDataDashboard(QtWidgets.QWidget):
             srs.filenames = filenames
             self._set_file_list(filenames)
 
-            columns = self.proj_datasets[i].channel_names
-            srs.channel_names = columns
-            self._set_column_list(columns)
+            # columns = self.proj_datasets[i].channel_names
+            # srs.channel_names = columns
+            # self._set_column_list(columns)
 
             if self.fileList.count() > 0:
-                if srs.file_i > -1:
+                try:
                     self.fileList.setCurrentRow(srs.file_i)
-                else:
+                except Exception:
                     self.fileList.setCurrentRow(0)
 
                 filename = self.fileList.currentItem().text()
@@ -246,8 +243,8 @@ class RawDataDashboard(QtWidgets.QWidget):
     def on_plot_settings_clicked(self):
         """Show plot options window."""
 
-        self.plotSettings.set_dialog_data()
-        self.plotSettings.show()
+        self.plotControls.set_dialog_data()
+        self.plotControls.show()
 
     def on_xlims_changed(self, ax):
         # Convert to datetime
@@ -274,10 +271,10 @@ class RawDataDashboard(QtWidgets.QWidget):
         self.plot_setup.reset_series_lists()
         self.datasetCombo.clear()
         self.datasetCombo.addItem("None")
-        self.fileList.clear()
-        self.columnList.clear()
         self.lblFile.setText("-")
         self.lblColumn.setText("-")
+        self.fileList.clear()
+        self.columnList.clear()
         self.draw_axes()
         self.fig.tight_layout()
         self.canvas.draw()
@@ -434,21 +431,20 @@ class RawDataDashboard(QtWidgets.QWidget):
         # Get and column names and units from data frame
         channel_names, channel_units = self._get_columns()
 
-        # Store channel names and units in plot setup
-        srs.channel_names = channel_names
-        srs.channel_units = channel_units
-
-        # Check if series' channel names have changed and update column list widget if so
-        if self.columnList.count() == 0 or channel_names != srs.channel_names:
-            self._set_column_list(channel_names)
-
-            # Set flag to set x axis limits to full extent of time series
+        # Set flag to set x axis limits to full extent of time series
+        if self.columnList.count() == 0:
             self.plot_setup.set_init_axis_limits = True
 
+        # Check if series' channel names have changed and update column list widget if so
+        # if self.columnList.count() == 0 or channel_names != srs.channel_names:
+        srs.channel_names = channel_names
+        srs.channel_units = channel_units
+        self._set_column_list(channel_names)
+
         # Select channel
-        if srs.column_i > -1:
+        try:
             self.columnList.setCurrentRow(srs.column_i)
-        else:
+        except Exception:
             self.columnList.setCurrentRow(0)
 
     def get_series(self):
@@ -677,7 +673,6 @@ class RawDataDashboard(QtWidgets.QWidget):
         self.plot_setup.axis2_is_plotted = axis2_is_plotted
 
         self.plot_psd()
-
         self._set_gridlines()
 
         # Apply axis limits of full file if a new file or a file with a different number of columns is loaded
@@ -702,15 +697,17 @@ class RawDataDashboard(QtWidgets.QWidget):
         )
 
         # Ensure plots don't overlap suptitle and legend
-        self.fig.tight_layout(
-            rect=[0, 0.05, 1, 0.9]
-        )  # (rect=[left, bottom, right, top])
+        # self.fig.tight_layout(rect=[0, 0.05, 1, 0.9])
+        # self.fig.tight_layout(rect=[0, 0.05, 1, 0.95])
+        # (rect=[left, bottom, right, top])
+        self.fig.subplots_adjust(
+            left=0.06, bottom=0.15, right=0.94, top=0.9, hspace=0.4
+        )
         # (left, bottom, right, top, wspace, hspace)
-        # self.fig.subplots_adjust(bottom=.15, top=.85, hspace=.5)
         self.canvas.draw()
 
         # Update parameters in plot settings window (could be open)
-        self.plotSettings.set_dialog_data()
+        self.plotControls.set_dialog_data()
 
     def draw_axes(self):
         """Set up basic plot layout."""
@@ -772,31 +769,12 @@ class RawDataDashboard(QtWidgets.QWidget):
                 self.add_line_plot(srs, ax=self.ax1b, filtered=False)
                 axis2_is_plotted = True
 
-            # Plot filtered time series
+            # # Plot filtered time series
             if len(srs.y_filt) > 0:
                 self.add_line_plot(srs, ax=self.ax1b, filtered=True)
                 axis2_is_plotted = True
 
         return axis1_is_plotted, axis2_is_plotted
-
-    @staticmethod
-    def add_line_plot(srs, ax, filtered):
-        """Add line plot."""
-
-        if filtered is True:
-            y = srs.y_filt
-            column = f"{srs.column} (Filtered)"
-        else:
-            y = srs.y
-            column = srs.column
-
-        x = srs.x
-        units = srs.units
-
-        # Add line plot
-        ax.plot(x, y, label=column)
-        ylabel = f"{column} ({units})"
-        ax.set_ylabel(ylabel)
 
     def plot_psd(self):
         """Plot PSD."""
@@ -823,6 +801,68 @@ class RawDataDashboard(QtWidgets.QWidget):
 
         # Store and set axis limits
         self.ax2.set_xlim(self.plot_setup.psd_xlim)
+
+    @staticmethod
+    def add_line_plot(srs, ax, filtered):
+        """Add line plot."""
+
+        if filtered is True:
+            y = srs.y_filt
+            column = f"{srs.column} (Filtered)"
+            color = srs.color_filt
+            linestyle = srs.linestyle_filt
+        else:
+            y = srs.y
+            column = srs.column
+            color = srs.color
+            linestyle = srs.linestyle
+
+        x = srs.x
+        units = srs.units
+
+        # Add line plot
+        ax.plot(x, y, label=column, c=color, ls=linestyle)
+        ylabel = f"{column} ({units})"
+        ax.set_ylabel(ylabel)
+
+    def add_psd_line_plot(self, srs, ax, filtered):
+        """Add series to PSD plot."""
+
+        if filtered is True:
+            y = srs.y_filt
+            color = srs.color_filt
+            linestyle = srs.linestyle_filt
+        else:
+            y = srs.y
+            color = srs.color
+            linestyle = srs.linestyle
+
+        x = srs.x
+        df = pd.DataFrame(y, index=x)
+
+        # Calculate PSD of series
+        f, pxx = self._compute_psd(df)
+
+        # Set x-axis as frequency or period based on plot options
+        if self.plot_setup.plot_period:
+            # Handle for divide by zero
+            f = 1 / f[1:]
+            pxx = pxx[1:]
+            ax.set_xlabel("Period (s)")
+
+        # Convert PSD to log10 if plot option selected
+        if self.plot_setup.log_scale is True:
+            pxx = np.log10(pxx)
+            log10 = r"$\mathregular{log_{10}}$"
+        else:
+            log10 = ""
+
+        # Plot PSD
+        ax.plot(f, pxx, c=color, ls=linestyle)
+        column = srs.column
+        units = srs.units
+        ylabel = f"{log10} {column} PSD ($\mathregular{{({units})^2/Hz}})$".lstrip()
+        ax.set_ylabel(ylabel)
 
     def _compute_psd(self, df):
         """Compute PSD of all channels using the Welch method."""
@@ -859,41 +899,6 @@ class RawDataDashboard(QtWidgets.QWidget):
         self.plot_setup.fs = int(fs)
 
         return f, pxx
-
-    def add_psd_line_plot(self, srs, ax, filtered):
-        """Add series to PSD plot."""
-
-        if filtered is True:
-            y = srs.y_filt
-        else:
-            y = srs.y
-
-        x = srs.x
-        df = pd.DataFrame(y, index=x)
-
-        # Calculate PSD of series
-        f, pxx = self._compute_psd(df)
-
-        # Set x-axis as frequency or period based on plot options
-        if self.plot_setup.plot_period:
-            # Handle for divide by zero
-            f = 1 / f[1:]
-            pxx = pxx[1:]
-            ax.set_xlabel("Period (s)")
-
-        # Convert PSD to log10 if plot option selected
-        if self.plot_setup.log_scale is True:
-            pxx = np.log10(pxx)
-            log10 = r"$\mathregular{log_{10}}$"
-        else:
-            log10 = ""
-
-        # Plot PSD
-        ax.plot(f, pxx)
-        column = srs.column
-        units = srs.units
-        ylabel = f"{log10} {column} PSD ($\mathregular{{({units})^2/Hz}})$".lstrip()
-        ax.set_ylabel(ylabel)
 
     def _set_gridlines(self):
         # Set displayed gridlines
@@ -939,12 +944,12 @@ class RawDataDashboard(QtWidgets.QWidget):
         except:
             subtitle = f"{self.plot_setup.logger_id}"
 
-        title = self.plot_setup.project + "\n" + subtitle
+        title = f"{self.plot_setup.project} {subtitle}"
         self.fig.suptitle(
             title,
             # size=16,
             fontname="tahoma",
-            color=color_2H,
+            # color=color_2H,
             weight="bold",
         )
 
@@ -1186,9 +1191,9 @@ class RawDataDashboard(QtWidgets.QWidget):
     #     return df_plot
 
 
-class LoggerPlotSettings(QtWidgets.QDialog):
+class PlotControlsDialog(QtWidgets.QDialog):
     def __init__(self, parent=None, plot_settings=RawDataPlotSettings()):
-        super(LoggerPlotSettings, self).__init__(parent)
+        super(PlotControlsDialog, self).__init__(parent)
 
         self.parent = parent
         self.plot_settings = plot_settings
