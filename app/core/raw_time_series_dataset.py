@@ -191,9 +191,6 @@ class RawDataPlotProperties(object):
 
         # To hold file data
         self.df = pd.DataFrame()
-        self.df_filtered = pd.DataFrame()
-        self.df_plot = pd.DataFrame()
-        self.plot_units = []
 
     def reset(self):
         self.__init__()

@@ -66,29 +66,38 @@ class RawDataDashboard(QtWidgets.QWidget):
 
     def _init_ui(self):
         # WIDGETS
-        self.clearDatasetsButton = QtWidgets.QPushButton("Clear Datasets")
-        self.clearDatasetsButton.setShortcut("Ctrl+C")
-        self.lblAxis = QtWidgets.QLabel("Axis:")
         self.axisCombo = QtWidgets.QComboBox()
         self.axisCombo.setFixedWidth(40)
         self.axisCombo.addItems(["1", "2"])
-        self.lblSeries = QtWidgets.QLabel("Series number:")
         self.seriesCombo = QtWidgets.QComboBox()
         self.seriesCombo.setFixedWidth(40)
         self.seriesCombo.addItems(["1", "2", "3", "4"])
-        self.lblDataset = QtWidgets.QLabel("Dataset:")
         self.datasetCombo = QtWidgets.QComboBox()
         self.datasetCombo.addItem("None")
+        self.fileList = QtWidgets.QListWidget()
+        self.columnsLabel = QtWidgets.QLabel("Columns")
+        self.columnList = QtWidgets.QListWidget()
+        self.columnList.setFixedHeight(90)
+        self.lowCutoff = QtWidgets.QLineEdit("None")
+        self.lowCutoff.setFixedWidth(50)
+        self.highCutoff = QtWidgets.QLineEdit("None")
+        self.highCutoff.setFixedWidth(50)
+        self.plotFiltOnlyChkBox = QtWidgets.QCheckBox("Plot filtered only")
+        self.clearButton = QtWidgets.QPushButton("Clear Datasets")
+        self.clearButton.setShortcut("Ctrl+C")
+        self.plotSettingsButton = QtWidgets.QPushButton("Plot Settings...")
+
+        # Labels
+        self.lblAxis = QtWidgets.QLabel("Axis:")
+        self.lblDataset = QtWidgets.QLabel("Dataset:")
+        self.lblSeries = QtWidgets.QLabel("Series number:")
         self.lblSelectedFile = QtWidgets.QLabel("Selected file:")
         self.lblFile = QtWidgets.QLabel("-")
         self.lblSelectedColumn = QtWidgets.QLabel("Selected column:")
         self.lblColumn = QtWidgets.QLabel("-")
         self.lblFiles = QtWidgets.QLabel("Files")
-        self.fileList = QtWidgets.QListWidget()
-        self.columnsLabel = QtWidgets.QLabel("Columns")
-        self.columnList = QtWidgets.QListWidget()
-        self.columnList.setFixedHeight(120)
-        self.plotSettingsButton = QtWidgets.QPushButton("Plot Settings...")
+        self.lblLowCutoff = QtWidgets.QLabel("Low freq cut-off (Hz):")
+        self.lblHighCutoff = QtWidgets.QLabel("High freq cut-off (Hz):")
 
         # Plot figure and canvas to display figure
         self.fig, (self.ax1, self.ax2) = plt.subplots(2)
@@ -111,8 +120,8 @@ class RawDataDashboard(QtWidgets.QWidget):
         self.formColumn.addRow(self.lblSelectedColumn, self.lblColumn)
 
         # Plot selection group
-        self.plotGroup = QtWidgets.QGroupBox("Select Plot Data")
-        self.vboxSelect = QtWidgets.QVBoxLayout(self.plotGroup)
+        self.selectGroup = QtWidgets.QGroupBox("Select Plot Data")
+        self.vboxSelect = QtWidgets.QVBoxLayout(self.selectGroup)
         self.vboxSelect.addLayout(self.formSelection)
         self.vboxSelect.addLayout(self.formFile)
         self.vboxSelect.addLayout(self.formColumn)
@@ -121,13 +130,25 @@ class RawDataDashboard(QtWidgets.QWidget):
         self.vboxSelect.addWidget(self.columnsLabel)
         self.vboxSelect.addWidget(self.columnList)
 
+        # Filter cut-off frequencies group
+        self.filterGroup = QtWidgets.QGroupBox("Selected Series Settings")
+        self.filterForm = QtWidgets.QFormLayout(self.filterGroup)
+        self.filterForm.addRow(self.lblLowCutoff, self.lowCutoff)
+        self.filterForm.addRow(self.lblHighCutoff, self.highCutoff)
+        self.filterForm.addRow("", self.plotFiltOnlyChkBox)
+
+        # Buttons containers
+        self.hboxButtons = QtWidgets.QHBoxLayout()
+        self.hboxButtons.addWidget(self.clearButton)
+        self.hboxButtons.addWidget(self.plotSettingsButton)
+
         # Setup container
         self.setupWidget = QtWidgets.QWidget()
         self.setupWidget.setFixedWidth(250)
         self.vboxSetup = QtWidgets.QVBoxLayout(self.setupWidget)
-        self.vboxSetup.addWidget(self.clearDatasetsButton)
-        self.vboxSetup.addWidget(self.plotGroup)
-        self.vboxSetup.addWidget(self.plotSettingsButton)
+        self.vboxSetup.addWidget(self.selectGroup)
+        self.vboxSetup.addWidget(self.filterGroup)
+        self.vboxSetup.addLayout(self.hboxButtons)
 
         # Plot container
         self.vbox = QtWidgets.QVBoxLayout()
@@ -140,7 +161,7 @@ class RawDataDashboard(QtWidgets.QWidget):
         self.layout.addLayout(self.vbox)
 
     def _connect_signals(self):
-        self.clearDatasetsButton.clicked.connect(self.on_clear_datasets_clicked)
+        self.clearButton.clicked.connect(self.on_clear_datasets_clicked)
         self.axisCombo.currentIndexChanged.connect(self.on_axis_changed)
         self.seriesCombo.currentIndexChanged.connect(self.on_series_changed)
         self.datasetCombo.currentIndexChanged.connect(self.on_dataset_changed)
@@ -697,8 +718,8 @@ class RawDataDashboard(QtWidgets.QWidget):
         # Labels
         self.ax1.set_title("Time Series")
         self.ax2.set_title("Power Spectral Density")
-        self.ax1.set_xlabel("Time (s)")
-        self.ax2.set_xlabel("Frequency (Hz)")
+        self.ax1.set_xlabel("Time (s)", size=10)
+        self.ax2.set_xlabel("Frequency (Hz)", size=10)
 
         # TODO: Mouse scroll zoom - works
         # f = self.zoom_factory(self.ax, base_scale=1.1)
@@ -805,7 +826,7 @@ class RawDataDashboard(QtWidgets.QWidget):
         # Add line plot
         ax.plot(x, y, label=label, c=color, lw=linewidth)
         ylabel = units
-        ax.set_ylabel(ylabel)
+        ax.set_ylabel(ylabel, size=10)
 
     def add_psd_line_plot(self, srs, ax, filtered):
         """Compute PSD of a single series and plot."""
@@ -836,18 +857,15 @@ class RawDataDashboard(QtWidgets.QWidget):
         # Convert PSD to log10 if plot option selected
         if self.plot_setup.log_scale is True:
             pxx = np.log10(pxx)
-            log10 = r"$\mathregular{log_{10}}$"
+            ylabel = f"$\mathregular{{log_{{10}} [({srs.units})^2/Hz}}]$".strip()
         else:
-            log10 = ""
+            ylabel = f"$\mathregular{{({srs.units})^2/Hz}}$".strip()
 
         linewidth = srs.linewidth
 
         # Plot PSD
         line, = ax.plot(f, pxx, c=color, lw=linewidth)
-        column = srs.column
-        units = srs.units
-        ylabel = f"{log10} {column} PSD ($\mathregular{{({units})^2/Hz}})$".lstrip()
-        ax.set_ylabel(ylabel)
+        ax.set_ylabel(ylabel, size=10)
 
         # Return line handle
         return line
@@ -921,7 +939,7 @@ class RawDataDashboard(QtWidgets.QWidget):
             self.ax1b.yaxis.set_visible(False)
             self.ax2b.yaxis.set_visible(False)
 
-    def _set_title(self, df=None):
+    def _set_title(self):
         """Write main plot title."""
 
         # Store start and end timestamp of plot data for title
@@ -937,7 +955,7 @@ class RawDataDashboard(QtWidgets.QWidget):
             title,
             # size=16,
             fontname="tahoma",
-            # color=color_2H,
+            color=color_2H,
             weight="bold",
         )
 
