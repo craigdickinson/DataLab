@@ -34,6 +34,13 @@ from app.core.file_props_pulse_acc import (
 from app.core.logger_properties import LoggerError, LoggerProperties
 from app.core.project_config import ProjectConfigJSONFile
 
+# Module variables: Logger properties lists and dictionaries
+delims_gui_to_logger = {"comma": ",", "space": " ", "tab": "\t"}
+delims_logger_to_gui = {",": "comma", " ": "space", "\t": "tab"}
+file_types = ["General-csv", "Fugro-csv", "Pulse-acc", "2HPS2-acc"]
+index_types = ["Timestamp", "Time Step"]
+delimiters = ["comma", "space", "tab"]
+
 
 class ConfigModule(QtWidgets.QWidget):
     """Main screen containing project configuration setup."""
@@ -460,6 +467,9 @@ class ConfigModule(QtWidgets.QWidget):
             self.scatter = config.map_json_to_seascatter(Seascatter())
             self.tf = config.map_json_to_transfer_functions(TransferFunctions())
 
+            # Check a logger file formats exist in the drop-down
+            self._check_logger_file_formats(self.control.loggers)
+
             # Assign config data to control object and project dashboard
             self._set_dashboards_on_load_config()
             self.parent.set_window_title(filepath)
@@ -475,6 +485,18 @@ class ConfigModule(QtWidgets.QWidget):
         self.parent.control = self.control
         self.parent.scatter = self.scatter
         self.parent.tf = self.tf
+
+    def _check_logger_file_formats(self, loggers):
+        """Check that all logger file formats are selectable in the logger properties drop-down."""
+
+        for logger in loggers:
+            if logger.file_format not in file_types:
+                msg = (
+                    f"{logger.logger_id} file format '{logger.file_format}' is not a selectable file format.\n\n"
+                    f"File format has been set to '{file_types[0]}'. Check logger properties."
+                )
+                logger.file_format = file_types[0]
+                self.warning(msg)
 
     def update_logger_id_list(self, logger_id, logger_idx):
         """Update logger name in the loggers list if logger id in edit dialog is changed."""
@@ -772,8 +794,6 @@ class EditCampaignInfoDialog(QtWidgets.QDialog):
 class LoggerPropertiesTab(QtWidgets.QWidget):
     """Widget tabs for logger properties and analysis settings."""
 
-    delims_logger_to_gui = {",": "comma", " ": "space", "\t": "tab"}
-
     def __init__(self, parent=None, control=Control()):
         super(LoggerPropertiesTab, self).__init__(parent)
 
@@ -919,7 +939,7 @@ class LoggerPropertiesTab(QtWidgets.QWidget):
         self.fileTimestampFormat.setText(logger.file_timestamp_format)
         self.firstColData.setText(logger.first_col_data)
         self.fileExt.setText(logger.file_ext)
-        self.fileDelimiter.setText(self.delims_logger_to_gui[logger.file_delimiter])
+        self.fileDelimiter.setText(delims_logger_to_gui[logger.file_delimiter])
         self.numHeaderRows.setText(str(logger.num_headers))
         self.numColumns.setText(str(logger.num_columns))
         self.channelHeaderRow.setText(str(logger.channel_header_row))
@@ -950,12 +970,6 @@ class LoggerPropertiesTab(QtWidgets.QWidget):
 
 
 class EditLoggerPropertiesDialog(QtWidgets.QDialog):
-    delims_gui_to_logger = {"comma": ",", "space": " ", "tab": "\t"}
-    delims_logger_to_gui = {",": "comma", " ": "space", "\t": "tab"}
-    file_types = ["General-csv", "Fugro-csv", "Pulse-acc", "2HPS2-acc"]
-    index_types = ["Timestamp", "Time Step"]
-    delimiters = ["comma", "space", "tab"]
-
     def __init__(self, parent=None, control=Control(), logger_idx=0):
         super(EditLoggerPropertiesDialog, self).__init__(parent)
 
@@ -1009,7 +1023,7 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
         self.browseButton.setSizePolicy(policy)
         self.fileFormat = QtWidgets.QComboBox()
         self.fileFormat.setFixedWidth(100)
-        self.fileFormat.addItems(self.file_types)
+        self.fileFormat.addItems(file_types)
         self.fileTimestampEmbeddedChkBox = QtWidgets.QCheckBox(
             "Timestamp embedded in file name"
         )
@@ -1038,12 +1052,12 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
         self.fileTimestampFormat.setToolTip(msg)
         self.firstColData = QtWidgets.QComboBox()
         self.firstColData.setFixedWidth(100)
-        self.firstColData.addItems(self.index_types)
+        self.firstColData.addItems(index_types)
         self.fileExt = QtWidgets.QLineEdit()
         self.fileExt.setFixedWidth(30)
         self.fileDelimiter = QtWidgets.QComboBox()
         self.fileDelimiter.setFixedWidth(60)
-        self.fileDelimiter.addItems(self.delimiters)
+        self.fileDelimiter.addItems(delimiters)
         self.numHeaderRows = QtWidgets.QLineEdit()
         self.numHeaderRows.setFixedWidth(30)
         self.numHeaderRows.setValidator(int_validator)
@@ -1190,9 +1204,7 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
         self.fileTimestampFormat.setText(logger.file_timestamp_format)
         self.firstColData.setCurrentText(logger.first_col_data)
         self.fileExt.setText(logger.file_ext)
-        self.fileDelimiter.setCurrentText(
-            self.delims_logger_to_gui[logger.file_delimiter]
-        )
+        self.fileDelimiter.setCurrentText(delims_logger_to_gui[logger.file_delimiter])
         self.numHeaderRows.setText(str(logger.num_headers))
         self.channelHeaderRow.setText(str(logger.channel_header_row))
         self.unitsHeaderRow.setText(str(logger.units_header_row))
@@ -1341,9 +1353,7 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
             self.fileTimestampEmbeddedChkBox.setChecked(False)
         self.firstColData.setCurrentText(logger.first_col_data)
         self.fileExt.setText(logger.file_ext)
-        self.fileDelimiter.setCurrentText(
-            self.delims_logger_to_gui[logger.file_delimiter]
-        )
+        self.fileDelimiter.setCurrentText(delims_logger_to_gui[logger.file_delimiter])
         self.numHeaderRows.setText(str(logger.num_headers))
         self.channelHeaderRow.setText(str(logger.channel_header_row))
         self.unitsHeaderRow.setText(str(logger.units_header_row))
@@ -1466,7 +1476,7 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
                 # Set current file format properties in the dialog
                 test_logger.file_format = "General-csv"
                 test_logger.file_ext = self.fileExt.text()
-                test_logger.file_delimiter = self.delims_gui_to_logger[
+                test_logger.file_delimiter = delims_gui_to_logger[
                     self.fileDelimiter.currentText()
                 ]
                 test_logger.num_headers = int(self.numHeaderRows.text())
@@ -1577,9 +1587,7 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
         logger.file_timestamp_format = self.fileTimestampFormat.text()
         logger.first_col_data = self.firstColData.currentText()
         logger.file_ext = self.fileExt.text()
-        logger.file_delimiter = self.delims_gui_to_logger[
-            self.fileDelimiter.currentText()
-        ]
+        logger.file_delimiter = delims_gui_to_logger[self.fileDelimiter.currentText()]
         logger.num_headers = int(self.numHeaderRows.text())
         logger.channel_header_row = int(self.channelHeaderRow.text())
         logger.units_header_row = int(self.unitsHeaderRow.text())

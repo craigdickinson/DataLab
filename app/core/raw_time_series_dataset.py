@@ -60,36 +60,31 @@ class RawDataRead(object):
         else:
             self.header_rows = [header_row, units_row]
 
-    def read_file(self, filepath):
+    def read_file(self, file):
         """Read time series file into data frame using logger file format settings."""
-
-        df = pd.DataFrame()
 
         # Read data to data frame
         if self.file_format == "General-csv":
             df = pd.read_csv(
-                filepath,
+                file,
                 sep=self.delim,
                 header=self.header_rows,
                 skiprows=self.skip_rows,
+                skip_blank_lines=False,
             )
-
             # Ensure column names are strings and remove any nan columns (can arise from superfluous delimiters)
             df.columns = df.columns.astype(str)
             df = df.dropna(axis=1)
+
+            # TODO: Need to process if column 1 is timestamps
         elif self.file_format == "Fugro-csv":
-            df = read_fugro_csv(filepath)
-            # df = pd.read_csv(
-            #     filename,
-            #     sep=self.delim,
-            #     header=self.header_rows,
-            #     skiprows=self.skip_rows,
-            #     encoding="latin1",
-            # )
+            df = read_fugro_csv(file)
         elif self.file_format == "Pulse-acc":
-            df = read_pulse_acc(filepath, multi_header=True)
+            df = read_pulse_acc(file, multi_header=True)
         elif self.file_format == "2HPS2-acc":
-            df = read_2hps2_acc(filepath, multi_header=True)
+            df = read_2hps2_acc(file, multi_header=True)
+        else:
+            df = pd.DataFrame()
 
         return df
 
@@ -220,6 +215,10 @@ class SeriesPlotData(object):
         self.psd_line = None
         self.psd_line_filt = None
         self.label = ""
+
+        # Filters
+        self.low_cutoff = None
+        self.high_cutoff = None
 
         # Axes limits
         # Initial axis limits upon loading a file

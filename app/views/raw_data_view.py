@@ -79,9 +79,9 @@ class RawDataDashboard(QtWidgets.QWidget):
         self.columnList = QtWidgets.QListWidget()
         self.columnList.setFixedHeight(90)
         self.lowCutoff = QtWidgets.QLineEdit("None")
-        self.lowCutoff.setFixedWidth(50)
+        self.lowCutoff.setFixedWidth(40)
         self.highCutoff = QtWidgets.QLineEdit("None")
-        self.highCutoff.setFixedWidth(50)
+        self.highCutoff.setFixedWidth(40)
         self.plotFiltOnlyChkBox = QtWidgets.QCheckBox("Plot filtered only")
         self.clearButton = QtWidgets.QPushButton("Clear Datasets")
         self.clearButton.setShortcut("Ctrl+C")
@@ -168,9 +168,8 @@ class RawDataDashboard(QtWidgets.QWidget):
         self.plotSettingsButton.clicked.connect(self.on_plot_settings_clicked)
         self.fileList.itemDoubleClicked.connect(self.on_file_double_clicked)
         self.columnList.itemDoubleClicked.connect(self.on_column_double_clicked)
-
-    def on_clear_datasets_clicked(self):
-        self._clear_dashboard()
+        self.lowCutoff.returnPressed.connect(self.on_low_cutoff_changed)
+        self.highCutoff.returnPressed.connect(self.on_high_cutoff_changed)
 
     def on_axis_changed(self):
         self._set_widget_series_selections()
@@ -265,6 +264,15 @@ class RawDataDashboard(QtWidgets.QWidget):
             msg = "Unexpected error updating plot"
             self.parent.error(f"{msg}:\n{e}\n{sys.exc_info()[0]}")
             logging.exception(e)
+
+    def on_low_cutoff_changed(self):
+        print(self.lowCutoff.text())
+
+    def on_high_cutoff_changed(self):
+        pass
+
+    def on_clear_datasets_clicked(self):
+        self._clear_dashboard()
 
     def on_plot_settings_clicked(self):
         """Show plot options window."""
@@ -440,7 +448,7 @@ class RawDataDashboard(QtWidgets.QWidget):
     def _process_file(self, filename):
         self.df = self._read_time_series_file(filename)
 
-        if self.df is None:
+        if self.df.empty:
             return
 
         # Get current series object
@@ -482,16 +490,16 @@ class RawDataDashboard(QtWidgets.QWidget):
             self.parent.warn_info(msg)
             logging.exception(e)
 
-            return None
+            return pd.DataFrame()
         except Exception as e:
             msg = (
                 f"Unable to load {filename} to Raw Data Inspection dashboard. "
                 f"Check file layout is suitable and logger settings are correct."
             )
-            self.parent.error(msg)
+            self.parent.error(f"{msg}\n\n{e}\n{sys.exc_info()[0]}")
             logging.exception(e)
 
-            return None
+            return pd.DataFrame()
 
     def _get_series(self):
         """Return the series object of the selected series in the dashboard."""

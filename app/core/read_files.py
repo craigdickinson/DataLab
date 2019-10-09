@@ -9,24 +9,17 @@ from datetime import datetime, timedelta
 import pandas as pd
 
 
-def read_fugro_csv(filepath):
+def read_fugro_csv(file):
     """Raw data module: Read Fugro-csv file to data frame. Index is time steps."""
 
-    try:
-        df = pd.read_csv(filepath, header=[1, 2], index_col=0, encoding="latin1")
-    except FileNotFoundError:
-        raise FileNotFoundError(f"Could not load file {filepath}. File not found.")
+    df = pd.read_csv(file, header=[1, 2], index_col=0, encoding="latin1")
 
     try:
         df.index = pd.to_datetime(df.index, format="%d-%b-%Y %H:%M:%S.%f")
     except ValueError:
-        filename = os.path.basename(filepath)
-        msg = (
-            f"Could not load {filename}.\n\nOnly CSV files in the Fugro format can be opened with the "
-            f"open file dialog.\n\nTo load generic CSV file formats, create a logger in the "
-            f"Project Config dashboard with the relevant file format properties."
+        raise ValueError(
+            "Could not convert timestamps to datetime. Expect dates in UTC format."
         )
-        raise ValueError(msg)
 
     # Calculate time delta from t0 and convert to seconds (float)
     t = (df.index - df.index[0]).total_seconds().values.round(3)
@@ -295,7 +288,7 @@ def read_stats_csv(filename):
             try:
                 # Timestamp will likely be in local (UK) format if csv file has been subsequently edited and saved
                 df.index = pd.to_datetime(df.index, format="%d/%m/%Y %H:%M")
-            except Exception as e:
+            except:
                 raise
     # Use file number as index
     else:

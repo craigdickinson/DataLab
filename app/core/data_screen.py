@@ -99,31 +99,32 @@ class DataScreen(object):
         if low_cutoff is None and high_cutoff is None:
             self.apply_filters = False
 
-    def read_logger_file(self, filename):
+    def read_logger_file(self, file):
         """Read logger file into data frame."""
-
-        df = pd.DataFrame()
 
         # Read data to data frame
         if self.file_format == "General-csv":
             df = pd.read_csv(
-                filename,
+                file,
                 sep=self.delim,
                 header=self.header_row,
                 skiprows=self.skip_rows,
+                skip_blank_lines=False,
             )
         elif self.file_format == "Fugro-csv":
             df = pd.read_csv(
-                filename,
+                file,
                 sep=self.delim,
                 header=self.header_row,
                 skiprows=self.skip_rows,
                 encoding="latin1",
             )
         elif self.file_format == "Pulse-acc":
-            df = read_pulse_acc(filename, multi_header=False)
+            df = read_pulse_acc(file, multi_header=False)
         elif self.file_format == "2HPS2-acc":
-            df = read_2hps2_acc(filename, multi_header=False)
+            df = read_2hps2_acc(file, multi_header=False)
+        else:
+            df = pd.DataFrame()
 
         return df
 

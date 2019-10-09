@@ -1,6 +1,6 @@
 __author__ = "Craig Dickinson"
 __program__ = "DataLab"
-__version__ = "2.0.0.23"
+__version__ = "2.0.0.24"
 __date__ = "9 October 2019"
 
 import logging
@@ -448,7 +448,6 @@ class DataLab(DataLabGui):
             msg = "Checking setup: Complete. Processing loggers..."
             self.statusbar.showMessage(msg)
             self.repaint()
-            self.run_screening()
         except InputError as e:
             self.statusbar.showMessage("")
             self.error(str(e))
@@ -467,9 +466,11 @@ class DataLab(DataLabGui):
             logging.exception(e)
         except Exception as e:
             self.statusbar.showMessage("")
-            msg = "Unexpected error on preparing config setup"
+            msg = "Unexpected error on checking setup"
             self.error(f"{msg}:\n{e}\n{sys.exc_info()[0]}")
             logging.exception(e)
+        else:
+            self.run_screening()
 
     def analyse_screening_setup(self):
         """Prepare and check screening setup."""
@@ -586,7 +587,7 @@ class DataLab(DataLabGui):
             self.worker.signal_error.connect(self.error)
             self.worker.start()
         except Exception as e:
-            msg = "Unexpected error on processing config setup"
+            msg = "Unexpected error during processing"
             self.error(f"{msg}:\n{e}\n{sys.exc_info()[0]}")
             logging.exception(e)
 
