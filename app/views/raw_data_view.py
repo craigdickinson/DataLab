@@ -66,8 +66,6 @@ class RawDataDashboard(QtWidgets.QWidget):
 
     def _init_ui(self):
         # WIDGETS
-        self.openRawButton = QtWidgets.QPushButton("Open Raw Logger File...")
-        self.openRawButton.setToolTip("Open raw logger data (*.csv;*.acc) (F2)")
         self.clearDatasetsButton = QtWidgets.QPushButton("Clear Datasets")
         self.clearDatasetsButton.setShortcut("Ctrl+C")
         self.lblAxis = QtWidgets.QLabel("Axis:")
@@ -127,7 +125,6 @@ class RawDataDashboard(QtWidgets.QWidget):
         self.setupWidget = QtWidgets.QWidget()
         self.setupWidget.setFixedWidth(250)
         self.vboxSetup = QtWidgets.QVBoxLayout(self.setupWidget)
-        self.vboxSetup.addWidget(self.openRawButton)
         self.vboxSetup.addWidget(self.clearDatasetsButton)
         self.vboxSetup.addWidget(self.plotGroup)
         self.vboxSetup.addWidget(self.plotSettingsButton)
@@ -169,7 +166,7 @@ class RawDataDashboard(QtWidgets.QWidget):
         if self.skip_on_dataset_changed is True:
             return
 
-        srs = self.get_series()
+        srs = self._get_series()
 
         if self.datasetCombo.currentText() == "None":
             srs.reset_series()
@@ -212,7 +209,7 @@ class RawDataDashboard(QtWidgets.QWidget):
 
                 filename = self.fileList.currentItem().text()
 
-                self.process_file(filename)
+                self._process_file(filename)
         except Exception as e:
             logging.exception(e)
 
@@ -223,7 +220,7 @@ class RawDataDashboard(QtWidgets.QWidget):
         filename = self.fileList.currentItem().text()
 
         try:
-            self.process_file(filename)
+            self._process_file(filename)
         except ValueError as e:
             self.parent.error(f"Error: {e}")
             logging.exception(e)
@@ -236,7 +233,7 @@ class RawDataDashboard(QtWidgets.QWidget):
         """Update current plot series for selected channel."""
 
         try:
-            srs = self.get_series()
+            srs = self._get_series()
             # Store gui plot selections to current series object
             srs = self._store_series_selections(srs)
             self._plot_update(srs)
@@ -288,7 +285,6 @@ class RawDataDashboard(QtWidgets.QWidget):
         self.fileList.clear()
         self.columnList.clear()
         self.draw_axes()
-        self.fig.tight_layout()
         self.canvas.draw()
         self.resetting_dashboard = False
 
@@ -334,7 +330,7 @@ class RawDataDashboard(QtWidgets.QWidget):
         self.skip_on_dataset_changed = False
 
         try:
-            srs = self.get_series()
+            srs = self._get_series()
 
             # Set file list for first dataset loaded
             srs.path_to_files = self.proj_datasets[0].path_to_files
@@ -348,7 +344,7 @@ class RawDataDashboard(QtWidgets.QWidget):
             # Plot first file
             if self.fileList.count() > 0:
                 filename = self.fileList.currentItem().text()
-                self.process_file(filename)
+                self._process_file(filename)
         except Exception as e:
             self.parent.error(str(e))
             logging.exception(e)
@@ -379,7 +375,7 @@ class RawDataDashboard(QtWidgets.QWidget):
 
         # logger_idx + 1 to account for the 'None' dataset
         if self.datasetCombo.currentIndex() == logger_idx + 1:
-            srs = self.get_series()
+            srs = self._get_series()
             srs.path_to_files = self.proj_datasets[logger_idx].path_to_files
 
             filenames = self.proj_datasets[logger_idx].filenames
@@ -406,55 +402,94 @@ class RawDataDashboard(QtWidgets.QWidget):
         self.columnList.clear()
         self.columnList.addItems(channel_names)
 
-    def set_file_list_from_open_file_dialog(self, filename):
-        """Update file list widget using a file selected using QFileDialog."""
+    def _set_widget_series_selections(self):
+        """Update plot drop-downs of selected series as per properties in associated series object."""
 
-        ext = os.path.splitext(filename)[1]
-        files = glob(self.path_to_files + "/*" + ext)
-        filenames = [os.path.basename(f) for f in files]
-        self.fileList.clear()
-        self.fileList.addItems(filenames)
-        self.fileList.setCurrentRow(filenames.index(filename))
+        srs = self._get_series()
+        self.skip_on_dataset_changed = True
+        self.datasetCombo.setCurrentIndex(srs.dataset_i)
+        self.skip_on_dataset_changed = False
+        self.lblFile.setText(srs.file)
+        self.lblColumn.setText(srs.column)
+        self._set_file_list(srs.filenames)
+        self._set_column_list(srs.channel_names)
+        self.fileList.setCurrentRow(srs.file_i)
+        self.columnList.setCurrentRow(srs.column_i)
 
-    def process_file(self, filename, open_file_dialog=False):
-        df = self.load_file(filename, open_file_dialog)
+    def _process_file(self, filename):
+        self.df = self._read_time_series_file(filename)
 
-        if df is None:
+        if self.df is None:
             return
 
         # Get current series object
-        srs = self.get_series()
+        srs = self._get_series()
 
-        self.process_time_series(srs)
+        self._process_time_series(srs)
 
         # Store gui plot selections to current series object
         srs = self._store_series_selections(srs)
 
         self._plot_update(srs)
 
-    def load_file(self, filename, open_file_dialog=False):
-        """Load logger file, update widget and plot first channel."""
+    def _read_time_series_file(self, filename):
+        """Read a raw logger file based on logger file properties provided in setup."""
 
-        # # Check if logger exists for selected dataset and retrieve logger id
-        # try:
-        #     i = self.datasetCombo.currentIndex() - 1
-        #     self.plot_setup.logger_id = self.control.logger_ids[i]
-        # # Store logger ID (assume the first portion of the filename)
-        # except Exception:
-        #     self.plot_setup.logger_id = filename.split("_")[0]
-        #     open_file_dialog = True
-        #
-        # # Read time series file to data frame
-        # if open_file_dialog is True:
-        #     self.df = self._read_logger_file_from_open_file_dialog(filename)
-        # else:
-        #     self.df = self._read_time_series_file(filename)
+        i = self.datasetCombo.currentIndex() - 1
+        dataset = self.proj_datasets[i]
+        logger = self.control.loggers[i]
 
-        self.df = self._read_time_series_file(filename)
+        try:
+            # Get filestream from Azure
+            if logger.data_on_azure:
+                blob_idx = logger.raw_filenames.index(filename)
+                blob = logger.blobs[blob_idx]
+                bloc_blob_service = connect_to_azure_account(
+                    self.control.azure_account_name, self.control.azure_account_key
+                )
+                filepath = stream_blob(bloc_blob_service, logger.container_name, blob)
+            else:
+                srs = self._get_series()
+                filepath = os.path.join(srs.path_to_files, filename)
 
-        return self.df
+            # Read file from either local file path or Azure file stream
+            df = dataset.read_file(filepath)
 
-    def process_time_series(self, srs):
+            return df
+        except FileNotFoundError as e:
+            msg = f"Attempted to load {filename} to Raw Data Inspection dashboard but file not found."
+            self.parent.warn_info(msg)
+            logging.exception(e)
+
+            return None
+        except Exception as e:
+            msg = (
+                f"Unable to load {filename} to Raw Data Inspection dashboard. "
+                f"Check file layout is suitable and logger settings are correct."
+            )
+            self.parent.error(msg)
+            logging.exception(e)
+
+            return None
+
+    def _get_series(self):
+        """Return the series object of the selected series in the dashboard."""
+
+        axis_i = self.axisCombo.currentIndex()
+        series_i = self.seriesCombo.currentIndex()
+
+        # Store current axis and series index
+        self.current_axis_i = axis_i
+        self.current_series_i = series_i
+
+        if axis_i == 0:
+            srs = self.plot_setup.axis1_series_list[series_i]
+        else:
+            srs = self.plot_setup.axis2_series_list[series_i]
+
+        return srs
+
+    def _process_time_series(self, srs):
         """Process time series data frame and plot."""
 
         # Get and column names and units from data frame
@@ -476,22 +511,26 @@ class RawDataDashboard(QtWidgets.QWidget):
         except Exception:
             self.columnList.setCurrentRow(0)
 
-    def get_series(self):
-        """Return the series object of the selected series in the dashboard."""
+    def _get_columns(self):
+        """Retrieve and store column names and units (if exist) from loaded file."""
 
-        axis_i = self.axisCombo.currentIndex()
-        series_i = self.seriesCombo.currentIndex()
+        # Store channel names and units - ignore column 1 (timestamps or time index)
+        # Also ensure str type (will be int if no header used)
+        channel_names = self.df.columns.get_level_values(0).tolist()[1:]
 
-        # Store current axis and series index
-        self.current_axis_i = axis_i
-        self.current_series_i = series_i
+        # Attempt to retrieve channel units from second column index row
+        try:
+            channel_units = self.df.columns.get_level_values(1).tolist()[1:]
+        except IndexError:
+            i = self.datasetCombo.currentIndex() - 1
 
-        if axis_i == 0:
-            srs = self.plot_setup.axis1_series_list[series_i]
-        else:
-            srs = self.plot_setup.axis2_series_list[series_i]
+            # Use units for all channels stored in control object if exists, else create dummy list
+            if self.proj_datasets[i].channel_units:
+                channel_units = self.proj_datasets[i].channel_units
+            else:
+                channel_units = ["-"] * len(channel_names)
 
-        return srs
+        return channel_names, channel_units
 
     def _store_series_selections(self, srs):
         """Retrieve current plot selections from the dashboard and store in series object."""
@@ -521,105 +560,6 @@ class RawDataDashboard(QtWidgets.QWidget):
             srs.column = self.columnList.currentItem().text()
 
         return srs
-
-    def _set_widget_series_selections(self):
-        """Update plot drop-downs of selected series as per properties in associated series object."""
-
-        srs = self.get_series()
-        self.skip_on_dataset_changed = True
-        self.datasetCombo.setCurrentIndex(srs.dataset_i)
-        self.skip_on_dataset_changed = False
-        self.lblFile.setText(srs.file)
-        self.lblColumn.setText(srs.column)
-        self._set_file_list(srs.filenames)
-        self._set_column_list(srs.channel_names)
-        self.fileList.setCurrentRow(srs.file_i)
-        self.columnList.setCurrentRow(srs.column_i)
-
-    def _read_time_series_file(self, filename):
-        """Read a raw logger file based on logger file properties provided in setup."""
-
-        i = self.datasetCombo.currentIndex() - 1
-        dataset = self.proj_datasets[i]
-        logger = self.control.loggers[i]
-
-        try:
-            # Get filestream from Azure
-            if logger.data_on_azure:
-                blob_idx = logger.raw_filenames.index(filename)
-                blob = logger.blobs[blob_idx]
-                bloc_blob_service = connect_to_azure_account(
-                    self.control.azure_account_name, self.control.azure_account_key
-                )
-                filepath = stream_blob(bloc_blob_service, logger.container_name, blob)
-            else:
-                srs = self.get_series()
-                filepath = os.path.join(srs.path_to_files, filename)
-
-            # Read file from either local file path or Azure file stream
-            df = dataset.read_file(filepath)
-
-            return df
-        except FileNotFoundError as e:
-            msg = f"Attempted to load {filename} to Raw Data Inspection dashboard but file not found."
-            self.parent.warn_info(msg)
-            logging.exception(e)
-
-            return None
-        except Exception as e:
-            msg = (
-                f"Unable to load {filename} to Raw Data Inspection dashboard. "
-                f"Check file layout is suitable and logger settings are correct."
-            )
-            self.parent.error(msg)
-            logging.exception(e)
-
-            return None
-
-    def _read_logger_file_from_open_file_dialog(self, filename):
-        """Read a raw logger file."""
-
-        ext = filename.split(".")[-1].lower()
-        file = os.path.join(self.path_to_files, filename)
-
-        if ext == "csv":
-            df = read_fugro_csv(file)
-        elif ext == "acc":
-            try:
-                # Read expected, new acc file format
-                df = read_pulse_acc(file)
-            except Exception:
-                # Attempt to read older acc file format generated by (obsolete) 2HPS2
-                df = read_2hps2_acc(file)
-        elif ext == "h5":
-            df = read_logger_hdf5(file)
-        elif ext == "txt":
-            df = read_logger_txt(file)
-        else:
-            raise FileNotFoundError(f"No files with the extension {ext} found.")
-
-        return df
-
-    def _get_columns(self):
-        """Retrieve and store column names and units (if exist) from loaded file."""
-
-        # Store channel names and units - ignore column 1 (timestamps or time index)
-        # Also ensure str type (will be int if no header used)
-        channel_names = self.df.columns.get_level_values(0).tolist()[1:]
-
-        # Attempt to retrieve channel units from second column index row
-        try:
-            channel_units = self.df.columns.get_level_values(1).tolist()[1:]
-        except IndexError:
-            i = self.datasetCombo.currentIndex() - 1
-
-            # Use units for all channels stored in control object if exists, else create dummy list
-            if self.proj_datasets[i].channel_units:
-                channel_units = self.proj_datasets[i].channel_units
-            else:
-                channel_units = ["-"] * len(channel_names)
-
-        return channel_names, channel_units
 
     def _plot_update(self, srs):
         """Update plot series data for current selections and plot."""
@@ -701,6 +641,11 @@ class RawDataDashboard(QtWidgets.QWidget):
         # Plot all time series
         axis1_is_plotted, axis2_is_plotted = self.plot_time_series()
 
+        # Check something plotted
+        if axis1_is_plotted is False and axis2_is_plotted is False:
+            self.canvas.draw()
+            return
+
         # Store plot flags
         self.plot_setup.axis1_is_plotted = axis1_is_plotted
         self.plot_setup.axis2_is_plotted = axis2_is_plotted
@@ -754,12 +699,6 @@ class RawDataDashboard(QtWidgets.QWidget):
         self.ax2.set_title("Power Spectral Density")
         self.ax1.set_xlabel("Time (s)")
         self.ax2.set_xlabel("Frequency (Hz)")
-
-        # Tight axes
-        self.ax1.margins(0)
-        self.ax1b.margins(0)
-        self.ax2.margins(0)
-        self.ax2b.margins(0)
 
         # TODO: Mouse scroll zoom - works
         # f = self.zoom_factory(self.ax, base_scale=1.1)
@@ -842,8 +781,9 @@ class RawDataDashboard(QtWidgets.QWidget):
                     srs, ax=self.ax2b, filtered=True
                 )
 
-        # Set stored x-axis limits
+        # Set x-axis limits from stored values and fix ymin
         self.ax2.set_xlim(self.plot_setup.psd_xlim)
+        self.ax2.set_ylim(0)
 
     @staticmethod
     def add_ts_line_plot(srs, ax, filtered):

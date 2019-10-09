@@ -1,7 +1,7 @@
 __author__ = "Craig Dickinson"
 __program__ = "DataLab"
-__version__ = "2.0.0.21"
-__date__ = "8 October 2019"
+__version__ = "2.0.0.22"
+__date__ = "9 October 2019"
 
 import logging
 import os
@@ -62,7 +62,6 @@ class DataLab(DataLabGui):
         self.saveConfigAction.triggered.connect(
             self.projConfigModule.on_save_config_clicked
         )
-        self.openLoggerFileAction.triggered.connect(self.on_open_logger_file)
         self.openStatsAction.triggered.connect(self.on_open_stats_file_triggered)
         self.openSpectrogramsAction.triggered.connect(self.on_open_spectrograms_file)
 
@@ -103,7 +102,6 @@ class DataLab(DataLabGui):
         self.fatigueButton.clicked.connect(self.view_mod_fatigue)
 
     def _connect_child_signals(self):
-        self.rawDataModule.openRawButton.clicked.connect(self.on_open_logger_file)
         self.statsTab.openStatsButton.clicked.connect(self.on_open_stats_file)
         self.vesselStatsTab.openStatsButton.clicked.connect(self.on_open_stats_file)
         self.spectrogramTab.openSpectButton.clicked.connect(
@@ -133,35 +131,6 @@ class DataLab(DataLabGui):
     def warn_info(self, message):
         print(f"Warning: {message}")
         self._message_information("Warning", message)
-
-    def on_open_logger_file(self):
-        """Load raw logger time series file."""
-
-        file, _ = QtWidgets.QFileDialog.getOpenFileName(
-            self,
-            caption="Open Logger File",
-            filter="Logger Files (*.csv;*.acc;*.h5;*.txt)",
-        )
-
-        if file:
-            try:
-                # Populate files list widget and read file
-                filename = os.path.basename(file)
-                self.rawDataModule.path_to_files = os.path.dirname(file)
-                self.rawDataModule.set_file_list_from_open_file_dialog(filename)
-                self.rawDataModule.process_file(filename, open_file_dialog=True)
-            except FileNotFoundError as e:
-                self.error(str(e))
-                logging.exception(e)
-            except ValueError as e:
-                self.error(str(e))
-                logging.exception(e)
-            except Exception as e:
-                msg = "Unexpected error processing loggers"
-                self.error(f"{msg}:\n{e}\n{sys.exc_info()[0]}")
-                logging.exception(e)
-
-            self.view_mod_raw_data()
 
     def on_open_stats_file_triggered(self):
         """Open stats file when actioned from file menu."""
