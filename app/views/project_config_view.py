@@ -295,6 +295,9 @@ class ConfigModule(QtWidgets.QWidget):
         self.setupTabs.setCurrentWidget(self.campaignTab)
         self.campaignTab.on_edit_clicked()
 
+        # Clear raw data dashboard
+        self.parent.rawDataModule.clear_dashboard()
+
     def on_open_project_folder_clicked(self):
         try:
             os.startfile(self.control.project_path)

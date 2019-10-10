@@ -5,7 +5,6 @@ __author__ = "Craig Dickinson"
 import logging
 import os
 import sys
-from glob import glob
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -17,13 +16,6 @@ from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as Navigatio
 from app.core.azure_cloud_storage import connect_to_azure_account, stream_blob
 from app.core.control import Control
 from app.core.raw_time_series_dataset import RawDataPlotProperties, RawDataRead
-from app.core.read_files import (
-    read_2hps2_acc,
-    read_fugro_csv,
-    read_logger_hdf5,
-    read_logger_txt,
-    read_pulse_acc,
-)
 from app.core.signal_processing import calc_psd, filter_signal
 
 # from gui.gui_zoom_pan_factory import ZoomPan
@@ -83,8 +75,8 @@ class RawDataDashboard(QtWidgets.QWidget):
         self.highCutoff = QtWidgets.QLineEdit("None")
         self.highCutoff.setFixedWidth(40)
         self.plotFiltOnlyChkBox = QtWidgets.QCheckBox("Plot filtered only")
-        self.clearButton = QtWidgets.QPushButton("Clear Datasets")
-        self.clearButton.setShortcut("Ctrl+C")
+        self.exportButton = QtWidgets.QPushButton("Export Plot Data")
+        self.exportButton.setShortcut("Ctrl+E")
         self.plotSettingsButton = QtWidgets.QPushButton("Plot Settings...")
 
         # Labels
@@ -96,8 +88,17 @@ class RawDataDashboard(QtWidgets.QWidget):
         self.lblSelectedColumn = QtWidgets.QLabel("Selected column:")
         self.lblColumn = QtWidgets.QLabel("-")
         self.lblFiles = QtWidgets.QLabel("Files")
-        self.lblLowCutoff = QtWidgets.QLabel("Low freq cut-off (Hz):")
-        self.lblHighCutoff = QtWidgets.QLabel("High freq cut-off (Hz):")
+        self.lblLowCutoff = QtWidgets.QLabel("Low frequency cut-off (Hz):")
+        self.lblHighCutoff = QtWidgets.QLabel("High frequency cut-off (Hz):")
+
+        # Frequency/period radio buttons
+        self.freqRadio = QtWidgets.QRadioButton("Frequency")
+        self.freqRadio.setChecked(True)
+        self.periodRadio = QtWidgets.QRadioButton("Period")
+
+        # PSD log scale checkbox
+        self.logScale = QtWidgets.QCheckBox("Log scale")
+        self.logScale.setChecked(False)
 
         # Plot figure and canvas to display figure
         self.fig, (self.ax1, self.ax2) = plt.subplots(2)
@@ -131,15 +132,40 @@ class RawDataDashboard(QtWidgets.QWidget):
         self.vboxSelect.addWidget(self.columnList)
 
         # Filter cut-off frequencies group
-        self.filterGroup = QtWidgets.QGroupBox("Selected Series Settings")
+        self.filterGroup = QtWidgets.QGroupBox("Selected Series Filters")
         self.filterForm = QtWidgets.QFormLayout(self.filterGroup)
         self.filterForm.addRow(self.lblLowCutoff, self.lowCutoff)
         self.filterForm.addRow(self.lblHighCutoff, self.highCutoff)
-        self.filterForm.addRow("", self.plotFiltOnlyChkBox)
+        # self.filterForm.addRow(self.plotFiltOnlyChkBox, self.logScale)
+
+        # Frequency/period group
+        # self.psdXAxisGroup = QtWidgets.QGroupBox("PSD Settings")
+        # self.grid = QtWidgets.QGridLayout(self.psdXAxisGroup)
+        # self.grid.addWidget(self.radioFreq, 0, 0)
+        # self.grid.addWidget(self.radioPeriod, 1, 0)
+        # self.grid.addWidget(self.plotFiltOnlyChkBox, 0, 1)
+        # self.grid.addWidget(self.logScale, 1, 1)
+
+        # PSD x-axis frequency or period group
+        self.psdXAxisGroup = QtWidgets.QGroupBox("PSD X-Axis")
+        self.vbox1 = QtWidgets.QVBoxLayout(self.psdXAxisGroup)
+        self.vbox1.addWidget(self.freqRadio)
+        self.vbox1.addWidget(self.periodRadio)
+
+        # PSD plot settings group
+        self.psdGroup = QtWidgets.QGroupBox("PSD Plot Settings")
+        self.vbox2 = QtWidgets.QVBoxLayout(self.psdGroup)
+        self.vbox2.addWidget(self.plotFiltOnlyChkBox)
+        self.vbox2.addWidget(self.logScale)
+
+        # PSD options container
+        self.hboxPSD = QtWidgets.QHBoxLayout()
+        self.hboxPSD.addWidget(self.psdXAxisGroup)
+        self.hboxPSD.addWidget(self.psdGroup)
 
         # Buttons containers
         self.hboxButtons = QtWidgets.QHBoxLayout()
-        self.hboxButtons.addWidget(self.clearButton)
+        self.hboxButtons.addWidget(self.exportButton)
         self.hboxButtons.addWidget(self.plotSettingsButton)
 
         # Setup container
@@ -148,6 +174,8 @@ class RawDataDashboard(QtWidgets.QWidget):
         self.vboxSetup = QtWidgets.QVBoxLayout(self.setupWidget)
         self.vboxSetup.addWidget(self.selectGroup)
         self.vboxSetup.addWidget(self.filterGroup)
+        # self.vboxSetup.addWidget(self.psdXAxisGroup)
+        self.vboxSetup.addLayout(self.hboxPSD)
         self.vboxSetup.addLayout(self.hboxButtons)
 
         # Plot container
@@ -161,15 +189,18 @@ class RawDataDashboard(QtWidgets.QWidget):
         self.layout.addLayout(self.vbox)
 
     def _connect_signals(self):
-        self.clearButton.clicked.connect(self.on_clear_datasets_clicked)
         self.axisCombo.currentIndexChanged.connect(self.on_axis_changed)
         self.seriesCombo.currentIndexChanged.connect(self.on_series_changed)
         self.datasetCombo.currentIndexChanged.connect(self.on_dataset_changed)
-        self.plotSettingsButton.clicked.connect(self.on_plot_settings_clicked)
         self.fileList.itemDoubleClicked.connect(self.on_file_double_clicked)
         self.columnList.itemDoubleClicked.connect(self.on_column_double_clicked)
         self.lowCutoff.returnPressed.connect(self.on_low_cutoff_changed)
         self.highCutoff.returnPressed.connect(self.on_high_cutoff_changed)
+        self.freqRadio.toggled.connect(self.on_psd_xaxis_type_toggled)
+        self.plotFiltOnlyChkBox.toggled.connect(self.on_plot_filt_only_toggled)
+        self.logScale.toggled.connect(self.on_log_scale_toggled)
+        self.exportButton.clicked.connect(self.on_export_plot_data_clicked)
+        self.plotSettingsButton.clicked.connect(self.on_plot_settings_clicked)
 
     def on_axis_changed(self):
         self._set_widget_series_selections()
@@ -198,40 +229,43 @@ class RawDataDashboard(QtWidgets.QWidget):
             self.fileList.clear()
             self.columnList.clear()
 
-            # This flag stops the on_xlims_change event from processing
+            # This flag stops the on_xlims_changed event from processing
             self.skip_on_xlims_changed = True
-            self.update_plots()
+            self.rebuild_plots()
             self.skip_on_xlims_changed = False
 
             # Report selected file and column
             self.lblFile.setText(srs.file)
             self.lblColumn.setText(srs.column)
+        else:
+            # If previous dataset was "None" set the filters to the current default values (a convenience)
+            if srs.dataset == "None":
+                srs.low_cutoff = self.plot_setup.def_low_cutoff
+                srs.high_cutoff = self.plot_setup.def_high_cutoff
 
-            return
+            try:
+                i = self.datasetCombo.currentIndex() - 1
+                srs.path_to_files = self.proj_datasets[i].path_to_files
 
-        try:
-            i = self.datasetCombo.currentIndex() - 1
-            srs.path_to_files = self.proj_datasets[i].path_to_files
+                filenames = self.proj_datasets[i].filenames
+                srs.filenames = filenames
+                self._set_file_list(filenames)
 
-            filenames = self.proj_datasets[i].filenames
-            srs.filenames = filenames
-            self._set_file_list(filenames)
+                if self.fileList.count() > 0:
+                    try:
+                        self.fileList.setCurrentRow(srs.file_i)
+                    except Exception:
+                        self.fileList.setCurrentRow(0)
 
-            # columns = self.proj_datasets[i].channel_names
-            # srs.channel_names = columns
-            # self._set_column_list(columns)
+                    filename = self.fileList.currentItem().text()
 
-            if self.fileList.count() > 0:
-                try:
-                    self.fileList.setCurrentRow(srs.file_i)
-                except Exception:
-                    self.fileList.setCurrentRow(0)
+                    self._process_file(filename)
+            except Exception as e:
+                logging.exception(e)
 
-                filename = self.fileList.currentItem().text()
-
-                self._process_file(filename)
-        except Exception as e:
-            logging.exception(e)
+        # Set series filters
+        self.lowCutoff.setText(str(srs.low_cutoff))
+        self.highCutoff.setText(str(srs.high_cutoff))
 
     def on_file_double_clicked(self):
         """Update current plot series for selected file."""
@@ -256,7 +290,7 @@ class RawDataDashboard(QtWidgets.QWidget):
             srs = self._get_series()
             # Store gui plot selections to current series object
             srs = self._store_series_selections(srs)
-            self._plot_update(srs)
+            self._update_plots(srs)
         except ValueError as e:
             self.parent.error(f"Error: {e}")
             logging.exception(e)
@@ -266,13 +300,109 @@ class RawDataDashboard(QtWidgets.QWidget):
             logging.exception(e)
 
     def on_low_cutoff_changed(self):
-        print(self.lowCutoff.text())
+        val = self.lowCutoff.text()
+        srs = self._get_series()
+
+        if val == "" or val.lower() == "none":
+            srs.low_cutoff = None
+        else:
+            try:
+                srs.low_cutoff = float(val)
+            except ValueError:
+                pass
+
+        # Confirm or reject value and update plot setting default value
+        self.lowCutoff.setText(str(srs.low_cutoff))
+        self.plot_setup.def_low_cutoff = srs.low_cutoff
+
+        # Recalculate filtered signal for selected time series
+        self._filter_time_series(srs)
+
+        # This flag stops the on_xlims_changed event from processing
+        self.skip_on_xlims_changed = True
+        self.rebuild_plots()
+        self.skip_on_xlims_changed = False
 
     def on_high_cutoff_changed(self):
-        pass
+        val = self.highCutoff.text()
+        srs = self._get_series()
 
-    def on_clear_datasets_clicked(self):
-        self._clear_dashboard()
+        if val == "" or val.lower() == "none":
+            srs.high_cutoff = None
+        else:
+            try:
+                srs.high_cutoff = float(val)
+            except ValueError:
+                pass
+
+        # Confirm or reject value and update plot setting default value
+        self.highCutoff.setText(str(srs.high_cutoff))
+        self.plot_setup.def_high_cutoff = srs.high_cutoff
+
+        # Recalculate filtered signal for selected time series
+        self._filter_time_series(srs)
+
+        # This flag stops the on_xlims_changed event from processing
+        self.skip_on_xlims_changed = True
+        self.rebuild_plots()
+        self.skip_on_xlims_changed = False
+
+    def on_plot_filt_only_toggled(self):
+        self.plot_setup.plot_filt_only = self.plotFiltOnlyChkBox.isChecked()
+
+        # This flag stops the on_xlims_changed event from processing
+        self.skip_on_xlims_changed = True
+        self.rebuild_plots()
+        self.skip_on_xlims_changed = False
+
+    def on_psd_xaxis_type_toggled(self):
+        """Switch PSD x-axis between frequency and period."""
+
+        # Get current x-axis limits
+        xmin, xmax = self.ax2.get_xlim()
+
+        # Default min axis to 0
+        xmin = 0
+
+        # Set frequency x-axis limits (Hz)
+        if self.freqRadio.isChecked():
+            # Default xmax to 1 Hz if current xmin is 0 s
+            if xmin == 0:
+                xmax = 1
+            else:
+                xmax = 1 / xmin
+        # Set period x-axis limits (s)
+        else:
+            # Default xmax to 20 s if current xmin is 0 Hz
+            if xmin == 0:
+                xmax = 20
+            else:
+                xmax = 1 / xmin
+
+        # Update plot setup properties
+        self.plot_setup.plot_period = self.periodRadio.isChecked()
+        self.plot_setup.psd_xlim = (xmin, xmax)
+
+        # Redraw PSD plot
+        self._remove_all_psd_series()
+        self._plot_psd()
+        self.canvas.draw()
+
+    def on_log_scale_toggled(self):
+        self.plot_setup.log_scale = self.logScale.isChecked()
+
+        # This flag stops the on_xlims_changed event from processing
+        self.skip_on_xlims_changed = True
+        self.rebuild_plots()
+        self.skip_on_xlims_changed = False
+
+        # Redraw PSD plot
+        # self._remove_all_psd_series()
+        # self._plot_psd()
+        # self.canvas.draw()
+
+    def on_export_plot_data_clicked(self):
+        pass
 
     def on_plot_settings_clicked(self):
         """Show plot options window."""
@@ -281,8 +411,7 @@ class RawDataDashboard(QtWidgets.QWidget):
         self.plotControls.show()
 
     def on_xlims_changed(self, ax):
-        # Convert to datetime
-        # self.xmin, self.xmax = mdates.num2date(ax.get_xlim())
+        """Recalculate PSDs for new time series x-axis limits and replot."""
 
         if self.skip_on_xlims_changed is True:
             return
@@ -294,14 +423,13 @@ class RawDataDashboard(QtWidgets.QWidget):
         self.plot_setup.psd_xlim = tuple(round(x, 1) for x in self.ax2.get_xlim())
 
         # Remove existing PSD line plots
-        self.remove_all_psd_series()
+        self._remove_all_psd_series()
 
         # Update PSD plot and plot title with new timestamp range
-        self.plot_psd()
+        self._plot_psd()
         self._set_title()
-        # print(f'updated xlims: {self.ts_xlim}')
 
-    def _clear_dashboard(self):
+    def clear_dashboard(self):
         """Clear all stored datasets and reset layout."""
 
         self.resetting_dashboard = True
@@ -313,7 +441,9 @@ class RawDataDashboard(QtWidgets.QWidget):
         self.lblColumn.setText("-")
         self.fileList.clear()
         self.columnList.clear()
-        self.draw_axes()
+        self.lowCutoff.setText("None")
+        self.highCutoff.setText("None")
+        self._draw_axes()
         self.canvas.draw()
         self.resetting_dashboard = False
 
@@ -340,7 +470,7 @@ class RawDataDashboard(QtWidgets.QWidget):
         self.control = control
 
         # First reset the raw data dashboard and clear any previous datasets
-        self._clear_dashboard()
+        self.clear_dashboard()
 
         # Store control project name to project setup
         self._map_control_project_name()
@@ -445,6 +575,14 @@ class RawDataDashboard(QtWidgets.QWidget):
         self.fileList.setCurrentRow(srs.file_i)
         self.columnList.setCurrentRow(srs.column_i)
 
+        # Set series filters - use default filters if a blank dataset
+        if srs.dataset == "None":
+            self.lowCutoff.setText(str(self.plot_setup.def_low_cutoff))
+            self.highCutoff.setText(str(self.plot_setup.def_high_cutoff))
+        else:
+            self.lowCutoff.setText(str(srs.low_cutoff))
+            self.highCutoff.setText(str(srs.high_cutoff))
+
     def _process_file(self, filename):
         self.df = self._read_time_series_file(filename)
 
@@ -459,7 +597,7 @@ class RawDataDashboard(QtWidgets.QWidget):
         # Store gui plot selections to current series object
         srs = self._store_series_selections(srs)
 
-        self._plot_update(srs)
+        self._update_plots(srs)
 
     def _read_time_series_file(self, filename):
         """Read a raw logger file based on logger file properties provided in setup."""
@@ -590,7 +728,7 @@ class RawDataDashboard(QtWidgets.QWidget):
 
         return srs
 
-    def _plot_update(self, srs):
+    def _update_plots(self, srs):
         """Update plot series data for current selections and plot."""
 
         # Select series plot data from file data frame
@@ -600,11 +738,11 @@ class RawDataDashboard(QtWidgets.QWidget):
         if len(srs.y) > 0:
             self.plot_setup.init_xlim = (srs.x[0], srs.x[-1])
 
-        self.calc_filtered_data()
+        self.filter_all_time_series()
 
-        # This flag stops the on_xlims_change event from processing
+        # This flag stops the on_xlims_changed event from processing
         self.skip_on_xlims_changed = True
-        self.update_plots()
+        self.rebuild_plots()
         self.skip_on_xlims_changed = False
 
         # Report selected file and column
@@ -634,41 +772,37 @@ class RawDataDashboard(QtWidgets.QWidget):
 
         return srs
 
-    def calc_filtered_data(self):
+    def filter_all_time_series(self):
         """
         Search all series objects for data and filter out low frequencies (drift) and high frequencies (noise).
         Filtered signal is stored in the y_filt property of each series object.
         """
 
-        low_cutoff = self.plot_setup.low_cutoff
-        high_cutoff = self.plot_setup.high_cutoff
-
-        # Set cut-off values to None if they are not to be applied
-        if self.plot_setup.apply_low_cutoff is False:
-            low_cutoff = None
-
-        if self.plot_setup.apply_high_cutoff is False:
-            high_cutoff = None
-
         all_srs = self.plot_setup.axis1_series_list + self.plot_setup.axis2_series_list
         for srs in all_srs:
-            # Apply bandpass filter (takes a data frame as input)
-            # TODO: Should create a filter function that accepts an x and y array as well
-            if len(srs.y) > 0:
-                df = pd.DataFrame(srs.y, index=srs.x)
-                df_filt = filter_signal(df, low_cutoff, high_cutoff)
-                srs.y_filt = df_filt.values.ravel()
+            self._filter_time_series(srs)
 
-    def update_plots(self):
+    @staticmethod
+    def _filter_time_series(srs):
+        """Calculate filtered signal of a single series."""
+
+        # Apply bandpass filter (takes a data frame as input)
+        # TODO: Should create a filter function that accepts an x and y array as well
+        if len(srs.y) > 0:
+            df = pd.DataFrame(srs.y, index=srs.x)
+            df_filt = filter_signal(df, srs.low_cutoff, srs.high_cutoff)
+            srs.y_filt = df_filt.values.ravel()
+
+    def rebuild_plots(self):
         """Create time series plots for selected logger channels."""
 
-        self.draw_axes()
+        self._draw_axes()
 
         # Event connection to refresh PSD plot upon change of time series x-axis limits
         self.ax1.callbacks.connect("xlim_changed", self.on_xlims_changed)
 
         # Plot all time series
-        axis1_is_plotted, axis2_is_plotted = self.plot_time_series()
+        axis1_is_plotted, axis2_is_plotted = self._plot_time_series()
 
         # Check something plotted
         if axis1_is_plotted is False and axis2_is_plotted is False:
@@ -688,7 +822,7 @@ class RawDataDashboard(QtWidgets.QWidget):
         self.ax1.set_xlim(self.plot_setup.ts_xlim)
 
         # Plot all PSD series
-        self.plot_psd()
+        self._plot_psd()
 
         # Configure gridlines and axes visibility
         self._set_gridlines()
@@ -710,7 +844,7 @@ class RawDataDashboard(QtWidgets.QWidget):
         # Update parameters in plot settings window (could be open)
         self.plotControls.set_dialog_data()
 
-    def draw_axes(self):
+    def _draw_axes(self):
         """Set up basic plot layout."""
 
         self.fig.clf()
@@ -722,12 +856,14 @@ class RawDataDashboard(QtWidgets.QWidget):
         self.ax2b = self.ax2.twinx()
         self.ax1b.yaxis.set_visible(False)
         self.ax2b.yaxis.set_visible(False)
+        self.ax2.margins(0)
+        self.ax2b.margins(0)
 
         # Labels
         self.ax1.set_title("Time Series")
         self.ax2.set_title("Power Spectral Density")
-        self.ax1.set_xlabel("Time (s)", size=10)
-        self.ax2.set_xlabel("Frequency (Hz)", size=10)
+        self.ax1.set_xlabel("Time (s)")
+        self.ax2.set_xlabel("Frequency (Hz)")
 
         # TODO: Mouse scroll zoom - works
         # f = self.zoom_factory(self.ax, base_scale=1.1)
@@ -739,7 +875,7 @@ class RawDataDashboard(QtWidgets.QWidget):
         # figZoom = zp.zoom_factory(self.ax2, base_scale=1.1)
         # figPan = zp.pan_factory(self.ax2)
 
-    def remove_all_psd_series(self):
+    def _remove_all_psd_series(self):
         """Clear the PSD subplot """
 
         all_srs = self.plot_setup.axis1_series_list + self.plot_setup.axis2_series_list
@@ -751,71 +887,81 @@ class RawDataDashboard(QtWidgets.QWidget):
                 srs.psd_line_filt.remove()
                 srs.psd_line_filt = None
 
-    def plot_time_series(self):
+    def _plot_time_series(self):
         """Plot all time series."""
 
         axis1_is_plotted = False
         axis2_is_plotted = False
+        plot_filt_only = self.plot_setup.plot_filt_only
 
         # Plot all populated axis 1 series
         for srs in self.plot_setup.axis1_series_list:
             # Plot unfiltered time series
-            if len(srs.y) > 0:
-                self.add_ts_line_plot(srs, ax=self.ax1, filtered=False)
+            if len(srs.y) > 0 and plot_filt_only is False:
+                self._add_ts_line_plot(srs, ax=self.ax1, filtered=False)
                 axis1_is_plotted = True
 
             # Plot filtered time series
             if len(srs.y_filt) > 0:
-                self.add_ts_line_plot(srs, ax=self.ax1, filtered=True)
+                self._add_ts_line_plot(srs, ax=self.ax1, filtered=True)
                 axis1_is_plotted = True
 
         # Plot all populated axis 2 series
         for srs in self.plot_setup.axis2_series_list:
             # Plot unfiltered time series
-            if len(srs.y) > 0:
-                self.add_ts_line_plot(srs, ax=self.ax1b, filtered=False)
+            if len(srs.y) > 0 and plot_filt_only is False:
+                self._add_ts_line_plot(srs, ax=self.ax1b, filtered=False)
                 axis2_is_plotted = True
 
             # # Plot filtered time series
             if len(srs.y_filt) > 0:
-                self.add_ts_line_plot(srs, ax=self.ax1b, filtered=True)
+                self._add_ts_line_plot(srs, ax=self.ax1b, filtered=True)
                 axis2_is_plotted = True
 
         return axis1_is_plotted, axis2_is_plotted
 
-    def plot_psd(self):
+    def _plot_psd(self):
         """Compute and plot all PSD series."""
+
+        plot_filt_only = self.plot_setup.plot_filt_only
 
         # Plot all populated axis 1 series
         for srs in self.plot_setup.axis1_series_list:
             # Plot unfiltered time series
-            if len(srs.y) > 0:
-                srs.psd_line = self.add_psd_line_plot(srs, ax=self.ax2, filtered=False)
+            if len(srs.y) > 0 and plot_filt_only is False:
+                srs.psd_line = self._add_psd_line_plot(srs, ax=self.ax2, filtered=False)
 
             # Plot filtered time series
             if len(srs.y_filt) > 0:
-                srs.psd_line_filt = self.add_psd_line_plot(
+                srs.psd_line_filt = self._add_psd_line_plot(
                     srs, ax=self.ax2, filtered=True
                 )
 
         # Plot all populated axis 2 series
         for srs in self.plot_setup.axis2_series_list:
             # Plot unfiltered time series
-            if len(srs.y) > 0:
-                srs.psd_line = self.add_psd_line_plot(srs, ax=self.ax2b, filtered=False)
+            if len(srs.y) > 0 and plot_filt_only is False:
+                srs.psd_line = self._add_psd_line_plot(
+                    srs, ax=self.ax2b, filtered=False
+                )
 
             # Plot filtered time series
             if len(srs.y_filt) > 0:
-                srs.psd_line_filt = self.add_psd_line_plot(
+                srs.psd_line_filt = self._add_psd_line_plot(
                     srs, ax=self.ax2b, filtered=True
                 )
 
-        # Set x-axis limits from stored values and fix ymin
+        # Set x and y axis limits from stored values
         self.ax2.set_xlim(self.plot_setup.psd_xlim)
-        self.ax2.set_ylim(0)
+
+        # X-axis label
+        if self.plot_setup.plot_period:
+            self.ax2.set_xlabel("Period (s)")
+        else:
+            self.ax2.set_xlabel("Frequency (Hz)")
 
     @staticmethod
-    def add_ts_line_plot(srs, ax, filtered):
+    def _add_ts_line_plot(srs, ax, filtered):
         """Add time series line plot."""
 
         x = srs.x
@@ -836,7 +982,7 @@ class RawDataDashboard(QtWidgets.QWidget):
         ylabel = units
         ax.set_ylabel(ylabel, size=10)
 
-    def add_psd_line_plot(self, srs, ax, filtered):
+    def _add_psd_line_plot(self, srs, ax, filtered):
         """Compute PSD of a single series and plot."""
 
         if filtered is True:
@@ -846,11 +992,19 @@ class RawDataDashboard(QtWidgets.QWidget):
             y = srs.y
             color = srs.color
 
-        df = pd.DataFrame(y, index=srs.x)
-
-        # Retrieve time series x-limits to calculate PSD on and slice data frame
+        # Retrieve time series x-limits to calculate PSD on
         xmin, xmax = self.plot_setup.ts_xlim
-        df = df[xmin:xmax]
+        x = srs.x
+
+        # This method works if x is integers not floats
+        xs = np.where((x >= xmin) & (x <= xmax))
+        x = x[xs]
+        y = y[xs]
+
+        # Create and slice data frame
+        df = pd.DataFrame(y, index=x)
+        df.index = df.index.astype(float)
+        # df = df[xmin:xmax]
 
         # Calculate PSD of series
         f, pxx = self._compute_psd(df)
@@ -860,11 +1014,11 @@ class RawDataDashboard(QtWidgets.QWidget):
             # Handle for divide by zero
             f = 1 / f[1:]
             pxx = pxx[1:]
-            ax.set_xlabel("Period (s)")
 
         # Convert PSD to log10 if plot option selected
         if self.plot_setup.log_scale is True:
             pxx = np.log10(pxx)
+            ax.set_yscale("log")
             ylabel = f"$\mathregular{{log_{{10}} [({srs.units})^2/Hz}}]$".strip()
         else:
             ylabel = f"$\mathregular{{({srs.units})^2/Hz}}$".strip()
@@ -915,22 +1069,23 @@ class RawDataDashboard(QtWidgets.QWidget):
         return f, pxx
 
     def _set_gridlines(self):
-        # Set displayed gridlines
-        # If primary axis not used, switch gridlines axis 2
+        """Set displayed gridlines and axis visibility."""
 
+        # If primary axis not used, switch gridlines to axis 2
         axis1_is_plotted = self.plot_setup.axis1_is_plotted
         axis2_is_plotted = self.plot_setup.axis2_is_plotted
 
+        # Set gridlines on axis 1 only
         if not axis1_is_plotted and axis2_is_plotted:
             self.ax1.grid(False)
-            self.ax1b.grid(True)
             self.ax2.grid(False)
+            self.ax1b.grid(True)
             self.ax2b.grid(True)
-        # Standard gridlines on axis 1
+        # Set gridlines on axis 2 only
         else:
             self.ax1.grid(True)
-            self.ax1b.grid(False)
             self.ax2.grid(True)
+            self.ax1b.grid(False)
             self.ax2b.grid(False)
 
         if axis1_is_plotted:
@@ -951,13 +1106,13 @@ class RawDataDashboard(QtWidgets.QWidget):
         """Write main plot title."""
 
         # Store start and end timestamp of plot data for title
-        try:
-            tstart = df.iloc[0, 0].strftime("%d %b %Y %H:%M:%S").lstrip("0")
-            tend = df.iloc[-1, 0].strftime("%d %b %Y %H:%M:%S")[-8:]
-            subtitle = f"{tstart} to {tend}"
-        except:
-            subtitle = ""
-
+        # try:
+        #     tstart = df.iloc[0, 0].strftime("%d %b %Y %H:%M:%S").lstrip("0")
+        #     tend = df.iloc[-1, 0].strftime("%d %b %Y %H:%M:%S")[-8:]
+        #     subtitle = f"{tstart} to {tend}"
+        # except:
+        #     subtitle = ""
+        subtitle = ""
         title = f"{self.plot_setup.project_name} {subtitle}".strip()
         self.fig.suptitle(
             title,
@@ -1449,16 +1604,10 @@ class PlotControlsDialog(QtWidgets.QDialog):
                 self.optPSDXmax.setText(str(1 / xmin))
 
     def on_low_freq_cutoff_toggled(self):
-        if self.lowFreqChkBox.isChecked():
-            self.lowCutoff.setEnabled(True)
-        else:
-            self.lowCutoff.setEnabled(False)
+        self.lowCutoff.setEnabled(self.lowFreqChkBox.isChecked())
 
     def on_high_freq_cutoff_toggled(self):
-        if self.highFreqChkBox.isChecked():
-            self.highCutoff.setEnabled(True)
-        else:
-            self.highCutoff.setEnabled(False)
+        self.highCutoff.setEnabled(self.highFreqChkBox.isChecked())
 
     def on_psd_params_type_toggled(self):
         """Switch between default and custom PSD parameters."""
@@ -1493,10 +1642,11 @@ class PlotControlsDialog(QtWidgets.QDialog):
 
         # Update plots if files exist
         if self.parent.fileList.count() > 0:
-            # This flag stops the on_xlims_change event from processing
+            self.parent.filter_all_time_series()
+
+            # This flag stops the on_xlims_changed event from processing
             self.parent.skip_on_xlims_changed = True
-            self.parent.calc_filtered_data()
-            self.parent.update_plots()
+            self.parent.rebuild_plots()
             self.parent.skip_on_xlims_changed = False
 
     def set_dialog_data(self):
@@ -1515,8 +1665,8 @@ class PlotControlsDialog(QtWidgets.QDialog):
         # Freq cut-offs
         # self.lowCutoff.setText(f"{self.plot_settings.low_cutoff:.2f}")
         # self.highCutoff.setText(f"{self.plot_settings.high_cutoff:.2f}")
-        self.lowCutoff.setText(str(self.plot_settings.low_cutoff))
-        self.highCutoff.setText(str(self.plot_settings.high_cutoff))
+        self.lowCutoff.setText(str(self.plot_settings.def_low_cutoff))
+        self.highCutoff.setText(str(self.plot_settings.def_high_cutoff))
 
         if self.plot_settings.plot_period is True:
             self.radioPeriod.setChecked(True)
@@ -1570,13 +1720,13 @@ class PlotControlsDialog(QtWidgets.QDialog):
 
             if self.lowFreqChkBox.isChecked():
                 self.plot_settings.apply_low_cutoff = True
-                self.plot_settings.low_cutoff = float(self.lowCutoff.text())
+                self.plot_settings.def_low_cutoff = float(self.lowCutoff.text())
             else:
                 self.plot_settings.apply_low_cutoff = False
 
             if self.highFreqChkBox.isChecked():
                 self.plot_settings.apply_high_cutoff = True
-                self.plot_settings.high_cutoff = float(self.highCutoff.text())
+                self.plot_settings.def_high_cutoff = float(self.highCutoff.text())
             else:
                 self.plot_settings.apply_high_cutoff = False
 

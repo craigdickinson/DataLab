@@ -181,8 +181,9 @@ class RawDataPlotProperties(object):
         # Low and high frequency cut-offs
         self.apply_low_cutoff = False
         self.apply_high_cutoff = False
-        self.low_cutoff = 0.05
-        self.high_cutoff = 0.5
+        self.def_low_cutoff = None
+        self.def_high_cutoff = None
+        self.plot_filt_only = False
 
         # To hold file data
         self.df = pd.DataFrame()
@@ -212,9 +213,9 @@ class SeriesPlotData(object):
         self.x = []
         self.y = []
         self.y_filt = []
+        self.label = ""
         self.psd_line = None
         self.psd_line_filt = None
-        self.label = ""
 
         # Filters
         self.low_cutoff = None
@@ -251,8 +252,11 @@ class SeriesPlotData(object):
         self.x = []
         self.y = []
         self.y_filt = []
-        self.handle = None
         self.label = ""
+        self.psd_line = None
+        self.psd_line_filt = None
+        self.low_cutoff = None
+        self.high_cutoff = None
 
     def set_series_data(self, df):
         """Store plot series data."""
