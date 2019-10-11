@@ -50,7 +50,7 @@ class DataScreen(object):
         self.spect_sample_length = 0
 
         # File read properties
-        self.file_format = "General-csv"
+        self.file_format = "Custom"
         self.delim = ","
         self.header_row = 0
         self.skip_rows = []
@@ -103,7 +103,7 @@ class DataScreen(object):
         """Read logger file into data frame."""
 
         # Read data to data frame
-        if self.file_format == "General-csv":
+        if self.file_format == "Custom":
             df = pd.read_csv(
                 file,
                 sep=self.delim,
@@ -135,7 +135,7 @@ class DataScreen(object):
         df = df.copy()
         first_col = "Timestamp"
 
-        if self.logger.file_format == "General-csv":
+        if self.logger.file_format == "Custom":
             df = df.dropna(axis=1)
 
             # Time steps data

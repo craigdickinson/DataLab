@@ -35,7 +35,7 @@ def example_control_file():
         "*STATS_END 2016-07-01 00:00 \n"
         "*LOGGER_ID dd09b \n"
         "*PATH tests/test_data/dd09b \n"
-        "*FILE_FORMAT general-csv \n"
+        "*FILE_FORMAT custom \n"
         "*FILE_TIMESTAMP xxxxxxYYYYxmmDDxHHMM \n"
         "*EXTENSION csv \n"
         "*DELIMITER comma \n"

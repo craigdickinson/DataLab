@@ -26,7 +26,7 @@ from app.core.file_props_fugro_csv import (
     detect_fugro_logger_properties,
     set_fugro_csv_file_format,
 )
-from app.core.file_props_general_csv import set_general_csv_file_format
+from app.core.file_props_custom_format import set_custom_file_format
 from app.core.file_props_pulse_acc import (
     detect_pulse_logger_properties,
     set_pulse_acc_file_format,
@@ -37,7 +37,7 @@ from app.core.project_config import ProjectConfigJSONFile
 # Module variables: Logger properties lists and dictionaries
 delims_gui_to_logger = {"comma": ",", "space": " ", "tab": "\t"}
 delims_logger_to_gui = {",": "comma", " ": "space", "\t": "tab"}
-file_types = ["General-csv", "Fugro-csv", "Pulse-acc", "2HPS2-acc"]
+file_types = ["Custom", "Fugro-csv", "Pulse-acc", "2HPS2-acc"]
 index_types = ["Timestamp", "Time Step"]
 delimiters = ["comma", "space", "tab"]
 
@@ -319,7 +319,7 @@ class ConfigModule(QtWidgets.QWidget):
         self.control.logger_ids_upper.append(logger_id.upper())
 
         # Initialise as a general logger format
-        logger = set_general_csv_file_format(logger)
+        logger = set_custom_file_format(logger)
 
         item = QtWidgets.QListWidgetItem(logger_id)
         item.setFlags(item.flags() | QtCore.Qt.ItemIsEditable)
@@ -1212,7 +1212,7 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
         self.loggingDuration.setText(str(logger.duration))
 
     def _set_enabled_inputs(self, file_format):
-        """Enable or disable input fields based on selected file format (Fugro-csv, Pulse-csv, General-csv)."""
+        """Enable or disable input fields based on selected file format (Custom, Fugro-csv, Pulse-csv, 2HPS2-acc)."""
 
         # Initialise for Fugro-csv format
         # self.lblExt.setHidden(True)
@@ -1228,7 +1228,7 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
         # self.lblTimestampFmt.setHidden(False)
         # self.dataTimestampFormat.setHidden(False)
 
-        # Initialise for General-csv
+        # Initialise for Custom
         self.fileTimestampEmbeddedChkBox.setEnabled(True)
         self.firstColData.setEnabled(True)
         self.fileExt.setEnabled(True)
@@ -1308,7 +1308,7 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
         """
         Set standard logger file settings and properties based on selected format.
         File format types:
-            General-csv
+            Custom
             Fugro-csv
             Pulse-acc
         """
@@ -1323,11 +1323,11 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
         # of the selected logger type or revert initial logger properties
         # (Note Pulse-acc and 2HPS2-acc properties are not directly used by the respective read_pulse_acc and
         # read_2hps2_acc functions but they are used in other other file inspection routines)
-        if selected_file_format == "General-csv":
-            if self.init_file_format == "General-csv":
+        if selected_file_format == "Custom":
+            if self.init_file_format == "Custom":
                 logger = self.init_logger
             else:
-                logger = set_general_csv_file_format(logger)
+                logger = set_custom_file_format(logger)
         elif selected_file_format == "Fugro-csv":
             if self.init_file_format == "Fugro-csv":
                 logger = self.init_logger
@@ -1467,9 +1467,9 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
 
         try:
             # Detect logger properties from file and assign to test logger object
-            if file_format == "General-csv":
+            if file_format == "Custom":
                 # Set current file format properties in the dialog
-                test_logger.file_format = "General-csv"
+                test_logger.file_format = "Custom"
                 test_logger.file_ext = self.fileExt.text()
                 test_logger.file_delimiter = delims_gui_to_logger[
                     self.fileDelimiter.currentText()
@@ -1601,8 +1601,8 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
         else:
             logger.duration = float(self.loggingDuration.text())
 
-        # If file format is general-csv, enforce stats/spectral sample length equal to the logger duration
-        if logger.file_format == "General-csv" and logger.first_col_data == "Time Step":
+        # If file format is Custom, enforce stats/spectral sample length equal to the logger duration
+        if logger.file_format == "Custom" and logger.first_col_data == "Time Step":
             logger.enforce_max_duration = True
             logger.stats_interval = logger.duration
             logger.spect_interval = logger.duration
@@ -2032,7 +2032,7 @@ class EditScreeningSetupDialog(QtWidgets.QDialog):
 
         # Message for stats/spectral interval inputs
         tooltip_msg = (
-            "Note: This input will be disabled if logger file format is 'General-csv' "
+            "Note: This input will be disabled if logger file format is 'Custom' "
             "and first column data is set to 'Time Step'"
         )
 

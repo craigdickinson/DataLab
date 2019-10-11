@@ -64,7 +64,7 @@ class RawDataRead(object):
         """Read time series file into data frame using logger file format settings."""
 
         # Read data to data frame
-        if self.file_format == "General-csv":
+        if self.file_format == "Custom":
             df = pd.read_csv(
                 file,
                 sep=self.delim,
@@ -188,6 +188,8 @@ class RawDataPlotProperties(object):
 
         # Legend options
         self.filename_in_legend = True
+        self.dataset_in_legend = True
+        self.column_in_legend = True
 
     def reset(self):
         self.__init__()

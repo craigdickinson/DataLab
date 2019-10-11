@@ -153,7 +153,7 @@ class LoggerProperties(QObject):
         self.stats_interval = 0  # *STATS_INTERVAL
         self.spect_interval = 0
 
-        # Flag to force maximum interval length (i.e. file length) if file format is general-csv format
+        # Flag to force maximum interval length (i.e. file length) if file format is Custom format
         # with raw files containing a time steps index;
         # this is to ensure results files contain a unique file number index
         self.enforce_max_duration = False
@@ -390,7 +390,7 @@ class LoggerProperties(QObject):
         u = self.units_header_row
 
         # Get column names and units, if exist
-        if file_format == "General-csv":
+        if file_format == "Custom":
             channels, units = self.read_column_names(
                 test_file, delim, c, u, decoding="utf-8"
             )

@@ -256,7 +256,7 @@ class Control(object):
 
             # Assign file format-specific logger properties
             # General file format
-            if file_format.lower() == "general-csv":
+            if file_format.lower() == "custom":
                 self.set_general_file_format(logger, logger_data)
             # Fugro csv format - need to detect some properties from the file
             # However we want to check all data in control file is valid first
@@ -359,7 +359,7 @@ class Control(object):
         """
 
         logger_id = logger.logger_id
-        logger.file_format = "general-csv"
+        logger.file_format = "Custom"
 
         # Get file extension - *EXTENSION
         logger.file_ext = self.get_extension(data)

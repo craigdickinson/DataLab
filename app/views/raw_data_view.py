@@ -1080,15 +1080,20 @@ class RawDataDashboard(QtWidgets.QWidget):
 
         # Construct legend label
         label = ""
-        if self.plot_setup.filename_in_legend is True:
-            label = f"{srs.file} "
 
-        label += f"{srs.dataset} {srs.column}"
+        if self.plot_setup.filename_in_legend is True:
+            label += f"{srs.file} "
+
+        if self.plot_setup.dataset_in_legend is True:
+            label += f"{srs.dataset} "
+
+        if self.plot_setup.column_in_legend is True:
+            label += f"{srs.column}"
 
         if filtered is True:
             srs.label += " (Filtered)"
 
-        return label
+        return label.strip()
 
     def _set_gridlines(self):
         """Set displayed gridlines and axis visibility."""
@@ -1453,6 +1458,10 @@ class PlotControlsDialog(QtWidgets.QDialog):
         # Legend settings
         self.filenameInLegend = QtWidgets.QCheckBox("Include file name in legend")
         self.filenameInLegend.setChecked(True)
+        self.datasetInLegend = QtWidgets.QCheckBox("Include dataset in legend")
+        self.datasetInLegend.setChecked(True)
+        self.columnInLegend = QtWidgets.QCheckBox("Include column in legend")
+        self.columnInLegend.setChecked(True)
 
         # CONTAINERS
         # Title and axes labels form
@@ -1496,6 +1505,8 @@ class PlotControlsDialog(QtWidgets.QDialog):
         self.legendGroup.setSizePolicy(policy)
         self.vboxLeg = QtWidgets.QVBoxLayout(self.legendGroup)
         self.vboxLeg.addWidget(self.filenameInLegend)
+        self.vboxLeg.addWidget(self.datasetInLegend)
+        self.vboxLeg.addWidget(self.columnInLegend)
 
         # Parameters choice radios
         self.vbox = QtWidgets.QVBoxLayout()
@@ -1637,6 +1648,8 @@ class PlotControlsDialog(QtWidgets.QDialog):
 
         # Legend options
         self.filenameInLegend.setChecked(self.plot_settings.filename_in_legend)
+        self.datasetInLegend.setChecked(self.plot_settings.dataset_in_legend)
+        self.columnInLegend.setChecked(self.plot_settings.column_in_legend)
 
     def _set_plot_settings(self):
         """Update the plot properties of the plot settings object."""
@@ -1685,6 +1698,8 @@ class PlotControlsDialog(QtWidgets.QDialog):
 
         # Legend options
         self.plot_settings.filename_in_legend = self.filenameInLegend.isChecked()
+        self.plot_settings.dataset_in_legend = self.datasetInLegend.isChecked()
+        self.plot_settings.column_in_legend = self.columnInLegend.isChecked()
 
     def reset_values(self):
         """Reset option settings to initial values set during file load."""
@@ -1695,6 +1710,8 @@ class PlotControlsDialog(QtWidgets.QDialog):
         self.optPSDXmax.setText("1.0")
         self.radioDefault.setChecked(True)
         self.filenameInLegend.setChecked(True)
+        self.datasetInLegend.setChecked(True)
+        self.columnInLegend.setChecked(True)
 
 
 # For testing layout
