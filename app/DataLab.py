@@ -1,7 +1,7 @@
 __author__ = "Craig Dickinson"
 __program__ = "DataLab"
-__version__ = "2.0.0.25"
-__date__ = "10 October 2019"
+__version__ = "2.0.0.26"
+__date__ = "11 October 2019"
 
 import logging
 import os
@@ -283,7 +283,7 @@ class DataLab(DataLabGui):
         """Show spectrogram plot settings window."""
 
         # Set current parameters from spectrogram plot widget class
-        self.spectrogramTab.plotSettings._set_dialog_data()
+        self.spectrogramTab.plotSettings.set_dialog_data()
         self.spectrogramTab.plotSettings.show()
 
     def open_azure_account_settings(self):
@@ -657,7 +657,8 @@ class DataLab(DataLabGui):
                 )
             else:
                 msg = (
-                    f"Statistics dataset for logger '{logger}' (set to contain Hs and Tp data) not found in memory.\n\n"
+                    f"Statistics dataset for '{logger}' (which has been selected to contain Hs and Tp data) "
+                    "not found in memory.\n\n"
                     "Generate or load the required statistics dataset "
                     "containing Hs and Tp data and try again."
                 )
@@ -669,7 +670,7 @@ class DataLab(DataLabGui):
             if hs.size == 0 and tp.size == 0:
                 msg = (
                     f"The specified Hs and Tp columns in the '{logger}' stats data do not exist.\n\n"
-                    "Check the correct columns have been input in the sea scatter settings."
+                    "Check the correct columns have been input in the Sea Scatter Setup tab."
                 )
                 return self.warning(msg)
 

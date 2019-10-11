@@ -121,8 +121,8 @@ class RawDataPlotProperties(object):
         colors1 = [sns.color_palette("muted").as_hex()[i] for i in colors1_idx]
         colors1_filt = [sns.color_palette("dark").as_hex()[i] for i in colors1_idx]
 
-        colors2_idx = [6, 7, 8, 9]
-        colors2 = [sns.color_palette("muted").as_hex()[i] for i in colors2_idx]
+        colors2_idx = [8, 9, 7, 4]
+        colors2 = [sns.color_palette("colorblind").as_hex()[i] for i in colors2_idx]
         colors2_filt = [sns.color_palette("dark").as_hex()[i] for i in colors2_idx]
 
         # print(plt.rcParams['axes.prop_cycle'].by_key()['color'])
@@ -145,6 +145,7 @@ class RawDataPlotProperties(object):
         self.psd_params_type = "default"
         self.set_init_axis_limits = True
 
+        # PSD parameters
         # Default PSD parameters
         self.def_num_ensembles = 1
         self.def_window = "None"
@@ -185,8 +186,8 @@ class RawDataPlotProperties(object):
         self.def_high_cutoff = None
         self.plot_filt_only = False
 
-        # To hold file data
-        self.df = pd.DataFrame()
+        # Legend options
+        self.filename_in_legend = True
 
     def reset(self):
         self.__init__()

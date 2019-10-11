@@ -170,7 +170,7 @@ class SpectrogramWidget(QtWidgets.QWidget):
         self.clear_dashboard()
 
     def on_open_plot_settings_clicked(self):
-        self.plotSettings.get_params()
+        self.plotSettings.set_dialog_data()
         self.plotSettings.show()
 
     def on_dataset_double_clicked(self):
@@ -605,17 +605,13 @@ class SpectroPlotSettings(QtWidgets.QDialog):
             self.reset_values
         )
 
-    def get_params(self):
+    def set_dialog_data(self):
         """Get plot parameters from the spectrogram widget and assign to settings widget."""
 
         self.optProject.setText(self.parent.project)
         self.optFreqMin.setText(str(round(self.parent.ax1.get_xlim()[0], 3)))
         self.optFreqMax.setText(str(round(self.parent.ax1.get_xlim()[1], 3)))
-
-        if self.parent.log_scale is True:
-            self.logScale.setChecked(True)
-        else:
-            self.logScale.setChecked(False)
+        self.logScale.setChecked(self.parent.log_scale)
 
     def on_ok_clicked(self):
         """Update spectrogram widget class parameters with the plot settings and replot."""

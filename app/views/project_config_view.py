@@ -1198,12 +1198,7 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
         self.loggerID.setText(logger.logger_id)
         self.loggerPath.setPlainText(logger.logger_path)
         self.fileFormat.setCurrentText(logger.file_format)
-
-        if logger.file_timestamp_embedded is True:
-            self.fileTimestampEmbeddedChkBox.setChecked(True)
-        else:
-            self.fileTimestampEmbeddedChkBox.setChecked(False)
-
+        self.fileTimestampEmbeddedChkBox.setChecked(logger.file_timestamp_embedded)
         self.fileTimestampFormat.setText(logger.file_timestamp_format)
         self.firstColData.setCurrentText(logger.first_col_data)
         self.fileExt.setText(logger.file_ext)
@@ -1350,10 +1345,7 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
                 logger = set_2hps2_acc_file_format(logger)
 
         # Set test logger file format properties to the dialog Logger File Properties group
-        if logger.file_timestamp_embedded is True:
-            self.fileTimestampEmbeddedChkBox.setChecked(True)
-        else:
-            self.fileTimestampEmbeddedChkBox.setChecked(False)
+        self.fileTimestampEmbeddedChkBox.setChecked(logger.file_timestamp_embedded)
         self.firstColData.setCurrentText(logger.first_col_data)
         self.fileExt.setText(logger.file_ext)
         self.fileDelimiter.setCurrentText(delims_logger_to_gui[logger.file_delimiter])
@@ -1974,36 +1966,14 @@ class ScreeningSetupTab(QtWidgets.QWidget):
         self.spectFolder.setText(self.parent.control.spect_output_folder)
 
         # Selected stats file formats to output
-        if self.control.stats_to_h5 is True:
-            self.statsH5ChkBox.setChecked(True)
-        else:
-            self.statsH5ChkBox.setChecked(False)
-
-        if self.control.stats_to_csv is True:
-            self.statsCSVChkBox.setChecked(True)
-        else:
-            self.statsCSVChkBox.setChecked(False)
-
-        if self.control.stats_to_xlsx is True:
-            self.statsXLSXChkBox.setChecked(True)
-        else:
-            self.statsXLSXChkBox.setChecked(False)
+        self.statsH5ChkBox.setChecked(self.control.stats_to_h5)
+        self.statsCSVChkBox.setChecked(self.control.stats_to_csv)
+        self.statsXLSXChkBox.setChecked(self.control.stats_to_xlsx)
 
         # Selected spectral file formats to output
-        if self.control.spect_to_h5 is True:
-            self.spectH5ChkBox.setChecked(True)
-        else:
-            self.spectH5ChkBox.setChecked(False)
-
-        if self.control.spect_to_csv is True:
-            self.spectCSVChkBox.setChecked(True)
-        else:
-            self.spectCSVChkBox.setChecked(False)
-
-        if self.control.spect_to_xlsx is True:
-            self.spectXLSXChkBox.setChecked(True)
-        else:
-            self.spectXLSXChkBox.setChecked(False)
+        self.spectH5ChkBox.setChecked(self.control.spect_to_h5)
+        self.spectCSVChkBox.setChecked(self.control.spect_to_csv)
+        self.spectXLSXChkBox.setChecked(self.control.spect_to_xlsx)
 
     def clear_dashboard(self):
         """Initialise all values in stats and spectral analysis dashboard."""
@@ -2574,9 +2544,8 @@ class EditSeascatterDialog(QtWidgets.QDialog):
     def __init__(self, parent=None, control=Control(), scatter=Seascatter()):
         super(EditSeascatterDialog, self).__init__(parent)
 
-        self.cols = []
-
         self.parent = parent
+        self.cols = []
         self.control = control
         self.scatter = scatter
         self._init_ui()

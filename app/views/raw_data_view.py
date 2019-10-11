@@ -15,7 +15,7 @@ from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as Navigatio
 
 from app.core.azure_cloud_storage import connect_to_azure_account, stream_blob
 from app.core.control import Control
-from app.core.raw_time_series_dataset import RawDataPlotProperties, RawDataRead
+from app.core.raw_data_plot_properties import RawDataPlotProperties, RawDataRead
 from app.core.signal_processing import calc_psd, filter_signal
 
 # from gui.gui_zoom_pan_factory import ZoomPan
@@ -69,7 +69,7 @@ class RawDataDashboard(QtWidgets.QWidget):
         self.fileList = QtWidgets.QListWidget()
         self.columnsLabel = QtWidgets.QLabel("Columns")
         self.columnList = QtWidgets.QListWidget()
-        self.columnList.setFixedHeight(90)
+        self.columnList.setFixedHeight(110)
         self.lowCutoff = QtWidgets.QLineEdit("None")
         self.lowCutoff.setFixedWidth(40)
         self.highCutoff = QtWidgets.QLineEdit("None")
@@ -433,6 +433,8 @@ class RawDataDashboard(QtWidgets.QWidget):
         """Clear all stored datasets and reset layout."""
 
         self.resetting_dashboard = True
+        self.axisCombo.setCurrentIndex(0)
+        self.seriesCombo.setCurrentIndex(0)
         self.proj_datasets = []
         self.plot_setup.reset()
         self.datasetCombo.clear()
@@ -749,8 +751,7 @@ class RawDataDashboard(QtWidgets.QWidget):
         self.lblFile.setText(srs.file)
         self.lblColumn.setText(srs.column)
 
-    @staticmethod
-    def _set_series_data(srs, df):
+    def _set_series_data(self, srs, df):
         """Set series plot data."""
 
         srs.x = df.index.values
@@ -766,8 +767,6 @@ class RawDataDashboard(QtWidgets.QWidget):
 
         srs.units = srs.channel_units[srs.column_i]
         srs.timestamps = df.iloc[:, 0].values
-        srs.label = f"{srs.file} {srs.dataset} {srs.column}"
-
         # srs.set_series_data(self.df, channels, units)
 
         return srs
@@ -834,6 +833,7 @@ class RawDataDashboard(QtWidgets.QWidget):
         # Ensure plots don't overlap suptitle and legend
         # self.fig.tight_layout(rect=[0, 0.05, 1, 0.9])
         # self.fig.tight_layout(rect=[0, 0.05, 1, 0.95])
+        # self.fig.tight_layout()
         # (rect=[left, bottom, right, top])
         self.fig.subplots_adjust(
             left=0.07, bottom=0.15, right=0.93, top=0.9, hspace=0.4
@@ -960,26 +960,27 @@ class RawDataDashboard(QtWidgets.QWidget):
         else:
             self.ax2.set_xlabel("Frequency (Hz)")
 
-    @staticmethod
-    def _add_ts_line_plot(srs, ax, filtered):
+    def _add_ts_line_plot(self, srs, ax, filtered):
         """Add time series line plot."""
 
         x = srs.x
-        units = srs.units
-        label = srs.label
         linewidth = srs.linewidth
+        srs.label = self._construct_label(srs, filtered)
 
         if filtered is True:
             y = srs.y_filt
-            label += " (Filtered)"
             color = srs.color_filt
         else:
             y = srs.y
             color = srs.color
 
         # Add line plot
-        ax.plot(x, y, label=label, c=color, lw=linewidth)
-        ylabel = units
+        ax.plot(x, y, label=srs.label, c=color, lw=linewidth)
+
+        if srs.units == "-":
+            ylabel = ""
+        else:
+            ylabel = srs.units
         ax.set_ylabel(ylabel, size=10)
 
     def _add_psd_line_plot(self, srs, ax, filtered):
@@ -1015,13 +1016,19 @@ class RawDataDashboard(QtWidgets.QWidget):
             f = 1 / f[1:]
             pxx = pxx[1:]
 
+        # Set units text
+        if srs.units == "-":
+            units = "units"
+        else:
+            units = srs.units
+
         # Convert PSD to log10 if plot option selected
         if self.plot_setup.log_scale is True:
-            pxx = np.log10(pxx)
+            # pxx = np.log10(pxx)
             ax.set_yscale("log")
-            ylabel = f"$\mathregular{{log_{{10}} [({srs.units})^2/Hz}}]$".strip()
+            ylabel = f"$\mathregular{{log_{{10}} [({units})^2/Hz}}]$".strip()
         else:
-            ylabel = f"$\mathregular{{({srs.units})^2/Hz}}$".strip()
+            ylabel = f"$\mathregular{{({units})^2/Hz}}$".strip()
 
         linewidth = srs.linewidth
 
@@ -1067,6 +1074,21 @@ class RawDataDashboard(QtWidgets.QWidget):
         self.plot_setup.fs = int(fs)
 
         return f, pxx
+
+    def _construct_label(self, srs, filtered):
+        """Create legend label."""
+
+        # Construct legend label
+        label = ""
+        if self.plot_setup.filename_in_legend is True:
+            label = f"{srs.file} "
+
+        label += f"{srs.dataset} {srs.column}"
+
+        if filtered is True:
+            srs.label += " (Filtered)"
+
+        return label
 
     def _set_gridlines(self):
         """Set displayed gridlines and axis visibility."""
@@ -1377,7 +1399,7 @@ class PlotControlsDialog(QtWidgets.QDialog):
         self._connect_signals()
 
     def _init_ui(self):
-        self.setWindowTitle("Logger Plot Settings")
+        self.setWindowTitle("Raw Data Dashboard Plot Settings")
 
         # Widget sizing policy - prevent expansion
         policy = QtWidgets.QSizePolicy(
@@ -1407,27 +1429,6 @@ class PlotControlsDialog(QtWidgets.QDialog):
         # self.optPSDYmin.setFixedWidth(50)
         # self.optPSDYmax.setFixedWidth(50)
 
-        # Cut-off frequencies
-        self.lowCutoff = QtWidgets.QLineEdit("0.05")
-        self.lowCutoff.setFixedWidth(50)
-        self.lowCutoff.setEnabled(False)
-        self.highCutoff = QtWidgets.QLineEdit("0.50")
-        self.highCutoff.setFixedWidth(50)
-        self.highCutoff.setEnabled(False)
-        self.lowFreqChkBox = QtWidgets.QCheckBox("Apply cut-off")
-        self.lowFreqChkBox.setChecked(False)
-        self.highFreqChkBox = QtWidgets.QCheckBox("Apply cut-off")
-        self.highFreqChkBox.setChecked(False)
-
-        # Frequency/period radio buttons
-        self.radioFreq = QtWidgets.QRadioButton("Frequency")
-        self.radioFreq.setChecked(True)
-        self.radioPeriod = QtWidgets.QRadioButton("Period")
-
-        # PSD log scale checkbox
-        self.logScale = QtWidgets.QCheckBox("PSD log scale")
-        self.logScale.setChecked(False)
-
         # PSD parameters
         self.radioDefault = QtWidgets.QRadioButton("Default parameters")
         self.radioWelch = QtWidgets.QRadioButton("Default Welch parameters")
@@ -1449,15 +1450,19 @@ class PlotControlsDialog(QtWidgets.QDialog):
         self.optFs.setFixedWidth(50)
         self.optFs.setEnabled(False)
 
+        # Legend settings
+        self.filenameInLegend = QtWidgets.QCheckBox("Include file name in legend")
+        self.filenameInLegend.setChecked(True)
+
         # CONTAINERS
         # Title and axes labels form
         self.formTitle = QtWidgets.QFormLayout()
         self.formTitle.addRow(QtWidgets.QLabel("Project title:"), self.optProject)
 
         # Time series axes limits
-        self.frameTS = QtWidgets.QGroupBox("Time Series Limits")
-        self.frameTS.setSizePolicy(policy)
-        self.grid = QtWidgets.QGridLayout(self.frameTS)
+        self.tsGroup = QtWidgets.QGroupBox("Time Series Limits")
+        self.tsGroup.setSizePolicy(policy)
+        self.grid = QtWidgets.QGridLayout(self.tsGroup)
         self.grid.addWidget(QtWidgets.QLabel("X min:"), 0, 0)
         self.grid.addWidget(self.optTSXmin, 0, 1)
         self.grid.addWidget(QtWidgets.QLabel("X max:"), 0, 2)
@@ -1468,9 +1473,9 @@ class PlotControlsDialog(QtWidgets.QDialog):
         # self.grid.addWidget(self.optTSYmax, 1, 3)
 
         # PSD axes limits
-        self.framePSD = QtWidgets.QGroupBox("PSD Limits")
-        self.framePSD.setSizePolicy(policy)
-        self.grid = QtWidgets.QGridLayout(self.framePSD)
+        self.psdGroup = QtWidgets.QGroupBox("PSD Limits")
+        self.psdGroup.setSizePolicy(policy)
+        self.grid = QtWidgets.QGridLayout(self.psdGroup)
         self.grid.addWidget(QtWidgets.QLabel("X min:"), 0, 0)
         self.grid.addWidget(self.optPSDXmin, 0, 1)
         self.grid.addWidget(QtWidgets.QLabel("X max:"), 0, 2)
@@ -1482,32 +1487,15 @@ class PlotControlsDialog(QtWidgets.QDialog):
 
         # Combine axes limits group
         self.hboxLimits = QtWidgets.QHBoxLayout()
-        self.hboxLimits.addWidget(self.frameTS)
-        self.hboxLimits.addWidget(self.framePSD)
+        self.hboxLimits.addWidget(self.tsGroup)
+        self.hboxLimits.addWidget(self.psdGroup)
         self.hboxLimits.addStretch()
 
-        # Frequency/period group
-        self.psdXAxisGroup = QtWidgets.QGroupBox("PSD X Axis")
-        self.psdXAxisGroup.setSizePolicy(policy)
-        self.vbox = QtWidgets.QVBoxLayout(self.psdXAxisGroup)
-        self.vbox.addWidget(self.radioFreq)
-        self.vbox.addWidget(self.radioPeriod)
-
-        # Combine PSD x-axis and log scale
-        self.hboxPSD = QtWidgets.QHBoxLayout()
-        self.hboxPSD.addWidget(self.psdXAxisGroup)
-        self.hboxPSD.addWidget(self.logScale)
-
-        # Cut-off frequencies group
-        self.freqCutoffsGroup = QtWidgets.QGroupBox("Cut-off Frequencies")
-        self.freqCutoffsGroup.setSizePolicy(policy)
-        self.grid = QtWidgets.QGridLayout(self.freqCutoffsGroup)
-        self.grid.addWidget(QtWidgets.QLabel("Low freq cut-off (Hz):"), 0, 0)
-        self.grid.addWidget(self.lowCutoff, 0, 1)
-        self.grid.addWidget(self.lowFreqChkBox, 0, 2)
-        self.grid.addWidget(QtWidgets.QLabel("High freq cut-off (Hz):"), 1, 0)
-        self.grid.addWidget(self.highCutoff, 1, 1)
-        self.grid.addWidget(self.highFreqChkBox, 1, 2)
+        # Legend group
+        self.legendGroup = QtWidgets.QGroupBox("Legend Format")
+        self.legendGroup.setSizePolicy(policy)
+        self.vboxLeg = QtWidgets.QVBoxLayout(self.legendGroup)
+        self.vboxLeg.addWidget(self.filenameInLegend)
 
         # Parameters choice radios
         self.vbox = QtWidgets.QVBoxLayout()
@@ -1519,14 +1507,14 @@ class PlotControlsDialog(QtWidgets.QDialog):
         # PSD parameters form
         self.formLayout = QtWidgets.QFormLayout()
         self.formLayout.addRow(
-            QtWidgets.QLabel("Number of ensembles:"), self.optNumEnsembles
+            QtWidgets.QLabel("Number of segments:"), self.optNumEnsembles
         )
         self.formLayout.addRow(QtWidgets.QLabel("Window:"), self.optWindow)
         self.formLayout.addRow(
             QtWidgets.QLabel("Segment overlap (%):"), self.optOverlap
         )
         self.formLayout.addRow(
-            QtWidgets.QLabel("Number of points per ensemble (echo):"), self.optNperseg
+            QtWidgets.QLabel("Number of points per segment (echo):"), self.optNperseg
         )
         self.formLayout.addRow(
             QtWidgets.QLabel("Sampling frequency (Hz) (echo):"), self.optFs
@@ -1557,16 +1545,12 @@ class PlotControlsDialog(QtWidgets.QDialog):
         # mainLayout.addWidget(sectionLabel)
         self.layout.addLayout(self.formTitle)
         self.layout.addLayout(self.hboxLimits)
-        self.layout.addLayout(self.hboxPSD)
-        self.layout.addWidget(self.freqCutoffsGroup)
         self.layout.addWidget(self.paramGroup)
+        self.layout.addWidget(self.legendGroup)
         self.layout.addStretch()
         self.layout.addWidget(self.buttonBox)
 
     def _connect_signals(self):
-        self.lowFreqChkBox.toggled.connect(self.on_low_freq_cutoff_toggled)
-        self.highFreqChkBox.toggled.connect(self.on_high_freq_cutoff_toggled)
-        self.radioFreq.toggled.connect(self.on_psd_xaxis_type_toggled)
         self.radioDefault.toggled.connect(self.on_psd_params_type_toggled)
         self.radioWelch.toggled.connect(self.on_psd_params_type_toggled)
         self.buttonBox.accepted.connect(self.on_ok_clicked)
@@ -1578,36 +1562,6 @@ class PlotControlsDialog(QtWidgets.QDialog):
         self.buttonBox.button(QtWidgets.QDialogButtonBox.Reset).clicked.connect(
             self.reset_values
         )
-
-    def on_psd_xaxis_type_toggled(self):
-        """Switch PSD x-axis limits in the options settings between frequency and period."""
-
-        try:
-            xmin, xmax = float(self.optPSDXmin.text()), float(self.optPSDXmax.text())
-        except ValueError as e:
-            print(f"Axis limits must be numeric - {e}")
-
-        # Default min axis to 0
-        self.optPSDXmin.setText("0.0")
-
-        # Set frequency axis - default xlim max to 1 Hz/20s if current xlim min is 0s or 0 Hz respectively
-        if self.radioFreq.isChecked():
-            if xmin == 0:
-                self.optPSDXmax.setText("1.0")
-            else:
-                self.optPSDXmax.setText(str(1 / xmin))
-        # Set period axis
-        else:
-            if xmin == 0:
-                self.optPSDXmax.setText("20.0")
-            else:
-                self.optPSDXmax.setText(str(1 / xmin))
-
-    def on_low_freq_cutoff_toggled(self):
-        self.lowCutoff.setEnabled(self.lowFreqChkBox.isChecked())
-
-    def on_high_freq_cutoff_toggled(self):
-        self.highCutoff.setEnabled(self.highFreqChkBox.isChecked())
 
     def on_psd_params_type_toggled(self):
         """Switch between default and custom PSD parameters."""
@@ -1640,14 +1594,10 @@ class PlotControlsDialog(QtWidgets.QDialog):
 
         self._set_plot_settings()
 
-        # Update plots if files exist
-        if self.parent.fileList.count() > 0:
-            self.parent.filter_all_time_series()
-
-            # This flag stops the on_xlims_changed event from processing
-            self.parent.skip_on_xlims_changed = True
-            self.parent.rebuild_plots()
-            self.parent.skip_on_xlims_changed = False
+        # This flag stops the on_xlims_changed event from processing
+        self.parent.skip_on_xlims_changed = True
+        self.parent.rebuild_plots()
+        self.parent.skip_on_xlims_changed = False
 
     def set_dialog_data(self):
         """Get plot parameters from the time series widget and assign to settings widget."""
@@ -1661,22 +1611,6 @@ class PlotControlsDialog(QtWidgets.QDialog):
         self.optTSXmax.setText(str(self.parent.ax1.get_xlim()[1]))
         self.optPSDXmin.setText(str(self.parent.ax2.get_xlim()[0]))
         self.optPSDXmax.setText(str(self.parent.ax2.get_xlim()[1]))
-
-        # Freq cut-offs
-        # self.lowCutoff.setText(f"{self.plot_settings.low_cutoff:.2f}")
-        # self.highCutoff.setText(f"{self.plot_settings.high_cutoff:.2f}")
-        self.lowCutoff.setText(str(self.plot_settings.def_low_cutoff))
-        self.highCutoff.setText(str(self.plot_settings.def_high_cutoff))
-
-        if self.plot_settings.plot_period is True:
-            self.radioPeriod.setChecked(True)
-        else:
-            self.radioFreq.setChecked(True)
-
-        if self.plot_settings.log_scale is True:
-            self.logScale.setChecked(True)
-        else:
-            self.logScale.setChecked(False)
 
         # Get PSD parameters
         if self.plot_settings.psd_params_type == "default":
@@ -1701,6 +1635,9 @@ class PlotControlsDialog(QtWidgets.QDialog):
         # Get sampling frequency
         self.optFs.setText(str(self.plot_settings.fs))
 
+        # Legend options
+        self.filenameInLegend.setChecked(self.plot_settings.filename_in_legend)
+
     def _set_plot_settings(self):
         """Update the plot properties of the plot settings object."""
 
@@ -1717,18 +1654,6 @@ class PlotControlsDialog(QtWidgets.QDialog):
                 float(self.optPSDXmin.text()),
                 float(self.optPSDXmax.text()),
             )
-
-            if self.lowFreqChkBox.isChecked():
-                self.plot_settings.apply_low_cutoff = True
-                self.plot_settings.def_low_cutoff = float(self.lowCutoff.text())
-            else:
-                self.plot_settings.apply_low_cutoff = False
-
-            if self.highFreqChkBox.isChecked():
-                self.plot_settings.apply_high_cutoff = True
-                self.plot_settings.def_high_cutoff = float(self.highCutoff.text())
-            else:
-                self.plot_settings.apply_high_cutoff = False
 
             # Assign PSD parameters
             self.plot_settings.num_ensembles = float(self.optNumEnsembles.text())
@@ -1751,10 +1676,6 @@ class PlotControlsDialog(QtWidgets.QDialog):
             self.plot_settings.cust_window = self.plot_settings.window
             self.plot_settings.cust_overlap = self.plot_settings.overlap
 
-        # Assign remaining settings to time series class
-        self.plot_settings.plot_period = self.radioPeriod.isChecked()
-        self.plot_settings.log_scale = self.logScale.isChecked()
-
         if self.radioDefault.isChecked():
             self.plot_settings.psd_params_type = "default"
         elif self.radioWelch.isChecked():
@@ -1762,23 +1683,25 @@ class PlotControlsDialog(QtWidgets.QDialog):
         else:
             self.plot_settings.psd_params_type = "custom"
 
+        # Legend options
+        self.plot_settings.filename_in_legend = self.filenameInLegend.isChecked()
+
     def reset_values(self):
         """Reset option settings to initial values set during file load."""
 
-        self.radioFreq.setChecked(True)
-        self.logScale.setChecked(False)
         self.optTSXmin.setText(str(round(self.plot_settings.init_xlim[0], 1)))
         self.optTSXmax.setText(str(round(self.plot_settings.init_xlim[1], 1)))
         self.optPSDXmin.setText("0.0")
         self.optPSDXmax.setText("1.0")
         self.radioDefault.setChecked(True)
+        self.filenameInLegend.setChecked(True)
 
 
 # For testing layout
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
-    win = RawDataDashboard()
-    # win = LoggerPlotSettings()
+    # win = RawDataDashboard()
+    win = PlotControlsDialog()
     win.show()
     sys.exit(app.exec_())
 
