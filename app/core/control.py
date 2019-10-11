@@ -1,12 +1,13 @@
-"""
-Class to setup project control.
-"""
+"""Class to set up project control."""
+
+__author__ = "Craig Dickinson"
+
 import os.path
 
 from dateutil.parser import parse
 
 from app.core.custom_date import get_datetime_format
-from app.core.fugro_csv_properties import (
+from app.core.file_props_fugro_csv import (
     read_fugro_headers,
     read_fugro_sample_interval,
     set_fugro_csv_file_format,
@@ -72,14 +73,14 @@ class Control(object):
         self.spect_output_path = ""
 
         # Selected stats output file formats
-        self.stats_to_h5 = True
-        self.stats_to_csv = False
+        self.stats_to_csv = True
         self.stats_to_xlsx = False
+        self.stats_to_h5 = False
 
         # Selected spectral output file formats
-        self.spect_to_h5 = True
-        self.spect_to_csv = False
+        self.spect_to_csv = True
         self.spect_to_xlsx = False
+        self.spect_to_h5 = False
 
         # List to store lines with *LOGGER_ID
         self.logger_id_lines = []
@@ -255,7 +256,7 @@ class Control(object):
 
             # Assign file format-specific logger properties
             # General file format
-            if file_format.lower() == "general-csv":
+            if file_format.lower() == "custom":
                 self.set_general_file_format(logger, logger_data)
             # Fugro csv format - need to detect some properties from the file
             # However we want to check all data in control file is valid first
@@ -284,12 +285,12 @@ class Control(object):
             self.read_or_copy_stats_format(logger, logger_data)
 
             # Get filenames and check timestamps
-            logger.process_filenames()
+            logger.get_filenames()
+            logger.get_timestamp_span()
+            logger.check_file_timestamps()
 
             # Select only files within specified datetime range
-            logger.select_files_in_datetime_range(
-                logger.process_start, logger.process_end
-            )
+            logger.select_files_in_date_range(logger.process_start, logger.process_end)
 
             # Select first logger file to detect additional properties and checks on
             test_file = logger.files[0]
@@ -358,7 +359,7 @@ class Control(object):
         """
 
         logger_id = logger.logger_id
-        logger.file_format = "general-csv"
+        logger.file_format = "Custom"
 
         # Get file extension - *EXTENSION
         logger.file_ext = self.get_extension(data)
@@ -642,7 +643,8 @@ class Control(object):
         # Return logger path
         return logger_path
 
-    def copy_logger_attributes(self, objfrom, objto, attribute_names):
+    @staticmethod
+    def copy_logger_attributes(objfrom, objto, attribute_names):
         """Function to copy attributes from one object to another."""
 
         for n in attribute_names:

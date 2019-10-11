@@ -1,6 +1,5 @@
-"""
-Main class to perform signal processing on logger data.
-"""
+"""Main class to perform signal processing on logger data."""
+
 __author__ = "Craig Dickinson"
 
 import argparse
@@ -100,9 +99,8 @@ class Screening(QThread):
         # Create output stats to workbook object
         stats_out = StatsOutput(output_dir=self.control.stats_output_path)
 
-        # List of output files
+        # Initialise containers and settings
         output_files = []
-
         logger_ids = []
         total_files = 0
         global_process_stats = self.control.global_process_stats
@@ -125,7 +123,7 @@ class Screening(QThread):
             logger_ids.append(logger.logger_id)
 
             # Check whether logger data is to be streamed from Azure
-            if logger.data_on_azure is True:
+            if logger.data_on_azure:
                 any_data_on_azure = True
 
             if global_process_stats is True and logger.process_stats is True:
@@ -176,13 +174,23 @@ class Screening(QThread):
             df_spect_sample = pd.DataFrame()
             n = len(data_screen[i].files)
 
+            # Get file number of first file to be processed (this is akin to load case number for no timestamp files)
+            try:
+                first_file_num = logger.file_indexes[0] + 1
+            except IndexError:
+                pass
+
+            # Initialise file parameters in case there are no files to process
+            j = 0
+            filename = ""
+
             # Expose each sample here; that way it can be sent to different processing modules
             for j, file in enumerate(data_screen[i].files):
                 # TODO: Consider adding multiprocessing pool here
                 # TODO: If expected file in sequence is missing, store results as nan
-
                 # Update console
                 filename = os.path.basename(file)
+                processed_file_num = first_file_num + j
                 progress = (
                     f"Processing {logger.logger_id} file {j + 1} of {n} ({filename})"
                 )
@@ -205,7 +213,7 @@ class Screening(QThread):
                 self.signal_notify_progress.emit(dict_progress)
 
                 # If streaming data from Azure Cloud read as a file stream
-                if logger.data_on_azure is True:
+                if logger.data_on_azure:
                     file = stream_blob(
                         bloc_blob_service, logger.container_name, logger.blobs[j]
                     )
@@ -214,7 +222,7 @@ class Screening(QThread):
                 df = data_screen[i].read_logger_file(file)
 
                 # Data munging/wrangling to prepare dataset for processing
-                df = data_screen[i].munge_data(df, logger.file_timestamps[j])
+                df = data_screen[i].munge_data(df, file_idx=j)
 
                 # Data screening module
                 # Perform basic screening checks on file - check file has expected number of data points
@@ -232,6 +240,9 @@ class Screening(QThread):
                     # Stats processing module
                     if global_process_stats is True and logger.process_stats is True:
                         while len(df_stats) > 0:
+                            # Store the file number of processed sample (only of use for time step indexes)
+                            data_screen[i].stats_file_nums.append(processed_file_num)
+
                             # Extract sample data frame from main dataset
                             df_stats_sample, df_stats = data_screen[i].sample_data(
                                 df_stats_sample,
@@ -268,6 +279,9 @@ class Screening(QThread):
                     # Spectrograms processing module
                     if global_process_spect is True and logger.process_spect is True:
                         while len(df_spect) > 0:
+                            # Store the file number of processed sample (only of use for time step indexes)
+                            data_screen[i].spect_file_nums.append(processed_file_num)
+
                             # Extract sample data frame from main dataset
                             df_spect_sample, df_spect = data_screen[i].sample_data(
                                 df_spect_sample,
@@ -312,10 +326,11 @@ class Screening(QThread):
                 file_count += 1
 
             # Operations for logger i after all logger i files have been processed
-            coverage = data_screen[i].calc_data_completeness()
-            print(
-                f"\nData coverage for {logger.logger_id} logger = {coverage.min():.1f}%\n"
-            )
+            if logger.files:
+                coverage = data_screen[i].calc_data_completeness()
+                print(
+                    f"\nData coverage for {logger.logger_id} logger = {coverage.min():.1f}%\n"
+                )
 
             # Add any files containing errors to screening report
             data_report.add_files_with_bad_data(
@@ -326,6 +341,7 @@ class Screening(QThread):
                 # Create and store a data frame of logger stats
                 df_stats = stats_out.compile_stats(
                     logger,
+                    data_screen[i].stats_file_nums,
                     data_screen[i].stats_sample_start,
                     data_screen[i].stats_sample_end,
                     logger_stats,
@@ -372,10 +388,12 @@ class Screening(QThread):
                     csv=self.control.spect_to_csv,
                     xlsx=self.control.spect_to_xlsx,
                 )
+                dates = data_screen[i].spect_sample_start
+                file_nums = data_screen[i].spect_file_nums
 
                 # Export spectrograms to requested file formats
                 if spect_unfilt.spectrograms:
-                    spect_unfilt.add_timestamps(dates=data_screen[i].spect_sample_start)
+                    spect_unfilt.add_index(dates, file_nums)
                     df_dict = spect_unfilt.export_spectrograms_data(
                         dict_formats_to_write
                     )
@@ -386,7 +404,7 @@ class Screening(QThread):
                     self.signal_update_output_info.emit(output_files)
 
                 if spect_filt.spectrograms:
-                    spect_filt.add_timestamps(dates=data_screen[i].spect_sample_start)
+                    spect_filt.add_index(dates, file_nums)
                     df_dict = spect_filt.export_spectrograms_data(
                         dict_formats_to_write, filtered=True
                     )
@@ -451,8 +469,8 @@ class Screening(QThread):
 
 
 if __name__ == "__main__":
-    direc = r"C:\Users\dickinsc\PycharmProjects\DataLab\Demo Data\21239 Project DAT"
-    f = "controlfile_fugro_slim.dat"
+    direc = r"C:\Users\dickinsc\PycharmProjects\DataLab\demo_data\2. Project Configs\DAT Files (obsolete)"
+    f = "controlfile_21239_loggers.dat"
     f = os.path.join(direc, f)
     # f = ''
     datalab = Screening(datfile=f, no_dat=False)

@@ -1,21 +1,21 @@
-"""
-Class to hold logger properties.
-"""
+"""Class to hold logger properties."""
+
 __author__ = "Craig Dickinson"
 
 import os
 from glob import glob
 
-from dateutil.parser import parse
 from PyQt5.QtCore import QObject, pyqtSignal
+from dateutil.parser import parse
+from natsort import natsorted
 
-from app.core.custom_date import get_date_code_span, make_time_str
 from app.core.azure_cloud_storage import (
     connect_to_azure_account,
-    get_container_name_and_folders_path,
+    extract_container_name_and_folders_path,
     get_blobs,
     stream_blob,
 )
+from app.core.custom_date import get_date_code_span, make_time_str
 
 
 class Error(Exception):
@@ -35,10 +35,21 @@ class LoggerError(Error):
         self.message = message
 
 
+class LoggerWarning(Error):
+    """Exception raised for errors in the logger properties that wish to report as warnings.
+
+    Attributes:
+        message -- explanation of the error
+    """
+
+    def __init__(self, message):
+        self.message = message
+
+
 class LoggerProperties(QObject):
     """Holds properties of a logger."""
 
-    signal_warning = pyqtSignal(str)
+    logger_warning_signal = pyqtSignal(str)
 
     def __init__(self, logger_id=""):
         super().__init__()
@@ -56,15 +67,12 @@ class LoggerProperties(QObject):
         self.blobs = []
 
         # File format variables
-        self.file_timestamp_format = ""  # *FILE_TIMESTAMP
         self.file_format = ""  # *FILE_FORMAT
-        self.timestamp_format = ""  # *TIMESTAMP
-
-        # Datetime format string to convert timestamp strings to datetimes, e.g. %d-%b-%Y %H:%M:%S.%f
-        self.datetime_format = ""
-
+        self.file_timestamp_embedded = True
+        self.file_timestamp_format = ""  # *FILE_TIMESTAMP
+        self.first_col_data = "Timestamp"
         self.file_ext = ""  # *EXTENSION
-        self.file_delimiter = ""  # *DELIMITER
+        self.file_delimiter = ","  # *DELIMITER
 
         # Number of rows/columns expected
         self.num_headers = 0  # *NUM_HEADERS
@@ -75,26 +83,32 @@ class LoggerProperties(QObject):
         self.units_header_row = 0  # *UNITS_HEADER
 
         # Logging data properties
+        self.timestamp_format = ""  # *TIMESTAMP
+
+        # Datetime format string to convert timestamp strings to datetimes, e.g. %d-%b-%Y %H:%M:%S.%f
+        self.datetime_format = ""
         self.freq = 0  # *LOGGING_FREQUENCY
         self.duration = 0  # *LOGGING_DURATION
         self.expected_data_points = 0
+
+        # Store index column name of raw files (to report in the channels list widget on the config dashboard)
+        self.index_col_name = "Timestamp"
 
         # Channel names and units lists
         self.all_channel_names = []
         self.all_channel_units = []
 
-        # List of raw filenames and of accepted files and file timestamps for each filename
+        # List of raw filenames
         self.raw_filenames = []
+
+        # Lists of accepted filenames to process, their file timestamps (if applicable)
+        # and file index (out of the raw filenames list)
         self.files = []
         self.file_timestamps = []
+        self.file_indexes = []
 
         # Dictionary of files with bad timestamps
         self.dict_bad_filenames = {}
-
-        # Processing start and end dates
-        # These hold sampling dates and not the control file stats start/end dates (which may not be provided)
-        self.start_date = None
-        self.end_date = None
 
         # File timestamp component start and end indexes
         self.year_span = None
@@ -120,7 +134,7 @@ class LoggerProperties(QObject):
         self.user_channel_names = []  # *CHANNEL_NAMES
         self.user_channel_units = []  # *CHANNEL_UNITS
 
-        # Datetime range to process over
+        # Datetime or file index range to process over
         self.process_start = None  # *STATS_START
         self.process_end = None  # *STATS_END
 
@@ -135,41 +149,58 @@ class LoggerProperties(QObject):
         self.process_stats = True
         self.process_spect = True
 
-        # Interval (in seconds) to process stats on
+        # Interval (in seconds) to process stats and spectral on
         self.stats_interval = 0  # *STATS_INTERVAL
-
-        # Interval (in seconds) to process spectral on
         self.spect_interval = 0
+
+        # Flag to force maximum interval length (i.e. file length) if file format is Custom format
+        # with raw files containing a time steps index;
+        # this is to ensure results files contain a unique file number index
+        self.enforce_max_duration = False
 
         # Spectral screening - PSD parameters
         self.psd_nperseg = 1000
         self.psd_window = "Hann"
         self.psd_overlap = 50
 
-    def process_filenames(self):
+    def get_filenames(self):
         """Read all file timestamps and check that they conform to the specified format."""
 
-        if self.data_on_azure is True:
-            self.get_filenames_on_azure()
+        self.raw_filenames = []
+
+        if not self.logger_path:
+            return
+
+        if self.data_on_azure:
+            filenames = self.get_filenames_on_azure()
         else:
-            self.get_filenames()
+            filenames = self.get_filenames_on_local()
 
-        self.get_timestamp_span()
-        self.check_file_timestamps()
+        self.raw_filenames = filenames
 
-    def get_filenames(self):
+        return filenames
+
+    def get_filenames_on_local(self):
         """Get all filenames with specified extension in logger path."""
 
-        self.raw_filenames = [
+        # Get filenames and use natsort to ensure files are sorted correctly
+        # (i.e. not lexicographically e.g. 0, 1, 10, 2)
+        filenames = [
             os.path.basename(f) for f in glob(self.logger_path + "/*." + self.file_ext)
         ]
+        filenames = natsorted(filenames)
 
-        if not self.raw_filenames:
-            msg = f"No {self.logger_id} logger files found in {self.logger_path}."
-            raise LoggerError(msg)
+        if not filenames:
+            msg = f"No {self.logger_id} files with the extension {self.file_ext} found in:\n{self.logger_path}."
+            raise FileNotFoundError(msg)
+
+        return filenames
 
     def get_filenames_on_azure(self):
         """Get all filenames with specified extension stored on Azure Cloud Storage container."""
+
+        self.container_name = ""
+        self.blobs = []
 
         try:
             bloc_blob_service = connect_to_azure_account(
@@ -179,27 +210,32 @@ class LoggerProperties(QObject):
             raise LoggerError(e)
 
         try:
-            container_name, virtual_folders_path = get_container_name_and_folders_path(
+            container_name, virtual_folders_path = extract_container_name_and_folders_path(
                 self.logger_path
             )
             blobs = get_blobs(bloc_blob_service, container_name, virtual_folders_path)
+            blobs = natsorted(blobs)
 
             # Store container name and blobs list
             self.container_name = container_name
             self.blobs = blobs
-        except:
+        except Exception:
             msg = f"Could not connect to {container_name} container on Azure Cloud Storage account."
             raise LoggerError(msg)
 
-        self.raw_filenames = [
-            os.path.basename(f)
-            for f in blobs
-            if os.path.splitext(f)[1] == "." + self.file_ext
+        ext = "." + self.file_ext.lower()
+        filenames = [
+            os.path.basename(f) for f in blobs if os.path.splitext(f)[1].lower() == ext
         ]
 
-        if not self.raw_filenames:
-            msg = f"No {self.logger_id} logger files found in {self.logger_path} on Azure Cloud Storage account."
-            raise LoggerError(msg)
+        if not filenames:
+            msg = (
+                f"No {self.logger_id} files with the extension {self.file_ext} found in:\n{self.logger_path} "
+                f"on Azure Cloud Storage account."
+            )
+            raise FileNotFoundError(msg)
+
+        return filenames
 
     def get_timestamp_span(self):
         """Extract timestamp code spans using filename format given in control file."""
@@ -221,8 +257,9 @@ class LoggerProperties(QObject):
 
         self.files = []
         self.file_timestamps = []
+        self.file_indexes = []
 
-        for f in self.raw_filenames:
+        for i, f in enumerate(self.raw_filenames):
             date = self.get_file_timestamp(f)
 
             if date is None:
@@ -231,6 +268,15 @@ class LoggerProperties(QObject):
                 # Append if date is successfully parsed
                 self.files.append(f)
                 self.file_timestamps.append(date)
+                self.file_indexes.append(i)
+
+        # Check at least one valid file was found
+        # if not self.files:
+        #     msg = (
+        #         f"No file names with a valid embedded timestamp found for {self.logger_id}.\n\n"
+        #         f"Check the file timestamp format input and the files in\n{self.logger_path}."
+        #     )
+        #     raise LoggerError(msg)
 
     def get_file_timestamp(self, f):
         """
@@ -262,33 +308,33 @@ class LoggerProperties(QObject):
         except ValueError:
             return None
 
-    def select_files_in_datetime_range(self, start_date=None, end_date=None):
+    def select_files_in_date_range(self, start_date=None, end_date=None):
         """
-        Filter out dates outside start_date, end_date range.
+        Select files for processing within start_date, end_date range range.
         :param start_date: datetime
         :param end_date: datetime
         :return: New list of file_timestamps and files within date range
         """
 
-        # Set range of dates
-        self.start_date = start_date
-        self.end_date = end_date
+        if not self.files:
+            return
 
-        # Use first and last raw logger filenames if no start-end dates read from control file
-        if self.start_date is None:
-            self.start_date = min(self.file_timestamps)
-        if self.end_date is None:
-            self.end_date = max(self.file_timestamps)
+        # Use first and last raw logger filenames if no start/end dates read from control file
+        if start_date is None:
+            start_date = min(self.file_timestamps)
+        if end_date is None:
+            end_date = max(self.file_timestamps)
 
         dates_files = [
-            (d, f)
-            for d, f in zip(self.file_timestamps, self.files)
-            if self.start_date <= d <= self.end_date
+            (i, d, f)
+            for i, d, f in zip(self.file_indexes, self.file_timestamps, self.files)
+            if start_date <= d <= end_date
         ]
 
         # Make sure files are processed in correct order (and make sure they are lists not tuples)
         try:
-            d, f = list(zip(*sorted(dates_files)))
+            i, d, f = list(zip(*dates_files))
+            self.file_indexes = list(i)
             self.file_timestamps = list(d)
             self.files = list(f)
         # Empty lists
@@ -299,93 +345,180 @@ class LoggerProperties(QObject):
             )
             raise LoggerError(msg)
 
-    def get_all_channel_and_unit_names(self):
-        """Store in logger object lists of all channel and units header in test file."""
+    def select_files_in_index_range(self, start_idx, end_idx):
+        """Select files for processing within start_idx, end_idx range."""
 
-        if self.logger_path == "":
+        # Use first file if no start index read from control file
+        if start_idx is None:
+            start_idx = 1
+
+        # Slice files to process
+        self.files = self.raw_filenames[start_idx - 1 : end_idx]
+
+        # Use last file if no end index read from control file
+        if end_idx is None:
+            end_idx = len(self.files)
+
+        # Slice file indexes to process
+        self.file_indexes = list(range(start_idx - 1, end_idx))
+
+    def get_all_columns(self):
+        """Store all channel and units names extracted from the header of a test file."""
+
+        # Initialise lists
+        self.all_channel_names = []
+        self.all_channel_units = []
+
+        if not self.raw_filenames:
             return
 
-        if self.data_on_azure is True:
-            return
+        # Set test file to read and file format read properties
+        # Create a file stream of blob from Azure
+        if self.data_on_azure:
+            test_blob = self.blobs[0]
+            bloc_blob_service = connect_to_azure_account(
+                self.azure_account_name, self.azure_account_key
+            )
+            test_file = stream_blob(bloc_blob_service, self.container_name, test_blob)
+        # Read local file
+        else:
+            test_file = os.path.join(self.logger_path, self.raw_filenames[0])
 
-        # TODO: Need to check file is of expected filename first!
-        raw_files = glob(self.logger_path + "/*." + self.file_ext)
-
-        if len(raw_files) == 0:
-            msg = f"No files with the extension {self.file_ext} found in {self.logger_path}"
-            raise FileNotFoundError(msg)
-
-        test_file = raw_files[0]
         file_format = self.file_format
         delim = self.file_delimiter
         c = self.channel_header_row
         u = self.units_header_row
-        channels = []
-        units = []
 
-        # Get headers and first line of data
-        if file_format == "Fugro-csv" or file_format == "General-csv":
-            with open(test_file) as f:
-                header_lines = [
-                    f.readline().strip().split(delim) for _ in range(self.num_headers)
-                ]
-
-            # Extract list of channel names and units (drop the first item - expected to be timestamp)
-            if c > 0:
-                channels = header_lines[c - 1][1:]
-            # If no channels header exists, create a dummy channels list
-            else:
-                channels = [
-                    f"Column {i + 2}" for i in range(len(header_lines[c - 1][1:]))
-                ]
-
-            if u > 0:
-                units = header_lines[u - 1][1:]
-            # If no units header exists, create a dummy list
-            else:
-                units = ["-"] * len(header_lines[u - 1][1:])
+        # Get column names and units, if exist
+        if file_format == "Custom":
+            channels, units = self.read_column_names(
+                test_file, delim, c, u, decoding="utf-8"
+            )
+        elif file_format == "Fugro-csv":
+            channels, units = self.read_column_names(
+                test_file, delim, c, u, decoding="latin1"
+            )
         elif file_format == "Pulse-acc":
-            with open(test_file, "r") as f:
-                # Read columns header
-                [next(f) for _ in range(c - 1)]
-                header = next(f).strip().split(":")
-
-            # Drop "%Data," from the first column
-            header[0] = header[0].split(",")[1]
-
-            # Extract lists of channel names and units
-            channels = [col.split("(")[0].strip() for col in header]
-            units = [col.split("(")[1][:-1] for col in header]
+            channels, units = self.read_columns_pulse(test_file, c)
+        elif file_format == "2HPS2-acc":
+            channels, units = self.read_column_names_2hps2(test_file, delim, c)
 
         # Assign channels and units list to logger
         self.all_channel_names = channels
         self.all_channel_units = units
 
-    def set_processed_columns_headers(self):
+        return channels, units
+
+    def read_column_names(self, test_file, delim, c, u, decoding):
+        """Retrieve channel and unit names from a general or Fugro-csv file."""
+
+        # Read channel and unit name rows, if exist - from Azure file stream or local file
+        if self.data_on_azure:
+            header_lines = [
+                test_file.readline().decode(decoding).strip().split(delim)
+                for _ in range(self.num_headers)
+            ]
+        else:
+            with open(test_file) as f:
+                header_lines = [
+                    f.readline().strip().split(delim) for _ in range(self.num_headers)
+                ]
+
+        # Extract list of channel names and units (drop the first item - expected to be timestamp)
+        if c > 0:
+            self.index_col_name = header_lines[c - 1][0]
+            channels = header_lines[c - 1][1:]
+        # If no channels header exists
+        else:
+            # Set index column name
+            if self.first_col_data == "Timestamp":
+                self.index_col_name = "Timestamp"
+            else:
+                self.index_col_name = "Time (s)"
+
+            # Create a dummy channel list
+            channels = [f"Column {i}" for i in range(2, self.num_columns + 1)]
+
+        if u > 0:
+            units = header_lines[u - 1][1:]
+        # If no units header exists, create a dummy list
+        else:
+            units = ["-"] * (self.num_columns - 1)
+
+        return channels, units
+
+    def read_columns_pulse(self, test_file, c):
+        """Retrieve channel and unit names from a Pulse-acc file."""
+
+        # Read columns header - from Azure file stream or local file
+        if self.data_on_azure:
+            [test_file.readline() for _ in range(c - 1)]
+            header = test_file.readline().decode("latin1").strip().split(":")
+        else:
+            with open(test_file, "r") as f:
+                [next(f) for _ in range(c - 1)]
+                header = f.readline().strip().split(":")
+
+        # Drop "%Data," from the first column
+        header[0] = header[0].split(",")[1]
+
+        # Extract lists of channel names and units
+        self.index_col_name = "Time (s)"
+        channels = [i.split("(")[0].strip() for i in header]
+        units = [i.split("(")[1][:-1] for i in header]
+
+        return channels, units
+
+    def read_column_names_2hps2(self, test_file, delim, c):
+        """Retrieve channel and unit names from a 2HPS2-acc file."""
+
+        # Read channel and unit name rows - from Azure file stream or local file
+        if self.data_on_azure:
+            [test_file.readline() for _ in range(c - 1)]
+            channels = test_file.readline().decode().strip().split(delim)
+            units = test_file.readline().decode().strip().split(delim)
+        else:
+            with open(test_file, "r") as f:
+                [next(f) for _ in range(c - 1)]
+                channels = f.readline().strip().split(delim)
+                units = f.readline().strip().split(delim)
+
+        # Extract lists of channel names and units
+        # Convert column names list so that split by "," not " ", drop "Time" item and trim
+        self.index_col_name = "Time"
+        channels = " ".join(channels).split(",")[1:]
+        channels = [c.strip() for c in channels]
+        units = " ".join(units).split(",")[1:]
+        units = [i.strip().split("(")[1][:-1] for i in units]
+
+        return channels, units
+
+    def set_processed_columns(self):
         """
         Assign user-defined channel names and units to logger if supplied.
         Otherwise use header info from a test file and create dummy header columns for any columns
         to process not found in test file.
         """
 
-        # Check columns to process have been input
-        if len(self.cols_to_process) > 0:
+        # Check columns to process have been set
+        if self.cols_to_process:
             last_col = max(self.cols_to_process)
         else:
-            msg = f"Need to input columns to process for logger {self.logger_id} or disable processing."
+            msg = f"Need to input column numbers to process for {self.logger_id}."
             raise LoggerError(msg)
 
         # Read first data row from a test file
-        test_file, first_row = self.get_first_row_of_data(file_idx=0)
+        test_file, first_row = self._get_data_first_row()
 
         # Check we have at least one full row of data
-        if last_col > len(first_row):
+        n = len(first_row)
+        if last_col > n:
             msg = (
-                f"Number of columns in test file for logger {self.logger_id} is less than {last_col}, "
+                f"Number of columns in test file for {self.logger_id} ({n}) is less than {last_col}, "
                 f"which is the highest column number to be processed."
-                f"\nTest file: {test_file}."
+                f"\n\nTest file: {test_file}."
             )
-            self.signal_warning.emit(msg)
+            self.logger_warning_signal.emit(msg)
 
         # Now set channel names and units for columns to process
         all_channels = self.all_channel_names
@@ -393,7 +526,7 @@ class LoggerProperties(QObject):
         warn_flag = False
 
         # Use user-defined channel names
-        if len(self.user_channel_names) > 0:
+        if self.user_channel_names:
             self.channel_names = self.user_channel_names
         # Use channel names detected from test file
         else:
@@ -415,7 +548,7 @@ class LoggerProperties(QObject):
                 warn_flag = True
 
         # Use user-defined channel units
-        if len(self.user_channel_units) > 0:
+        if self.user_channel_units:
             self.channel_units = self.user_channel_units
         # Use channel units detected from test file
         else:
@@ -438,61 +571,63 @@ class LoggerProperties(QObject):
         # Note emitting a message not raise an error so that screening is not halted
         if warn_flag is True:
             msg = (
-                f"Number of columns in test file for logger {self.logger_id} is less than {last_col}.\n"
-                f"Dummy column names will be created for missing columns.\n"
+                f"Number of columns in test file for {self.logger_id} is less than {last_col}.\n"
+                f"{len(dummy_cols)} dummy column names will be created for missing columns.\n"
                 f"Alternatively, input custom channel and unit names."
-                f"\nTest file: {test_file}."
+                f"\n\nTest file: {test_file}."
             )
-            self.signal_warning.emit(msg)
+            self.logger_warning_signal.emit(msg)
 
-    def get_first_row_of_data(self, file_idx):
+    def _get_data_first_row(self, file_idx=0):
         """
         Read first data row to validate on.
-        :return: name of test file, first data row string
+        :return: name of test file, first data row list
         """
 
         # Stream test file (blob) on Azure Cloud Storage
-        if self.data_on_azure is True:
+        if self.data_on_azure:
             test_blob = self.blobs[file_idx]
             test_file = os.path.basename(test_blob)
-
             bloc_blob_service = connect_to_azure_account(
                 self.azure_account_name, self.azure_account_key
             )
-            f = stream_blob(bloc_blob_service, self.container_name, test_blob)
-            [f.readline() for _ in range(self.num_headers)]
-            first_row = f.readline().decode().strip().split(self.file_delimiter)
+            fs = stream_blob(bloc_blob_service, self.container_name, test_blob)
+            [fs.readline() for _ in range(self.num_headers)]
+            first_row = fs.readline().decode().strip().split(self.file_delimiter)
         # Read test file on local drive
         else:
             test_file = self.files[file_idx]
             test_path = os.path.join(self.logger_path, test_file)
-
             with open(test_path) as f:
                 [f.readline() for _ in range(self.num_headers)]
                 first_row = f.readline().strip().split(self.file_delimiter)
+
+        # Remove blanks (can happen with space-delimited files)
+        first_row = list(filter(None, first_row))
 
         return test_file, first_row
 
     def check_headers(self):
         """Check that there is a channel name and channel units per requested column to process."""
 
-        # Check number of analysis headers is correct
-        if self.process_stats is True or self.process_spect is True:
-            # Check length of channel header
-            if len(self.channel_names) != len(self.cols_to_process):
-                msg = (
-                    f"Number of channel names specified does not equal number of "
-                    f"channels to process for logger {self.logger_id}."
-                )
-                raise LoggerError(msg)
+        # Check length of channels header
+        n = len(self.channel_names)
+        m = len(self.cols_to_process)
+        if n != m:
+            msg = (
+                f"Number of channel names specified ({n}) does not equal number of "
+                f"channels to process ({m}) for {self.logger_id}."
+            )
+            raise LoggerError(msg)
 
-            # Check length of units header
-            if len(self.channel_units) != len(self.cols_to_process):
-                msg = (
-                    f"Number of units specified does not equal number of "
-                    f"channels to process for logger {self.logger_id}."
-                )
-                raise LoggerError(msg)
+        # Check length of units header
+        n = len(self.channel_units)
+        if n != m:
+            msg = (
+                f"Number of units specified ({n}) does not equal number of "
+                f"channels to process ({m}) for {self.logger_id}."
+            )
+            raise LoggerError(msg)
 
     def check_header_specification(self):
         """
@@ -504,14 +639,14 @@ class LoggerProperties(QObject):
         if self.channel_header_row == 0 and len(self.user_channel_names) == 0:
             msg = (
                 f"Either the channel header row or user-defined channel names"
-                f"must be specified for logger {self.logger_id}."
+                f"must be specified for {self.logger_id}."
             )
             raise LoggerError(msg)
 
         # Check something has been entered for units
         # if self.units_header_row == 0 and len(self.user_channel_units) == 0:
         #     msg = f"Either the units header row or user-defined channel units" \
-        #         f"must be specified for logger {self.logger_id}."
+        #         f"must be specified for {self.logger_id}."
         #     raise LoggerError(msg)
 
     def detect_requested_channels_and_units(self, test_file):

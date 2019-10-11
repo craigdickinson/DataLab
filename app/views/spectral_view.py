@@ -1,10 +1,15 @@
+"""Spectral screening dashboard gui view."""
+
+__author__ = "Craig Dickinson"
+
 import logging
 import sys
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 import math
 import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
+from matplotlib.ticker import MaxNLocator
 import numpy as np
 from PyQt5 import QtCore, QtGui, QtWidgets
 from matplotlib import cm
@@ -40,8 +45,9 @@ class SpectrogramWidget(QtWidgets.QWidget):
         self.project = "Project Title"  # 'Total WoS Glendronach Well Monitoring'
         self.datasets = {}
         self.nat_freqs = {}
-        self.timestamps = []
-        self.t = None
+        self.index = []
+        self.index_is_dates = True
+        self.t = 0
         self.freqs = np.array([])
         self.z = np.array([])
         self.zmin = 0
@@ -76,11 +82,10 @@ class SpectrogramWidget(QtWidgets.QWidget):
         self.openSpectButton.setToolTip(
             "Open logger spectrograms (*.h5;*.csv;*.xlsx) (F4)"
         )
-        self.lbl = QtWidgets.QLabel("Loaded Datasets")
+        self.lblDatasets = QtWidgets.QLabel("Loaded Datasets")
         self.datasetsList = QtWidgets.QListWidget()
         self.datasetsList.setFixedHeight(100)
-        self.datetimeEdit = QtWidgets.QDateTimeEdit()
-        self.lbl2 = QtWidgets.QLabel("Timestamps (reversed)")
+        self.lblIndex = QtWidgets.QLabel("Timestamps (reversed)")
         self.timestampList = QtWidgets.QListWidget()
         self.slider = QtWidgets.QSlider()
         self.slider.setOrientation(QtCore.Qt.Vertical)
@@ -118,14 +123,13 @@ class SpectrogramWidget(QtWidgets.QWidget):
         self.grid = QtWidgets.QGridLayout(self.selection)
         self.grid.addWidget(self.openSpectButton, 0, 0)
         self.grid.addWidget(self.clearDatasetsButton, 1, 0)
-        self.grid.addWidget(self.lbl, 2, 0)
+        self.grid.addWidget(self.lblDatasets, 2, 0)
         self.grid.addWidget(self.datasetsList, 3, 0)
-        self.grid.addWidget(self.datetimeEdit, 4, 0)
-        self.grid.addWidget(self.lbl2, 5, 0)
-        self.grid.addWidget(self.timestampList, 6, 0)
-        self.grid.addWidget(self.slider, 6, 1)
-        self.grid.addWidget(self.openPlotSettingsButton, 7, 0)
-        self.grid.addWidget(self.calcNatFreqButton, 8, 0)
+        self.grid.addWidget(self.lblIndex, 4, 0)
+        self.grid.addWidget(self.timestampList, 5, 0)
+        self.grid.addWidget(self.slider, 5, 1)
+        self.grid.addWidget(self.openPlotSettingsButton, 6, 0)
+        self.grid.addWidget(self.calcNatFreqButton, 7, 0)
 
         # Plot layout
         # Create plot figure, canvas widget to display figure and navbar
@@ -163,26 +167,31 @@ class SpectrogramWidget(QtWidgets.QWidget):
         self.fig.subplots_adjust(hspace=0.05)
 
     def on_clear_datasets_clicked(self):
-        self.reset_dashboard()
+        self.clear_dashboard()
 
     def on_open_plot_settings_clicked(self):
-        self.plotSettings.get_params()
+        self.plotSettings.set_dialog_data()
         self.plotSettings.show()
 
     def on_dataset_double_clicked(self):
         """Plot spectrogram."""
 
-        self.create_plots()
+        try:
+            self.create_plots()
 
-        # Check dataset key exists
-        dataset = self.datasetsList.currentItem().text()
-        if dataset in self.nat_freqs:
-            mean_nat_freq = self.nat_freqs[dataset]
-            self.natFreq.setText(
-                f"Estimated natural response: {mean_nat_freq:.2f} Hz, {1 / mean_nat_freq:.2f} s"
-            )
-        else:
-            self.natFreq.setText("")
+            # Check dataset key exists
+            dataset = self.datasetsList.currentItem().text()
+            if dataset in self.nat_freqs:
+                mean_nat_freq = self.nat_freqs[dataset]
+                self.natFreq.setText(
+                    f"Estimated natural response: {mean_nat_freq:.2f} Hz, {1 / mean_nat_freq:.2f} s"
+                )
+            else:
+                self.natFreq.setText("")
+        except Exception as e:
+            msg = "Unexpected error on spectrogram dataset double click"
+            self.parent.error(f"{msg}:\n{e}\n{sys.exc_info()[0]}")
+            logging.exception(e)
 
     def on_slider_changed(self):
         """Update event PSD plot."""
@@ -191,21 +200,29 @@ class SpectrogramWidget(QtWidgets.QWidget):
         if self.skip_on_slider_change_event is True:
             return
 
-        i = self.slider.value()
-        n = self.slider.maximum()
-        row = n - i
-        self.timestampList.setCurrentRow(row)
+        try:
+            i = self.slider.value()
+            n = self.slider.maximum()
+            row = n - i
+            self.timestampList.setCurrentRow(row)
 
-        if self.timestampList.count() > 0:
-            t = self.timestamps[i]
-            self._set_datetime_edit(t)
+            if self.timestampList.count() > 0:
+                t = self.index[i]
 
-            # Update plot data (faster than replotting)
-            t_psd = mdates.date2num(t)
-            self._update_event_marker(t_psd)
-            self._update_psd_plot(i)
-            self.canvas.draw()
-            self.canvas.flush_events()
+                # Update plot data (faster than replotting)
+                if self.index_is_dates:
+                    t_psd = mdates.date2num(t)
+                else:
+                    t_psd = t
+
+                self._update_event_marker(t_psd)
+                self._update_psd_plot(i)
+                self.canvas.draw()
+                self.canvas.flush_events()
+        except Exception as e:
+            msg = "Unexpected error on spectrogram slider change"
+            self.parent.error(f"{msg}:\n{e}\n{sys.exc_info()[0]}")
+            logging.exception(e)
 
     def on_timestamp_list_double_clicked(self):
         """Update the PSD event slice for the selected timestamp."""
@@ -219,10 +236,9 @@ class SpectrogramWidget(QtWidgets.QWidget):
         """Estimate mean natural frequency for selected dataset."""
 
         if self.datasetsList.count() == 0:
-            self.parent.error(
+            return self.parent.error(
                 "No data currently plotted. Load a spectrogram file first."
             )
-            return
 
         # self.parent.statusbar.showMessage('Calculating estimate natural frequency...')
         dataset = self.datasetsList.currentItem().text()
@@ -245,12 +261,12 @@ class SpectrogramWidget(QtWidgets.QWidget):
         )
         # self.parent.statusbar.showMessage('')
 
-    def reset_dashboard(self):
+    def clear_dashboard(self):
         """Clear all stored spectrogram datasets and reset layout."""
 
         self.datasets = {}
         self.nat_freqs = {}
-        self.timestamps = []
+        self.index = []
         self.datasetsList.clear()
         self.timestampList.clear()
         self.natFreq.setText("")
@@ -291,15 +307,6 @@ class SpectrogramWidget(QtWidgets.QWidget):
         self.xlim = (self.freqs.min(), self.freqs.max())
         self.init_xlim = self.xlim
 
-    def _set_datetime_edit(self, t):
-        yr = t.year
-        mth = t.month
-        day = t.day
-        hr = t.hour
-        m = t.minute
-        dt = QtCore.QDateTime(yr, mth, day, hr, m)
-        self.datetimeEdit.setDateTime(dt)
-
     def _set_plot_data(self):
         """Retrieve spectrogram dataset from list and extract relevant data."""
 
@@ -308,8 +315,14 @@ class SpectrogramWidget(QtWidgets.QWidget):
         df = self.datasets[dataset]
 
         # Extract data
-        self.timestamps = df.index
+        self.index = df.index
         self.freqs = df.columns.values
+
+        # Determine if have a datetime or numeric index
+        if isinstance(self.index[0], datetime):
+            self.index_is_dates = True
+        else:
+            self.index_is_dates = False
 
         if self.log_scale is True:
             self.z = np.log10(df.values)
@@ -325,30 +338,31 @@ class SpectrogramWidget(QtWidgets.QWidget):
         else:
             self.zmax = math.ceil(self.z.max())
 
-        # Populate timestamps list
+        # Populate index/timestamps list and update list label
+        if self.index_is_dates:
+            idx = [t.strftime("%Y-%m-%d %H:%M") for t in reversed(self.index)]
+            self.lblIndex.setText("Timestamps (reversed)")
+        else:
+            idx = [str(t) for t in reversed(self.index)]
+            self.lblIndex.setText("File Numbers (reversed)")
+
         self.timestampList.clear()
-        [
-            self.timestampList.addItem(t.strftime("%Y-%m-%d %H:%M"))
-            for t in reversed(self.timestamps)
-        ]
+        self.timestampList.addItems(idx)
 
         # Set slider to middle event
         # if self.slider.value() == 50:
-        n = len(self.timestamps)
+        n = len(self.index)
         i = n // 2 - 1
         j = n - i - 1
         self.ts_i = i
 
-        # Update slider parameters but disable it's event change first while setting up plot
+        # Update slider parameters but disable its event change while setting up plot
         self.skip_on_slider_change_event = True
         self.slider.setMaximum(n - 1)
         self.slider.setValue(i)
         self.skip_on_slider_change_event = False
-
-        # Set timestamp list and datetime edit widget
         self.timestampList.setCurrentRow(j)
-        self.t = self.timestamps[i]
-        self._set_datetime_edit(self.t)
+        self.t = self.index[i]
 
     def _plot_spectrogram(self):
         ax1 = self.ax1
@@ -357,13 +371,13 @@ class SpectrogramWidget(QtWidgets.QWidget):
 
         f0 = self.freqs[0]
         f1 = self.freqs[-1]
-        t0 = mdates.date2num(self.timestamps[0])
-        t1 = mdates.date2num(self.timestamps[-1])
 
         # Set colour map
         cmap = cm.get_cmap("coolwarm")
 
         # Continuous contour plot option
+        # t0 = mdates.date2num(self.index[0])
+        # t1 = mdates.date2num(self.index[-1])
         # im = ax1.imshow(
         #     self.z,
         #     aspect="auto",
@@ -373,10 +387,39 @@ class SpectrogramWidget(QtWidgets.QWidget):
         #     cmap=cmap,
         # )
 
-        # Contour plot with discrete levels
-        im = ax1.contourf(self.freqs, self.timestamps, self.z, cmap=cmap)
+        # Contour plot with discrete levels (z must be at least a 2x2 array)
+        try:
+            im = ax1.contourf(self.freqs, self.index, self.z, cmap=cmap)
+        except TypeError:
+            if len(self.z) == 1:
+                msg = "Warning plotting spectrograms: Cannot plot a spectrogram for only one event."
+                self.parent.warning(msg)
+
         # ticks = np.linspace(self.zmin, self.zmax, 8, endpoint=True)
-        # im = ax1.contourf(self.freqs, self.timestamps, self.z, levels=ticks, cmap=cmap)
+        # im = ax1.contourf(self.freqs, self.index, self.z, levels=ticks, cmap=cmap)
+
+        if self.log_scale is True:
+            log10 = r"$\mathregular{log_{10}}$"
+        else:
+            log10 = ""
+
+        # Plot event slice line for middle index/timestamp
+        if self.index_is_dates:
+            ti = mdates.date2num(self.t)
+        else:
+            ti = self.t
+        self.event_line, = ax1.plot([f0, f1], [ti, ti], "k--")
+
+        self._set_title()
+        ax1.margins(0)
+        ax1.set_xlim(self.xlim)
+
+        if self.index_is_dates:
+            ax1.yaxis.set_major_formatter(mdates.DateFormatter("%d %b"))
+            ax1.yaxis.set_major_locator(mdates.DayLocator(interval=7))
+        else:
+            ax1.yaxis.set_major_locator(MaxNLocator(integer=True))
+            ax1.set_ylabel("File Number (Load Case)")
 
         # Maximise figure space before applying colour bar as colour bar will not reposition if applied after
         self.fig.tight_layout(
@@ -384,55 +427,42 @@ class SpectrogramWidget(QtWidgets.QWidget):
         )  # (rect=[left, bottom, right, top])
 
         # Apply colour bar
-        self.cbar = self.fig.colorbar(im, ax=[ax1, ax2])
+        try:
+            self.cbar = self.fig.colorbar(im, ax=[ax1, ax2])
+        except UnboundLocalError:
+            pass
         # self.cbar = self.fig.colorbar(im, ax=[ax1, ax2], ticks=ticks)
 
-        if self.log_scale is True:
-            log10 = r"$\mathregular{log_{10}}$"
-        else:
-            log10 = ""
-
         # TODO: Store and read units!
-        units = r"$\mathregular{(mm/s^2)^2/Hz}$"
+        units = r"$\mathregular{(units/s^2)^2/Hz}$"
         label = f"{log10}PSD ({units})".lstrip()
-        self.cbar.set_label(label)
+        try:
+            self.cbar.set_label(label)
+        except AttributeError:
+            pass
         # self.cbar.ax.tick_params(length=3.5)
         # self.cbar.outline.set_edgecolor('black')
         # self.cbar.outline.set_linewidth(1)
 
-        # Plot event slice line for middle timestamp
-        ti = mdates.date2num(self.t)
-        self.event_line, = ax1.plot([f0, f1], [ti, ti], "k--")
-
-        self._set_title()
-        ax1.margins(0)
-        ax1.set_xlim(self.xlim)
-        ax1.yaxis.set_major_formatter(mdates.DateFormatter("%d %b"))
-        ax1.yaxis.set_major_locator(mdates.DayLocator(interval=7))
-        plt.sca(ax1)
+        # plt.sca(ax1)
         # plt.xticks(fontsize=11)
         # plt.yticks(fontsize=11)
-        # self.fig.tight_layout()
 
     def _plot_event_psd(self):
         """Plot PSD of spectrogram timestamp slice."""
 
-        # Slice spectrogram dataset at middle timestamp
+        # Slice spectrogram dataset at middle index/timestamp
         i = self.ts_i
         zi = self.z[i, :]
 
         # Create legend label
-        timestamp1 = self.timestamps[i]
-        timestamp2 = timestamp1 + timedelta(minutes=20)
-        msg_d1 = timestamp1.strftime("%d %b %Y %H:%M").lstrip("0")
-        msg_d2 = timestamp2.strftime("%d %b %Y %H:%M")[-5:]
-        label = f"{msg_d1} to {msg_d2}"
+        label = self._get_psd_label(i)
 
         self.ax2.cla()
         # self.ax2.patch.set_facecolor('none')
         self.psd_line, = self.ax2.plot(self.freqs, zi, "k")
         self.ax2.set_ylim(self.zmin, self.zmax)
-        self.ax2.margins(0, 0)
+        self.ax2.margins(0)
         self.ax2.set_xlabel("Frequency (Hz)")
         self.ax2.set_ylabel("PSD")
         self.label = self.ax2.annotate(
@@ -455,15 +485,34 @@ class SpectrogramWidget(QtWidgets.QWidget):
         zi = self.z[i, :]
 
         # Create new legend label
-        timestamp1 = self.timestamps[i]
-        timestamp2 = timestamp1 + timedelta(minutes=20)
-        msg_d1 = timestamp1.strftime("%d %b %Y %H:%M").lstrip("0")
-        msg_d2 = timestamp2.strftime("%d %b %Y %H:%M")[-5:]
-        label = " ".join((msg_d1, "to", msg_d2))
+        label = self._get_psd_label(i)
 
         # Update plot data and label text
         self.psd_line.set_ydata(zi)
         self.label.set_text(label)
+
+    def _get_psd_label(self, i):
+        """
+        Create new legend label for PSD plot.
+        :param i: Timestamp or file number list index
+        :return: PSD legend label
+        """
+
+        if self.index_is_dates:
+            ts1 = self.index[i]
+            msg_d1 = ts1.strftime("%d %b %Y %H:%M").lstrip("0")
+
+            # Get time delta between selected index and next one
+            try:
+                ts2 = self.index[i + 1]
+                msg_d2 = ts2.strftime("%d %b %Y %H:%M")[-5:]
+                label = " ".join((msg_d1, "to", msg_d2))
+            except:
+                label = msg_d1
+        else:
+            label = f"File {self.index[i]}"
+
+        return label
 
     def _set_title(self):
         """Set plot title."""
@@ -556,17 +605,13 @@ class SpectroPlotSettings(QtWidgets.QDialog):
             self.reset_values
         )
 
-    def get_params(self):
+    def set_dialog_data(self):
         """Get plot parameters from the spectrogram widget and assign to settings widget."""
 
         self.optProject.setText(self.parent.project)
         self.optFreqMin.setText(str(round(self.parent.ax1.get_xlim()[0], 3)))
         self.optFreqMax.setText(str(round(self.parent.ax1.get_xlim()[1], 3)))
-
-        if self.parent.log_scale is True:
-            self.logScale.setChecked(True)
-        else:
-            self.logScale.setChecked(False)
+        self.logScale.setChecked(self.parent.log_scale)
 
     def on_ok_clicked(self):
         """Update spectrogram widget class parameters with the plot settings and replot."""

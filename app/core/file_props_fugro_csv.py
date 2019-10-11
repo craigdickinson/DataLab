@@ -13,27 +13,16 @@ from glob import glob
 
 
 def set_fugro_csv_file_format(logger):
-    """Return a LoggerProperties object populated with known Fugro-csv file format settings."""
+    """Return a LoggerProperties object populated with file format properties of a Fugro-csv file."""
 
     logger.file_format = "Fugro-csv"
+    logger.file_timestamp_embedded = True
+    logger.first_col_data = "Timestamp"
     logger.file_ext = "csv"
     logger.file_delimiter = ","
     logger.num_headers = 3
     logger.channel_header_row = 2
     logger.units_header_row = 3
-
-    return logger
-
-
-def set_general_csv_file_format(logger):
-    """Return a LoggerProperties object populated with default settings for a General-csv file format."""
-
-    logger.file_format = "General-csv"
-    logger.file_ext = "csv"
-    logger.file_delimiter = ","
-    logger.num_headers = 2
-    logger.channel_header_row = 1
-    logger.units_header_row = 2
 
     return logger
 
@@ -48,7 +37,7 @@ def detect_fugro_logger_properties(logger):
         expected logging duration
     """
 
-    # TODO: Need to check file is of expected filename first!
+    # TODO: Add Azure support
     raw_files = glob(logger.logger_path + "/*." + logger.file_ext)
 
     if len(raw_files) == 0:
@@ -63,7 +52,7 @@ def detect_fugro_logger_properties(logger):
 
     # Convert to sample frequency
     if sample_interval > 0:
-        logger.freq = int(1 / sample_interval)
+        logger.freq = float(1 / sample_interval)
     else:
         msg = f"Could not read sample interval for logger {logger.logger_id}\nFile: {test_filename}"
         raise Exception(msg)
@@ -106,9 +95,9 @@ def read_fugro_sample_interval(filename):
     if len(words) == 4:
         samp_str = words[2]
 
-    if is_number(samp_str):
+    try:
         return float(samp_str)
-    else:
+    except ValueError:
         return 0
 
 
@@ -122,13 +111,3 @@ def read_fugro_headers(filename):
         units = f.readline().strip().split(",")
 
     return header, units
-
-
-def is_number(s):
-    """Return True if a string represents a float, otherwise return False."""
-
-    try:
-        float(s)
-        return True
-    except ValueError:
-        return False

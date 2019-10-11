@@ -1,3 +1,5 @@
+"""Main DataLab gui hub."""
+
 __author__ = "Craig Dickinson"
 
 import sys
@@ -39,11 +41,11 @@ class DataLabGui(QtWidgets.QMainWindow):
         self._menu_bar()
         self._tool_bar()
 
-        # Raw data inspection module
-        self.rawDataModule = RawDataDashboard(self)
-
         # Project config module
         self.projConfigModule = ConfigModule(self)
+
+        # Raw data inspection module
+        self.rawDataModule = RawDataDashboard(self)
 
         # Data quality screening report module
         self.dataQualityModule = DataQualityReport(self)
@@ -76,8 +78,8 @@ class DataLabGui(QtWidgets.QMainWindow):
         self.fatigueModule.addTab(self.fatigueTab, "2HFATLASA")
 
         # Add stacked widgets
-        self.modulesWidget.addWidget(self.rawDataModule)
         self.modulesWidget.addWidget(self.projConfigModule)
+        self.modulesWidget.addWidget(self.rawDataModule)
         self.modulesWidget.addWidget(self.dataQualityModule)
         self.modulesWidget.addWidget(self.statsScreeningModule)
         self.modulesWidget.addWidget(self.spectralScreeningModule)
@@ -183,10 +185,10 @@ class DataLabGui(QtWidgets.QMainWindow):
         self.toolBar = self.addToolBar("Modules")
         self.toolBar.setStyleSheet("QToolBar{spacing:5px}")
 
-        self.rawDataButton = QtWidgets.QPushButton("1. Inspect Raw Data")
-        self.rawDataButton.setShortcut("Ctrl+1")
-        self.projConfigButton = QtWidgets.QPushButton("2. Project Config")
-        self.projConfigButton.setShortcut("Ctrl+2")
+        self.projConfigButton = QtWidgets.QPushButton("1. Project Config")
+        self.projConfigButton.setShortcut("Ctrl+1")
+        self.rawDataButton = QtWidgets.QPushButton("2. Inspect Raw Data")
+        self.rawDataButton.setShortcut("Ctrl+2")
         self.dataQualityButton = QtWidgets.QPushButton("3. Data Quality Screening")
         self.dataQualityButton.setShortcut("Ctrl+3")
         self.statsScreeningButton = QtWidgets.QPushButton("4. Statistics Screening")
@@ -201,8 +203,8 @@ class DataLabGui(QtWidgets.QMainWindow):
         self.fatigueButton.setShortcut("Ctrl+8")
 
         self.toolBar.addWidget(QtWidgets.QLabel("Dashboards:"))
-        self.toolBar.addWidget(self.rawDataButton)
         self.toolBar.addWidget(self.projConfigButton)
+        self.toolBar.addWidget(self.rawDataButton)
         self.toolBar.addWidget(self.dataQualityButton)
         self.toolBar.addWidget(self.statsScreeningButton)
         self.toolBar.addWidget(self.spectralScreeningButton)

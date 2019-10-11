@@ -1,11 +1,14 @@
-import logging
+"""Fatigue damage plots dashboard gui view."""
+
+__author__ = "Craig Dickinson"
+
 import sys
 
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import numpy as np
 import pandas as pd
-from PyQt5 import QtCore, QtGui, QtWidgets
+from PyQt5 import QtCore, QtWidgets
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 
@@ -197,14 +200,14 @@ class FatigueProcessingWidget(QtWidgets.QWidget):
         ax1.set_ylabel(f"{log10}Fatigue Damage (1/{self.period})")
         title = f"Unfactored Fatigue Damage"
         ax1.set_title(title)
-        ax1.margins(x=0, y=0)
+        ax1.margins(0)
 
         # Cumulative fatigue damage plot
         ax2.plot(cum_dam)
         ax2.set_ylabel("Cumulative Fatigue Damage")
         title = f"Unfactored Cumulative Fatigue Damage"
         ax2.set_title(title)
-        ax2.margins(x=0, y=0)
+        ax2.margins(0)
         ax2.xaxis.set_major_formatter(mdates.DateFormatter("%d-%b-%y"))
         ax2.xaxis.set_major_locator(mdates.DayLocator(interval=7))
 

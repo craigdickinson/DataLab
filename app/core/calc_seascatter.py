@@ -30,18 +30,38 @@ class Seascatter(object):
             # Select the mean stats
             df = df.xs("mean", axis=1, level=1)
 
-            # TODO: This won't be correct if both unfiltered and filtered stats exist in data frame!
-            hs = df.iloc[:, self.hs_col_idx].values
-            tp = df.iloc[:, self.tp_col_idx].values
+            # Check if need to remap Hs and Tp columns
+            hs_i, tp_i = self._check_column_indexes(df)
+
+            # Select mean Hs and Tp data
+            hs = df.iloc[:, hs_i].values
+            tp = df.iloc[:, tp_i].values
 
             # Store seastates as data frame
-            self.df_ss = df.iloc[:, [self.hs_col_idx, self.tp_col_idx]]
+            self.df_ss = df.iloc[:, [hs_i, tp_i]]
             self.df_ss.columns = ["Hs (m)", "Tp (s)"]
-        except:
+        except IndexError:
             hs = np.array([])
             tp = np.array([])
 
         return hs, tp
+
+    def _check_column_indexes(self, df):
+        """Correct hs-tp column indexes if stats data frame contains both unfiltered and filtered columns."""
+
+        hs_i = self.hs_col_idx
+        tp_i = self.tp_col_idx
+        cols = df.columns.get_level_values(0)
+
+        # If both unfiltered and filtered stats columns exist, remap to the associated filtered Hs and Tp columns
+        if (
+            cols[0].endswith("(filtered)") is False
+            and cols[1].endswith("(filtered)") is True
+        ):
+            hs_i = 2 * hs_i + 1
+            tp_i = 2 * tp_i + 1
+
+        return hs_i, tp_i
 
 
 def calc_seascatter_diagram(hs, tp, hs_bins, tp_bins):

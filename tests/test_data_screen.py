@@ -124,7 +124,7 @@ class Test(unittest.TestCase):
             header=header_row,
             usecols=use_cols,
             skiprows=skip_rows,
-            encoding="latin",
+            encoding="latin1",
         )
 
         pdt.assert_frame_equal(data1, data)

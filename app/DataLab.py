@@ -1,20 +1,19 @@
 __author__ = "Craig Dickinson"
 __program__ = "DataLab"
-__version__ = "1.2.0"
-__date__ = "18 August 2019"
+__version__ = "2.0.0"
+__date__ = "11 October 2019"
 
 import logging
 import os
 import sys
 import webbrowser
-from glob import glob
 
 from PyQt5 import QtCore, QtWidgets
 from PyQt5.QtCore import pyqtSignal, pyqtSlot
 
 # import datalab_gui_layout
 from app.core.control import InputError
-from app.core.logger_properties import LoggerError
+from app.core.logger_properties import LoggerError, LoggerWarning
 from app.core.read_files import (
     read_spectrograms_csv,
     read_spectrograms_excel,
@@ -29,13 +28,6 @@ from app.views.main_window_view import DataLabGui
 from app.views.processing_progress_view import ProcessingProgressBar
 from app.views.project_config_view import AzureAccountSetupDialog
 from app.views.stats_view import StatsDataset
-
-
-# if hasattr(QtCore.Qt, 'AA_EnableHighDpiScaling'):
-#     QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling, True)
-#
-# if hasattr(QtCore.Qt, 'AA_UseHighDpiPixmaps'):
-#     QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_UseHighDpiPixmaps, True)
 
 
 class DataLab(DataLabGui):
@@ -70,7 +62,6 @@ class DataLab(DataLabGui):
         self.saveConfigAction.triggered.connect(
             self.projConfigModule.on_save_config_clicked
         )
-        self.openLoggerFileAction.triggered.connect(self.on_open_logger_file)
         self.openStatsAction.triggered.connect(self.on_open_stats_file_triggered)
         self.openSpectrogramsAction.triggered.connect(self.on_open_spectrograms_file)
 
@@ -111,7 +102,6 @@ class DataLab(DataLabGui):
         self.fatigueButton.clicked.connect(self.view_mod_fatigue)
 
     def _connect_child_signals(self):
-        self.rawDataModule.openRawButton.clicked.connect(self.on_open_logger_file)
         self.statsTab.openStatsButton.clicked.connect(self.on_open_stats_file)
         self.vesselStatsTab.openStatsButton.clicked.connect(self.on_open_stats_file)
         self.spectrogramTab.openSpectButton.clicked.connect(
@@ -137,46 +127,17 @@ class DataLab(DataLabGui):
         print(f"Warning: {message}")
         self._message_information("Warning", message)
 
-    def on_open_logger_file(self):
-        """Load raw logger time series file."""
-
-        self.ts_file, _ = QtWidgets.QFileDialog.getOpenFileName(
-            self,
-            caption="Open Logger File",
-            filter="Logger Files (*.csv;*.acc;*.h5;*.txt)",
-        )
-
-        if self.ts_file:
-            root = os.path.dirname(self.ts_file)
-            self.rawDataModule.root = root
-            filename = os.path.basename(self.ts_file)
-            ext = os.path.splitext(self.ts_file)[1]
-            files_list = glob(root + "/*" + ext)
-            files = [os.path.basename(f) for f in files_list]
-
-            try:
-                # Populate files list widget and read file
-                self.rawDataModule.update_files_list(files, filename)
-                self.rawDataModule.load_file(self.ts_file)
-            except FileNotFoundError as e:
-                self.error(str(e))
-                logging.exception(e)
-            except ValueError as e:
-                self.error(str(e))
-                logging.exception(e)
-            except Exception as e:
-                msg = "Unexpected error processing loggers"
-                self.error(f"{msg}:\n{e}\n{sys.exc_info()[0]}")
-                logging.exception(e)
-
-            self.view_mod_raw_data()
+    @pyqtSlot(str)
+    def warn_info(self, message):
+        print(f"Warning: {message}")
+        self._message_information("Warning", message)
 
     def on_open_stats_file_triggered(self):
         """Open stats file when actioned from file menu."""
 
-        self.on_open_stats_file(src="logger_stats")
+        self.on_open_stats_file(dashboard_tab="logger_stats")
 
-    def on_open_stats_file(self, src=None):
+    def on_open_stats_file(self, dashboard_tab=""):
         """Open stats file."""
 
         try:
@@ -203,13 +164,34 @@ class DataLab(DataLabGui):
                 # Set update plot flag so that plot is not updated if datasets dictionary already contains data
                 # (i.e. a plot already exists)
                 if self.statsTab.datasets:
-                    plot_flag = False
+                    create_init_plot = False
                 else:
-                    plot_flag = True
+                    create_init_plot = True
 
                 # For each logger create a stats dataset object
                 for logger_id, df in dict_stats.items():
                     dataset = StatsDataset(logger_id, df)
+
+                    # If this is the first dataset to add, store the index type (i.e. whether index contains
+                    # timestamps or file numbers) and configure x-axis type combo accordingly
+                    # This is to lock down the type of stats plots allowed to a single format
+                    if not self.statsTab.datasets:
+                        self.statsTab.df_index_type = dataset.index_type
+                        self.statsTab.set_xaxis_type_combo()
+                    # Check dataset being added has the same index type as existing datasets
+                    elif dataset.index_type != self.statsTab.df_index_type:
+                        msg = (
+                            f"You have tried to load a stats file that contains a {dataset.index_type.upper()} "
+                            f"index but the currently loaded stats datasets use a "
+                            f"{self.statsTab.df_index_type.upper()} index.\n\n"
+                            f"You cannot plot stats that use a different type of index. "
+                            f"To load this stats file, first clear the existing datasets from the stats dashboard."
+                        )
+                        return self._message_information(
+                            "Unable to Load Statistics File", msg
+                        )
+
+                    # Add stats dataset to stats and vessel stats tabs
                     self.statsTab.datasets.append(dataset)
                     self.vesselStatsTab.datasets.append(dataset)
                     # self.pairplotTab.datasets.append(dataset)
@@ -220,7 +202,7 @@ class DataLab(DataLabGui):
                 self.vesselStatsTab.update_stats_datasets_list(logger_ids)
 
                 # Plot stats
-                if plot_flag is True:
+                if create_init_plot is True:
                     # Select preset logger and channel index if no dataset previously exist and plot stats tabs
                     self.statsTab.set_preset_logger_and_channel()
                     self.statsTab.update_plot()
@@ -228,7 +210,7 @@ class DataLab(DataLabGui):
                     self.vesselStatsTab.update_plots()
 
                 # Show dashboard
-                if src == "logger_stats":
+                if dashboard_tab == "logger_stats":
                     self.view_tab_stats()
         except Exception as e:
             msg = "Unexpected error loading stats file"
@@ -294,14 +276,14 @@ class DataLab(DataLabGui):
         """Show raw data plot settings window."""
 
         # Set current parameters from time series plot widget class
-        self.rawDataModule.plotSettings.get_params()
-        self.rawDataModule.plotSettings.show()
+        self.rawDataModule.plotControls.set_dialog_data()
+        self.rawDataModule.plotControls.show()
 
     def open_spect_plot_settings(self):
         """Show spectrogram plot settings window."""
 
         # Set current parameters from spectrogram plot widget class
-        self.spectrogramTab.plotSettings.get_params()
+        self.spectrogramTab.plotSettings.set_dialog_data()
         self.spectrogramTab.plotSettings.show()
 
     def open_azure_account_settings(self):
@@ -461,15 +443,11 @@ class DataLab(DataLabGui):
 
         try:
             self.repaint()
-            status = self.analyse_screening_setup()
+            self.analyse_screening_setup()
             self.statusbar.showMessage("")
-
-            if status is True:
-                self.statusbar.showMessage(
-                    "Checking setup: Complete. Processing loggers..."
-                )
-                self.repaint()
-                self.run_screening()
+            msg = "Checking setup: Complete. Processing loggers..."
+            self.statusbar.showMessage(msg)
+            self.repaint()
         except InputError as e:
             self.statusbar.showMessage("")
             self.error(str(e))
@@ -478,15 +456,21 @@ class DataLab(DataLabGui):
             self.statusbar.showMessage("")
             self.error(str(e))
             logging.exception(e)
+        except LoggerWarning as e:
+            self.statusbar.showMessage("")
+            self.warning(str(e))
+            logging.exception(e)
         except FileNotFoundError as e:
             self.statusbar.showMessage("")
             self.error(str(e))
             logging.exception(e)
         except Exception as e:
             self.statusbar.showMessage("")
-            msg = "Unexpected error on preparing config setup"
+            msg = "Unexpected error on checking setup"
             self.error(f"{msg}:\n{e}\n{sys.exc_info()[0]}")
             logging.exception(e)
+        else:
+            self.run_screening()
 
     def analyse_screening_setup(self):
         """Prepare and check screening setup."""
@@ -496,43 +480,37 @@ class DataLab(DataLabGui):
         # Perform some input checks
         # Check project path exists
         if control.project_path == "":
-            self.warning("Cannot process: Project location not set.")
-            return False
+            msg = "Cannot process: Project location not set."
+            raise LoggerWarning(msg)
 
         # Check at least one logger exists
         if not control.loggers:
-            self.warning("Cannot process: No loggers exist in setup.")
-            return False
+            msg = "Cannot process: No loggers exist in setup."
+            raise LoggerWarning(msg)
 
         # Check all ids are unique
         control.check_logger_ids()
 
-        # Checking logging durations and sample lengths are positive
+        # Check logging durations and sample lengths are positive
         for logger in control.loggers:
             if logger.duration <= 0:
-                self.warning(
-                    f"Cannot process: Logging duration for logger {logger.logger_id} is {logger.duration}.\n"
-                    f"Logging duration must be greater than zero."
-                )
-                return False
+                msg = f"Cannot process: Logging duration for logger {logger.logger_id} is {logger.duration}.\n"
+                f"Logging duration must be greater than zero."
+                raise LoggerWarning(msg)
 
             if control.global_process_stats is True and logger.process_stats is True:
                 if logger.stats_interval <= 0:
-                    self.warning(
-                        f"Cannot process: Statistics sample length for logger "
-                        f"{logger.logger_id} is {logger.stats_interval}.\n"
-                        f"Statistics sample length must be greater than zero."
-                    )
-                    return False
+                    msg = f"Cannot process: Statistics sample length for logger "
+                    f"{logger.logger_id} is {logger.stats_interval}.\n"
+                    f"Statistics sample length must be greater than zero."
+                    raise LoggerWarning(msg)
 
             if control.global_process_spect is True and logger.process_spect is True:
                 if logger.spect_interval <= 0:
-                    self.warning(
-                        f"Cannot process: Spectral sample length for logger "
-                        f"{logger.logger_id} is {logger.spect_interval}.\n"
-                        f"Spectral sample length must be greater than zero."
-                    )
-                    return False
+                    msg = f"Cannot process: Spectral sample length for logger "
+                    f"{logger.logger_id} is {logger.spect_interval}.\n"
+                    f"Spectral sample length must be greater than zero."
+                    raise LoggerWarning(msg)
 
         # Set up output folders
         control.set_up_output_folders()
@@ -544,12 +522,23 @@ class DataLab(DataLabGui):
                 f"Checking setup: Checking file names for {logger.logger_id}. Please wait..."
             )
             self.repaint()
-            logger.process_filenames()
+            logger.get_filenames()
 
-            # Select only files in date range to process on
-            logger.select_files_in_datetime_range(
-                logger.process_start, logger.process_end
-            )
+            # If filenames contain timestamp, check and retrieve timestamps for all files
+            if logger.file_timestamp_embedded is True:
+                logger.get_timestamp_span()
+                logger.check_file_timestamps()
+
+                # Select only files in date range to process on
+                logger.select_files_in_date_range(
+                    logger.process_start, logger.process_end
+                )
+            else:
+                logger.select_files_in_index_range(
+                    logger.process_start, logger.process_end
+                )
+
+            # Store expected file length
             logger.expected_data_points = logger.freq * logger.duration
 
             # Get all channel names and units if not already stored in logger object
@@ -557,25 +546,29 @@ class DataLab(DataLabGui):
                 len(logger.all_channel_names) == 0
                 and len(logger.all_channel_units) == 0
             ):
-                logger.get_all_channel_and_unit_names()
+                logger.get_all_columns()
+
+                # Update columns list in config dashboard if this logger is the one selected
+                if (
+                    logger.logger_id
+                    == self.projConfigModule.loggersList.currentItem().text()
+                ):
+                    self.projConfigModule.set_logger_columns_list(logger)
 
             # Check requested channels exist
-            if logger.process_stats is True or logger.process_spect is True:
-                # Connect warning signal to warning message box in DataLab class
-                try:
-                    # Disconnect any existing connection to prevent repeated triggerings
-                    logger.signal_warning.disconnect()
-                except:
-                    pass
-                logger.signal_warning.connect(self.warning)
+            # Connect warning signal to warning message box in DataLab class
+            try:
+                # Disconnect any existing connection to prevent repeated triggerings
+                logger.logger_warning_signal.disconnect()
+            except TypeError:
+                pass
+            logger.logger_warning_signal.connect(self.warning)
 
-                # Set user-defined channel names and units if supplied
-                logger.set_processed_columns_headers()
+            # Set processed channel names and units as user values, if supplied, or file header values
+            logger.set_processed_columns()
 
-                # Check number of headers match number of columns to process
-                logger.check_headers()
-
-        return True
+            # Check number of headers match number of columns to process
+            logger.check_headers()
 
     def run_screening(self):
         """Run statistical and spectral analysis in config setup."""
@@ -594,7 +587,7 @@ class DataLab(DataLabGui):
             self.worker.signal_error.connect(self.error)
             self.worker.start()
         except Exception as e:
-            msg = "Unexpected error on processing config setup"
+            msg = "Unexpected error during processing"
             self.error(f"{msg}:\n{e}\n{sys.exc_info()[0]}")
             logging.exception(e)
 
@@ -608,14 +601,21 @@ class DataLab(DataLabGui):
         self.dataQualityModule.set_data_quality_results()
 
         # Reset stats and spectrograms dashboards
-        self.statsTab.reset_dashboard()
-        self.vesselStatsTab.reset_dashboard()
-        self.spectrogramTab.reset_dashboard()
+        self.statsTab.clear_dashboard()
+        self.vesselStatsTab.clear_dashboard()
+        self.spectrogramTab.clear_dashboard()
 
         # For each logger create a stats dataset object and append to stats and vessel stats objects
         if screening.dict_stats:
             for logger_id, df in screening.dict_stats.items():
                 dataset = StatsDataset(logger_id, df)
+
+                # Store data frame index type (timestamp or file number) and
+                # configure x-axis type combo accordingly
+                self.statsTab.df_index_type = dataset.index_type
+                self.statsTab.set_xaxis_type_combo()
+
+                # Add stats dataset to stats and vessel stats tabs
                 self.statsTab.datasets.append(dataset)
                 self.vesselStatsTab.datasets.append(dataset)
 
@@ -657,7 +657,8 @@ class DataLab(DataLabGui):
                 )
             else:
                 msg = (
-                    f"Statistics dataset for logger '{logger}' (set to contain Hs and Tp data) not found in memory.\n\n"
+                    f"Statistics dataset for '{logger}' (which has been selected to contain Hs and Tp data) "
+                    "not found in memory.\n\n"
                     "Generate or load the required statistics dataset "
                     "containing Hs and Tp data and try again."
                 )
@@ -669,7 +670,7 @@ class DataLab(DataLabGui):
             if hs.size == 0 and tp.size == 0:
                 msg = (
                     f"The specified Hs and Tp columns in the '{logger}' stats data do not exist.\n\n"
-                    "Check the correct columns have been input in the sea scatter settings."
+                    "Check the correct columns have been input in the Sea Scatter Setup tab."
                 )
                 return self.warning(msg)
 
@@ -758,6 +759,9 @@ class ScreeningWorker(QtCore.QThread):
         except ValueError as e:
             self.signal_error.emit(str(e))
             logging.exception(e)
+        except TypeError as e:
+            self.signal_error.emit(str(e))
+            logging.exception(e)
         except ZeroDivisionError as e:
             self.signal_error.emit(str(e))
             logging.exception(e)
@@ -790,10 +794,20 @@ class ScreeningWorker(QtCore.QThread):
 #         self.setupUi(self)
 
 
-if __name__ == "__main__":
-    # os.chdir(r"C:\Users\dickinsc\PycharmProjects\DataLab\demo_data\2. Project Configs")
-    app = QtWidgets.QApplication(sys.argv)
+def run_datalab():
+    """Wrapper to run DataLab from a Jupyter Notebook."""
+
+    os.chdir(r"C:\Users\dickinsc\PycharmProjects\DataLab\demo_data\2. Project Configs")
+    app = QtCore.QCoreApplication.instance()
+    if not app:
+        app = QtWidgets.QApplication(sys.argv)
     # win = QtDesignerGui()
     win = DataLab()
+    filepath = r"C:\Users\dickinsc\PycharmProjects\DataLab\demo_data\2. Project Configs\Project 21239\21239_Total_WoS_Config.json"
+    win.projConfigModule.load_config_file(filepath)
     win.show()
     sys.exit(app.exec_())
+
+
+if __name__ == "__main__":
+    run_datalab()

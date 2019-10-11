@@ -1,3 +1,7 @@
+"""Signal processing functions."""
+
+__author__ = "Craig Dickinson"
+
 import numpy as np
 import pandas as pd
 from scipy import signal
@@ -8,9 +12,9 @@ def calc_psd(data, fs, window="boxcar", nperseg=None, noverlap=None):
     Compute power spectral density amplitudes and frequencies of an array of time series.
     :param data: Array of time series ordered by column
     :param fs: Sampling frequency
-    :param window: Window to applied; default "boxcar" equates to no window applied
-    :param nperseg: Number of data points per ensemble; default None equates to 256 points
-    :param noverlap: Proportion of ensemble overlap; default None equates to 50% overlap
+    :param window: Window to apply; default "boxcar" equates to no window applied
+    :param nperseg: Number of data points per segment; default None equates to 256 points
+    :param noverlap: Proportion of segment overlap; default None equates to 50% overlap
     :return: Arrays of frequencies and PSD amplitudes
     """
 
@@ -108,14 +112,14 @@ def filter_signal(df, low_cutoff=None, high_cutoff=None, retain_mean=True):
     cut_fft = fft.copy()
 
     # Apply freq cut-offs (bandpass filter)
-    if low_cutoff is not None:
+    if low_cutoff:
         #  Ignore the 0 Hz (DC) frequency so as to not remove signal mean
         if retain_mean is True:
             cut_fft[1:][f[1:] < low_cutoff] = 0
         else:
             cut_fft[f < low_cutoff] = 0
 
-    if high_cutoff is not None:
+    if high_cutoff:
         cut_fft[f > high_cutoff] = 0
 
     # ifft

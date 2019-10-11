@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd
 
 from app.core.logger_properties import LoggerProperties
-from app.core.read_files import read_pulse_acc_single_header_format
+from app.core.read_files import read_2hps2_acc, read_pulse_acc
 from app.core.signal_processing import filter_signal
 
 
@@ -22,6 +22,8 @@ class DataScreen(object):
 
         self.logger = LoggerProperties()
         self.files = []
+        self.stats_file_nums = []
+        self.spect_file_nums = []
 
         # Dictionary of files with errors for specified logger
         self.dict_bad_files = {}
@@ -48,7 +50,7 @@ class DataScreen(object):
         self.spect_sample_length = 0
 
         # File read properties
-        self.file_format = "General-csv"
+        self.file_format = "Custom"
         self.delim = ","
         self.header_row = 0
         self.skip_rows = []
@@ -66,9 +68,7 @@ class DataScreen(object):
         self.channel_names = logger.channel_names
 
         # Set full file path
-        self.files = [
-            os.path.join(self.logger.logger_path, f) for f in self.logger.files
-        ]
+        self.files = [os.path.join(logger.logger_path, f) for f in logger.files]
 
         # Set file format (i.e. Fugro/Pulse/General)
         self.file_format = self.logger.file_format
@@ -99,38 +99,81 @@ class DataScreen(object):
         if low_cutoff is None and high_cutoff is None:
             self.apply_filters = False
 
-    def read_logger_file(self, filename):
-        """Read logger file into pandas data frame."""
+    def read_logger_file(self, file):
+        """Read logger file into data frame."""
 
-        df = pd.DataFrame()
-
-        # Read data into pandas data frame
-        if self.file_format == "Fugro-csv" or self.file_format == "General-csv":
+        # Read data to data frame
+        if self.file_format == "Custom":
             df = pd.read_csv(
-                filename,
+                file,
                 sep=self.delim,
                 header=self.header_row,
                 skiprows=self.skip_rows,
-                encoding="latin",
+                skip_blank_lines=False,
+            )
+        elif self.file_format == "Fugro-csv":
+            df = pd.read_csv(
+                file,
+                sep=self.delim,
+                header=self.header_row,
+                skiprows=self.skip_rows,
+                encoding="latin1",
             )
         elif self.file_format == "Pulse-acc":
-            df = read_pulse_acc_single_header_format(filename)
+            df = read_pulse_acc(file, multi_header=False)
+        elif self.file_format == "2HPS2-acc":
+            df = read_2hps2_acc(file, multi_header=False)
+        else:
+            df = pd.DataFrame()
 
         return df
 
-    def munge_data(self, df, timestamp=""):
+    def munge_data(self, df, file_idx=0):
         """Format the logger raw data so it is suitable for processing."""
 
         # Copy to prevent SettingWithCopyWarning
         df = df.copy()
+        first_col = "Timestamp"
 
-        if self.logger.file_format == "General-csv":
+        if self.logger.file_format == "Custom":
             df = df.dropna(axis=1)
 
-            # Replace time column with timestamp
-            ts = df.iloc[:, 0].values
-            timestamps = [timestamp + timedelta(seconds=t) for t in ts]
-            df.iloc[:, 0] = timestamps
+            # Time steps data
+            if self.logger.first_col_data == "Time Step":
+                # If filename contains timestamp info, replace time column with timestamp
+                if self.logger.file_timestamp_embedded is True:
+                    ts = df.iloc[:, 0].values
+                    start_timestamp = self.logger.file_timestamps[file_idx]
+                    timestamps = [start_timestamp + timedelta(seconds=t) for t in ts]
+                    df.iloc[:, 0] = timestamps
+                else:
+                    first_col = "Time"
+            #  Convert first column (should be timestamps string) to datetimes
+            else:
+                try:
+                    df.iloc[:, 0] = pd.to_datetime(
+                        df.iloc[:, 0], format=self.logger.datetime_format
+                    )
+                except ValueError as e:
+                    if not isinstance(df.iloc[0, 0], pd.Timestamp):
+                        raise ValueError(
+                            f"Expected the first column of {self.logger.files[file_idx]} "
+                            f"to contain dates.\n"
+                            f"The time series appears to use a time step index but the "
+                            f"'First column data' property is set to 'Timestamp'. Change this to 'Time Step'."
+                        )
+                    else:
+                        raise ValueError(
+                            f"Could not convert the first column of {self.logger.files[file_idx]} "
+                            f"to datetime.\n"
+                            f"Check the 'Data Timestamp' property has the correct format.\n\n<{e}>"
+                        )
+
+        #  Convert first column (should be timestamps string) to datetimes
+        if self.logger.file_format == "Fugro-csv":
+            df.iloc[:, 0] = pd.to_datetime(
+                df.iloc[:, 0], format=self.logger.datetime_format, errors="coerce"
+            )
 
         # Check all requested columns exist in file
         n = len(df.columns)
@@ -144,21 +187,22 @@ class DataScreen(object):
         for i in missing_cols:
             df["Dummy " + str(i + 1)] = np.nan
 
-        # Replace column names with setup channel names (should only be different if user names supplied)
-        df.columns = ["Timestamp"] + self.channel_names
-
-        # Convert first column (should be timestamps string) to datetimes (not required for Pulse-acc format)
-        if self.logger.file_format != "Pulse-acc":
-            df.iloc[:, 0] = pd.to_datetime(
-                df.iloc[:, 0], format=self.logger.datetime_format, errors="coerce"
-            )
-
         # Convert any non-numeric data to NaN
         df.iloc[:, 1:] = df.iloc[:, 1:].apply(pd.to_numeric, errors="coerce")
 
         # Apply any unit conversions
+        # TODO: If no cols to process selected should default to all columns
         if len(self.unit_conv_factors) == len(df.columns) - 1:
-            df.iloc[:, 1:] = np.multiply(df.iloc[:, 1:], self.unit_conv_factors)
+            try:
+                df.iloc[:, 1:] = np.multiply(df.iloc[:, 1:], self.unit_conv_factors)
+            except TypeError as e:
+                msg = (
+                    f"Data screen error: Data frame contains no channel columns.\n {e}"
+                )
+                raise TypeError(msg)
+
+        # Replace column names with setup channel names (should only be different if user names supplied)
+        df.columns = [first_col] + self.channel_names
 
         return df
 
@@ -215,7 +259,6 @@ class DataScreen(object):
 
         # Total expected data points in logger campaign
         n = len(self.files) * self.logger.expected_data_points
-
         self.data_completeness = self.cum_pts_per_channel / n * 100
 
         return self.data_completeness

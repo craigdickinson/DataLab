@@ -1,3 +1,7 @@
+"""Class to read a project config json file and map to a control object and to save a control object as a json file."""
+
+__author__ = "Craig Dickinson"
+
 import json
 import os
 
@@ -18,14 +22,14 @@ class ProjectConfigJSONFile(QObject):
         self.filename = ""
         self.full_path = ""
 
-    def load_config_data(self, file_name):
+    def load_config_data(self, filename):
         """Load project config JSON file and return the dictionary data."""
 
-        with open(file_name, encoding="utf-8") as f:
+        with open(filename, encoding="utf-8") as f:
             self.data = json.load(f)
 
         # Store filename and set directory to project root
-        self.filename = os.path.basename(file_name)
+        self.filename = os.path.basename(filename)
 
     def map_json_to_control(self, control):
         """
@@ -34,6 +38,8 @@ class ProjectConfigJSONFile(QObject):
         :return: Populated control object.
         """
 
+        # Store config filename
+        control.config_file = self.filename
         data = self.data
         control = self._map_general_dict(data, control)
         control = self._map_campaign_dict(data, control)
@@ -228,23 +234,23 @@ class ProjectConfigJSONFile(QObject):
             key="file_format",
             attr=logger.file_format,
         )
+        logger.file_timestamp_embedded = self._get_key_value(
+            section=logger.logger_id,
+            data=dict_logger,
+            key="file_timestamp_embedded",
+            attr=logger.file_timestamp_embedded,
+        )
         logger.file_timestamp_format = self._get_key_value(
             section=logger.logger_id,
             data=dict_logger,
             key="file_timestamp_format",
             attr=logger.file_timestamp_format,
         )
-        logger.timestamp_format = self._get_key_value(
+        logger.first_col_data = self._get_key_value(
             section=logger.logger_id,
             data=dict_logger,
-            key="data_timestamp_format",
-            attr=logger.timestamp_format,
-        )
-        logger.datetime_format = self._get_key_value(
-            section=logger.logger_id,
-            data=dict_logger,
-            key="data_datetime_format",
-            attr=logger.datetime_format,
+            key="first_col_data",
+            attr=logger.first_col_data,
         )
         logger.file_ext = self._get_key_value(
             section=logger.logger_id,
@@ -282,6 +288,18 @@ class ProjectConfigJSONFile(QObject):
             key="units_header_row",
             attr=logger.units_header_row,
         )
+        logger.timestamp_format = self._get_key_value(
+            section=logger.logger_id,
+            data=dict_logger,
+            key="data_timestamp_format",
+            attr=logger.timestamp_format,
+        )
+        logger.datetime_format = self._get_key_value(
+            section=logger.logger_id,
+            data=dict_logger,
+            key="data_datetime_format",
+            attr=logger.datetime_format,
+        )
         logger.freq = self._get_key_value(
             section=logger.logger_id,
             data=dict_logger,
@@ -293,6 +311,18 @@ class ProjectConfigJSONFile(QObject):
             data=dict_logger,
             key="logging_duration",
             attr=logger.duration,
+        )
+        logger.enforce_max_duration = self._get_key_value(
+            section=logger.logger_id,
+            data=dict_logger,
+            key="enforce_max_duration",
+            attr=logger.enforce_max_duration,
+        )
+        logger.index_col_name = self._get_key_value(
+            section=logger.logger_id,
+            data=dict_logger,
+            key="index_column_name",
+            attr=logger.index_col_name,
         )
         logger.all_channel_names = self._get_key_value(
             section=logger.logger_id,
@@ -342,11 +372,15 @@ class ProjectConfigJSONFile(QObject):
             key="process_start",
             attr=logger.process_start,
         )
+
+        # Start file index used
         if process_start is None:
             logger.process_start = None
+        elif type(process_start) is int:
+            logger.process_start = process_start
+        # Start date used - convert to datetime
         else:
             try:
-                # Need to convert process start to datetime
                 logger.process_start = parse(process_start, yearfirst=True)
             except ValueError:
                 msg = f"Process start format not recognised for logger {logger.logger_id}."
@@ -358,11 +392,15 @@ class ProjectConfigJSONFile(QObject):
             key="process_end",
             attr=logger.process_end,
         )
+
+        # End file index used
         if process_end is None:
             logger.process_end = None
+        elif type(process_end) is int:
+            logger.process_end = process_end
+        # End date used - convert to datetime
         else:
             try:
-                # Need to convert process end to datetime
                 logger.process_end = parse(process_end, yearfirst=True)
             except ValueError:
                 msg = (
@@ -559,6 +597,89 @@ class ProjectConfigJSONFile(QObject):
             # Add logger props dictionary to loggers dictionary
             self.data["loggers"][logger.logger_id] = dict_props
 
+    @staticmethod
+    def _add_logger_props(logger, dict_props):
+        """Add control object logger properties to JSON dictionary."""
+
+        dict_props["data_on_azure"] = logger.data_on_azure
+        dict_props["logger_path"] = logger.logger_path
+        dict_props["file_format"] = logger.file_format
+        dict_props["file_timestamp_embedded"] = logger.file_timestamp_embedded
+        dict_props["file_timestamp_format"] = logger.file_timestamp_format
+        dict_props["first_col_data"] = logger.first_col_data
+        dict_props["file_ext"] = logger.file_ext
+        dict_props["file_delimiter"] = logger.file_delimiter
+        dict_props["num_header_rows"] = logger.num_headers
+        dict_props["num_columns"] = logger.num_columns
+        dict_props["channel_header_row"] = logger.channel_header_row
+        dict_props["units_header_row"] = logger.units_header_row
+        dict_props["data_timestamp_format"] = logger.timestamp_format
+        dict_props["data_datetime_format"] = logger.datetime_format
+        dict_props["logging_freq"] = logger.freq
+        dict_props["logging_duration"] = logger.duration
+        dict_props["enforce_max_duration"] = logger.enforce_max_duration
+        dict_props["index_column_name"] = logger.index_col_name
+        dict_props["all_channel_names"] = logger.all_channel_names
+        dict_props["all_channel_units"] = logger.all_channel_units
+
+        return dict_props
+
+    @staticmethod
+    def _add_logger_screening_settings(logger, dict_props):
+        """Add control object logger stats and spectral settings to JSON dictionary."""
+
+        # Processed columns group
+        dict_props["columns_to_process"] = logger.cols_to_process
+        dict_props["unit_convs"] = logger.unit_conv_factors
+        dict_props["user_channel_names"] = logger.user_channel_names
+        dict_props["user_channel_units"] = logger.user_channel_units
+
+        # Need to convert start and end datetimes to strings to write to JSON format
+        # Process start
+        if logger.process_start is None:
+            dict_props["process_start"] = None
+        else:
+            # Start date used
+            if logger.file_timestamp_embedded is True:
+                dict_props["process_start"] = logger.process_start.strftime(
+                    "%Y-%m-%d %H:%M"
+                )
+            # Start file index used
+            else:
+                dict_props["process_start"] = logger.process_start
+
+        # Process end
+        if logger.process_end is None:
+            dict_props["process_end"] = None
+        else:
+            # End date used
+            if logger.file_timestamp_embedded is True:
+                dict_props["process_end"] = logger.process_end.strftime(
+                    "%Y-%m-%d %H:%M"
+                )
+            else:
+                dict_props["process_end"] = logger.process_end
+
+        # Data type to screen on
+        dict_props["process_type"] = logger.process_type
+
+        # Stats low and high cut-off frequencies
+        dict_props["low_cutoff_freq"] = logger.low_cutoff_freq
+        dict_props["high_cutoff_freq"] = logger.high_cutoff_freq
+
+        # Stats settings group
+        dict_props["process_stats"] = logger.process_stats
+        dict_props["stats_interval"] = logger.stats_interval
+
+        # Spectral settings group
+        dict_props["process_spectral"] = logger.process_spect
+        dict_props["spectral_interval"] = logger.spect_interval
+        dict_props["psd_num_points_per_segment"] = logger.psd_nperseg
+        dict_props["psd_window"] = logger.psd_window
+        dict_props["psd_overlap"] = logger.psd_overlap
+
+        return dict_props
+
     def add_seascatter_settings(self, scatter):
         """Add seascatter settings."""
 
@@ -586,74 +707,6 @@ class ProjectConfigJSONFile(QObject):
         d["seastate_perc_occ"] = tf.perc_occ
 
         self.data["transfer_functions"] = d
-
-    @staticmethod
-    def _add_logger_props(logger, dict_props):
-        """Add control object logger properties to JSON dictionary."""
-
-        dict_props["data_on_azure"] = logger.data_on_azure
-        dict_props["logger_path"] = logger.logger_path
-        dict_props["file_format"] = logger.file_format
-        dict_props["file_timestamp_format"] = logger.file_timestamp_format
-        dict_props["data_timestamp_format"] = logger.timestamp_format
-        dict_props["data_datetime_format"] = logger.datetime_format
-        dict_props["file_ext"] = logger.file_ext
-        dict_props["file_delimiter"] = logger.file_delimiter
-        dict_props["num_header_rows"] = logger.num_headers
-        dict_props["num_columns"] = logger.num_columns
-        dict_props["channel_header_row"] = logger.channel_header_row
-        dict_props["units_header_row"] = logger.units_header_row
-        dict_props["logging_freq"] = logger.freq
-        dict_props["logging_duration"] = logger.duration
-        dict_props["all_channel_names"] = logger.all_channel_names
-        dict_props["all_channel_units"] = logger.all_channel_units
-
-        return dict_props
-
-    @staticmethod
-    def _add_logger_screening_settings(logger, dict_props):
-        """Add control object logger stats and spectral settings to JSON dictionary."""
-
-        # Processed columns group
-        dict_props["columns_to_process"] = logger.cols_to_process
-        dict_props["unit_convs"] = logger.unit_conv_factors
-        dict_props["user_channel_names"] = logger.user_channel_names
-        dict_props["user_channel_units"] = logger.user_channel_units
-
-        # Need to convert start and end datetimes to strings to write to JSON format
-        # Process start
-        if logger.process_start is None:
-            dict_props["process_start"] = None
-        else:
-            dict_props["process_start"] = logger.process_start.strftime(
-                "%Y-%m-%d %H:%M"
-            )
-
-        # Process end
-        if logger.process_end is None:
-            dict_props["process_end"] = None
-        else:
-            dict_props["process_end"] = logger.process_end.strftime("%Y-%m-%d %H:%M")
-
-        # Data type to screen on
-        dict_props["process_type"] = logger.process_type
-
-        # Stats low and high cut-off frequencies
-        dict_props["low_cutoff_freq"] = logger.low_cutoff_freq
-        dict_props["high_cutoff_freq"] = logger.high_cutoff_freq
-
-        # Stats settings group
-        dict_props["process_stats"] = logger.process_stats
-        dict_props["stats_interval"] = logger.stats_interval
-
-        # Spectral settings group
-        dict_props["process_spectral"] = logger.process_spect
-        dict_props["spectral_interval"] = logger.spect_interval
-        dict_props["psd_num_points_per_segment"] = logger.psd_nperseg
-        dict_props["psd_window"] = logger.psd_window
-        dict_props["psd_overlap"] = logger.psd_overlap
-
-        return dict_props
 
     def save_config(self, proj_num, proj_name, proj_path):
         """Export project configuration data as JSON file."""

@@ -1,3 +1,7 @@
+"""Sea scatter dashboard gui view."""
+
+__author__ = "Craig Dickinson"
+
 import math
 import sys
 

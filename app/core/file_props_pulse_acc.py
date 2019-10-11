@@ -25,14 +25,19 @@ Example pulse-acc file format is:
 %0001 00 00 19 07 06 2018
 0.000000E+00 7.055314E-02 1.389045E-02 0.000000E+00 0.000000E+00 -1.169407E-01 -2.415017E-01
 """
+
+__author__ = "Craig Dickinson"
+
 import os
 from glob import glob
 
 
 def set_pulse_acc_file_format(logger):
-    """Return a LoggerProperties object populated with known Pulse-acc file format settings."""
+    """Return a LoggerProperties object populated with file format properties of a Pulse-acc file."""
 
     logger.file_format = "Pulse-acc"
+    logger.file_timestamp_embedded = True
+    logger.first_col_data = "Time Step"
     logger.file_ext = "acc"
     logger.file_delimiter = " "
     logger.num_headers = 20
@@ -40,7 +45,7 @@ def set_pulse_acc_file_format(logger):
     logger.units_header_row = 18
 
     # Timestamp format is not needed for Pulse-acc files
-    logger.timestamp_format = "Not required"
+    logger.timestamp_format = "N/A"
 
     return logger
 
@@ -53,11 +58,11 @@ def detect_pulse_logger_properties(logger):
         expected number of columns
     """
 
-    # TODO: Need to check file is of expected filename first!
+    # TODO: Add Azure support
     raw_files = glob(logger.logger_path + "/*." + logger.file_ext)
 
-    if len(raw_files) == 0:
-        msg = f"No files with the extension {logger.file_ext} found in {logger.logger_path}"
+    if not raw_files:
+        msg = f"No files with the extension {logger.file_ext} found in {logger.logger_path}."
         raise FileNotFoundError(msg)
 
     test_file = raw_files[0]
@@ -87,30 +92,28 @@ def read_pulse_header_info(filename):
     Retrieve the following information from the header of a Pulse-acc file:
     sample frequency
     logging duration
-    channels names
-    units
+    channel  names
+    channel units
     """
 
     with open(filename, "r") as f:
         # Read sampling frequency
         [next(f) for _ in range(9)]
-        fs = next(f).strip().split(" ")[1]
+        fs = f.readline().strip().split(" ")[-1]
 
         # Read columns header
         [next(f) for _ in range(7)]
-        cols = next(f).strip().split(":")
+        cols = f.readline().strip().split(":")
 
+        # Skip remaining header and read body
         [next(f) for _ in range(2)]
         data = f.readlines()
 
-    # Manipulate and check info read
-    # Check sample frequency is numeric
-    if is_number(fs):
+    # Check sample frequency is numeric and calculate expected logging duration
+    try:
         fs = float(fs)
-
-        # Calculate expected logging duration
         duration = len(data) / fs
-    else:
+    except ValueError:
         fs = 0
         duration = 0
 
@@ -129,19 +132,8 @@ def read_pulse_header_info(filename):
     return fs, duration, channels, units
 
 
-def is_number(s):
-    """Return True if a string represents a float, otherwise return False."""
-
-    try:
-        float(s)
-        return True
-    except ValueError:
-        return False
-
-
 if __name__ == "__main__":
-    folder = r"C:\Users\dickinsc\PycharmProjects\_2. DataLab Analysis Files\21239\4. Dat2Acc\POD001"
+    folder = r"C:\Users\dickinsc\PycharmProjects\DataLab\demo_data\1. Raw Data\21239 Pulse-acc\BOP"
     fname = "MPOD001_2018_06_07_16_20.ACC"
     f = os.path.join(folder, fname)
-
     read_pulse_header_info(f)
