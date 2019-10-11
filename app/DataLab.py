@@ -4,7 +4,6 @@ __version__ = "2.0.0"
 __date__ = "11 October 2019"
 
 import logging
-import os
 import sys
 import webbrowser
 

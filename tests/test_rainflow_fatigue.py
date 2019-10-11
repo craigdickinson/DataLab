@@ -1,12 +1,12 @@
-"""Tests for the routines to calculate do rainflow counting fatigue."""
+"""Tests for the routines to calculate rainflow counting fatigue."""
 __author__ = "Craig Dickinson"
 
-import pytest
 import numpy as np
+import pytest
+import rainflow
 from numpy.testing import assert_allclose
 
-from core.rainflow_fatigue import reversals, extract_cycles, bin_ranges, calc_damage
-import rainflow
+from app.core.rainflow_fatigue import bin_ranges, calc_damage, extract_cycles, reversals
 
 
 def test_condense_peaks():

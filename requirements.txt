@@ -16,7 +16,6 @@ colorama==0.4.1
 coverage==4.5.4
 cryptography==2.7
 cycler==0.10.0
--e git+https://acteon.visualstudio.com/2H%20-%20DataLab/_git/2H%20-%20DataLab@3576323988dad296ff670ce399a034d51c4b50ca#egg=datalab
 decorator==4.4.0
 et-xmlfile==1.0.1
 future==0.17.1
