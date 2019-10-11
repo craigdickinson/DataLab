@@ -285,7 +285,7 @@ class Control(object):
             self.read_or_copy_stats_format(logger, logger_data)
 
             # Get filenames and check timestamps
-            # logger.get_filenames()
+            logger.get_filenames()
             logger.get_timestamp_span()
             logger.check_file_timestamps()
 
