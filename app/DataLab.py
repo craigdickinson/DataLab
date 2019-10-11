@@ -797,14 +797,14 @@ class ScreeningWorker(QtCore.QThread):
 def run_datalab():
     """Wrapper to run DataLab from a Jupyter Notebook."""
 
-    os.chdir(r"C:\Users\dickinsc\PycharmProjects\DataLab\demo_data\2. Project Configs")
+    # os.chdir(r"C:\Users\dickinsc\PycharmProjects\DataLab\demo_data\2. Project Configs")
     app = QtCore.QCoreApplication.instance()
     if not app:
         app = QtWidgets.QApplication(sys.argv)
     # win = QtDesignerGui()
     win = DataLab()
-    filepath = r"C:\Users\dickinsc\PycharmProjects\DataLab\demo_data\2. Project Configs\Project 21239\21239_Total_WoS_Config.json"
-    win.projConfigModule.load_config_file(filepath)
+    # filepath = r"C:\Users\dickinsc\PycharmProjects\DataLab\demo_data\2. Project Configs\Project 21239\21239_Total_WoS_Config.json"
+    # win.projConfigModule.load_config_file(filepath)
     win.show()
     sys.exit(app.exec_())
 
