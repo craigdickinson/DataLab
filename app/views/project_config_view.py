@@ -114,7 +114,7 @@ class ConfigModule(QtWidgets.QWidget):
         self.spacer = QtWidgets.QSpacerItem(1, 20)
 
         # Config tab widgets
-        self.campaignTab = CampaignInfoTab(self, self.control)
+        self.generalTab = GeneralTab(self, self.control)
         self.loggerPropsTab = LoggerPropertiesTab(self, self.control)
         self.screeningTab = ScreeningSetupTab(self, self.control)
         self.scatterTab = SeascatterTab(self, self.control, self.scatter)
@@ -144,7 +144,7 @@ class ConfigModule(QtWidgets.QWidget):
 
         # Setup container
         self.setupTabs = QtWidgets.QTabWidget()
-        self.setupTabs.addTab(self.campaignTab, "Campaign Info")
+        self.setupTabs.addTab(self.generalTab, "Project Details")
         self.setupTabs.addTab(self.loggerPropsTab, "Logger File Properties")
         self.setupTabs.addTab(self.screeningTab, "Screening Setup")
         self.setupTabs.addTab(self.scatterTab, "Sea Scatter Setup")
@@ -246,7 +246,7 @@ class ConfigModule(QtWidgets.QWidget):
         if os.path.exists(config.full_path):
             # Update config dashboard with config filename and inform user
             self.control.config_file = config.filename
-            self.campaignTab.configFilename.setText(config.filename)
+            self.generalTab.configFilename.setText(config.filename)
             msg = f"Project config settings saved to:\n{config.full_path}"
             QtWidgets.QMessageBox.information(self, "Save Project Config", msg)
 
@@ -282,7 +282,7 @@ class ConfigModule(QtWidgets.QWidget):
         self.columnList.clear()
 
         # Clear campaign data dashboard and update window title to include config file path
-        self.campaignTab.clear_dashboard()
+        self.generalTab.clear_dashboard()
         self.loggerPropsTab.clear_dashboard()
         self.screeningTab.clear_dashboard()
         self.scatterTab.clear_dashboard()
@@ -292,8 +292,8 @@ class ConfigModule(QtWidgets.QWidget):
         self.parent.set_window_title()
 
         # Select campaign tab and open setup dialog
-        self.setupTabs.setCurrentWidget(self.campaignTab)
-        self.campaignTab.on_edit_clicked()
+        self.setupTabs.setCurrentWidget(self.generalTab)
+        self.generalTab.on_edit_clicked()
 
         # Clear raw data dashboard
         self.parent.rawDataModule.clear_dashboard()
@@ -536,7 +536,7 @@ class ConfigModule(QtWidgets.QWidget):
     def _map_setup_objects_to_tabs(self):
         """Update the various project config tab objects with their associated settings objects."""
 
-        self.campaignTab.control = self.control
+        self.generalTab.control = self.control
         self.loggerPropsTab.control = self.control
         self.screeningTab.control = self.control
         self.scatterTab.control = self.control
@@ -554,7 +554,7 @@ class ConfigModule(QtWidgets.QWidget):
         self.spectScreenChkBox.setChecked(self.control.global_process_spect)
 
         # Set campaign data to dashboard
-        self.campaignTab.set_campaign_dashboard()
+        self.generalTab.set_campaign_dashboard()
 
         self.loggersList.clear()
         self.columnList.clear()
@@ -600,11 +600,11 @@ class ConfigModule(QtWidgets.QWidget):
         return QtWidgets.QMessageBox.information(self, "Warning", msg)
 
 
-class CampaignInfoTab(QtWidgets.QWidget):
+class GeneralTab(QtWidgets.QWidget):
     """GUI screen to control project setup."""
 
     def __init__(self, parent=None, control=Control()):
-        super(CampaignInfoTab, self).__init__(parent)
+        super(GeneralTab, self).__init__(parent)
 
         self.parent = parent
         self.control = control
@@ -625,7 +625,7 @@ class CampaignInfoTab(QtWidgets.QWidget):
         self.configFilename = QtWidgets.QLabel("-")
 
         # CONTAINERS
-        self.projGroup = QtWidgets.QGroupBox("Project and Campaign Info")
+        self.projGroup = QtWidgets.QGroupBox("Project Details")
         self.projGroup.setMinimumWidth(500)
         self.form = QtWidgets.QFormLayout(self.projGroup)
         self.form.addRow(QtWidgets.QLabel("Project number:"), self.projNum)
@@ -671,7 +671,7 @@ class CampaignInfoTab(QtWidgets.QWidget):
     def on_edit_clicked(self):
         """Open campaign settings edit dialog."""
 
-        editInfo = EditCampaignInfoDialog(self, self.control)
+        editInfo = EditGeneralDialog(self, self.control)
         editInfo.show()
 
     def set_campaign_dashboard(self):
@@ -696,11 +696,11 @@ class CampaignInfoTab(QtWidgets.QWidget):
         self.configFilename.setText("-")
 
 
-class EditCampaignInfoDialog(QtWidgets.QDialog):
+class EditGeneralDialog(QtWidgets.QDialog):
     """Edit window for project and campaign data."""
 
     def __init__(self, parent=None, control=Control()):
-        super(EditCampaignInfoDialog, self).__init__(parent)
+        super(EditGeneralDialog, self).__init__(parent)
 
         self.parent = parent
         self.control = control
@@ -709,7 +709,7 @@ class EditCampaignInfoDialog(QtWidgets.QDialog):
         self._set_dialog_data()
 
     def _init_ui(self):
-        self.setWindowTitle("Edit General Campaign Data")
+        self.setWindowTitle("Edit Project Details")
         self.setFixedWidth(500)
 
         # Sizing policy

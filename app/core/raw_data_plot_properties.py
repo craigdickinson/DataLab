@@ -121,7 +121,7 @@ class RawDataPlotProperties(object):
         colors1 = [sns.color_palette("muted").as_hex()[i] for i in colors1_idx]
         colors1_filt = [sns.color_palette("dark").as_hex()[i] for i in colors1_idx]
 
-        colors2_idx = [8, 9, 7, 4]
+        colors2_idx = [8, 9, 4, 7]
         colors2 = [sns.color_palette("colorblind").as_hex()[i] for i in colors2_idx]
         colors2_filt = [sns.color_palette("dark").as_hex()[i] for i in colors2_idx]
 
@@ -213,10 +213,19 @@ class SeriesPlotData(object):
         self.channel_names = []
         self.channel_units = []
         self.timestamps = []
+
+        # Plot data
         self.x = []
         self.y = []
         self.y_filt = []
+        self.freq = []
+        self.pxx = []
+        self.pxx_filt = []
         self.label = ""
+
+        # Line plot handles
+        self.ts_line = None
+        self.ts_line_filt = None
         self.psd_line = None
         self.psd_line_filt = None
 
@@ -255,7 +264,12 @@ class SeriesPlotData(object):
         self.x = []
         self.y = []
         self.y_filt = []
+        self.freq = []
+        self.pxx = []
+        self.pxx_filt = []
         self.label = ""
+        self.ts_line = None
+        self.ts_line_filt = None
         self.psd_line = None
         self.psd_line_filt = None
         self.low_cutoff = None

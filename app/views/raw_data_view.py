@@ -402,7 +402,7 @@ class RawDataDashboard(QtWidgets.QWidget):
         # self.canvas.draw()
 
     def on_export_plot_data_clicked(self):
-        pass
+        self.export_plot_data_to_excel()
 
     def on_plot_settings_clicked(self):
         """Show plot options window."""
@@ -898,24 +898,28 @@ class RawDataDashboard(QtWidgets.QWidget):
         for srs in self.plot_setup.axis1_series_list:
             # Plot unfiltered time series
             if len(srs.y) > 0 and plot_filt_only is False:
-                self._add_ts_line_plot(srs, ax=self.ax1, filtered=False)
+                srs.ts_line = self._add_ts_line_plot(srs, ax=self.ax1, filtered=False)
                 axis1_is_plotted = True
 
             # Plot filtered time series
             if len(srs.y_filt) > 0:
-                self._add_ts_line_plot(srs, ax=self.ax1, filtered=True)
+                srs.ts_line_filt = self._add_ts_line_plot(
+                    srs, ax=self.ax1, filtered=True
+                )
                 axis1_is_plotted = True
 
         # Plot all populated axis 2 series
         for srs in self.plot_setup.axis2_series_list:
             # Plot unfiltered time series
             if len(srs.y) > 0 and plot_filt_only is False:
-                self._add_ts_line_plot(srs, ax=self.ax1b, filtered=False)
+                srs.ts_line = self._add_ts_line_plot(srs, ax=self.ax1b, filtered=False)
                 axis2_is_plotted = True
 
             # # Plot filtered time series
             if len(srs.y_filt) > 0:
-                self._add_ts_line_plot(srs, ax=self.ax1b, filtered=True)
+                srs.ts_line_filt = self._add_ts_line_plot(
+                    srs, ax=self.ax1b, filtered=True
+                )
                 axis2_is_plotted = True
 
         return axis1_is_plotted, axis2_is_plotted
@@ -975,13 +979,16 @@ class RawDataDashboard(QtWidgets.QWidget):
             color = srs.color
 
         # Add line plot
-        ax.plot(x, y, label=srs.label, c=color, lw=linewidth)
+        line, = ax.plot(x, y, label=srs.label, c=color, lw=linewidth)
 
         if srs.units == "-":
             ylabel = ""
         else:
             ylabel = srs.units
         ax.set_ylabel(ylabel, size=10)
+
+        # Return line handle
+        return line
 
     def _add_psd_line_plot(self, srs, ax, filtered):
         """Compute PSD of a single series and plot."""
@@ -1035,6 +1042,13 @@ class RawDataDashboard(QtWidgets.QWidget):
         # Plot PSD
         line, = ax.plot(f, pxx, c=color, lw=linewidth)
         ax.set_ylabel(ylabel, size=10)
+
+        # Store frequencies and amplitudes
+        srs.freq = f
+        if filtered is True:
+            srs.pxx = pxx
+        else:
+            srs.pxx_filt = pxx
 
         # Return line handle
         return line
@@ -1091,7 +1105,7 @@ class RawDataDashboard(QtWidgets.QWidget):
             label += f"{srs.column}"
 
         if filtered is True:
-            srs.label += " (Filtered)"
+            label += " (Filtered)"
 
         return label.strip()
 
@@ -1151,6 +1165,70 @@ class RawDataDashboard(QtWidgets.QWidget):
 
     def _set_legend(self):
         self.fig.legend(loc="lower center", ncol=4, fontsize=9)
+
+    def export_plot_data_to_excel(self):
+        """Export all plot data to Excel."""
+
+        all_srs = self.plot_setup.axis1_series_list + self.plot_setup.axis2_series_list
+
+        # Collate all time series to data frame
+        df_ts_list = []
+        for srs in all_srs:
+            y = srs.y
+            if len(y) > 0:
+                df = pd.DataFrame(y, index=srs.x, columns=[srs.label])
+                df_ts_list.append(df)
+
+            y = srs.y_filt
+            if len(y) > 0:
+                df = pd.DataFrame(y, index=srs.x, columns=[srs.label])
+                df_ts_list.append(df)
+
+        # Collate all psd series to data frame
+        df_psd_list = []
+        for srs in all_srs:
+            pxx = srs.pxx
+            if len(pxx) > 0:
+                df = pd.DataFrame(pxx, index=srs.freq, columns=[srs.label])
+                df_psd_list.append(df)
+
+            pxx = srs.pxx_filt
+            if len(pxx) > 0:
+                df = pd.DataFrame(pxx, index=srs.freq, columns=[srs.label])
+                df_psd_list.append(df)
+
+        # Concatenate to sheet data frame
+        try:
+            df_ts = pd.concat(df_ts_list, axis=1, sort=False)
+            df_ts.index.name = "Time (s)"
+            df_psd = pd.concat(df_psd_list, axis=1, sort=False)
+            df_psd.index.name = "Freq (Hz)"
+        except ValueError:
+            print("Export plot data fail")
+            return
+
+        # Write to Excel
+        filename, _ = QtWidgets.QFileDialog.getSaveFileName(
+            self, "Export Plot Data", filter="Excel File (*.xlsx)"
+        )
+        if filename:
+            writer = pd.ExcelWriter(filename, engine="xlsxwriter")
+            wb = writer.book
+            fmt = wb.add_format({"text_wrap": True})
+
+            # Time series
+            df_ts.to_excel(writer, sheet_name="Time Series", float_format="%.3f")
+            ws = writer.sheets["Time Series"]
+            ws.set_row(1, None, fmt)
+
+            # PSD sheet
+            df_psd.to_excel(writer, sheet_name="PSD")
+            ws = writer.sheets["PSD"]
+            ws.set_row(1, None, fmt)
+            writer.save()
+
+            msg = "Plot data exported successfully."
+            QtWidgets.QMessageBox.information(self, "Export Plot Data", msg)
 
     @staticmethod
     def format_data(y):
