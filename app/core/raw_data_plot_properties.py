@@ -6,8 +6,8 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
 
-from logger_properties import LoggerProperties
-from read_files import read_2hps2_acc, read_fugro_csv, read_pulse_acc
+from app.core.logger_properties import LoggerProperties
+from app.core.read_files import read_2hps2_acc, read_fugro_csv, read_pulse_acc
 
 
 class RawDataRead(object):
