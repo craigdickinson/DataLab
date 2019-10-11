@@ -77,7 +77,7 @@ def test_calc_damage():
     cycles = extract_cycles(p)
     stress_ranges, stress_cycles = bin_ranges(cycles, bin_size=1)
     fd = calc_damage(stress_ranges, stress_cycles, SN)
-    assert float(f'{fd:.6}') == 4.40185e-10
+    assert float(f"{fd:.6}") == 4.40185e-10
 
 
 if __name__ == "__main__":
