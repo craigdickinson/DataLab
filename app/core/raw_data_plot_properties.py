@@ -73,6 +73,7 @@ class RawDataRead(object):
                 skip_blank_lines=False,
             )
             # Ensure column names are strings and remove any nan columns (can arise from superfluous delimiters)
+            # TODO: This fails if a multi-index header
             df.columns = df.columns.astype(str)
             df = df.dropna(axis=1)
 

@@ -67,11 +67,14 @@ class DataScreen(object):
         self.logger = logger
         self.channel_names = logger.channel_names
 
-        # Set full file path
+        # Full file path
         self.files = [os.path.join(logger.logger_path, f) for f in logger.files]
 
-        # Set file format (i.e. Fugro/Pulse/General)
+        # File format (i.e. Custom/Fugro/Pulse/2HPS2")
         self.file_format = self.logger.file_format
+
+        # Whether filenames contain timestamps
+        self.file_timestamp_embedded = self.logger.file_timestamp_embedded
 
         # Set file read properties
         self.delim = self.logger.file_delimiter
@@ -306,15 +309,17 @@ class DataScreen(object):
 
         df = df_sample.copy()
 
-        # Timestamps column
-        ts = df.iloc[:, 0]
+        # Timestamps/time column
+        t = df.iloc[:, 0]
 
         # Need index to be time - calculate time delta from t0 and convert to seconds (float) then set as index
-        t = (df.iloc[:, 0] - df.iloc[0, 0]).dt.total_seconds().values.round(3)
-        df.index = t
-
-        # Remove timestamps column
-        df = df.select_dtypes("number")
+        if self.file_timestamp_embedded is True:
+            df.index = (
+                (df.iloc[:, 0] - df.iloc[0, 0]).dt.total_seconds().values.round(3)
+            )
+            df.drop(df.columns[0], axis=1, inplace=True)
+        else:
+            df.set_index(df.columns[0], inplace=True)
 
         # Apply bandpass filter
         df_filtered = filter_signal(
@@ -322,8 +327,8 @@ class DataScreen(object):
         )
 
         if not df_filtered.empty:
-            # Insert timestamps column and reset index to return a data frame in the same format as the unfiltered one
+            # Insert timestamps/time column and reset index to return a data frame in same format as unfiltered one
             df_filtered.reset_index(drop=True, inplace=True)
-            df_filtered.insert(loc=0, column=ts.name, value=ts)
+            df_filtered.insert(loc=0, column=t.name, value=t)
 
         return df_filtered

@@ -99,17 +99,26 @@ class Screening(QThread):
         # Create output stats to workbook object
         stats_out = StatsOutput(output_dir=self.control.stats_output_path)
 
-        # Initialise containers and settings
+        # Initialise containers and flags
         output_files = []
         logger_ids = []
         total_files = 0
         global_process_stats = self.control.global_process_stats
         global_process_spect = self.control.global_process_spect
         any_data_on_azure = False
-        stats_expected = False
-        stats_processed = False
-        spect_expected = False
-        spect_processed = False
+
+        # Global flags to check if results for any loggers are created
+        any_stats_expected = False
+        any_stats_processed = False
+        any_spect_expected = False
+        any_spect_processed = False
+
+        # Create dictionary of True/False flags of spectrogram file formats to create
+        dict_spect_export_formats = dict(
+            h5=self.control.spect_to_h5,
+            csv=self.control.spect_to_csv,
+            xlsx=self.control.spect_to_xlsx,
+        )
 
         # If writing stats HDF5 file, stats for all loggers are written to the same file
         # Set write mode to write new file for first logger then append for all others
@@ -127,10 +136,10 @@ class Screening(QThread):
                 any_data_on_azure = True
 
             if global_process_stats is True and logger.process_stats is True:
-                stats_expected = True
+                any_stats_expected = True
 
             if global_process_spect is True and logger.process_spect is True:
-                spect_expected = True
+                any_spect_expected = True
 
         # Connect to Azure account if to be used
         if any_data_on_azure:
@@ -142,34 +151,47 @@ class Screening(QThread):
         print("Processing loggers...")
         file_count = 0
         for i, logger in enumerate(loggers):
+            # Initialise flags pertaining to logger
+            stats_processed = False
+            spect_processed = False
+
+            # Check and update process flags
+            if global_process_stats is False:
+                stats_requested = False
+            else:
+                stats_requested = logger.process_stats
+
+            if global_process_spect is False:
+                spect_requested = False
+            else:
+                spect_requested = logger.process_spect
+
             # Add any bad filenames to screening report
             data_report.add_bad_filenames(logger.logger_id, logger.dict_bad_filenames)
 
-            # Create containers to store data screening results and stats
+            # Create containers to store data screening results
             data_screen.append(DataScreen())
-            logger_stats = LoggerStats()
-            logger_stats_filtered = LoggerStats()
 
             # Set logger to process - add all logger properties from the control object for the current logger
             data_screen[i].set_logger(logger)
+
+            # Initialise logger stats objects
+            logger_stats_unfilt = LoggerStats()
+            logger_stats_filt = LoggerStats()
 
             # Number of data points processed per sample
             stats_sample_length = int(logger.stats_interval * logger.freq)
             spect_sample_length = int(logger.spect_interval * logger.freq)
 
-            # Spectrograms object
-            if logger.process_spect is True:
-                spect_unfilt = Spectrogram(
-                    logger_id=logger.logger_id,
-                    output_dir=self.control.spect_output_path,
-                )
+            # Initialise logger spectrograms objects
+            spect_unfilt = Spectrogram(
+                logger_id=logger.logger_id, output_dir=self.control.spect_output_path
+            )
+            spect_filt = Spectrogram(
+                logger_id=logger.logger_id, output_dir=self.control.spect_output_path
+            )
 
-                spect_filt = Spectrogram(
-                    logger_id=logger.logger_id,
-                    output_dir=self.control.spect_output_path,
-                )
-
-            # Initialise sample pandas data frame for logger
+            # Initialise sample data frame for logger
             df_stats_sample = pd.DataFrame()
             df_spect_sample = pd.DataFrame()
             n = len(data_screen[i].files)
@@ -238,7 +260,7 @@ class Screening(QThread):
                     df_spect = df.copy()
 
                     # Stats processing module
-                    if global_process_stats is True and logger.process_stats is True:
+                    if stats_requested:
                         while len(df_stats) > 0:
                             # Store the file number of processed sample (only of use for time step indexes)
                             data_screen[i].stats_file_nums.append(processed_file_num)
@@ -258,8 +280,9 @@ class Screening(QThread):
                                 # Unfiltered data
                                 if logger.process_type != "Filtered only":
                                     # Calculate sample stats
-                                    logger_stats.calc_stats(df_stats_sample)
+                                    logger_stats_unfilt.calc_stats(df_stats_sample)
                                     stats_processed = True
+                                    any_stats_processed = True
 
                                 # Filtered data
                                 if logger.process_type != "Unfiltered only":
@@ -270,14 +293,15 @@ class Screening(QThread):
                                         )
 
                                         # Calculate sample stats
-                                        logger_stats_filtered.calc_stats(df_filt)
+                                        logger_stats_filt.calc_stats(df_filt)
                                         stats_processed = True
+                                        any_stats_processed = True
 
                                 # Clear sample data frame so as ready for next sample set
                                 df_stats_sample = pd.DataFrame()
 
                     # Spectrograms processing module
-                    if global_process_spect is True and logger.process_spect is True:
+                    if spect_requested:
                         while len(df_spect) > 0:
                             # Store the file number of processed sample (only of use for time step indexes)
                             data_screen[i].spect_file_nums.append(processed_file_num)
@@ -302,6 +326,7 @@ class Screening(QThread):
                                         noverlap=logger.psd_overlap,
                                     )
                                     spect_processed = True
+                                    any_spect_processed = True
 
                                 # Filtered data
                                 if logger.process_type != "Unfiltered only":
@@ -319,6 +344,7 @@ class Screening(QThread):
                                             noverlap=logger.psd_overlap,
                                         )
                                         spect_processed = True
+                                        any_spect_processed = True
 
                                 # Clear sample data frame so as ready for next sample set
                                 df_spect_sample = pd.DataFrame()
@@ -337,15 +363,16 @@ class Screening(QThread):
                 logger.logger_id, data_screen[i].dict_bad_files
             )
 
-            if stats_processed:
+            # Check logger stats requested and processed for current logger
+            if stats_requested and stats_processed:
                 # Create and store a data frame of logger stats
                 df_stats = stats_out.compile_stats(
                     logger,
                     data_screen[i].stats_file_nums,
                     data_screen[i].stats_sample_start,
                     data_screen[i].stats_sample_end,
-                    logger_stats,
-                    logger_stats_filtered,
+                    logger_stats_unfilt,
+                    logger_stats_filt,
                 )
 
                 if not df_stats.empty:
@@ -381,13 +408,8 @@ class Screening(QThread):
                     if self.control.stats_to_xlsx is True:
                         stats_out.write_to_excel()
 
-            if spect_processed:
-                # Create dictionary of True/False flags of file formats to write
-                dict_formats_to_write = dict(
-                    h5=self.control.spect_to_h5,
-                    csv=self.control.spect_to_csv,
-                    xlsx=self.control.spect_to_xlsx,
-                )
+            # Check logger stats requested and processed for current logger
+            if spect_requested and spect_processed:
                 dates = data_screen[i].spect_sample_start
                 file_nums = data_screen[i].spect_file_nums
 
@@ -395,7 +417,7 @@ class Screening(QThread):
                 if spect_unfilt.spectrograms:
                     spect_unfilt.add_index(dates, file_nums)
                     df_dict = spect_unfilt.export_spectrograms_data(
-                        dict_formats_to_write
+                        dict_spect_export_formats
                     )
                     self.dict_spectrograms.update(df_dict)
 
@@ -406,7 +428,7 @@ class Screening(QThread):
                 if spect_filt.spectrograms:
                     spect_filt.add_index(dates, file_nums)
                     df_dict = spect_filt.export_spectrograms_data(
-                        dict_formats_to_write, filtered=True
+                        dict_spect_export_formats, filtered=True
                     )
                     self.dict_spectrograms.update(df_dict)
 
@@ -429,7 +451,7 @@ class Screening(QThread):
         self.data_screen = data_screen
 
         # Save stats workbook if requested
-        if stats_processed and self.control.stats_to_xlsx is True:
+        if any_stats_processed and self.control.stats_to_xlsx is True:
             stats_filename = stats_out.save_workbook()
 
             # Add to output files list - and write to progress window
@@ -442,12 +464,12 @@ class Screening(QThread):
         print(f"Screening runtime = {t}")
 
         # Check and inform user if stats/spectrograms were requested but not calculated (e.g. due to bad files)
-        if stats_expected and not stats_processed:
+        if any_stats_expected and not any_stats_processed:
             warning = "Warning: Statistics requested but none calculated. Check Data Screening Report."
             output_files.append(warning)
             self.signal_update_output_info.emit(output_files)
 
-        if spect_expected and not spect_processed:
+        if any_spect_expected and not any_spect_processed:
             warning = "Warning: Spectrograms requested but none calculated. Check Data Screening Report."
             output_files.append(warning)
             self.signal_update_output_info.emit(output_files)

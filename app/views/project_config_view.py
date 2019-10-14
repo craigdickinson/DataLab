@@ -2419,6 +2419,7 @@ class EditScreeningSetupDialog(QtWidgets.QDialog):
         ):
             logger.stats_interval = int(logger.duration)
         else:
+            # TODO: Question why this is forced to be an int not float?
             logger.stats_interval = int(float(self.statsInterval.text()))
 
         # Spectral settings group
@@ -2428,6 +2429,7 @@ class EditScreeningSetupDialog(QtWidgets.QDialog):
         ):
             logger.spect_interval = int(logger.duration)
         else:
+            # TODO: Question why this is forced to be an int not float?
             logger.spect_interval = int(float(self.spectInterval.text()))
 
         # PSD parameters

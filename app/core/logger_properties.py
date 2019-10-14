@@ -485,7 +485,7 @@ class LoggerProperties(QObject):
 
         # Extract lists of channel names and units
         # Convert column names list so that split by "," not " ", drop "Time" item and trim
-        self.index_col_name = "Time"
+        self.index_col_name = "Time (s)"
         channels = " ".join(channels).split(",")[1:]
         channels = [c.strip() for c in channels]
         units = " ".join(units).split(",")[1:]

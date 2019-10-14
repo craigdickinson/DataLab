@@ -1219,12 +1219,15 @@ class RawDataDashboard(QtWidgets.QWidget):
             # Time series
             df_ts.to_excel(writer, sheet_name="Time Series", float_format="%.3f")
             ws = writer.sheets["Time Series"]
-            ws.set_row(1, None, fmt)
+            # ws.set_row(1, None, fmt)
+            # ws.set_column("B:B", None, fmt)
 
             # PSD sheet
             df_psd.to_excel(writer, sheet_name="PSD")
             ws = writer.sheets["PSD"]
-            ws.set_row(1, None, fmt)
+            # ws.set_row(1, None, fmt)
+            # ws.set_column("A:A", None, fmt)
+            # ws.write("B1", "Craig BOP_2018_0607_1620.csv BOP AccelX", fmt)
             writer.save()
 
             msg = "Plot data exported successfully."
