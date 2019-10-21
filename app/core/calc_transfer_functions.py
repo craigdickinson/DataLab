@@ -214,7 +214,7 @@ class TransferFunctions(QObject):
         Then add gravity-contamination contribution.
         acc_g = -[x(i-1) + 2 * x(i) - x(i+1)] / h^2 + g * sin(theta)
         Note: Negative sign added to ensure that a positive displacement and inclination results in a positive
-        gravity-contaminated acceleration (sense the logger "feels" force in the opposite direction to motion).
+        gravity-contaminated acceleration (so the logger "feels" force in the opposite direction to motion).
         """
 
         # Step size

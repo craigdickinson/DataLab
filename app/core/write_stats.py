@@ -117,7 +117,9 @@ class StatsOutput(object):
         if stats_unfilt and stats_filt:
             cols = self._reorder_columns(df_stats)
             df_stats = df_stats[cols]
-            self.df_stats_export = self.df_stats_export[["Start", "End"] + cols]
+            self.df_stats_export = self.df_stats_export[
+                ["File Number", "Start", "End"] + cols
+            ]
 
         return df_stats
 
@@ -268,7 +270,7 @@ class StatsOutput(object):
 
         # Set width of date columns
         for col in range(2, 4):
-            ws.column_dimensions[get_column_letter(col)].width = 20
+            ws.column_dimensions[get_column_letter(col)].width = 19
 
     @staticmethod
     def _ensure_dir_exists(directory):

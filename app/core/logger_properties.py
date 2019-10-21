@@ -67,7 +67,7 @@ class LoggerProperties(QObject):
         self.blobs = []
 
         # File format variables
-        self.file_format = ""  # *FILE_FORMAT
+        self.file_format = "Custom"  # *FILE_FORMAT
         self.file_timestamp_embedded = True
         self.file_timestamp_format = ""  # *FILE_TIMESTAMP
         self.first_col_data = "Timestamp"

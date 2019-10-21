@@ -67,7 +67,7 @@ class DataQualityReport(QtWidgets.QWidget):
         if logger_idx == -1:
             return
 
-        logger_data_screen = self.screening.data_screen[logger_idx]
+        logger_data_screen = self.screening.data_screen_sets[logger_idx]
         logger = self.screening.control.loggers[logger_idx]
 
         # Update report

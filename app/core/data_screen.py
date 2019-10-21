@@ -17,7 +17,7 @@ from app.core.signal_processing import filter_signal
 class DataScreen(object):
     """Screen data from a list of filenames and store stats."""
 
-    def __init__(self):
+    def __init__(self, logger=None):
         """Instantiate with empty logger."""
 
         self.logger = LoggerProperties()
@@ -60,6 +60,15 @@ class DataScreen(object):
 
         # Apply bandpass signal filtering flag
         self.apply_filters = True
+
+        # Screening flags
+        self.stats_requested = False
+        self.stats_processed = False
+        self.spect_requested = False
+        self.spect_processed = False
+
+        if logger:
+            self.set_logger(logger)
 
     def set_logger(self, logger):
         """Set the logger filenames to be assessed and required read file properties."""
