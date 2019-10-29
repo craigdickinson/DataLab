@@ -32,6 +32,10 @@ class DataScreen(object):
         self.points_per_file = []
         self.cum_pts_per_channel = np.array([])
 
+        # Number of data points processed per sample
+        self.stats_sample_length = 0
+        self.spect_sample_length = 0
+
         # Minimum resolution
         # TODO: Output this in data screen report
         self.res = []
@@ -45,7 +49,7 @@ class DataScreen(object):
         self.spect_sample_start = []
         self.spect_sample_end = []
 
-        # Interval to calculate stats over
+        # Interval to process on
         self.stats_sample_length = 0
         self.spect_sample_length = 0
 
@@ -103,6 +107,10 @@ class DataScreen(object):
 
         # Unit conversion factors
         self.unit_conv_factors = logger.unit_conv_factors
+
+        # Interval to process on
+        self.stats_sample_length = int(self.logger.stats_interval * self.logger.freq)
+        self.spect_sample_length = int(self.logger.spect_interval * self.logger.freq)
 
         # Flags to set whether bandpass filtering is to be applied
         low_cutoff = self.logger.low_cutoff_freq
@@ -281,10 +289,15 @@ class DataScreen(object):
         Move the required rows from data to sample to make len(sample) = sample_length.
         :param df_sample: Current subset data frame of main logger file (initially empty)
         :param df: Current logger file data frame (sample data gets dropped)
-        :param sample_length: Number of expected data points sample to have
+        :param sample_length: Number of expected data points sample is to have
         :param type: stats or spectral string
         :return: Updated sample data frame and logger file data frame with sample data dropped
         """
+
+        # if type == "stats":
+        #     sample_length = self.stats_sample_length
+        # elif type == "spectral":
+        #     sample_length = self.spect_sample_length
 
         # Current number of points in sample
         ns = len(df_sample)
