@@ -33,7 +33,7 @@ class RawDataDashboard(QtWidgets.QWidget):
         self.parent = parent
         self.control = Control()
 
-        # List of RawDataRead class instances to read and stores time series files of a dataset/logger
+        # List of RawDataRead class instances to read and store time series files of a dataset/logger
         self.proj_datasets = []
 
         # Flags to skip on change event functions as required
@@ -511,13 +511,13 @@ class RawDataDashboard(QtWidgets.QWidget):
             logging.exception(e)
 
     def remove_dataset(self, index):
-        """Remove dataset from combo box."""
+        """Remove selected dataset data and item from dataset combo box."""
 
-        if self.datasetCombo.currentText() == "None":
-            return
-
-        self.datasetCombo.removeItem(index)
+        # Remove dataset/logger from list
         del self.proj_datasets[index]
+
+        # index + 1 because first combo item is "None"
+        self.datasetCombo.removeItem(index + 1)
 
     def update_dateset_name(self, index, dataset_name):
         """Update dataset name pertaining to changed logger id in setup module."""

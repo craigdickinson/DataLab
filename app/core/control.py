@@ -478,6 +478,35 @@ class Control(object):
         ref_logger = self.loggers[logger1_idx]
         self.copy_logger_attributes(ref_logger, logger, names)
 
+    def copy_logger_properties(self, logger_id_to_copy, dest_logger):
+        """Copy file format of another logger."""
+
+        # Attributes to copy
+        names = [
+            "file_format",
+            "file_timestamp_embedded",
+            "file_timestamp_format",
+            "first_col_data",
+            "file_ext",
+            "file_delimiter",
+            "num_headers",
+            "channel_header_row",
+            "units_header_row",
+            "timestamp_format",
+            "num_columns",
+            "freq",
+            "duration",
+        ]
+
+        # Get reference logger to copy
+        logger_idx = self.logger_ids.index(logger_id_to_copy)
+        ref_logger = self.loggers[logger_idx]
+
+        # Copy attributes from reference logger
+        self.copy_logger_attributes(
+            obj_from=ref_logger, obj_to=dest_logger, attribute_names=names
+        )
+
     def get_user_headers(self, logger, data):
         """Extract user defined header and unit names."""
 
@@ -644,13 +673,13 @@ class Control(object):
         return logger_path
 
     @staticmethod
-    def copy_logger_attributes(objfrom, objto, attribute_names):
+    def copy_logger_attributes(obj_from, obj_to, attribute_names):
         """Function to copy attributes from one object to another."""
 
         for n in attribute_names:
             try:
-                param = getattr(objfrom, n)
-                setattr(objto, n, param)
+                param = getattr(obj_from, n)
+                setattr(obj_to, n, param)
             except AttributeError:
                 pass
 

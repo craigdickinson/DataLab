@@ -372,8 +372,8 @@ class ConfigModule(QtWidgets.QWidget):
             self.loggersList.takeItem(i)
             self.del_logger = False
 
-            # Remove logger from raw data dashboard combo box (i + 1 because first index is the "None" dataset)
-            self.parent.rawDataModule.remove_dataset(i + 1)
+            # Remove logger from raw data dashboard combo box and data list
+            self.parent.rawDataModule.remove_dataset(i)
 
             # Clear relevant dashboards if all loggers removed
             if self.loggersList.count() == 0:
@@ -996,6 +996,9 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
         self._connect_signals()
         self._set_dialog_data()
 
+        # Populate copy loggers combo box
+        self._set_copy_logger_combo()
+
     def _init_ui(self):
         self.setWindowTitle("Edit Logger File Properties")
         self.setMinimumWidth(500)
@@ -1019,7 +1022,10 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
         self.setAzureButton = QtWidgets.QPushButton("Set &Azure Account Settings...")
         self.setAzureButton.setSizePolicy(policy)
         self.setAzureButton.setHidden(True)
-        self.pathLabel = QtWidgets.QLabel("Logger path:")
+        self.copyLogger = QtWidgets.QComboBox()
+        self.copyLogger.setMinimumWidth(80)
+        self.copyLogger.addItem("-")
+        self.copyLoggerButton = QtWidgets.QPushButton("Copy Properties")
         self.loggerPath = QtWidgets.QPlainTextEdit()
         self.loggerPath.setFixedHeight(40)
         self.browseButton = QtWidgets.QPushButton("&Browse...")
@@ -1084,6 +1090,8 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
         self.loggingDuration.setValidator(dbl_validator)
 
         # Labels
+        self.lblPath = QtWidgets.QLabel("Logger path:")
+        self.lblCopy = QtWidgets.QLabel("Logger to copy:")
         self.lblFileFmt = QtWidgets.QLabel("File format:")
         self.lblFileTimestampFmt = QtWidgets.QLabel("File timestamp format:")
         self.lblFirstColData = QtWidgets.QLabel("First column data:")
@@ -1115,7 +1123,7 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
         # Logger location group
         self.loggerLocGroup = QtWidgets.QGroupBox("Raw Data Location")
         self.hbox = QtWidgets.QHBoxLayout()
-        self.hbox.addWidget(self.pathLabel)
+        self.hbox.addWidget(self.lblPath)
         self.hbox.addWidget(self.browseButton)
         self.hbox.addStretch()
         self.vbox2 = QtWidgets.QVBoxLayout(self.loggerLocGroup)
@@ -1128,9 +1136,19 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
         self.locLayout.addWidget(self.locSelectionGroup, alignment=QtCore.Qt.AlignTop)
         self.locLayout.addWidget(self.loggerLocGroup)
 
+        # Copy logger group
+        self.copyGroup = QtWidgets.QGroupBox(
+            "Optional: Copy Properties from Another Logger"
+        )
+        self.hboxCopy = QtWidgets.QHBoxLayout(self.copyGroup)
+        self.hboxCopy.addWidget(self.lblCopy)
+        self.hboxCopy.addWidget(self.copyLogger)
+        self.hboxCopy.addWidget(self.copyLoggerButton)
+        self.hboxCopy.addStretch()
+
         # Logger type group
-        self.loggerType = QtWidgets.QGroupBox("Logger File Properties")
-        self.typeForm = QtWidgets.QFormLayout(self.loggerType)
+        self.loggerFilePropsGroup = QtWidgets.QGroupBox("Logger File Properties")
+        self.typeForm = QtWidgets.QFormLayout(self.loggerFilePropsGroup)
         self.typeForm.addRow(self.lblFileFmt, self.fileFormat)
         self.typeForm.addRow(
             self.fileTimestampEmbeddedChkBox, self.detectTimestampFormatButton
@@ -1144,8 +1162,8 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
         self.typeForm.addRow(self.lblUnitsRow, self.unitsHeaderRow)
 
         # Logger properties group
-        self.loggerProps = QtWidgets.QGroupBox("Logger Data Properties")
-        self.propsForm = QtWidgets.QFormLayout(self.loggerProps)
+        self.loggerDataPropsGroup = QtWidgets.QGroupBox("Logger Data Properties")
+        self.propsForm = QtWidgets.QFormLayout(self.loggerDataPropsGroup)
         self.propsForm.addRow(self.detectPropsButton, QtWidgets.QLabel(""))
         self.propsForm.addRow(self.lblTimestampFmt, self.dataTimestampFormat)
         self.propsForm.addRow(self.lblNumCols, self.numColumns)
@@ -1156,8 +1174,9 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
         self.layout = QtWidgets.QVBoxLayout(self)
         self.layout.addLayout(self.loggerIDLayout)
         self.layout.addLayout(self.locLayout)
-        self.layout.addWidget(self.loggerType)
-        self.layout.addWidget(self.loggerProps)
+        self.layout.addWidget(self.copyGroup)
+        self.layout.addWidget(self.loggerFilePropsGroup)
+        self.layout.addWidget(self.loggerDataPropsGroup)
         self.layout.addStretch()
         self.layout.addWidget(self.buttonBox, stretch=0, alignment=QtCore.Qt.AlignRight)
 
@@ -1168,6 +1187,7 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
         self.azureCloudRadio.toggled.connect(self.on_azure_radio_toggled)
         self.setAzureButton.clicked.connect(self.on_set_azure_settings_clicked)
         self.browseButton.clicked.connect(self.on_browse_path_clicked)
+        self.copyLoggerButton.clicked.connect(self.on_copy_properties_clicked)
         self.fileFormat.currentIndexChanged.connect(self.on_file_format_changed)
         self.fileTimestampEmbeddedChkBox.toggled.connect(
             self.on_file_timestamp_embedded_toggled
@@ -1210,6 +1230,15 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
         self.numColumns.setText(str(logger.num_columns))
         self.loggingFreq.setText(str(logger.freq))
         self.loggingDuration.setText(str(logger.duration))
+
+    def _set_copy_logger_combo(self):
+        """Set the copy logger properties combo box with list of available loggers, excluding the current one."""
+
+        # Get list of available loggers to copy
+        loggers_to_copy = [
+            i for i in self.control.logger_ids if i != self.logger.logger_id
+        ]
+        self.copyLogger.addItems(loggers_to_copy)
 
     def _set_enabled_inputs(self, file_format):
         """Enable or disable input fields based on selected file format (Custom, Fugro-csv, Pulse-csv, 2HPS2-acc)."""
@@ -1270,7 +1299,7 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
 
     def on_azure_radio_toggled(self):
         if self.azureCloudRadio.isChecked():
-            self.pathLabel.setText("Path to files (blobs):")
+            self.lblPath.setText("Path to files (blobs):")
             self.setAzureButton.setHidden(False)
             self.browseButton.setHidden(True)
             msg = (
@@ -1279,7 +1308,7 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
             )
             self.loggerPath.setToolTip(msg)
         else:
-            self.pathLabel.setText("Logger path:")
+            self.lblPath.setText("Logger path:")
             self.setAzureButton.setHidden(True)
             self.browseButton.setHidden(False)
             self.loggerPath.setToolTip("")
@@ -1303,6 +1332,19 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
 
         if logger_path:
             self.loggerPath.setPlainText(logger_path)
+
+    def on_copy_properties_clicked(self):
+        """Copy properties from another logger selected in the combo box."""
+
+        # Get logger to copy
+        logger_id_to_copy = self.copyLogger.currentText()
+
+        if logger_id_to_copy == "-":
+            return
+
+        # Map logger properties from reference logger to active logger and update dialog values
+        self.control.copy_logger_properties(logger_id_to_copy, self.logger)
+        self._set_dialog_data()
 
     def on_file_format_changed(self):
         """

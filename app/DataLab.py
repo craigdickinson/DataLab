@@ -1,6 +1,6 @@
 __author__ = "Craig Dickinson"
 __program__ = "DataLab"
-__version__ = "2.0.1.3"
+__version__ = "2.0.1.4"
 __date__ = "29 October 2019"
 
 import logging
@@ -803,8 +803,8 @@ def run_datalab():
         app = QtWidgets.QApplication(sys.argv)
     # win = QtDesignerGui()
     win = DataLab()
-    # filepath = r"C:\Users\dickinsc\PycharmProjects\DataLab\demo_data\2. Project Configs\Project 21239\21239_Total_WoS_Config.json"
-    filepath = r"C:\Users\dickinsc\PycharmProjects\DataLab\demo_data\2. Project Configs\Test A\21239_Project_A_Config.json"
+    filepath = r"C:\Users\dickinsc\PycharmProjects\DataLab\demo_data\2. Project Configs\Project 21239\21239_Total_WoS_Config.json"
+    # filepath = r"C:\Users\dickinsc\PycharmProjects\DataLab\demo_data\2. Project Configs\Test A\21239_Project_A_Config.json"
     win.projConfigModule.load_config_file(filepath)
     win.show()
     sys.exit(app.exec_())
