@@ -478,14 +478,13 @@ class Control(object):
         ref_logger = self.loggers[logger1_idx]
         self.copy_logger_attributes(ref_logger, logger, names)
 
-    def copy_logger_properties(self, logger_id_to_copy, dest_logger):
+    def copy_logger_properties(self, ref_logger_id, dest_logger):
         """Copy file format of another logger."""
 
         # Attributes to copy
         names = [
             "file_format",
             "file_timestamp_embedded",
-            "file_timestamp_format",
             "first_col_data",
             "file_ext",
             "file_delimiter",
@@ -499,13 +498,40 @@ class Control(object):
         ]
 
         # Get reference logger to copy
-        logger_idx = self.logger_ids.index(logger_id_to_copy)
+        logger_idx = self.logger_ids.index(ref_logger_id)
         ref_logger = self.loggers[logger_idx]
 
         # Copy attributes from reference logger
         self.copy_logger_attributes(
             obj_from=ref_logger, obj_to=dest_logger, attribute_names=names
         )
+
+    def copy_logger_screening_settings(self, ref_logger_id, dest_logger):
+        """Copy screening settings of another logger."""
+
+        # Attributes to copy
+        names = [
+            "cols_to_process",
+            "unit_conv_factors",
+            "user_channel_names",
+            "user_channel_units",
+            "process_start",
+            "process_end",
+            "low_cutoff_freq",
+            "high_cutoff_freq",
+            "stats_interval",
+            "spectInterval",
+            "psd_nperseg",
+            "psd_window",
+            "psd_overlap",
+        ]
+
+        # Get reference logger to copy
+        logger_idx = self.logger_ids.index(ref_logger_id)
+        ref_logger = self.loggers[logger_idx]
+
+        # Copy attributes from reference logger
+        self.copy_logger_attributes(ref_logger, dest_logger, names)
 
     def get_user_headers(self, logger, data):
         """Extract user defined header and unit names."""

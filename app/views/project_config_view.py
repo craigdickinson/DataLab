@@ -978,10 +978,9 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
 
         self.parent = parent
 
-        # Logger properties object and index of selected logger in combo box
+        # Store control settings and selected logger properties objects
         self.control = control
         self.logger_idx = logger_idx
-
         if control.loggers:
             self.logger = control.loggers[logger_idx]
         else:
@@ -994,7 +993,7 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
 
         self._init_ui()
         self._connect_signals()
-        self._set_dialog_data()
+        self._set_dialog_data(self.logger)
 
         # Populate copy loggers combo box
         self._set_copy_logger_combo()
@@ -1025,7 +1024,9 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
         self.copyLogger = QtWidgets.QComboBox()
         self.copyLogger.setMinimumWidth(80)
         self.copyLogger.addItem("-")
-        self.copyLoggerButton = QtWidgets.QPushButton("Copy Properties")
+        self.copyLoggerButton = QtWidgets.QPushButton("&Copy Properties")
+        tooltip = "Note the file timestamp property is not copied since it is dependent on the raw file name structure."
+        self.copyLoggerButton.setToolTip(tooltip)
         self.loggerPath = QtWidgets.QPlainTextEdit()
         self.loggerPath.setFixedHeight(40)
         self.browseButton = QtWidgets.QPushButton("&Browse...")
@@ -1187,7 +1188,7 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
         self.azureCloudRadio.toggled.connect(self.on_azure_radio_toggled)
         self.setAzureButton.clicked.connect(self.on_set_azure_settings_clicked)
         self.browseButton.clicked.connect(self.on_browse_path_clicked)
-        self.copyLoggerButton.clicked.connect(self.on_copy_properties_clicked)
+        self.copyLoggerButton.clicked.connect(self.on_copy_logger_clicked)
         self.fileFormat.currentIndexChanged.connect(self.on_file_format_changed)
         self.fileTimestampEmbeddedChkBox.toggled.connect(
             self.on_file_timestamp_embedded_toggled
@@ -1198,16 +1199,14 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
         self.firstColData.currentIndexChanged.connect(self.on_first_col_data_changed)
         self.detectPropsButton.clicked.connect(self.on_detect_props_clicked)
 
-    def _set_dialog_data(self):
-        """Set dialog data with logger properties from control object."""
+    def _set_dialog_data(self, logger):
+        """Set dialog data with logger properties."""
 
-        # Logger properties object of selected logger
-        logger = self.logger
-
-        # Store logger properties specific to initial file format that can be restored, if need be,
-        # when selecting between file formats
-        self.init_logger = logger
-        self.init_file_format = logger.file_format
+        # Store logger properties specific to initial file format that can be restored, if need be, when selecting
+        # between file formats. Note: self.logger is mapped to avoid mapping a temp logger if the copy another logger
+        # function has been used
+        self.init_logger = self.logger
+        self.init_file_format = self.logger.file_format
 
         # Set radio for data source type
         if logger.data_on_azure:
@@ -1215,8 +1214,13 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
         else:
             self.localFilesRadio.setChecked(True)
 
-        self.loggerID.setText(logger.logger_id)
-        self.loggerPath.setPlainText(logger.logger_path)
+        # Check for empty string to guard against mapping values from a temp logger used when setting properties
+        # copied from another logger
+        if logger.logger_id != "":
+            self.loggerID.setText(logger.logger_id)
+        if logger.logger_path != "":
+            self.loggerPath.setPlainText(logger.logger_path)
+
         self.fileFormat.setCurrentText(logger.file_format)
         self.fileTimestampEmbeddedChkBox.setChecked(logger.file_timestamp_embedded)
         self.fileTimestampFormat.setText(logger.file_timestamp_format)
@@ -1333,18 +1337,22 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
         if logger_path:
             self.loggerPath.setPlainText(logger_path)
 
-    def on_copy_properties_clicked(self):
+    def on_copy_logger_clicked(self):
         """Copy properties from another logger selected in the combo box."""
 
         # Get logger to copy
-        logger_id_to_copy = self.copyLogger.currentText()
+        ref_logger_id = self.copyLogger.currentText()
 
-        if logger_id_to_copy == "-":
+        if ref_logger_id == "-":
             return
 
+        # Create a temp logger to copy setting so that settings can be confirmed by the user
+        # before mapping to the control logger
+        temp_logger = LoggerProperties()
+
         # Map logger properties from reference logger to active logger and update dialog values
-        self.control.copy_logger_properties(logger_id_to_copy, self.logger)
-        self._set_dialog_data()
+        self.control.copy_logger_properties(ref_logger_id, temp_logger)
+        self._set_dialog_data(temp_logger)
 
     def on_file_format_changed(self):
         """
@@ -1549,7 +1557,7 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
             return
 
         try:
-            self._set_control_data()
+            self.logger = self._set_control_data()
 
             try:
                 self.logger.get_filenames()
@@ -1570,7 +1578,7 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
                 file_timestamp_embedded
             )
 
-            # Update file list in raw data module if requried
+            # Update file list in raw data module if required
             self.parent.parent.parent.rawDataModule.map_logger_props_to_dataset(
                 self.logger_idx
             )
@@ -1601,7 +1609,8 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
     def _set_control_data(self):
         """Assign values to the specific logger attribute of the control object."""
 
-        logger = self.logger
+        # Retrieve control logger to map confirmed settings to
+        logger = self.control.loggers[self.logger_idx]
 
         # Map Azure account settings (if any) to logger
         if self.azureCloudRadio.isChecked():
@@ -1662,6 +1671,8 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
             self.parent.parent.screeningTab.spectInterval.setText(
                 str(logger.spect_interval)
             )
+
+        return logger
 
     def _detect_header(self):
         """Store all channel and units names from a test file, if present. Header info will then be set in the gui."""
@@ -1871,10 +1882,9 @@ class ScreeningSetupTab(QtWidgets.QWidget):
 
         # Retrieve selected logger object
         logger_idx = self.parent.loggersList.currentRow()
-        logger = self.control.loggers[logger_idx]
 
         # Edit stats dialog class
-        editStatsSettings = EditScreeningSetupDialog(self, logger, logger_idx)
+        editStatsSettings = EditScreeningSetupDialog(self, self.control, logger_idx)
         editStatsSettings.show()
 
     def on_process_stats_check_box_toggled(self):
@@ -2049,18 +2059,25 @@ class ScreeningSetupTab(QtWidgets.QWidget):
 
 
 class EditScreeningSetupDialog(QtWidgets.QDialog):
-    def __init__(self, parent=None, logger=LoggerProperties(), logger_idx=0):
+    def __init__(self, parent=None, control=Control(), logger_idx=0):
         super(EditScreeningSetupDialog, self).__init__(parent)
 
         self.parent = parent
 
-        # Logger properties object and index of selected logger in combo box
-        self.logger = logger
+        # Store control settings and selected logger properties objects
+        self.control = control
         self.logger_idx = logger_idx
+        if control.loggers:
+            self.logger = control.loggers[logger_idx]
+        else:
+            self.logger = LoggerProperties()
 
         self._init_ui()
         self._connect_signals()
-        self._set_dialog_data()
+        self._set_dialog_data(self.logger)
+
+        # Populate copy loggers combo box and enable/disable stats/spectral interval inputs
+        self._set_copy_logger_combo()
         self._configure_interval_inputs()
 
     def _init_ui(self):
@@ -2082,6 +2099,11 @@ class EditScreeningSetupDialog(QtWidgets.QDialog):
         windows = ["None", "Hann", "Hamming", "Bartlett", "Blackman"]
 
         # WIDGETS
+        self.copyLogger = QtWidgets.QComboBox()
+        self.copyLogger.setMinimumWidth(80)
+        self.copyLogger.addItem("-")
+        self.copyLoggerButton = QtWidgets.QPushButton("&Copy Settings")
+
         self.columns = QtWidgets.QLineEdit()
         self.columns.setToolTip(
             "SPACE-separated column numbers to process.\n"
@@ -2145,10 +2167,21 @@ class EditScreeningSetupDialog(QtWidgets.QDialog):
         self.psdOverlap.setValidator(dbl_validator)
 
         # Labels
+        self.lblCopy = QtWidgets.QLabel("Logger to copy:")
         self.lblColumns = QtWidgets.QLabel("Column numbers to process:")
         self.lblUnitConvs = QtWidgets.QLabel("Unit conversion factors (optional):")
         self.lblChannelNames = QtWidgets.QLabel("Channel names override (optional):")
         self.lblChannelUnits = QtWidgets.QLabel("Channel units override (optional):")
+        self.lblProcessType = QtWidgets.QLabel("Screen on:")
+        self.lblLowCutoff = QtWidgets.QLabel("Low cut-off frequency (Hz):")
+        self.lblHighCutoff = QtWidgets.QLabel("High cut-off frequency (Hz):")
+        self.lblStatsFolder = QtWidgets.QLabel("Output folder:")
+        self.lblSpectFolder = QtWidgets.QLabel("Output folder:")
+        self.lblStatsInterval = QtWidgets.QLabel("Sample length (s):")
+        self.lblSpectInterval = QtWidgets.QLabel("Sample length (s):")
+        self.lblPsdNperseg = QtWidgets.QLabel("Number of points per segment:")
+        self.lblPsdWindow = QtWidgets.QLabel("Window:")
+        self.lblPsdOverlap = QtWidgets.QLabel("Segment overlap (%):")
 
         # Set appropriate process start and end input depending on whether filenames include timestamps
         if self.logger.file_timestamp_embedded is True:
@@ -2168,18 +2201,17 @@ class EditScreeningSetupDialog(QtWidgets.QDialog):
         self.processStart.setToolTip(proc_start_tip)
         self.processEnd.setToolTip(proc_end_tip)
 
-        self.lblProcessType = QtWidgets.QLabel("Screen on:")
-        self.lblLowCutoff = QtWidgets.QLabel("Low cut-off frequency (Hz):")
-        self.lblHighCutoff = QtWidgets.QLabel("High cut-off frequency (Hz):")
-        self.lblStatsFolder = QtWidgets.QLabel("Output folder:")
-        self.lblSpectFolder = QtWidgets.QLabel("Output folder:")
-        self.lblStatsInterval = QtWidgets.QLabel("Sample length (s):")
-        self.lblSpectInterval = QtWidgets.QLabel("Sample length (s):")
-        self.lblPsdNperseg = QtWidgets.QLabel("Number of points per segment:")
-        self.lblPsdWindow = QtWidgets.QLabel("Window:")
-        self.lblPsdOverlap = QtWidgets.QLabel("Segment overlap (%):")
-
         # CONTAINERS
+        # Copy logger group
+        self.copyGroup = QtWidgets.QGroupBox(
+            "Optional: Copy Settings from Another Logger"
+        )
+        self.hboxCopy = QtWidgets.QHBoxLayout(self.copyGroup)
+        self.hboxCopy.addWidget(self.lblCopy)
+        self.hboxCopy.addWidget(self.copyLogger)
+        self.hboxCopy.addWidget(self.copyLoggerButton)
+        self.hboxCopy.addStretch()
+
         # Columns to process settings group
         self.colsGroup = QtWidgets.QGroupBox("Columns to Process Settings")
         self.colsForm = QtWidgets.QFormLayout(self.colsGroup)
@@ -2222,6 +2254,7 @@ class EditScreeningSetupDialog(QtWidgets.QDialog):
 
         # LAYOUT
         self.layout = QtWidgets.QVBoxLayout(self)
+        self.layout.addWidget(self.copyGroup)
         self.layout.addWidget(self.colsGroup)
         self.layout.addWidget(self.processRangeGroup)
         self.layout.addWidget(self.filtersGroup)
@@ -2233,14 +2266,13 @@ class EditScreeningSetupDialog(QtWidgets.QDialog):
         self.buttonBox.accepted.connect(self.on_ok_clicked)
         self.buttonBox.accepted.connect(self.accept)
         self.buttonBox.rejected.connect(self.reject)
+        self.copyLoggerButton.clicked.connect(self.on_copy_logger_clicked)
 
-    def _set_dialog_data(self):
+    def _set_dialog_data(self, logger):
         """Set dialog data with logger stats from control object."""
 
         if not self.parent:
             return
-
-        logger = self.logger
 
         # Columns to process
         cols_str = " ".join([str(i) for i in logger.cols_to_process])
@@ -2310,6 +2342,15 @@ class EditScreeningSetupDialog(QtWidgets.QDialog):
         self.statsFolder.setText(self.parent.control.stats_output_folder)
         self.spectFolder.setText(self.parent.control.spect_output_folder)
 
+    def _set_copy_logger_combo(self):
+        """Set the copy screening settings combo box with list of available loggers, excluding the current one."""
+
+        # Get list of available loggers to copy
+        loggers_to_copy = [
+            i for i in self.control.logger_ids if i != self.logger.logger_id
+        ]
+        self.copyLogger.addItems(loggers_to_copy)
+
     def _configure_interval_inputs(self):
         if self.logger.enforce_max_duration is True:
             self.statsInterval.setEnabled(False)
@@ -2318,6 +2359,25 @@ class EditScreeningSetupDialog(QtWidgets.QDialog):
             self.statsInterval.setEnabled(True)
             self.spectInterval.setEnabled(True)
 
+    def on_copy_logger_clicked(self):
+        """Copy screening settings from another logger selected in the combo box."""
+
+        # Get logger to copy
+        ref_logger_id = self.copyLogger.currentText()
+
+        if ref_logger_id == "-":
+            return
+
+        # Create a temp logger to copy setting so that settings can be confirmed by the user
+        # before mapping to the control logger
+        temp_logger = LoggerProperties()
+
+        # Map logger properties from reference logger to active logger and update dialog values
+        self.control.copy_logger_screening_settings(ref_logger_id, temp_logger)
+
+        # Set dialog with temp settings so they can confirmed by the user
+        self._set_dialog_data(temp_logger)
+
     def on_ok_clicked(self):
         """Assign logger stats settings to the control object and update the dashboard."""
 
@@ -2325,7 +2385,7 @@ class EditScreeningSetupDialog(QtWidgets.QDialog):
             return
 
         try:
-            self._set_control_data()
+            self.logger = self._set_control_data()
             self.parent.set_analysis_dashboard(self.logger)
         except Exception as e:
             msg = "Unexpected error assigning screening settings."
@@ -2338,7 +2398,8 @@ class EditScreeningSetupDialog(QtWidgets.QDialog):
         if not self.parent:
             return
 
-        logger = self.logger
+        # Retrieve control logger to map confirmed settings to
+        logger = self.control.loggers[self.logger_idx]
 
         # Processed columns group
         # Set column numbers to process
@@ -2495,7 +2556,10 @@ class EditScreeningSetupDialog(QtWidgets.QDialog):
         self.parent.control.stats_output_folder = self.statsFolder.text()
         self.parent.control.spect_output_folder = self.spectFolder.text()
 
-    def get_timestamp_in_filename(self, logger, file_idx):
+        return logger
+
+    @staticmethod
+    def get_timestamp_in_filename(logger, file_idx):
         """Attempt to retrieve the timestamp embedded in the filename of the file in the parsed list index."""
 
         try:
