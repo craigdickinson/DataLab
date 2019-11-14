@@ -398,7 +398,7 @@ class Screening(QObject):
                         logger_stats_filt.calc_stats(df_filt)
                         data_screen.stats_processed = True
 
-                # Clear sample data frame so as ready for next sample set
+                # Clear sample data frame ready for next sample set
                 df_stats_sample = pd.DataFrame()
 
         return data_screen.stats_processed
@@ -454,7 +454,7 @@ class Screening(QObject):
                         )
                         data_screen.spect_processed = True
 
-                # Clear sample data frame so as ready for next sample set
+                # Clear sample data frame ready for next sample set
                 df_spect_sample = pd.DataFrame()
 
         return data_screen.spect_processed

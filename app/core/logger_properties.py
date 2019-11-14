@@ -163,6 +163,12 @@ class LoggerProperties(QObject):
         self.psd_window = "Hann"
         self.psd_overlap = 50
 
+        # Rainflow counting settings
+        self.process_rainflow = True
+        self.rf_cols_to_process = []
+        self.rf_process_start = None
+        self.rf_process_end = None
+
     def get_filenames(self):
         """Read all file timestamps and check that they conform to the specified format."""
 

@@ -200,15 +200,15 @@ class SeascatterDiagram(QtWidgets.QWidget):
 
         # Plot Hs distribution
         self.ax1.cla()
-        # self.ax1.plot(hs)
-        self.ax1.bar(hs.index, hs.values)
+        self.ax1.bar(hs.index, hs.values, width=self.hs_bin_size)
+        self.ax1.plot(hs, "r")
         self.ax1.set_xlabel("Hs (m)")
         self.ax1.set_ylabel("Percentage Occurrence (%)")
 
         # Plot Tp distribution
         self.ax2.cla()
-        # self.ax2.plot(tp)
-        self.ax2.bar(tp.index, tp.values)
+        self.ax2.bar(tp.index, tp.values, width=self.tp_bin_size)
+        self.ax2.plot(tp, "r", marker="x")
         self.ax2.set_xlabel("Tp (s)")
         self.ax2.set_ylabel("Percentage Occurrence (%)")
 

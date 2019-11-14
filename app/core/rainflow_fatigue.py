@@ -3,6 +3,7 @@
 __author__ = "Craig Dickinson"
 
 import numpy as np
+from collections import defaultdict
 
 
 def reversals(y):
@@ -10,14 +11,22 @@ def reversals(y):
 
     y = np.asarray(y)
     dy = np.sign(np.diff(y))
-    dy[1:] = [dy[i - 1] if dy[i] == 0 else dy[i] for i in range(1, len(dy))]
+    # dy[1:] = [dy[i - 1] if dy[i] == 0 else dy[i] for i in range(1, len(dy))]
+    # Fix downslope
+    for i in range(1, len(dy)):
+        if dy[i] == 0:
+            dy[i] = dy[i - 1]
+
+    # Fix upslope
+    if dy[0] == 0:
+        dy[0] = dy[1]
 
     d2y = np.abs(np.sign(np.diff(dy)))
     d2y = np.insert(d2y, 0, 1)
     d2y = np.insert(d2y, -1, 1)
 
     peaks = y[d2y == 1]
-    # indexes = np.nonzero(d2y == 1)
+    # indexes = np.nonzero(d2y)
 
     return peaks
 
@@ -86,6 +95,19 @@ def bin_ranges(cycles, bin_size=1):
     )
 
     return stress_ranges, stress_cycles
+
+
+def count_cycles(cycles):
+    """Count extracted cycles."""
+
+    cycl_count = defaultdict(float)
+
+    for c in cycles:
+        r = c[0]
+        n = c[1]
+        cycl_count[r] += n
+
+    return sorted(cycl_count.items())
 
 
 def calc_damage(stress_ranges, stress_cycles, SN):
