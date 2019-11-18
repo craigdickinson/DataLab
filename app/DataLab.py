@@ -1,7 +1,7 @@
 __author__ = "Craig Dickinson"
 __program__ = "DataLab"
-__version__ = "2.0.1.6"
-__date__ = "14 November 2019"
+__version__ = "2.0.1.7"
+__date__ = "18 November 2019"
 
 import logging
 import os
@@ -23,7 +23,7 @@ from app.core.read_files import (
     read_stats_hdf5,
 )
 from app.core.read_files import read_wcfat_results
-from app.core.screening import Screening
+from app.core.processing_hub import Screening
 from app.views.main_window_view import DataLabGui
 from app.views.processing_progress_view import ProcessingProgressBar
 from app.views.project_config_view import AzureAccountSetupDialog
@@ -713,9 +713,10 @@ class DataLab(DataLabGui):
             logging.exception(e)
 
     def calc_fatigue(self):
-        return QtWidgets.QMessageBox.information(
-            self, "To Do", "Feature coming in a future update."
-        )
+        # return QtWidgets.QMessageBox.information(
+        #     self, "To Do", "Feature coming in a future update."
+        # )
+        self.process_screening()
 
 
 class ScreeningWorker(QtCore.QThread):
@@ -754,7 +755,7 @@ class ScreeningWorker(QtCore.QThread):
             self.parent.setEnabled(False)
 
             # Run DataLab processing; compute and write requested logger statistics and spectrograms
-            self.screening.screen_loggers()
+            self.screening.process()
             self.signal_screening_output_to_gui.emit(self.screening)
         except ValueError as e:
             self.signal_error.emit(str(e))
@@ -803,7 +804,7 @@ def run_datalab():
         app = QtWidgets.QApplication(sys.argv)
     # win = QtDesignerGui()
     win = DataLab()
-    filepath = r"C:\Users\dickinsc\PycharmProjects\DataLab\demo_data\2. Project Configs\Project 21239\21239_Total_WoS_Config.json"
+    filepath = r"C:\Users\dickinsc\PycharmProjects\DataLab\demo_data\2. Project Configs\Project 21239\21239b_Total_WoS_Config.json"
     # filepath = r"C:\Users\dickinsc\PycharmProjects\DataLab\demo_data\2. Project Configs\Test A\21239_Project_A_Config.json"
     win.projConfigModule.load_config_file(filepath)
     win.show()

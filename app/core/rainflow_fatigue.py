@@ -2,112 +2,251 @@
 
 __author__ = "Craig Dickinson"
 
+import os
+from datetime import timedelta
+
 import numpy as np
-from collections import defaultdict
+import pandas as pd
+import rainflow
+from app.core.logger_properties import LoggerProperties
+from app.core.read_files import read_2hps2_acc, read_pulse_acc
 
 
-def reversals(y):
-    """Return time series peaks."""
+class RainflowHistograms(object):
+    def __init__(self, logger=None):
+        self.logger = LoggerProperties()
+        self.files = []
+        self.histograms = {}
+        self.cols = []
 
-    y = np.asarray(y)
-    dy = np.sign(np.diff(y))
-    # dy[1:] = [dy[i - 1] if dy[i] == 0 else dy[i] for i in range(1, len(dy))]
-    # Fix downslope
-    for i in range(1, len(dy)):
-        if dy[i] == 0:
-            dy[i] = dy[i - 1]
+        # File read properties
+        self.file_format = "Custom"
+        self.delim = ","
+        self.header_row = 0
+        self.skip_rows = []
+        self.use_cols = []
+        self.channel_names = []
+        self.unit_conv_factors = []
+        self.file_timestamp_embedded = True
 
-    # Fix upslope
-    if dy[0] == 0:
-        dy[0] = dy[1]
+        if logger:
+            self.set_logger(logger)
 
-    d2y = np.abs(np.sign(np.diff(dy)))
-    d2y = np.insert(d2y, 0, 1)
-    d2y = np.insert(d2y, -1, 1)
+    def set_logger(self, logger):
+        """Set the logger filenames to be assessed and required read file properties."""
 
-    peaks = y[d2y == 1]
-    # indexes = np.nonzero(d2y)
+        self.logger = logger
+        self.channel_names = logger.channel_names
 
-    return peaks
+        # Full file path
+        self.files = [os.path.join(logger.logger_path, f) for f in logger.files]
 
+        # File format (i.e. Custom/Fugro/Pulse/2HPS2")
+        self.file_format = self.logger.file_format
 
-def extract_cycles(peaks):
-    """Rainflow counting algorithm from ASTM E 1049-85."""
+        # Whether filenames contain timestamps
+        self.file_timestamp_embedded = self.logger.file_timestamp_embedded
 
-    num_peaks = len(peaks)
-    cycles_array = np.zeros((num_peaks, 3))
-    cycl_count = -1
-    points = []
+        # Set file read properties
+        self.delim = self.logger.file_delimiter
+        self.header_row = self.logger.channel_header_row - 1
 
-    for x in peaks:
-        points.append(x)
+        # Additional header rows to skip - only using the first header row for data frame column names
+        self.skip_rows = [
+            i for i in range(self.logger.num_headers) if i > self.header_row
+        ]
 
-        while len(points) >= 3:
-            X = abs(points[-2] - points[-1])
-            Y = abs(points[-3] - points[-2])
+        # No header row specified
+        if self.header_row < 0:
+            self.header_row = None
 
-            if X < Y:
-                break
+        # Set requested columns to process
+        self.use_cols = set([0] + [c - 1 for c in self.logger.rf_cols_to_process])
 
-            mean_stress = np.mean(points[-3:-1])
+        # Unit conversion factors
+        self.unit_conv_factors = logger.unit_conv_factors
 
-            # Half cycle
-            if len(points) == 3:
-                points.pop(0)
-                cycl_count += 1
-                cycles_array[cycl_count, 0] = Y
-                cycles_array[cycl_count, 1] = 0.5
-                cycles_array[cycl_count, 2] = mean_stress
-                break
-            # Full cycle
+    def read_logger_file(self, file):
+        """Read logger file into data frame."""
+
+        # Read data to data frame
+        if self.file_format == "Custom":
+            df = pd.read_csv(
+                file,
+                sep=self.delim,
+                header=self.header_row,
+                skiprows=self.skip_rows,
+                skip_blank_lines=False,
+            )
+        elif self.file_format == "Fugro-csv":
+            df = pd.read_csv(
+                file,
+                sep=self.delim,
+                header=self.header_row,
+                skiprows=self.skip_rows,
+                encoding="latin1",
+            )
+        elif self.file_format == "Pulse-acc":
+            df = read_pulse_acc(file, multi_header=False)
+        elif self.file_format == "2HPS2-acc":
+            df = read_2hps2_acc(file, multi_header=False)
+        else:
+            df = pd.DataFrame()
+
+        return df
+
+    def data_wrangle(self, df, file_idx=0):
+        """Format the logger raw data so it is suitable for processing."""
+
+        # Copy to prevent SettingWithCopyWarning
+        df = df.copy()
+        first_col = "Timestamp"
+
+        if self.logger.file_format == "Custom":
+            df = df.dropna(axis=1)
+
+            # Time steps data
+            if self.logger.first_col_data == "Time Step":
+                # If filename contains timestamp info, replace time column with timestamp
+                if self.logger.file_timestamp_embedded is True:
+                    ts = df.iloc[:, 0].values
+                    start_timestamp = self.logger.file_timestamps[file_idx]
+                    timestamps = [start_timestamp + timedelta(seconds=t) for t in ts]
+                    df.iloc[:, 0] = timestamps
+                else:
+                    first_col = "Time"
+            #  Convert first column (should be timestamps string) to datetimes
             else:
-                points[-3] = points[-1]
-                points.pop()
-                points.pop()
-                cycl_count += 1
-                cycles_array[cycl_count, 0] = Y
-                cycles_array[cycl_count, 1] = 1
-                cycles_array[cycl_count, 2] = mean_stress
+                try:
+                    df.iloc[:, 0] = pd.to_datetime(
+                        df.iloc[:, 0], format=self.logger.datetime_format
+                    )
+                except ValueError as e:
+                    if not isinstance(df.iloc[0, 0], pd.Timestamp):
+                        raise ValueError(
+                            f"Expected the first column of {self.logger.files[file_idx]} "
+                            f"to contain dates.\n"
+                            f"The time series appears to use a time step index but the "
+                            f"'First column data' property is set to 'Timestamp'. Change this to 'Time Step'."
+                        )
+                    else:
+                        raise ValueError(
+                            f"Could not convert the first column of {self.logger.files[file_idx]} "
+                            f"to datetime.\n"
+                            f"Check the 'Data Timestamp' property has the correct format.\n\n<{e}>"
+                        )
 
-    # Count remaining half cycles
-    while len(points) > 1:
-        Y = abs(points[1] - points[0])
-        mean_stress = np.mean(points[:2])
-        points.pop(0)
-        cycl_count += 1
-        cycles_array[cycl_count, 0] = Y
-        cycles_array[cycl_count, 1] = 0.5
-        cycles_array[cycl_count, 2] = mean_stress
+        #  Convert first column (should be timestamps string) to datetimes
+        if self.logger.file_format == "Fugro-csv":
+            df.iloc[:, 0] = pd.to_datetime(
+                df.iloc[:, 0], format=self.logger.datetime_format, errors="coerce"
+            )
 
-    cycles_array = np.delete(cycles_array, np.s_[cycl_count + 1 :], axis=0)
+        # Check all requested columns exist in file
+        n = len(df.columns)
+        missing_cols = [x for x in self.use_cols if x >= n]
+        valid_cols = [x for x in self.use_cols if x < n]
 
-    return cycles_array
+        # Slice valid columns
+        df = df.iloc[:, valid_cols]
+
+        # Create dummy data for missing columns
+        for i in missing_cols:
+            df["Dummy " + str(i + 1)] = np.nan
+
+        # Convert any non-numeric data to NaN
+        df.iloc[:, 1:] = df.iloc[:, 1:].apply(pd.to_numeric, errors="coerce")
+
+        # Apply any unit conversions
+        # TODO: If no cols to process selected should default to all columns
+        if len(self.unit_conv_factors) == len(df.columns) - 1:
+            try:
+                df.iloc[:, 1:] = np.multiply(df.iloc[:, 1:], self.unit_conv_factors)
+            except TypeError as e:
+                msg = (
+                    f"Data screen error: Data frame contains no channel columns.\n {e}"
+                )
+                raise TypeError(msg)
+
+        # Replace column names with setup channel names (should only be different if user names supplied)
+        df.columns = [first_col] + self.channel_names
+
+        return df
 
 
-def bin_ranges(cycles, bin_size=1):
-    """Group stress ranges into bins of given size input."""
+def get_column_series(df, col):
+    return df[col].values.flatten()
 
-    bin_locs = np.ceil(cycles[:, 0] / bin_size).astype(int)
+
+def rainflow_count_data_frame(dict_df_col_hists, j, df, columns, bin_size=0.1):
+    """Calculate rainflow counting histogram for each channel in data frame."""
+
+    # Calculate rainflow counting histogram for each column
+    for col in columns:
+        # Get histogram for column i
+        y = get_column_series(df, col)
+        lb, ub, binned_cycles = get_hist(y, bin_size=0.01)
+
+        # Convert to data frame
+        df_temp = pd.DataFrame(binned_cycles, index=lb, columns=[f"File {j + 1}"])
+
+        # Join to existing data frame
+        df_hist = dict_df_col_hists[col]
+        dict_df_col_hists[col] = df_hist.join(df_temp, how="outer")
+
+    return dict_df_col_hists
+
+
+def get_hist(y, bin_size):
+    """Compute rainflow counting histogram of time series y."""
+
+    ranges, num_cycles = rainflow_counting(y)
+
+    # Use last range to get number of bins required - we add an epsilon to handle case of range equalling bin limit
+    req_num_bins = np.ceil((ranges[-1] + 1e-9) / bin_size).astype(int)
+
+    # Create lbound and ubound bins
+    lb, ub = create_hist_bins(req_num_bins, bin_size)
+
+    binned_cycles = bin_cycles(ranges, num_cycles, req_num_bins, bin_size)
+
+    return lb, ub, binned_cycles
+
+
+def rainflow_counting(y):
+    """Use rainflow package to count number of cycles in an array."""
+
+    cycles = rainflow.count_cycles(y, left=True, right=True)
+
+    # Split tuple and convert to arrays
+    ranges, num_cycles = zip(*cycles)
+    ranges = np.asarray(ranges)
+    num_cycles = np.asarray(num_cycles)
+
+    return ranges, num_cycles
+
+
+def create_hist_bins(num_bins, bin_size):
+    lb = np.arange(0, num_bins) * bin_size
+    ub = lb + bin_size
+
+    return lb, ub
+
+
+def bin_cycles(ranges, num_cycles, num_bins, bin_size):
+    """Bin rainflow counting cycles based on number of bins and bin size input."""
+
+    # Get bin index of each range
+    bin_locs = np.floor(ranges / bin_size).astype(int)
     unique_bins = np.unique(bin_locs)
-    stress_ranges = unique_bins * bin_size
-    stress_cycles = np.array(
-        [cycles[bin_locs == unique_bin, 1].sum() for unique_bin in unique_bins]
-    )
 
-    return stress_ranges, stress_cycles
+    # Bin cycles
+    binned_cycles = [
+        num_cycles[bin_locs == i].sum() if i in unique_bins else 0
+        for i in range(num_bins)
+    ]
 
-
-def count_cycles(cycles):
-    """Count extracted cycles."""
-
-    cycl_count = defaultdict(float)
-
-    for c in cycles:
-        r = c[0]
-        n = c[1]
-        cycl_count[r] += n
-
-    return sorted(cycl_count.items())
+    return np.array(binned_cycles)
 
 
 def calc_damage(stress_ranges, stress_cycles, SN):

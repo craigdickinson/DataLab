@@ -17,6 +17,8 @@ from app.core.data_screen import DataScreen
 from app.core.data_screen_report import DataScreenReport
 from app.core.spectrograms import Spectrogram
 from app.core.write_stats import StatsOutput
+from app.core.rainflow_fatigue import rainflow_count_data_frame
+
 
 prog_info = "Program to perform signal processing on logger data"
 
@@ -63,13 +65,14 @@ class Screening(QObject):
         # Dictionaries to store all processed logger stats and spectrograms to load to gui after processing is complete
         self.dict_stats = {}
         self.dict_spectrograms = {}
+        self.dict_histograms = {}
 
         # If writing stats HDF5 file, stats for all loggers are written to the same file
         # Set write mode to write new file for first logger then append for all others
         self.h5_write_mode = "w"
         self.file_suffix = ""
 
-    def screen_loggers(self):
+    def process(self):
         """Process screening setup."""
 
         bloc_blob_service = None
@@ -138,6 +141,11 @@ class Screening(QObject):
             j = 0
             filename = ""
 
+            # Histograms list for each column
+            dict_df_col_hists = {
+                channel: pd.DataFrame() for channel in logger.channel_names
+            }
+
             # Expose each sample here; that way it can be sent to different processing modules
             for j, file in enumerate(data_screen.files):
                 # TODO: If expected file in sequence is missing, store results as nan
@@ -175,8 +183,11 @@ class Screening(QObject):
                 df = data_screen.read_logger_file(file)
 
                 # Data munging/wrangling to prepare dataset for processing
-                df = data_screen.munge_data(df, file_idx=j)
+                df = data_screen.wrangle_data(df, file_idx=j)
 
+                # =========================================================
+                # AT THIS POINT WE SPLIT INTO DIFFERENT PROCESSING MODULES
+                # =========================================================
                 # Data screening module
                 # Perform basic screening checks on file - check file has expected number of data points
                 data_screen.screen_data(file_num=j, df=df)
@@ -212,6 +223,11 @@ class Screening(QObject):
                             spect_filt,
                         )
 
+                # Calculate rainflow counting histogram for each channel in data frame
+                dict_df_col_hists = rainflow_count_data_frame(
+                    dict_df_col_hists, j, df, columns=logger.channel_names
+                )
+
                 file_count += 1
 
             # Operations for logger i after all logger i files have been processed
@@ -246,6 +262,14 @@ class Screening(QObject):
                     dict_spect_export_formats,
                     output_files,
                 )
+
+            # Calculate aggregate histogram for each column
+            for key in dict_df_col_hists.keys():
+                dict_df_col_hists[key] = dict_df_col_hists[key].fillna(0)
+                dict_df_col_hists[key]["Cum"] = dict_df_col_hists[key].sum(axis=1)
+
+            # Store dataset histograms
+            data_screen.histograms = dict_df_col_hists
 
         # Publish data screening report
         self._publish_screening_report(data_report, output_files)
@@ -319,8 +343,6 @@ class Screening(QObject):
 
             # Create data screen logger with logger and set screening properties
             data_screen = DataScreen(logger)
-
-            # Create containers to store data screening results
             total_files += len(logger.files)
             logger_ids.append(logger.logger_id)
 

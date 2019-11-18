@@ -1,6 +1,6 @@
 import sys
 from PyQt5 import QtCore, QtWidgets
-from app.core.screening import Screening
+from app.core.processing_hub import Screening
 
 
 class DataQualityReport(QtWidgets.QWidget):

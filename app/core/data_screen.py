@@ -61,6 +61,7 @@ class DataScreen(object):
         self.use_cols = []
         self.channel_names = []
         self.unit_conv_factors = []
+        self.file_timestamp_embedded = True
 
         # Apply bandpass signal filtering flag
         self.apply_filters = True
@@ -148,7 +149,7 @@ class DataScreen(object):
 
         return df
 
-    def munge_data(self, df, file_idx=0):
+    def wrangle_data(self, df, file_idx=0):
         """Format the logger raw data so it is suitable for processing."""
 
         # Copy to prevent SettingWithCopyWarning
