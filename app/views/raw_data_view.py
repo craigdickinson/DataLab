@@ -136,15 +136,6 @@ class RawDataDashboard(QtWidgets.QWidget):
         self.filterForm = QtWidgets.QFormLayout(self.filterGroup)
         self.filterForm.addRow(self.lblLowCutoff, self.lowCutoff)
         self.filterForm.addRow(self.lblHighCutoff, self.highCutoff)
-        # self.filterForm.addRow(self.plotFiltOnlyChkBox, self.logScale)
-
-        # Frequency/period group
-        # self.psdXAxisGroup = QtWidgets.QGroupBox("PSD Settings")
-        # self.grid = QtWidgets.QGridLayout(self.psdXAxisGroup)
-        # self.grid.addWidget(self.radioFreq, 0, 0)
-        # self.grid.addWidget(self.radioPeriod, 1, 0)
-        # self.grid.addWidget(self.plotFiltOnlyChkBox, 0, 1)
-        # self.grid.addWidget(self.logScale, 1, 1)
 
         # PSD x-axis frequency or period group
         self.psdXAxisGroup = QtWidgets.QGroupBox("PSD X-Axis")
@@ -174,7 +165,6 @@ class RawDataDashboard(QtWidgets.QWidget):
         self.vboxSetup = QtWidgets.QVBoxLayout(self.setupWidget)
         self.vboxSetup.addWidget(self.selectGroup)
         self.vboxSetup.addWidget(self.filterGroup)
-        # self.vboxSetup.addWidget(self.psdXAxisGroup)
         self.vboxSetup.addLayout(self.hboxPSD)
         self.vboxSetup.addLayout(self.hboxButtons)
 

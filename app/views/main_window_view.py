@@ -9,12 +9,12 @@ from PyQt5 import QtWidgets
 from views.data_screening_view import DataQualityReport
 from views.fatigue_view import FatigueProcessingWidget
 from views.project_config_view import ConfigModule
+from views.rainflow_histograms_view import RainflowHistogramDashboard
 from views.raw_data_view import RawDataDashboard
 from views.seascatter_view import SeascatterDiagram
 from views.spectral_view import SpectrogramWidget
 from views.stats_view import PlotStyle2H, StatsWidget, VesselStatsWidget
 from views.transfer_functions_view import TransferFunctionsWidget
-from views.pairplot_stats_view import PairPlotView
 
 
 class DataLabGui(QtWidgets.QMainWindow):
@@ -74,7 +74,9 @@ class DataLabGui(QtWidgets.QMainWindow):
 
         # Fatigue processing module
         self.fatigueModule = QtWidgets.QTabWidget()
+        self.histogramsTab = RainflowHistogramDashboard(self)
         self.fatigueTab = FatigueProcessingWidget(self)
+        self.fatigueModule.addTab(self.histogramsTab, "Rainflow Counting Histograms")
         self.fatigueModule.addTab(self.fatigueTab, "2HFATLASA")
 
         # Add stacked widgets

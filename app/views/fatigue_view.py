@@ -172,7 +172,7 @@ class FatigueProcessingWidget(QtWidgets.QWidget):
         if period is None:
             return df
         else:
-            factor = 365.25 * 24 * 60 / period
+            factor = 365.24 * 24 * 60 / period
             return df / factor
 
     def plot_fatigue_damage(self):

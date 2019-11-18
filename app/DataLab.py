@@ -1,6 +1,6 @@
 __author__ = "Craig Dickinson"
 __program__ = "DataLab"
-__version__ = "2.0.1.7"
+__version__ = "2.0.1.8"
 __date__ = "18 November 2019"
 
 import logging
@@ -638,6 +638,13 @@ class DataLab(DataLabGui):
             dataset_ids = list(screening.dict_spectrograms.keys())
             self.spectrogramTab.append_multiple_spect_to_datasets_list(dataset_ids)
             self.spectrogramTab.create_plots(set_init_xlim=True)
+
+        # Store histograms datasets to rainflow histogram dashboard
+        if screening.dict_histograms:
+            self.histogramsTab.datasets = screening.dict_histograms
+            dataset_ids = list(screening.dict_histograms.keys())
+            self.histogramsTab.add_datasets(dataset_ids)
+            self.histogramsTab.update_columns_combo()
 
     def calc_seascatter(self):
         """Create seascatter diagram if vessel stats data is loaded."""

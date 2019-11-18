@@ -269,7 +269,7 @@ class Screening(QObject):
                 dict_df_col_hists[key]["Cum"] = dict_df_col_hists[key].sum(axis=1)
 
             # Store dataset histograms
-            data_screen.histograms = dict_df_col_hists
+            self.dict_histograms[logger.logger_id] = dict_df_col_hists
 
         # Publish data screening report
         self._publish_screening_report(data_report, output_files)
