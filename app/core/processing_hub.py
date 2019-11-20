@@ -15,7 +15,7 @@ from app.core.control import Control
 from app.core.data_screen import DataScreen
 from app.core.data_screen_report import DataScreenReport
 from app.core.rainflow_fatigue import rainflow_count_data_frame
-from app.core.spectrograms import Spectrogram
+from app.core.spectral_screening import SpectralScreening
 from app.core.stats_screening import StatsScreening
 
 prog_info = "Program to perform signal processing on logger data"
@@ -38,7 +38,7 @@ def parse_args(args):
     return parser.parse_args(args)
 
 
-class Screening(QObject):
+class ProcessingHub(QObject):
     """Class for main DataLab program. Defined as a QObject for use with gui."""
 
     # Signal to report processing progress to progress bar class
@@ -80,17 +80,11 @@ class Screening(QObject):
         )
 
         stats_screening = StatsScreening(self.control)
+        spect_screening = SpectralScreening(self.control)
 
         # Create output stats to workbook object
         # stats_out = StatsOutput(output_dir=self.control.stats_output_path)
         output_files = []
-
-        # Create dictionary of True/False flags of spectrogram file formats to create
-        dict_spect_export_formats = dict(
-            h5=self.control.spect_to_h5,
-            csv=self.control.spect_to_csv,
-            xlsx=self.control.spect_to_xlsx,
-        )
 
         # Scan loggers to get total # files, list of logger names, files source (local or Azure)
         # and flags for whether stats and spectrograms are to be processed
@@ -111,20 +105,9 @@ class Screening(QObject):
         for i, data_screen in enumerate(self.data_screen_sets):
             logger = data_screen.logger
 
-            # Initialise logger stats objects
+            # Initialise logger stats and spectral objects
             stats_screening.init_logger_stats()
-
-            # Initialise logger spectrograms objects
-            spect_unfilt = Spectrogram(
-                logger_id=logger.logger_id, output_dir=self.control.spect_output_path
-            )
-            spect_filt = Spectrogram(
-                logger_id=logger.logger_id, output_dir=self.control.spect_output_path
-            )
-
-            # Initialise sample data frame for logger
-            df_spect_sample = pd.DataFrame()
-            n = len(data_screen.files)
+            spect_screening.init_logger_spect(logger.logger_id)
 
             # Get file number of first file to be processed (this is akin to load case number for no timestamp files)
             try:
@@ -135,6 +118,7 @@ class Screening(QObject):
             # Initialise file parameters in case there are no files to process
             j = 0
             filename = ""
+            n = len(data_screen.files)
 
             # Histograms list for each column
             dict_df_col_hists = {
@@ -198,28 +182,20 @@ class Screening(QObject):
                 # Ignore file if not of expected length
                 # TODO: Allowing short sample length (revisit)
                 # if data_screen[i].points_per_file[j] == logger.expected_data_points:
-                if data_screen.points_per_file[j] <= logger.expected_data_points:
-                    # Initialise with stats and spectral data frames both pointing to the same source data frame
-                    # (note this does not create an actual copy of the data in memory)
-                    df_spect = df.copy()
+                # if data_screen.points_per_file[j] <= logger.expected_data_points:
+                # STATS SCREENING
+                if data_screen.stats_requested:
+                    stats_screening.file_stats_processing(
+                        df, data_screen, processed_file_num
+                    )
 
-                    # STATS SCREENING
-                    if data_screen.stats_requested:
-                        stats_screening.file_stats_processing(
-                            df, data_screen, processed_file_num
-                        )
+                # SPECTRAL SCREENING
+                if data_screen.spect_requested:
+                    spect_screening.file_spect_processing(
+                        df, data_screen, processed_file_num
+                    )
 
-                    # SPECTRAL SCREENING
-                    if data_screen.spect_requested:
-                        self._file_spect_processing(
-                            df_spect_sample,
-                            df_spect,
-                            data_screen,
-                            processed_file_num,
-                            spect_unfilt,
-                            spect_filt,
-                        )
-
+                # RAINFLOW COUNTING
                 # Calculate rainflow counting histogram for each channel in data frame
                 dict_df_col_hists = rainflow_count_data_frame(
                     dict_df_col_hists, j, df, columns=logger.channel_names
@@ -246,13 +222,8 @@ class Screening(QObject):
 
             # Check logger stats requested and processed for current logger
             if data_screen.spect_requested and data_screen.spect_processed:
-                self._logger_spect_post(
-                    data_screen,
-                    spect_unfilt,
-                    spect_filt,
-                    dict_spect_export_formats,
-                    output_files,
-                )
+                spect_screening.logger_spect_post(data_screen, output_files)
+                self.signal_update_output_info.emit(output_files)
 
             # Calculate aggregate histogram for each column
             for key in dict_df_col_hists.keys():
@@ -280,7 +251,7 @@ class Screening(QObject):
 
         # Save stats workbook if requested
         if any_stats_processed and self.control.stats_to_xlsx is True:
-            stats_screening.save_stats_excel()
+            stats_screening.save_stats_excel(output_files)
             self.signal_update_output_info.emit(output_files)
 
         print("Processing complete")
@@ -300,6 +271,7 @@ class Screening(QObject):
 
         # Store processing results dictionaries
         self.dict_stats = stats_screening.dict_stats
+        self.dict_spectrograms = spect_screening.dict_spectrograms
 
         # Final progress info package to emit to progress bar
         dict_progress = dict(
@@ -366,96 +338,6 @@ class Screening(QObject):
             any_stats_expected,
             any_spect_expected,
         )
-
-    @staticmethod
-    def _file_spect_processing(
-        df_spect_sample,
-        df_spect,
-        data_screen,
-        processed_file_num,
-        spect_unfilt,
-        spect_filt,
-    ):
-        """Spectral processing module."""
-
-        logger = data_screen.logger
-        sample_length = data_screen.spect_sample_length
-
-        while len(df_spect) > 0:
-            # Store the file number of processed sample (only of use for time step indexes)
-            data_screen.spect_file_nums.append(processed_file_num)
-
-            # Extract sample data frame from main dataset
-            df_spect_sample, df_spect = data_screen.sample_data(
-                df_spect_sample, df_spect, sample_length, type="spectral"
-            )
-
-            # Process sample if meets required length
-            if len(df_spect_sample) <= sample_length:
-                # Unfiltered data
-                if logger.process_type != "Filtered only":
-                    # Calculate sample PSD and add to spectrogram array
-                    spect_unfilt.add_data(
-                        df_spect_sample,
-                        window=logger.psd_window,
-                        nperseg=logger.psd_nperseg,
-                        noverlap=logger.psd_overlap,
-                    )
-                    data_screen.spect_processed = True
-
-                # Filtered data
-                if logger.process_type != "Unfiltered only":
-                    if data_screen.apply_filters is True:
-                        # Apply low/high pass filtering
-                        df_filt = data_screen.filter_data(df_spect_sample)
-
-                        # Calculate sample PSD and add to spectrogram array
-                        spect_filt.add_data(
-                            df_filt,
-                            window=logger.psd_window,
-                            nperseg=logger.psd_nperseg,
-                            noverlap=logger.psd_overlap,
-                        )
-                        data_screen.spect_processed = True
-
-                # Clear sample data frame ready for next sample set
-                df_spect_sample = pd.DataFrame()
-
-        return data_screen.spect_processed
-
-    def _logger_spect_post(
-        self,
-        data_screen,
-        spect_unfilt,
-        spect_filt,
-        dict_spect_export_formats,
-        output_files,
-    ):
-        """Spectral post-processing of all files for a given logger."""
-
-        dates = data_screen.spect_sample_start
-        file_nums = data_screen.spect_file_nums
-
-        # Export spectrograms to requested file formats
-        if spect_unfilt.spectrograms:
-            spect_unfilt.add_index(dates, file_nums)
-            df_dict = spect_unfilt.export_spectrograms_data(dict_spect_export_formats)
-            self.dict_spectrograms.update(df_dict)
-
-            # Add to output files list - and write to progress window
-            output_files.extend(spect_unfilt.output_files)
-            self.signal_update_output_info.emit(output_files)
-
-        if spect_filt.spectrograms:
-            spect_filt.add_index(dates, file_nums)
-            df_dict = spect_filt.export_spectrograms_data(
-                dict_spect_export_formats, filtered=True
-            )
-            self.dict_spectrograms.update(df_dict)
-
-            # Add to output files list - and write to progress window
-            output_files.extend(spect_filt.output_files)
-            self.signal_update_output_info.emit(output_files)
 
     def _publish_screening_report(self, data_report, output_files):
         """Compile and export Excel data screening report."""

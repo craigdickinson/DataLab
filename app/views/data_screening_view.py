@@ -1,6 +1,6 @@
 import sys
 from PyQt5 import QtCore, QtWidgets
-from app.core.processing_hub import Screening
+from app.core.processing_hub import ProcessingHub
 
 
 class DataQualityReport(QtWidgets.QWidget):
@@ -10,7 +10,7 @@ class DataQualityReport(QtWidgets.QWidget):
         super(DataQualityReport, self).__init__(parent)
 
         self.parent = parent
-        self.screening = Screening()
+        self.screening = ProcessingHub()
         self.init_ui()
         self.connect_signals()
 

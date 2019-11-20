@@ -13,6 +13,8 @@ from app.core.control import Control
 
 
 class StatsScreening(object):
+    """Class to perform statistical screening of loggers."""
+
     def __init__(self, control=Control()):
         self.control = control
 
@@ -20,10 +22,10 @@ class StatsScreening(object):
         self.stats_unfilt = LoggerStats()
         self.stats_filt = LoggerStats()
 
-        self.df_stats_sample = pd.DataFrame()
-        self.df_stats = pd.DataFrame()
-
+        # Stats writing object
         self.stats_out = StatsOutput(output_dir=self.control.stats_output_path)
+
+        # To store stats for all datasets to load to gui
         self.dict_stats = {}
 
         # If writing stats HDF5 file, stats for all loggers are written to the same file

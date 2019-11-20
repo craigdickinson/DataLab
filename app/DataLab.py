@@ -1,6 +1,6 @@
 __author__ = "Craig Dickinson"
 __program__ = "DataLab"
-__version__ = "2.0.1.9"
+__version__ = "2.0.1.10"
 __date__ = "20 November 2019"
 
 import logging
@@ -23,7 +23,7 @@ from app.core.read_files import (
     read_stats_hdf5,
 )
 from app.core.read_files import read_wcfat_results
-from app.core.processing_hub import Screening
+from app.core.processing_hub import ProcessingHub
 from app.views.main_window_view import DataLabGui
 from app.views.processing_progress_view import ProcessingProgressBar
 from app.views.project_config_view import AzureAccountSetupDialog
@@ -575,12 +575,12 @@ class DataLab(DataLabGui):
 
         # Run processing on QThread worker - prevents GUI lock up
         try:
-            # Create screening object, map control data and process
-            screening = Screening()
-            screening.control = self.control
+            # Create processing object, map control data and screen datasets
+            processing_hub = ProcessingHub()
+            processing_hub.control = self.control
 
             # Create worker thread, connect signals to methods in this class and start, which calls worker.run()
-            self.worker = ScreeningWorker(screening, parent=self)
+            self.worker = ProcessingWorker(processing_hub, parent=self)
             self.worker.signal_screening_output_to_gui.connect(
                 self.set_screening_output_to_gui
             )
@@ -726,7 +726,7 @@ class DataLab(DataLabGui):
         self.process_screening()
 
 
-class ScreeningWorker(QtCore.QThread):
+class ProcessingWorker(QtCore.QThread):
     """Worker class to perform screening processing of control setup in a separate thread."""
 
     # Note: Using the alternative method of creating a QObject and a standalone QThread worker and using moveToThread
@@ -736,24 +736,24 @@ class ScreeningWorker(QtCore.QThread):
     signal_screening_output_to_gui = pyqtSignal(object)
     signal_error = pyqtSignal(str)
 
-    def __init__(self, screening, parent=None):
+    def __init__(self, processing_hub, parent=None):
         """Worker class to allow control file processing on a separate thread to the gui."""
-        super(ScreeningWorker, self).__init__(parent)
+        super(ProcessingWorker, self).__init__(parent)
 
         self.parent = parent
 
-        # Screening processing object
-        self.screening = screening
+        # Processing hub object
+        self.processing_hub = processing_hub
 
         # Initialise progress bar
-        self.pb = ProcessingProgressBar(logger_ids=self.screening.control.logger_ids)
+        self.pb = ProcessingProgressBar(logger_ids=self.processing_hub.control.logger_ids)
         self.pb.show()
         self._connect_signals()
 
     def _connect_signals(self):
         self.pb.signal_quit_worker.connect(self.quit_worker)
-        self.screening.signal_notify_progress.connect(self.pb.update_progress_bar)
-        self.screening.signal_update_output_info.connect(self.pb.add_output_files)
+        self.processing_hub.signal_notify_progress.connect(self.pb.update_progress_bar)
+        self.processing_hub.signal_update_output_info.connect(self.pb.add_output_files)
 
     def run(self):
         """Override of QThread's run method to process control file."""
@@ -762,8 +762,8 @@ class ScreeningWorker(QtCore.QThread):
             self.parent.setEnabled(False)
 
             # Run DataLab processing; compute and write requested logger statistics and spectrograms
-            self.screening.process()
-            self.signal_screening_output_to_gui.emit(self.screening)
+            self.processing_hub.process()
+            self.signal_screening_output_to_gui.emit(self.processing_hub)
         except ValueError as e:
             self.signal_error.emit(str(e))
             logging.exception(e)
