@@ -8,17 +8,15 @@ from datetime import timedelta
 from time import time
 
 import pandas as pd
-from PyQt5.QtCore import pyqtSignal, QObject
+from PyQt5.QtCore import QObject, pyqtSignal
 
 from app.core.azure_cloud_storage import connect_to_azure_account, stream_blob
-from app.core.calc_stats import LoggerStats
 from app.core.control import Control
 from app.core.data_screen import DataScreen
 from app.core.data_screen_report import DataScreenReport
-from app.core.spectrograms import Spectrogram
-from app.core.write_stats import StatsOutput
 from app.core.rainflow_fatigue import rainflow_count_data_frame
-
+from app.core.spectrograms import Spectrogram
+from app.core.stats_screening import StatsScreening
 
 prog_info = "Program to perform signal processing on logger data"
 
@@ -67,14 +65,10 @@ class Screening(QObject):
         self.dict_spectrograms = {}
         self.dict_histograms = {}
 
-        # If writing stats HDF5 file, stats for all loggers are written to the same file
-        # Set write mode to write new file for first logger then append for all others
-        self.h5_write_mode = "w"
-        self.file_suffix = ""
-
     def process(self):
         """Process screening setup."""
 
+        # SETUP
         bloc_blob_service = None
         t0 = time()
 
@@ -85,8 +79,10 @@ class Screening(QObject):
             self.control.report_output_path,
         )
 
+        stats_screening = StatsScreening(self.control)
+
         # Create output stats to workbook object
-        stats_out = StatsOutput(output_dir=self.control.stats_output_path)
+        # stats_out = StatsOutput(output_dir=self.control.stats_output_path)
         output_files = []
 
         # Create dictionary of True/False flags of spectrogram file formats to create
@@ -108,15 +104,15 @@ class Screening(QObject):
                 self.control.azure_account_name, self.control.azure_account_key
             )
 
-        # Process each logger file
+        # PROCESSING
+        # Process each dataset
         print("Processing loggers...")
         file_count = 0
         for i, data_screen in enumerate(self.data_screen_sets):
             logger = data_screen.logger
 
             # Initialise logger stats objects
-            logger_stats_unfilt = LoggerStats()
-            logger_stats_filt = LoggerStats()
+            stats_screening.init_logger_stats()
 
             # Initialise logger spectrograms objects
             spect_unfilt = Spectrogram(
@@ -127,7 +123,6 @@ class Screening(QObject):
             )
 
             # Initialise sample data frame for logger
-            df_stats_sample = pd.DataFrame()
             df_spect_sample = pd.DataFrame()
             n = len(data_screen.files)
 
@@ -146,6 +141,7 @@ class Screening(QObject):
                 channel: pd.DataFrame() for channel in logger.channel_names
             }
 
+            # Process each file
             # Expose each sample here; that way it can be sent to different processing modules
             for j, file in enumerate(data_screen.files):
                 # TODO: If expected file in sequence is missing, store results as nan
@@ -173,6 +169,7 @@ class Screening(QObject):
                 # Send data package to progress bar
                 self.signal_notify_progress.emit(dict_progress)
 
+                # READ FILE TO DATA FRAME
                 # If streaming data from Azure Cloud read as a file stream
                 if logger.data_on_azure:
                     file = stream_blob(
@@ -184,6 +181,12 @@ class Screening(QObject):
 
                 # Data munging/wrangling to prepare dataset for processing
                 df = data_screen.wrangle_data(df, file_idx=j)
+
+                # # Filter data if requested
+                # df_filt=pd.DataFrame()
+                # if logger.process_type != "Unfiltered only":
+                #     if data_screen.apply_filters is True:
+                #         df_filt = data_screen.filter_data(df_stats_sample)
 
                 # =========================================================
                 # AT THIS POINT WE SPLIT INTO DIFFERENT PROCESSING MODULES
@@ -198,21 +201,15 @@ class Screening(QObject):
                 if data_screen.points_per_file[j] <= logger.expected_data_points:
                     # Initialise with stats and spectral data frames both pointing to the same source data frame
                     # (note this does not create an actual copy of the data in memory)
-                    df_stats = df.copy()
                     df_spect = df.copy()
 
-                    # Stats processing module
+                    # STATS SCREENING
                     if data_screen.stats_requested:
-                        self._file_stats_processing(
-                            df_stats_sample,
-                            df_stats,
-                            data_screen,
-                            processed_file_num,
-                            logger_stats_unfilt,
-                            logger_stats_filt,
+                        stats_screening.file_stats_processing(
+                            df, data_screen, processed_file_num
                         )
 
-                    # Spectrograms processing module
+                    # SPECTRAL SCREENING
                     if data_screen.spect_requested:
                         self._file_spect_processing(
                             df_spect_sample,
@@ -244,14 +241,8 @@ class Screening(QObject):
 
             # Check logger stats requested and processed for current logger
             if data_screen.stats_requested and data_screen.stats_processed:
-                self._logger_stats_post(
-                    stats_out,
-                    logger,
-                    data_screen,
-                    logger_stats_unfilt,
-                    logger_stats_filt,
-                    output_files,
-                )
+                stats_screening.logger_stats_post(logger, data_screen, output_files)
+                self.signal_update_output_info.emit(output_files)
 
             # Check logger stats requested and processed for current logger
             if data_screen.spect_requested and data_screen.spect_processed:
@@ -289,11 +280,7 @@ class Screening(QObject):
 
         # Save stats workbook if requested
         if any_stats_processed and self.control.stats_to_xlsx is True:
-            stats_filename = stats_out.save_workbook()
-
-            # Add to output files list - and write to progress window
-            file_subpath = self.control.stats_output_folder + "/" + stats_filename
-            output_files.append(file_subpath)
+            stats_screening.save_stats_excel()
             self.signal_update_output_info.emit(output_files)
 
         print("Processing complete")
@@ -310,6 +297,9 @@ class Screening(QObject):
             warning = "Warning: Spectrograms requested but none calculated. Check Data Screening Report."
             output_files.append(warning)
             self.signal_update_output_info.emit(output_files)
+
+        # Store processing results dictionaries
+        self.dict_stats = stats_screening.dict_stats
 
         # Final progress info package to emit to progress bar
         dict_progress = dict(
@@ -378,54 +368,6 @@ class Screening(QObject):
         )
 
     @staticmethod
-    def _file_stats_processing(
-        df_stats_sample,
-        df_stats,
-        data_screen,
-        processed_file_num,
-        logger_stats_unfilt,
-        logger_stats_filt,
-    ):
-        """Stats processing module."""
-
-        logger = data_screen.logger
-        sample_length = data_screen.stats_sample_length
-
-        while len(df_stats) > 0:
-            # Store the file number of processed sample (only of use for time step indexes)
-            data_screen.stats_file_nums.append(processed_file_num)
-
-            # Extract sample data frame from main dataset
-            df_stats_sample, df_stats = data_screen.sample_data(
-                df_stats_sample, df_stats, sample_length, type="stats"
-            )
-
-            # Process sample if meets required length
-            # TODO: Allowing short sample length (revisit)
-            # if len(df_stats_sample) == sample_length:
-            if len(df_stats_sample) <= sample_length:
-                # Unfiltered data
-                if logger.process_type != "Filtered only":
-                    # Calculate sample stats
-                    logger_stats_unfilt.calc_stats(df_stats_sample)
-                    data_screen.stats_processed = True
-
-                # Filtered data
-                if logger.process_type != "Unfiltered only":
-                    if data_screen.apply_filters is True:
-                        # Apply low/high pass filtering
-                        df_filt = data_screen.filter_data(df_stats_sample)
-
-                        # Calculate sample stats
-                        logger_stats_filt.calc_stats(df_filt)
-                        data_screen.stats_processed = True
-
-                # Clear sample data frame ready for next sample set
-                df_stats_sample = pd.DataFrame()
-
-        return data_screen.stats_processed
-
-    @staticmethod
     def _file_spect_processing(
         df_spect_sample,
         df_spect,
@@ -480,56 +422,6 @@ class Screening(QObject):
                 df_spect_sample = pd.DataFrame()
 
         return data_screen.spect_processed
-
-    def _logger_stats_post(
-        self,
-        stats_out,
-        logger,
-        data_screen,
-        logger_stats_unfilt,
-        logger_stats_filt,
-        output_files,
-    ):
-        """Stats post-processing of all files for a given logger."""
-
-        # Create and store a data frame of logger stats
-        df_stats = stats_out.compile_stats(
-            logger,
-            data_screen.stats_file_nums,
-            data_screen.stats_sample_start,
-            data_screen.stats_sample_end,
-            logger_stats_unfilt,
-            logger_stats_filt,
-        )
-
-        if not df_stats.empty:
-            # Store stats in dictionary for plotting in gui
-            self.dict_stats[logger.logger_id] = df_stats
-
-            # Export stats to requested file formats
-            if self.control.stats_to_h5 is True:
-                stats_filename = stats_out.write_to_hdf5(self.h5_write_mode)
-
-                # Add to output files list - and write to progress window
-                file_subpath = self.control.stats_output_folder + "/" + stats_filename
-                output_files.append(file_subpath + self.file_suffix)
-                self.signal_update_output_info.emit(output_files)
-
-                # Set write mode to append to file for additional loggers
-                if self.h5_write_mode == "w":
-                    self.h5_write_mode = "a"
-                    self.file_suffix = " (appended)"
-
-            if self.control.stats_to_csv is True:
-                stats_filename = stats_out.write_to_csv()
-
-                # Add to output files list - and write to progress window
-                file_subpath = self.control.stats_output_folder + "/" + stats_filename
-                output_files.append(file_subpath)
-                self.signal_update_output_info.emit(output_files)
-
-            if self.control.stats_to_xlsx is True:
-                stats_out.write_to_excel()
 
     def _logger_spect_post(
         self,

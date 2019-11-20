@@ -32,7 +32,6 @@ from app.core.file_props_pulse_acc import (
 )
 from app.core.logger_properties import LoggerError, LoggerProperties
 from app.core.project_config import ProjectConfigJSONFile
-from app.views.rainflow_counting_setup_view import RainflowHistogramSetupTab
 from app.views.screening_setup_view import ScreeningSetupTab
 
 # Module variables: Logger properties lists and dictionaries
@@ -120,7 +119,6 @@ class ConfigModule(QtWidgets.QWidget):
         self.screeningTab = ScreeningSetupTab(self, self.control)
         self.scatterTab = SeascatterTab(self, self.control, self.scatter)
         self.tfSettingsTab = TransferFunctionsTab(self, self.tf)
-        self.rainflowHistSettingsTab = RainflowHistogramSetupTab(self, self.control)
 
         # CONTAINERS
         # Config buttons container
@@ -151,7 +149,6 @@ class ConfigModule(QtWidgets.QWidget):
         self.setupTabs.addTab(self.screeningTab, "Screening Setup")
         self.setupTabs.addTab(self.scatterTab, "Sea Scatter Setup")
         self.setupTabs.addTab(self.tfSettingsTab, "Transfer Functions Setup")
-        self.setupTabs.addTab(self.rainflowHistSettingsTab, "Rainflow Counting Setup")
 
         # Screening check boxes and process buttons container
         self.screeningGroup = QtWidgets.QGroupBox("Global Screening Flags")
@@ -290,7 +287,6 @@ class ConfigModule(QtWidgets.QWidget):
         self.screeningTab.clear_dashboard()
         self.scatterTab.clear_dashboard()
         self.tfSettingsTab.clear_dashboard()
-        self.rainflowHistSettingsTab.clear_dashboard()
 
         # Reset window title
         self.parent.set_window_title()
@@ -339,7 +335,6 @@ class ConfigModule(QtWidgets.QWidget):
         # Initialise dashboard layouts
         self.loggerPropsTab.set_logger_dashboard(logger)
         self.screeningTab.set_analysis_dashboard(logger)
-        self.rainflowHistSettingsTab.set_analysis_dashboard(logger)
 
         # Select logger properties tab and open edit dialog
         self.setupTabs.setCurrentWidget(self.loggerPropsTab)
@@ -386,7 +381,6 @@ class ConfigModule(QtWidgets.QWidget):
                 self.loggerPropsTab.clear_dashboard()
                 self.screeningTab.clear_dashboard()
                 self.scatterTab.clear_dashboard()
-                self.rainflowHistSettingsTab.clear_dashboard()
 
     def on_logger_selected(self):
         """Update dashboard data pertaining to selected logger."""
@@ -408,7 +402,6 @@ class ConfigModule(QtWidgets.QWidget):
         logger = self.control.loggers[i]
         self.loggerPropsTab.set_logger_dashboard(logger)
         self.screeningTab.set_analysis_dashboard(logger)
-        self.rainflowHistSettingsTab.set_analysis_dashboard(logger)
         self.set_logger_columns_list(logger)
 
     def on_logger_item_edited(self):
@@ -549,7 +542,6 @@ class ConfigModule(QtWidgets.QWidget):
         self.scatterTab.control = self.control
         self.scatterTab.scatter = self.scatter
         self.tfSettingsTab.tf = self.tf
-        self.rainflowHistSettingsTab.control = self.control
 
     def _set_dashboards_on_load_config(self):
         """Set dashboard values with data in setup objects after loading JSON file."""
@@ -592,7 +584,6 @@ class ConfigModule(QtWidgets.QWidget):
             logger = self.control.loggers[0]
             self.loggerPropsTab.set_logger_dashboard(logger)
             self.screeningTab.set_analysis_dashboard(logger)
-            self.rainflowHistSettingsTab.set_analysis_dashboard(logger)
 
             # Add logger ids to raw data module dataset combo box and plot first file if exists
             self.parent.rawDataModule.add_datasets(self.control)
@@ -2362,15 +2353,12 @@ if __name__ == "__main__":
     # win = ConfigModule()
     # win = CampaignInfoTab()
     # win = EditCampaignInfoDialog()
-    # win = LoggerPropertiesTab()
+    win = LoggerPropertiesTab()
     # win = EditLoggerPropertiesDialog()
-    # win = StatsAndSpectralSettingsTab()
-    # win = EditStatsAndSpectralDialog()
     # win = SeascatterTab()
     # win = EditSeascatterDialog()
     # win = TransferFunctionsTab()
     # win = EditTransferFunctionsDialog()
-    win = RainflowHistogramSetupTab()
     # win = AzureAccountSetupDialog()
     win.show()
     app.exit(app.exec_())

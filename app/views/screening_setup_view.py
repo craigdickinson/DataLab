@@ -145,21 +145,13 @@ class ScreeningSetupTab(QtWidgets.QWidget):
         self.hboxStats = QtWidgets.QHBoxLayout()
         self.hboxStats.setAlignment(QtCore.Qt.AlignLeft)
         self.hboxStats.addWidget(self.statsGroup)
-        self.hboxStats.addWidget(self.statsOutputGroup)
-
-        # Create vertical layout for spectral settings to prevent vertical expansion of group box
-        self.vboxSpect = QtWidgets.QVBoxLayout()
-        self.vboxSpect.addWidget(self.spectGroup)
-        self.vboxSpect.addStretch()
-        self.vboxSpectOuput = QtWidgets.QVBoxLayout()
-        self.vboxSpectOuput.addWidget(self.spectOutputGroup)
-        self.vboxSpectOuput.addStretch()
+        self.hboxStats.addWidget(self.statsOutputGroup, alignment=QtCore.Qt.AlignTop)
 
         # Now add spectral group box vertical layouts to a horizontal one
         self.hboxSpect = QtWidgets.QHBoxLayout()
         self.hboxSpect.setAlignment(QtCore.Qt.AlignLeft)
-        self.hboxSpect.addLayout(self.vboxSpect)
-        self.hboxSpect.addLayout(self.vboxSpectOuput)
+        self.hboxSpect.addWidget(self.spectGroup)
+        self.hboxSpect.addWidget(self.spectOutputGroup, alignment=QtCore.Qt.AlignTop)
 
         # Combine all layouts
         self.vbox = QtWidgets.QVBoxLayout()
@@ -188,6 +180,9 @@ class ScreeningSetupTab(QtWidgets.QWidget):
 
     def on_edit_clicked(self):
         """Open logger screening edit dialog."""
+
+        if not self.parent:
+            return
 
         if self.parent.loggersList.count() == 0:
             msg = f"No loggers exist to edit. Add a logger first."
@@ -412,7 +407,7 @@ class EditScreeningSetupDialog(QtWidgets.QDialog):
 
     def _init_ui(self):
         self.setWindowTitle("Edit Logger Statistics and Spectral Analysis Settings")
-        self.setMinimumWidth(500)
+        self.setMinimumWidth(600)
 
         # Define input validators
         int_validator = QtGui.QIntValidator()
@@ -469,20 +464,20 @@ class EditScreeningSetupDialog(QtWidgets.QDialog):
         self.highCutoff = QtWidgets.QLineEdit()
         self.highCutoff.setFixedWidth(40)
         self.highCutoff.setValidator(dbl_validator)
+
         self.statsFolder = QtWidgets.QLineEdit()
         self.statsFolder.setFixedWidth(210)
         self.statsInterval = QtWidgets.QLineEdit()
         self.statsInterval.setFixedWidth(50)
         self.statsInterval.setValidator(int_validator)
         self.statsInterval.setToolTip(tooltip_msg)
+
         self.spectFolder = QtWidgets.QLineEdit()
         self.spectFolder.setFixedWidth(210)
         self.spectInterval = QtWidgets.QLineEdit()
         self.spectInterval.setFixedWidth(50)
         self.spectInterval.setValidator(int_validator)
         self.spectInterval.setToolTip(tooltip_msg)
-
-        # PSD parameters
         self.psdNperseg = QtWidgets.QLineEdit()
         self.psdNperseg.setFixedWidth(50)
         self.psdNperseg.setToolTip("Number of points to use per PSD.")
@@ -496,6 +491,12 @@ class EditScreeningSetupDialog(QtWidgets.QDialog):
         self.psdOverlap.setToolTip("Percentage of points to overlap each PSD segment.")
         self.psdOverlap.setValidator(dbl_validator)
 
+        # Rainflow counting settings
+        self.rainflowFolder = QtWidgets.QLineEdit()
+        self.rainflowFolder.setFixedWidth(210)
+        self.binSize = QtWidgets.QLineEdit()
+        self.binSize.setFixedWidth(50)
+
         # Labels
         self.lblCopy = QtWidgets.QLabel("Logger to copy:")
         self.lblColumns = QtWidgets.QLabel("Column numbers to process:")
@@ -505,13 +506,18 @@ class EditScreeningSetupDialog(QtWidgets.QDialog):
         self.lblProcessType = QtWidgets.QLabel("Screen on:")
         self.lblLowCutoff = QtWidgets.QLabel("Low cut-off frequency (Hz):")
         self.lblHighCutoff = QtWidgets.QLabel("High cut-off frequency (Hz):")
+
         self.lblStatsFolder = QtWidgets.QLabel("Output folder:")
-        self.lblSpectFolder = QtWidgets.QLabel("Output folder:")
         self.lblStatsInterval = QtWidgets.QLabel("Sample length (s):")
+
+        self.lblSpectFolder = QtWidgets.QLabel("Output folder:")
         self.lblSpectInterval = QtWidgets.QLabel("Sample length (s):")
         self.lblPsdNperseg = QtWidgets.QLabel("Number of points per segment:")
         self.lblPsdWindow = QtWidgets.QLabel("Window:")
         self.lblPsdOverlap = QtWidgets.QLabel("Segment overlap (%):")
+
+        self.lblRainflowFolder = QtWidgets.QLabel("Output folder:")
+        self.lblBinSize = QtWidgets.QLabel("Rainflow histograms bin size:")
 
         # Set appropriate process start and end input depending on whether filenames include timestamps
         if self.logger.file_timestamp_embedded is True:
@@ -532,10 +538,15 @@ class EditScreeningSetupDialog(QtWidgets.QDialog):
         self.processEnd.setToolTip(proc_end_tip)
 
         # CONTAINERS
+        policy = QtWidgets.QSizePolicy(
+            QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed
+        )
+
         # Copy logger group
         self.copyGroup = QtWidgets.QGroupBox(
             "Optional: Copy Settings from Another Logger"
         )
+        self.copyGroup.setSizePolicy(policy)
         self.hboxCopy = QtWidgets.QHBoxLayout(self.copyGroup)
         self.hboxCopy.addWidget(self.lblCopy)
         self.hboxCopy.addWidget(self.copyLogger)
@@ -552,12 +563,14 @@ class EditScreeningSetupDialog(QtWidgets.QDialog):
 
         # Processing range group
         self.processRangeGroup = QtWidgets.QGroupBox("Processing Range")
+        self.processRangeGroup.setSizePolicy(policy)
         self.processRangeForm = QtWidgets.QFormLayout(self.processRangeGroup)
         self.processRangeForm.addRow(self.lblProcessStart, self.processStart)
         self.processRangeForm.addRow(self.lblProcessEnd, self.processEnd)
 
         # Filters group
         self.filtersGroup = QtWidgets.QGroupBox("Frequency Filters")
+        self.filtersGroup.setSizePolicy(policy)
         self.filtersForm = QtWidgets.QFormLayout(self.filtersGroup)
         self.filtersForm.addRow(self.lblProcessType, self.processType)
         self.filtersForm.addRow(self.lblLowCutoff, self.lowCutoff)
@@ -578,19 +591,35 @@ class EditScreeningSetupDialog(QtWidgets.QDialog):
         self.spectForm.addRow(self.lblPsdWindow, self.psdWindowCombo)
         self.spectForm.addRow(self.lblPsdOverlap, self.psdOverlap)
 
+        # Rainflow histograms group
+        self.rainflowGroup = QtWidgets.QGroupBox(
+            "Rainflow Counting Histograms Settings"
+        )
+        self.rainflowForm = QtWidgets.QFormLayout(self.rainflowGroup)
+        self.rainflowForm.addRow(self.lblRainflowFolder, self.rainflowFolder)
+        self.rainflowForm.addRow(self.lblBinSize, self.binSize)
+
         self.buttonBox = QtWidgets.QDialogButtonBox(
             QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel
         )
 
         # LAYOUT
+        # Horizontal groups
+        self.hboxRangeAndFilters = QtWidgets.QHBoxLayout()
+        self.hboxRangeAndFilters.addWidget(
+            self.processRangeGroup, alignment=QtCore.Qt.AlignTop
+        )
+        self.hboxRangeAndFilters.addWidget(self.filtersGroup)
+        self.hboxRangeAndFilters.addStretch()
+
         self.layout = QtWidgets.QVBoxLayout(self)
         self.layout.addWidget(self.copyGroup)
         self.layout.addWidget(self.colsGroup)
-        self.layout.addWidget(self.processRangeGroup)
-        self.layout.addWidget(self.filtersGroup)
+        self.layout.addLayout(self.hboxRangeAndFilters)
         self.layout.addWidget(self.statsGroup)
         self.layout.addWidget(self.spectGroup)
-        self.layout.addWidget(self.buttonBox, stretch=0, alignment=QtCore.Qt.AlignRight)
+        self.layout.addWidget(self.rainflowGroup)
+        self.layout.addWidget(self.buttonBox)
 
     def _connect_signals(self):
         self.buttonBox.accepted.connect(self.on_ok_clicked)
@@ -904,3 +933,12 @@ class EditScreeningSetupDialog(QtWidgets.QDialog):
     def error(self, msg):
         print(f"Error: {msg}")
         return QtWidgets.QMessageBox.critical(self, "Error", msg)
+
+
+if __name__ == "__main__":
+    # For testing widget layout
+    app = QtWidgets.QApplication(sys.argv)
+    # win = ScreeningSetupTab()
+    win = EditScreeningSetupDialog()
+    win.show()
+    app.exit(app.exec_())

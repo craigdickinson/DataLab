@@ -1,4 +1,4 @@
-"""Class to compile and export logger stats."""
+"""Stats screening module."""
 
 __author__ = "Craig Dickinson"
 
@@ -9,11 +9,175 @@ import pandas as pd
 from openpyxl.utils import get_column_letter
 from openpyxl.workbook import Workbook
 
+from app.core.control import Control
+
+
+class StatsScreening(object):
+    def __init__(self, control=Control()):
+        self.control = control
+
+        # Initialise logger stats objects
+        self.stats_unfilt = LoggerStats()
+        self.stats_filt = LoggerStats()
+
+        self.df_stats_sample = pd.DataFrame()
+        self.df_stats = pd.DataFrame()
+
+        self.stats_out = StatsOutput(output_dir=self.control.stats_output_path)
+        self.dict_stats = {}
+
+        # If writing stats HDF5 file, stats for all loggers are written to the same file
+        # Set write mode to write new file for first logger then append for all others
+        self.h5_write_mode = "w"
+        self.h5_output_file_suffix = ""
+
+    def init_logger_stats(self):
+        """Set new stats objects for processing a new logger."""
+
+        self.stats_unfilt = LoggerStats()
+        self.stats_filt = LoggerStats()
+
+    def file_stats_processing(self, df_file, data_screen, processed_file_num):
+        """Stats processing module."""
+
+        logger = data_screen.logger
+        sample_length = data_screen.stats_sample_length
+        df_stats = df_file.copy()
+        df_stats_sample = pd.DataFrame()
+
+        while len(df_stats) > 0:
+            # Store the file number of processed sample (only of use for time step indexes)
+            data_screen.stats_file_nums.append(processed_file_num)
+
+            # Extract sample data frame from main dataset
+            df_stats_sample, df_stats = data_screen.sample_data(
+                df_stats_sample, df_stats, sample_length, type="stats"
+            )
+
+            # Process sample if meets required length
+            # TODO: Allowing short sample length (revisit)
+            # if len(df_stats_sample) == sample_length:
+            # if len(df_stats_sample) <= sample_length:
+            # Unfiltered data
+            if logger.process_type != "Filtered only":
+                # Calculate sample stats
+                self.stats_unfilt.calc_stats(df_stats_sample)
+                data_screen.stats_processed = True
+
+            # Filtered data
+            if logger.process_type != "Unfiltered only":
+                if data_screen.apply_filters is True:
+                    # Apply low/high pass filtering
+                    df_filt = data_screen.filter_data(df_stats_sample)
+
+                    # Calculate sample stats
+                    self.stats_filt.calc_stats(df_filt)
+                    data_screen.stats_processed = True
+
+            # Clear sample data frame ready for next sample set
+            df_stats_sample = pd.DataFrame()
+
+        return data_screen.stats_processed
+
+    def logger_stats_post(self, logger, data_screen, output_files):
+        """Stats post-processing of all files for a given logger."""
+
+        # Create and store a data frame of logger stats
+        df_stats = self.stats_out.compile_stats(
+            logger,
+            data_screen.stats_file_nums,
+            data_screen.stats_sample_start,
+            data_screen.stats_sample_end,
+            self.stats_unfilt,
+            self.stats_filt,
+        )
+
+        if not df_stats.empty:
+            # Store stats in dictionary for plotting in gui
+            self.dict_stats[logger.logger_id] = df_stats
+
+            # Export stats to requested file formats
+            if self.control.stats_to_h5 is True:
+                stats_filename = self.stats_out.write_to_hdf5(self.h5_write_mode)
+
+                # Add to output files list - and write to progress window
+                file_subpath = self.control.stats_output_folder + "/" + stats_filename
+                output_files.append(file_subpath + self.h5_output_file_suffix)
+
+                # Set write mode to append to file for additional loggers
+                if self.h5_write_mode == "w":
+                    self.h5_write_mode = "a"
+                    self.h5_output_file_suffix = " (appended)"
+
+            if self.control.stats_to_csv is True:
+                stats_filename = self.stats_out.write_to_csv()
+
+                # Add to output files list - and write to progress window
+                file_subpath = self.control.stats_output_folder + "/" + stats_filename
+                output_files.append(file_subpath)
+
+            if self.control.stats_to_xlsx is True:
+                self.stats_out.write_to_excel()
+
+    def save_stats_excel(self, output_files):
+        """Save stats workbook."""
+
+        stats_filename = self.stats_out.save_workbook()
+
+        # Add to output files list - and write to progress window
+        file_subpath = self.control.stats_output_folder + "/" + stats_filename
+        output_files.append(file_subpath)
+
+
+class LoggerStats(object):
+    """Class to calculate and store logger statistics."""
+
+    def __init__(self):
+        """Lists for stats of each channel."""
+
+        self.min = []
+        self.max = []
+        self.std = []
+        self.mean = []
+
+    def calc_stats(self, df_sample):
+        """
+        Calculate basic stats.
+        Assumes at least two columns and first column is time.
+        """
+
+        data = df_sample[df_sample.columns[1:]]
+
+        # Calculate min, max, mean and std for each channel
+        mn = data.min()
+        mx = data.max()
+        ave = data.mean()
+        std = data.std()
+
+        # Append to internal list
+        self.min.append(mn.values)
+        self.max.append(mx.values)
+        self.mean.append(ave.values)
+        self.std.append(std.values)
+
+        # TODO: McDermott project hack - don't keep this!
+        # Hack for McDermott project to report slope between E and N time series instead of st. dev.
+        # x = data.iloc[:, 1].values
+        # y = data.iloc[:, 2].values
+        # m = calc_slope(x, y)
+        # self.std.append(np.array([m, m, m]))
+
+
+def calc_slope(x, y):
+    """Calculate the slope between two time series."""
+
+    m, b = np.polyfit(x, y, 1)
+
+    return m
+
 
 class StatsOutput(object):
-    """
-    Methods to write statistics from LoggerStats to Excel.
-    """
+    """Class to compile and export logger stats."""
 
     def __init__(self, output_dir=""):
         """Create workbook object and delete initial worksheet (called Sheet)."""
