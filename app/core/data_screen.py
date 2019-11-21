@@ -212,7 +212,6 @@ class DataScreen(object):
         df.iloc[:, 1:] = df.iloc[:, 1:].apply(pd.to_numeric, errors="coerce")
 
         # Apply any unit conversions
-        # TODO: If no cols to process selected should default to all columns
         if len(self.unit_conv_factors) == len(df.columns) - 1:
             try:
                 df.iloc[:, 1:] = np.multiply(df.iloc[:, 1:], self.unit_conv_factors)

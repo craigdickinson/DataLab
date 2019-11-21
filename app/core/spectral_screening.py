@@ -96,7 +96,7 @@ class SpectralScreening(object):
 
         # Export spectrograms to requested file formats
         if self.spect_unfilt.spectrograms:
-            # Set index as dates if used, otherwsie file numbers
+            # Set index as dates if used, otherwise file numbers
             self.spect_unfilt.set_spectrogram_index(dates, file_nums)
             df_dict = self.spect_unfilt.export_spectrograms_data(
                 self.dict_spect_export_formats
@@ -107,7 +107,7 @@ class SpectralScreening(object):
             output_files.extend(self.spect_unfilt.output_files)
 
         if self.spect_filt.spectrograms:
-            # Set index as dates if used, otherwsie file numbers
+            # Set index as dates if used, otherwise file numbers
             self.spect_filt.set_spectrogram_index(dates, file_nums)
 
             # Export
@@ -135,6 +135,7 @@ class Spectrogram(object):
         self.spectrograms = {}
         self.freq = np.array([])
         self.index = np.array([])
+        self.expected_length = 0
 
     # def set_freq(self, n, T):
     #     """
@@ -178,30 +179,51 @@ class Spectrogram(object):
             window = "boxcar"
 
         # Calculate number of segment overlap points - set nperseg to length of sample if not provided
+        n = len(df)
         if nperseg:
             noverlap = nperseg * noverlap // 100
         else:
-            nperseg = len(df)
+            nperseg = n
 
-        # Calculate PSD using Welch method
-        self.freq, psd = calc_psd(
-            data=df.iloc[:, 1:].T.values,
-            fs=fs,
-            window=window,
-            nperseg=nperseg,
-            noverlap=noverlap,
-        )
+        if nperseg <= n:
+            # Calculate PSD using Welch method
+            try:
+                self.freq, psd = calc_psd(
+                    data=df.iloc[:, 1:].T.values,
+                    fs=fs,
+                    window=window,
+                    nperseg=nperseg,
+                    noverlap=noverlap,
+                )
+            except Exception:
+                raise Exception
+        # Sample is too short, can't compute PSD
+        else:
+            # Just in case the first file happens to be too short,
+            # calculate the expected number of zero points to create
+            if self.expected_length == 0:
+                if n % 2 == 0:
+                    self.expected_length = nperseg // 2 + 1
+                else:
+                    self.expected_length = int(nperseg / 2 + 1)
+
+            # Create a dummy row of zeros for the no PSD event
+            dummy_row = np.zeros(self.expected_length)
 
         # Add 2d arrays to dictionary
         for i, channel in enumerate(channels):
             if channel not in self.spectrograms:
                 self.spectrograms[channel] = psd[i]
+                self.expected_length = len(self.freq)
             else:
                 try:
                     self.spectrograms[channel] = np.row_stack(
                         [self.spectrograms[channel], psd[i]]
                     )
                 except:
+                    self.spectrograms[channel] = np.row_stack(
+                        [self.spectrograms[channel], dummy_row]
+                    )
                     msg = (
                         f"Error during spectrograms processing:\n\n"
                         f"Length of sample is {len(df)} which is less than the "
@@ -209,7 +231,9 @@ class Spectrogram(object):
                         f"Set a spectral sample length that does not result in such a "
                         f"short sample data length when processing the tail of a file."
                     )
-                    raise ValueError(msg)
+                    print(f"Spectral screening warning: {msg}")
+                    # TODO: Compile warnings to control object to report to GUI at the end and write to Screening Report
+                    # raise ValueError(msg)
 
     def set_spectrogram_index(self, dates, file_nums):
         """Store all sample start dates if timestamps used, or file numbers if not."""

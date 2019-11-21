@@ -181,25 +181,25 @@ class ProcessingHub(QObject):
 
                 # Ignore file if not of expected length
                 # TODO: Allowing short sample length (revisit)
-                # if data_screen[i].points_per_file[j] == logger.expected_data_points:
-                # if data_screen.points_per_file[j] <= logger.expected_data_points:
-                # STATS SCREENING
-                if data_screen.stats_requested:
-                    stats_screening.file_stats_processing(
-                        df, data_screen, processed_file_num
-                    )
+                # if data_screen.points_per_file[j] == logger.expected_data_points:
+                if data_screen.points_per_file[j] <= logger.expected_data_points:
+                    # STATS SCREENING
+                    if data_screen.stats_requested:
+                        stats_screening.file_stats_processing(
+                            df, data_screen, processed_file_num
+                        )
 
-                # SPECTRAL SCREENING
-                if data_screen.spect_requested:
-                    spect_screening.file_spect_processing(
-                        df, data_screen, processed_file_num
-                    )
+                    # SPECTRAL SCREENING
+                    if data_screen.spect_requested:
+                        spect_screening.file_spect_processing(
+                            df, data_screen, processed_file_num
+                        )
 
-                # RAINFLOW COUNTING
-                # Calculate rainflow counting histogram for each channel in data frame
-                dict_df_col_hists = rainflow_count_data_frame(
-                    dict_df_col_hists, j, df, columns=logger.channel_names
-                )
+                    # RAINFLOW COUNTING
+                    # Calculate rainflow counting histogram for each channel in data frame
+                    dict_df_col_hists = rainflow_count_data_frame(
+                        dict_df_col_hists, j, df, columns=logger.channel_names
+                    )
 
                 file_count += 1
 
