@@ -254,10 +254,10 @@ class AxesPlotData:
         if not df.empty:
             # Plot all stats on selected axes
             if stat == "Combined":
-                mn = df["min"].values.ravel()
-                mx = df["max"].values.ravel()
-                ave = df["mean"].values.ravel()
-                std = df["std"].values.ravel()
+                mn = df["min"].values.flatten()
+                mx = df["max"].values.flatten()
+                ave = df["mean"].values.flatten()
+                std = df["std"].values.flatten()
 
                 label_1 = f"Mean {label}"
                 label_2 = f"Range {label}"
@@ -284,7 +284,7 @@ class AxesPlotData:
                 handles = [line1[0], line2, line3]
             # Plot a single channel stat on selected axes
             else:
-                y = df.values.ravel()
+                y = df.values.flatten()
                 line = ax.plot(
                     t, y, label=label, color=color, ls=linestyle, lw=1, marker=marker
                 )

@@ -145,9 +145,10 @@ class LoggerProperties(QObject):
         self.low_cutoff_freq = 0.05
         self.high_cutoff_freq = 0.5
 
-        # Logger stats and spectral processing flags
+        # Logger screening processing flags
         self.process_stats = True
         self.process_spect = True
+        self.process_rainflow = True
 
         # Interval (in seconds) to process stats and spectral on
         self.stats_interval = 0  # *STATS_INTERVAL
@@ -164,7 +165,6 @@ class LoggerProperties(QObject):
         self.psd_overlap = 50
 
         # Rainflow counting settings
-        self.process_rainflow = True
         self.bin_size = 0.1
 
     def get_filenames(self):

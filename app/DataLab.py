@@ -1,7 +1,7 @@
 __author__ = "Craig Dickinson"
 __program__ = "DataLab"
-__version__ = "2.0.1.10"
-__date__ = "20 November 2019"
+__version__ = "2.0.1.11"
+__date__ = "21 November 2019"
 
 import logging
 import os
@@ -746,7 +746,9 @@ class ProcessingWorker(QtCore.QThread):
         self.processing_hub = processing_hub
 
         # Initialise progress bar
-        self.pb = ProcessingProgressBar(logger_ids=self.processing_hub.control.logger_ids)
+        self.pb = ProcessingProgressBar(
+            logger_ids=self.processing_hub.control.logger_ids
+        )
         self.pb.show()
         self._connect_signals()
 

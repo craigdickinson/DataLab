@@ -751,7 +751,7 @@ class RawDataDashboard(QtWidgets.QWidget):
         srs.tmax = srs.x[-1]
 
         try:
-            srs.y = df[srs.column].values.ravel()
+            srs.y = df[srs.column].values.flatten()
         except KeyError:
             srs.y = []
 
@@ -780,7 +780,7 @@ class RawDataDashboard(QtWidgets.QWidget):
         if len(srs.y) > 0:
             df = pd.DataFrame(srs.y, index=srs.x)
             df_filt = filter_signal(df, srs.low_cutoff, srs.high_cutoff)
-            srs.y_filt = df_filt.values.ravel()
+            srs.y_filt = df_filt.values.flatten()
 
     def rebuild_plots(self):
         """Create time series plots for selected logger channels."""
@@ -1060,7 +1060,7 @@ class RawDataDashboard(QtWidgets.QWidget):
             # f, pxx = signal.welch(df.T, fs=fs)
             # Calculate PSD using Welch method
             f, pxx = calc_psd(
-                data=df.values.ravel(),
+                data=df.values.flatten(),
                 fs=fs,
                 window=window,
                 nperseg=nperseg,

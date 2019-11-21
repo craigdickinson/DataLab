@@ -40,27 +40,36 @@ class ScreeningSetupTab(QtWidgets.QWidget):
         self.processType = QtWidgets.QLabel("-")
         self.lowCutoff = QtWidgets.QLabel("-")
         self.highCutoff = QtWidgets.QLabel("-")
+
+        # Stats settings
         self.processStatsChkBox = QtWidgets.QCheckBox("Include in processing")
         self.processStatsChkBox.setChecked(True)
-        self.statsInterval = QtWidgets.QLabel("-")
-        self.processSpectChkBox = QtWidgets.QCheckBox("Include in processing")
-        self.processSpectChkBox.setChecked(True)
-        self.spectInterval = QtWidgets.QLabel("-")
         self.statsFolder = QtWidgets.QLabel()
-        self.spectFolder = QtWidgets.QLabel()
+        self.statsInterval = QtWidgets.QLabel("-")
         self.statsCSVChkBox = QtWidgets.QCheckBox(".csv")
         self.statsCSVChkBox.setChecked(True)
         self.statsXLSXChkBox = QtWidgets.QCheckBox(".xlsx")
         self.statsH5ChkBox = QtWidgets.QCheckBox(".h5 (fast read/write)")
+
+        # Spectral settings
+        self.processSpectChkBox = QtWidgets.QCheckBox("Include in processing")
+        self.processSpectChkBox.setChecked(True)
+        self.spectFolder = QtWidgets.QLabel()
+        self.spectInterval = QtWidgets.QLabel("-")
+        self.psdNperseg = QtWidgets.QLabel("-")
+        self.psdWindow = QtWidgets.QLabel("-")
+        self.psdOverlap = QtWidgets.QLabel("-")
         self.spectCSVChkBox = QtWidgets.QCheckBox(".csv")
         self.spectCSVChkBox.setChecked(True)
         self.spectXLSXChkBox = QtWidgets.QCheckBox(".xlsx")
         self.spectH5ChkBox = QtWidgets.QCheckBox(".h5 (fast read/write)")
 
-        # PSD parameters
-        self.psdNperseg = QtWidgets.QLabel("-")
-        self.psdWindow = QtWidgets.QLabel("-")
-        self.psdOverlap = QtWidgets.QLabel("-")
+        # Rainflow counting settings
+        self.processRainflowChkBox = QtWidgets.QCheckBox("Include in processing")
+        self.processRainflowChkBox.setChecked(True)
+
+        self.rainflowFolder = QtWidgets.QLabel()
+        self.binSize = QtWidgets.QLabel("-")
 
         # Process range labels
         self.lblProcessStart = QtWidgets.QLabel("Start timestamp:")
@@ -141,6 +150,16 @@ class ScreeningSetupTab(QtWidgets.QWidget):
         self.vbox.addWidget(self.spectXLSXChkBox)
         self.vbox.addWidget(self.spectH5ChkBox)
 
+        # Rainflow settings group
+        self.rainflowGroup = QtWidgets.QGroupBox("Rainflow Cycle Histogram Settings")
+        self.rainflowGroup.setMinimumWidth(250)
+        self.rainflowForm = QtWidgets.QFormLayout(self.rainflowGroup)
+        self.rainflowForm.addRow(self.processRainflowChkBox, QtWidgets.QLabel(""))
+        self.rainflowForm.addRow(
+            QtWidgets.QLabel("Output folder:"), self.rainflowFolder
+        )
+        self.rainflowForm.addRow(QtWidgets.QLabel("Bin size:"), self.binSize)
+
         # LAYOUT
         self.hboxStats = QtWidgets.QHBoxLayout()
         self.hboxStats.setAlignment(QtCore.Qt.AlignLeft)
@@ -161,6 +180,7 @@ class ScreeningSetupTab(QtWidgets.QWidget):
         self.vbox.addWidget(self.filtersGroup)
         self.vbox.addLayout(self.hboxStats)
         self.vbox.addLayout(self.hboxSpect)
+        self.vbox.addWidget(self.rainflowGroup)
         self.vbox.addStretch()
 
         self.hbox = QtWidgets.QHBoxLayout(self)
@@ -491,11 +511,12 @@ class EditScreeningSetupDialog(QtWidgets.QDialog):
         self.psdOverlap.setToolTip("Percentage of points to overlap each PSD segment.")
         self.psdOverlap.setValidator(dbl_validator)
 
-        # Rainflow counting settings
-        self.rainflowFolder = QtWidgets.QLineEdit()
-        self.rainflowFolder.setFixedWidth(210)
+        # Rainflow cycle histogram settings
+        self.histFolder = QtWidgets.QLineEdit()
+        self.histFolder.setFixedWidth(210)
         self.binSize = QtWidgets.QLineEdit()
         self.binSize.setFixedWidth(50)
+        self.binSize.setValidator(dbl_validator)
 
         # Labels
         self.lblCopy = QtWidgets.QLabel("Logger to copy:")
@@ -517,7 +538,7 @@ class EditScreeningSetupDialog(QtWidgets.QDialog):
         self.lblPsdOverlap = QtWidgets.QLabel("Segment overlap (%):")
 
         self.lblRainflowFolder = QtWidgets.QLabel("Output folder:")
-        self.lblBinSize = QtWidgets.QLabel("Rainflow histograms bin size:")
+        self.lblBinSize = QtWidgets.QLabel("Cycle histogram bin size:")
 
         # Set appropriate process start and end input depending on whether filenames include timestamps
         if self.logger.file_timestamp_embedded is True:
@@ -592,11 +613,9 @@ class EditScreeningSetupDialog(QtWidgets.QDialog):
         self.spectForm.addRow(self.lblPsdOverlap, self.psdOverlap)
 
         # Rainflow histograms group
-        self.rainflowGroup = QtWidgets.QGroupBox(
-            "Rainflow Counting Histograms Settings"
-        )
+        self.rainflowGroup = QtWidgets.QGroupBox("Rainflow Cycle Histogram Settings")
         self.rainflowForm = QtWidgets.QFormLayout(self.rainflowGroup)
-        self.rainflowForm.addRow(self.lblRainflowFolder, self.rainflowFolder)
+        self.rainflowForm.addRow(self.lblRainflowFolder, self.histFolder)
         self.rainflowForm.addRow(self.lblBinSize, self.binSize)
 
         self.buttonBox = QtWidgets.QDialogButtonBox(
@@ -697,9 +716,13 @@ class EditScreeningSetupDialog(QtWidgets.QDialog):
         self.psdWindowCombo.setCurrentText(logger.psd_window)
         self.psdOverlap.setText(f"{logger.psd_overlap:.1f}")
 
+        # Rainflow histograms settings
+        self.binSize.setText(str(logger.bin_size))
+
         # Folders - global control settings
         self.statsFolder.setText(self.parent.control.stats_output_folder)
         self.spectFolder.setText(self.parent.control.spect_output_folder)
+        self.histFolder.setText(self.parent.control.hist_output_folder)
 
     def _set_copy_logger_combo(self):
         """Set the copy screening settings combo box with list of available loggers, excluding the current one."""
@@ -911,9 +934,13 @@ class EditScreeningSetupDialog(QtWidgets.QDialog):
         except:
             logger.psd_overlap = 50
 
+        # Rainflow histograms settings
+        logger.bin_size = float(self.binSize.text())
+
         # Output folders - store as global control settings
         self.parent.control.stats_output_folder = self.statsFolder.text()
         self.parent.control.spect_output_folder = self.spectFolder.text()
+        self.parent.control.hist_output_folder = self.histFolder.text()
 
         return logger
 

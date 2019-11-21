@@ -2,6 +2,8 @@
 
 __author__ = "Craig Dickinson"
 
+import os
+
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
@@ -23,7 +25,9 @@ class RawDataRead(object):
 
         # File read properties
         self.file_format = ""
+        self.first_col_data = ""
         self.delim = ""
+        self.datetime_format = ""
         self.header_rows = 0
         self.skip_rows = []
         self.channel_names = []
@@ -43,7 +47,9 @@ class RawDataRead(object):
 
         # Set file read properties
         self.file_format = logger.file_format
+        self.first_col_data = logger.first_col_data
         self.delim = logger.file_delimiter
+        self.datetime_format = logger.datetime_format
         header_row = logger.channel_header_row - 1
         units_row = logger.units_header_row - 1
 
@@ -72,12 +78,7 @@ class RawDataRead(object):
                 skiprows=self.skip_rows,
                 skip_blank_lines=False,
             )
-            # Ensure column names are strings and remove any nan columns (can arise from superfluous delimiters)
-            # TODO: This fails if a multi-index header
-            df.columns = df.columns.astype(str)
-            df = df.dropna(axis=1)
-
-            # TODO: Need to process if column 1 is timestamps
+            df = self.wrangle_data(df, os.path.basename(file))
         elif self.file_format == "Fugro-csv":
             df = read_fugro_csv(file)
         elif self.file_format == "Pulse-acc":
@@ -86,6 +87,54 @@ class RawDataRead(object):
             df = read_2hps2_acc(file, multi_header=True)
         else:
             df = pd.DataFrame()
+
+        return df
+
+    def wrangle_data(self, df, filename):
+        """Format the logger raw data so it is suitable for processing."""
+
+        # Copy to prevent SettingWithCopyWarning
+        df = df.copy()
+
+        # If no header rows set the columns index will be Int64Index so convert to strings
+        if self.header_rows is None:
+            df.columns = df.columns.astype(str)
+
+        # Remove any nan columns (can arise from superfluous delimiters)
+        df = df.dropna(axis=1)
+
+        # Copy time steps column to index
+        # (Can't drop time steps column as need to keep a consistent data frame structure)
+        if self.first_col_data == "Time Step":
+            df.index = df.iloc[:, 0]
+        # Convert first column (should be timestamps string) to datetimes
+        else:
+            try:
+                df.iloc[:, 0] = pd.to_datetime(
+                    df.iloc[:, 0], format=self.datetime_format
+                )
+
+                # Create time stamps index
+                t = (df.iloc[:, 0] - df.iloc[0, 0]).dt.total_seconds().values.round(3)
+                df = df.set_index(t)
+            except ValueError as e:
+                if not isinstance(df.iloc[0, 0], pd.Timestamp):
+                    raise ValueError(
+                        f"Expected the first column of {filename} "
+                        f"to contain dates.\n"
+                        f"The time series appears to use a time step index but the "
+                        f"'First column data' property is set to 'Timestamp'. Change this to 'Time Step'."
+                    )
+                else:
+                    raise ValueError(
+                        f"Could not convert the first column of {filename} "
+                        f"to datetime.\n"
+                        f"Check the 'Data Timestamp' property has the correct format.\n\n<{e}>"
+                    )
+
+        # Convert any non-numeric data to NaN
+        df.iloc[:, 1:] = df.iloc[:, 1:].apply(pd.to_numeric, errors="coerce")
+        df.index.name = "Time (s)"
 
         return df
 
@@ -280,6 +329,6 @@ class SeriesPlotData(object):
         """Store plot series data."""
 
         self.x = df.index.values
-        self.y = df[self.column].values.ravel()
+        self.y = df[self.column].values.flatten()
         self.units = self.channel_units[self.column_i]
         self.timestamps = df.iloc[:, 0].values

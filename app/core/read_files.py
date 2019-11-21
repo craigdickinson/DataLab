@@ -9,6 +9,28 @@ from datetime import datetime, timedelta
 import pandas as pd
 
 
+def read_general_file(
+    file,
+    delim=",",
+    header_rows="infer",
+    skip_rows=None,
+    skip_blank_lines=True,
+    encoding=None,
+):
+    """Read time series (logger) files with custom format settings to data frame."""
+
+    df = pd.read_csv(
+        file,
+        sep=delim,
+        header=header_rows,
+        skiprows=skip_rows,
+        skip_blank_lines=skip_blank_lines,
+        encoding=encoding,
+    )
+
+    return df
+
+
 def read_fugro_csv(file):
     """Raw data module: Read Fugro-csv file to data frame. Index is time steps."""
 

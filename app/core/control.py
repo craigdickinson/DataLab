@@ -68,9 +68,11 @@ class Control(object):
         self.report_output_folder = "Screening Report"
         self.stats_output_folder = "Statistics"
         self.spect_output_folder = "Spectrograms"
+        self.hist_output_folder = "Histograms"
         self.report_output_path = ""
         self.stats_output_path = ""
         self.spect_output_path = ""
+        self.hist_output_path = ""
 
         # Selected stats output file formats
         self.stats_to_csv = True
