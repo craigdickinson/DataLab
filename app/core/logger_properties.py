@@ -408,8 +408,8 @@ class LoggerProperties(QObject):
             channels, units = self.read_column_names_2hps2(test_file, delim, c)
 
         # Assign channels and units list to logger
-        self.all_channel_names = channels
-        self.all_channel_units = units
+        self.all_channel_names = [c.strip() for c in channels]
+        self.all_channel_units = [u.strip() for u in units]
 
         return channels, units
 

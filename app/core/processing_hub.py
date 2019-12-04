@@ -17,6 +17,7 @@ from app.core.data_screen_report import DataScreenReport
 from app.core.rainflow_fatigue import rainflow_count_data_frame
 from app.core.spectral_screening import SpectralScreening
 from app.core.stats_screening import StatsScreening
+from app.core.time_series_integration import IntegrateTimeSeries
 
 prog_info = "Program to perform signal processing on logger data"
 
@@ -81,6 +82,8 @@ class ProcessingHub(QObject):
 
         stats_screening = StatsScreening(self.control)
         spect_screening = SpectralScreening(self.control)
+        data_integration = IntegrateTimeSeries()
+        data_integration.project_path = self.control.project_path
 
         # Create output stats to workbook object
         # stats_out = StatsOutput(output_dir=self.control.stats_output_path)
@@ -178,6 +181,11 @@ class ProcessingHub(QObject):
                 # Data screening module
                 # Perform basic screening checks on file - check file has expected number of data points
                 data_screen.screen_data(file_num=j, df=df)
+
+                # Angular rate conversion
+                convert = True
+                if convert:
+                    data_integration.process_file(file, df)
 
                 # Ignore file if not of expected length
                 # TODO: Allowing short sample length (revisit)

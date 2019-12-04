@@ -524,14 +524,15 @@ class ConfigModule(QtWidgets.QWidget):
         units = logger.all_channel_units
 
         # Populate list widget if channels list is not empty
-        if channels:
-            items = [f"1. {logger.index_col_name}"] + [
-                f"{i + 2}. {c} ({u})" for i, (c, u) in enumerate(zip(channels, units))
-            ]
-            for i in items:
-                item = QtWidgets.QListWidgetItem(i)
-                item.setFlags(item.flags() & ~QtCore.Qt.ItemIsSelectable)
-                self.columnList.addItem(item)
+        items = [f"1. {logger.index_col_name}"]
+        items += [
+            f"{i + 2}. {c}" if u == "-" else f"{i + 2}. {c} ({u})"
+            for i, (c, u) in enumerate(zip(channels, units))
+        ]
+        for i in items:
+            item = QtWidgets.QListWidgetItem(i)
+            item.setFlags(item.flags() & ~QtCore.Qt.ItemIsSelectable)
+            self.columnList.addItem(item)
 
     def _map_setup_objects_to_tabs(self):
         """Update the various project config tab objects with their associated settings objects."""
