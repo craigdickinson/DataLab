@@ -328,8 +328,8 @@ class ScreeningSetupTab(QtWidgets.QWidget):
         self._set_psd_params(logger)
 
         # Output folders
-        self.statsFolder.setText(self.parent.control.stats_output_folder)
-        self.spectFolder.setText(self.parent.control.spect_output_folder)
+        self.statsFolder.setText(self.control.stats_output_folder)
+        self.spectFolder.setText(self.control.spect_output_folder)
 
         # Selected stats file formats to output
         self.statsH5ChkBox.setChecked(self.control.stats_to_h5)
@@ -720,9 +720,9 @@ class EditScreeningSetupDialog(QtWidgets.QDialog):
         self.binSize.setText(str(logger.bin_size))
 
         # Folders - global control settings
-        self.statsFolder.setText(self.parent.control.stats_output_folder)
-        self.spectFolder.setText(self.parent.control.spect_output_folder)
-        self.histFolder.setText(self.parent.control.hist_output_folder)
+        self.statsFolder.setText(self.control.stats_output_folder)
+        self.spectFolder.setText(self.control.spect_output_folder)
+        self.histFolder.setText(self.control.hist_output_folder)
 
     def _set_copy_logger_combo(self):
         """Set the copy screening settings combo box with list of available loggers, excluding the current one."""
@@ -734,6 +734,8 @@ class EditScreeningSetupDialog(QtWidgets.QDialog):
         self.copyLogger.addItems(loggers_to_copy)
 
     def _configure_interval_inputs(self):
+        """Enable/disable screening interval inputs based on whether a time steps index is used."""
+
         if self.logger.enforce_max_duration is True:
             self.statsInterval.setEnabled(False)
             self.spectInterval.setEnabled(False)
@@ -938,9 +940,9 @@ class EditScreeningSetupDialog(QtWidgets.QDialog):
         logger.bin_size = float(self.binSize.text())
 
         # Output folders - store as global control settings
-        self.parent.control.stats_output_folder = self.statsFolder.text()
-        self.parent.control.spect_output_folder = self.spectFolder.text()
-        self.parent.control.hist_output_folder = self.histFolder.text()
+        self.control.stats_output_folder = self.statsFolder.text()
+        self.control.spect_output_folder = self.spectFolder.text()
+        self.control.hist_output_folder = self.histFolder.text()
 
         return logger
 

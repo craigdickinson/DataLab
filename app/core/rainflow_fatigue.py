@@ -23,7 +23,7 @@ def rainflow_count_data_frame(dict_df_col_hists, j, df, columns, bin_size=0.1):
     for col in columns:
         # Get histogram for column i
         y = get_column_series(df, col)
-        lb, ub, binned_cycles = get_hist(y, bin_size=0.01)
+        lb, ub, binned_cycles = get_hist(y, bin_size=0.001)
 
         # Convert to data frame
         df_temp = pd.DataFrame(binned_cycles, index=lb, columns=[f"File {j + 1}"])
@@ -40,7 +40,8 @@ def get_hist(y, bin_size):
 
     ranges, num_cycles = rainflow_counting(y)
 
-    # Use last range to get number of bins required - we add an epsilon to handle case of range equalling bin limit
+    # Use last range to get number of bins required
+    # (add a delta to handle case of range equalling bin limit)
     req_num_bins = np.ceil((ranges[-1] + 1e-9) / bin_size).astype(int)
 
     # Create lbound and ubound bins

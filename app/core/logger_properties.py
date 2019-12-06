@@ -56,9 +56,9 @@ class LoggerProperties(QObject):
 
         # LOGGER PROPERTIES
         # Name and location
-        self.logger_id = logger_id  # *LOGGER_ID
+        self.logger_id = logger_id
         self.data_on_azure = False
-        self.logger_path = ""  # *PATH
+        self.logger_path = ""
 
         # Azure account access settings, container name and blobs list
         self.azure_account_name = ""
@@ -67,28 +67,28 @@ class LoggerProperties(QObject):
         self.blobs = []
 
         # File format variables
-        self.file_format = "Custom"  # *FILE_FORMAT
+        self.file_format = "Custom"
         self.file_timestamp_embedded = True
-        self.file_timestamp_format = ""  # *FILE_TIMESTAMP
+        self.file_timestamp_format = ""
         self.first_col_data = "Timestamp"
-        self.file_ext = ""  # *EXTENSION
-        self.file_delimiter = ","  # *DELIMITER
+        self.file_ext = ""
+        self.file_delimiter = ","
 
         # Number of rows/columns expected
-        self.num_headers = 0  # *NUM_HEADERS
-        self.num_columns = 0  # *NUM_COLUMNS
+        self.num_headers = 0
+        self.num_columns = 0
 
         # Header row numbers. Note 1-indexed!
-        self.channel_header_row = 0  # *CHANNEL_HEADER
-        self.units_header_row = 0  # *UNITS_HEADER
+        self.channel_header_row = 0
+        self.units_header_row = 0
 
         # Logging data properties
-        self.timestamp_format = ""  # *TIMESTAMP
+        self.timestamp_format = ""
 
         # Datetime format string to convert timestamp strings to datetimes, e.g. %d-%b-%Y %H:%M:%S.%f
         self.datetime_format = ""
-        self.freq = 0  # *LOGGING_FREQUENCY
-        self.duration = 0  # *LOGGING_DURATION
+        self.freq = 0
+        self.duration = 0
         self.expected_data_points = 0
 
         # Store index column name of raw files (to report in the channels list widget on the config dashboard)
@@ -131,12 +131,12 @@ class LoggerProperties(QObject):
         self.channel_units = []
 
         # Custom channel names and units
-        self.user_channel_names = []  # *CHANNEL_NAMES
-        self.user_channel_units = []  # *CHANNEL_UNITS
+        self.user_channel_names = []
+        self.user_channel_units = []
 
         # Datetime or file index range to process over
-        self.process_start = None  # *STATS_START
-        self.process_end = None  # *STATS_END
+        self.process_start = None
+        self.process_end = None
 
         # Data type to screen on (unfiltered only, filtered only, both unfiltered and filtered)
         self.process_type = "Both unfiltered and filtered"
@@ -151,7 +151,7 @@ class LoggerProperties(QObject):
         self.process_rainflow = True
 
         # Interval (in seconds) to process stats and spectral on
-        self.stats_interval = 0  # *STATS_INTERVAL
+        self.stats_interval = 0
         self.spect_interval = 0
 
         # Flag to force maximum interval length (i.e. file length) if file format is Custom format
@@ -166,6 +166,16 @@ class LoggerProperties(QObject):
 
         # Rainflow counting settings
         self.bin_size = 0.1
+
+        # TIME SERIES INTEGRATION PROPERTIES
+        self.process_integration = False
+        self.acc_x_col = ""
+        self.acc_y_col = ""
+        self.acc_z_col = ""
+        self.ang_rate_x_col = ""
+        self.ang_rate_y_col = ""
+        self.ang_rate_z_col = ""
+        self.apply_gcorr = True
 
     def get_filenames(self):
         """Read all file timestamps and check that they conform to the specified format."""
@@ -407,9 +417,9 @@ class LoggerProperties(QObject):
         elif file_format == "2HPS2-acc":
             channels, units = self.read_column_names_2hps2(test_file, delim, c)
 
-        # Assign channels and units list to logger
-        self.all_channel_names = [c.strip() for c in channels]
-        self.all_channel_units = [u.strip() for u in units]
+        # Assign channels and units list to logger - encode and decode to handle ascii characters
+        self.all_channel_names = [c.strip().encode("latin1").decode() for c in channels]
+        self.all_channel_units = [u.strip().encode("latin1").decode() for u in units]
 
         return channels, units
 
@@ -632,92 +642,3 @@ class LoggerProperties(QObject):
                 f"channels to process ({m}) for {self.logger_id}."
             )
             raise LoggerError(msg)
-
-    def check_header_specification(self):
-        """
-        DEPRECATED DAT ROUTINE - TO DELETE
-        Check that user has provided either the channel/units header row or user channel and unit names.
-        """
-
-        # Check something has been entered for channel names
-        if self.channel_header_row == 0 and len(self.user_channel_names) == 0:
-            msg = (
-                f"Either the channel header row or user-defined channel names"
-                f"must be specified for {self.logger_id}."
-            )
-            raise LoggerError(msg)
-
-        # Check something has been entered for units
-        # if self.units_header_row == 0 and len(self.user_channel_units) == 0:
-        #     msg = f"Either the units header row or user-defined channel units" \
-        #         f"must be specified for {self.logger_id}."
-        #     raise LoggerError(msg)
-
-    def detect_requested_channels_and_units(self, test_file):
-        """
-        DEPRECATED DAT ROUTINE - TO DELETE
-        Detect number of columns and channel names/units from headers of logger file.
-        """
-
-        file_path = os.path.join(self.logger_path, test_file)
-        delim = self.file_delimiter
-
-        # Get headers and first line of data
-        with open(file_path) as f:
-            header_lines = [
-                f.readline().strip().split(delim) for _ in range(self.num_headers)
-            ]
-            first_row = f.readline().strip().split(delim)
-
-        # Rows/cols to process
-        last_stats_col = max(self.cols_to_process)
-        c = self.channel_header_row
-        u = self.units_header_row
-
-        # Check requested columns make sense
-        # Error message to raise if *STATS_COLUMNS doesn't make sense
-        msg = "Error in *STATS_COLUMNS for logger " + self.logger_id
-        msg += "\n Number of columns in first file is less than " + str(last_stats_col)
-        msg += "\n File: " + test_file
-
-        # TODO: Sort this out for topside data where not all columns are present
-        # Check we have at least one full row of data
-        if last_stats_col > len(first_row):
-            raise LoggerError(msg)
-
-        # Get headers for the columns to be processed
-        if c > 0:
-            header = header_lines[c - 1]
-
-            # TODO: Sort this out for topside data where not all columns are present
-            # Check number of columns in header row is sufficient
-            if last_stats_col > len(header):
-                raise LoggerError(msg)
-
-            # TODO: Issue here if first file doesn't have all columns
-            # Keep headers requested
-            self.channel_names = [header[i - 1] for i in self.cols_to_process]
-
-        # Get units for the columns to be processed
-        if u > 0:
-            units = header_lines[u - 1]
-
-            # TODO: Sort this out for topside data where not all columns are present
-            # Check number of columns in units row is sufficient
-            if last_stats_col > len(units):
-                raise LoggerError(msg)
-
-            # TODO: Issue here if first file doesn't have all columns
-            # Keep headers requested
-            self.channel_units = [units[i - 1] for i in self.cols_to_process]
-
-    def check_for_user_headers(self):
-        """
-        DEPRECATED DAT ROUTINE - TO DELETE
-        Assign user-defined channel names and units to logger if supplied.
-        """
-
-        if len(self.user_channel_names) > 0:
-            self.channel_names = self.user_channel_names
-        if len(self.user_channel_units) > 0:
-            self.channel_units = self.user_channel_units

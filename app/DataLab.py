@@ -1,7 +1,7 @@
 __author__ = "Craig Dickinson"
 __program__ = "DataLab"
-__version__ = "2.0.1.14"
-__date__ = "4 December 2019"
+__version__ = "2.0.1.15"
+__date__ = "5 December 2019"
 
 import logging
 import os
@@ -815,7 +815,7 @@ def run_datalab():
     win = DataLab()
     # filepath = r"C:\Users\dickinsc\PycharmProjects\DataLab\demo_data\2. Project Configs\Project 21239\21239b_Total_WoS_Config.json"
     # filepath = r"C:\Users\dickinsc\PycharmProjects\DataLab\demo_data\2. Project Configs\Test A\21239_Project_A_Config.json"
-    filepath = r"C:\Users\dickinsc\PycharmProjects\DataLab\demo_data\2. Project Configs\Project 21368 - Dhaval\21368_Dhaval2_Config.json"
+    filepath = r"C:\Users\dickinsc\PycharmProjects\DataLab\demo_data\2. Project Configs\Project 21368 - Dhaval\21368_Dhaval_Config.json"
     win.projConfigModule.load_config_file(filepath)
     win.show()
     sys.exit(app.exec_())

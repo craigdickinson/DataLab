@@ -50,10 +50,12 @@ class Control(object):
         self.stats_output_folder = "Statistics"
         self.spect_output_folder = "Spectrograms"
         self.hist_output_folder = "Histograms"
+        self.integration_output_folder = "Displacements and Angles"
         self.report_output_path = ""
         self.stats_output_path = ""
         self.spect_output_path = ""
         self.hist_output_path = ""
+        self.integration_output_path = ""
 
         # Selected stats output file formats
         self.stats_to_csv = True
@@ -73,7 +75,7 @@ class Control(object):
         self.logger_ids_upper = []
 
         # List of logger objects from LoggerProperties class
-        # Each logger object will contain the majority of input parameters
+        # Each logger object will contain the majority of the setup information
         self.loggers = []
 
     def set_up_output_folders(self):

@@ -33,6 +33,7 @@ from app.core.file_props_pulse_acc import (
 from app.core.logger_properties import LoggerError, LoggerProperties
 from app.core.project_config import ProjectConfigJSONFile
 from app.views.screening_setup_view import ScreeningSetupTab
+from app.views.time_series_integration_view import TimeSeriesIntegrationSetupTab
 
 # Module variables: Logger properties lists and dictionaries
 delims_gui_to_logger = {"comma": ",", "space": " ", "tab": "\t"}
@@ -114,11 +115,12 @@ class ConfigModule(QtWidgets.QWidget):
         self.spacer = QtWidgets.QSpacerItem(1, 20)
 
         # Config tab widgets
-        self.generalTab = GeneralTab(self, self.control)
-        self.loggerPropsTab = LoggerPropertiesTab(self, self.control)
-        self.screeningTab = ScreeningSetupTab(self, self.control)
-        self.scatterTab = SeascatterTab(self, self.control, self.scatter)
-        self.tfSettingsTab = TransferFunctionsTab(self, self.tf)
+        self.generalTab = GeneralTab(self)
+        self.loggerPropsTab = LoggerPropertiesTab(self)
+        self.screeningTab = ScreeningSetupTab(self)
+        self.integrationTab = TimeSeriesIntegrationSetupTab(self)
+        self.scatterTab = SeascatterTab(self)
+        self.tfSettingsTab = TransferFunctionsTab(self)
 
         # CONTAINERS
         # Config buttons container
@@ -147,6 +149,7 @@ class ConfigModule(QtWidgets.QWidget):
         self.setupTabs.addTab(self.generalTab, "Project Details")
         self.setupTabs.addTab(self.loggerPropsTab, "Logger File Properties")
         self.setupTabs.addTab(self.screeningTab, "Screening Setup")
+        self.setupTabs.addTab(self.integrationTab, "Conversion Setup")
         self.setupTabs.addTab(self.scatterTab, "Sea Scatter Setup")
         self.setupTabs.addTab(self.tfSettingsTab, "Transfer Functions Setup")
 
@@ -429,16 +432,10 @@ class ConfigModule(QtWidgets.QWidget):
         self.parent.rawDataModule.update_dateset_name(i, new_logger_id)
 
     def on_stats_screen_toggled(self):
-        if self.statsScreenChkBox.isChecked():
-            self.control.global_process_stats = True
-        else:
-            self.control.global_process_stats = False
+        self.control.global_process_stats = self.statsScreenChkBox.isChecked()
 
     def on_spect_screen_toggled(self):
-        if self.spectScreenChkBox.isChecked():
-            self.control.global_process_spect = True
-        else:
-            self.control.global_process_spect = False
+        self.control.global_process_spect = self.spectScreenChkBox.isChecked()
 
     def on_process_screening_clicked(self):
         self.parent.process_screening()
@@ -540,6 +537,7 @@ class ConfigModule(QtWidgets.QWidget):
         self.generalTab.control = self.control
         self.loggerPropsTab.control = self.control
         self.screeningTab.control = self.control
+        self.integrationTab.control = self.control
         self.scatterTab.control = self.control
         self.scatterTab.scatter = self.scatter
         self.tfSettingsTab.tf = self.tf
@@ -585,6 +583,7 @@ class ConfigModule(QtWidgets.QWidget):
             logger = self.control.loggers[0]
             self.loggerPropsTab.set_logger_dashboard(logger)
             self.screeningTab.set_analysis_dashboard(logger)
+            self.integrationTab.set_analysis_dashboard(logger)
 
             # Add logger ids to raw data module dataset combo box and plot first file if exists
             self.parent.rawDataModule.add_datasets(self.control)
@@ -604,11 +603,11 @@ class ConfigModule(QtWidgets.QWidget):
 class GeneralTab(QtWidgets.QWidget):
     """GUI screen to control project setup."""
 
-    def __init__(self, parent=None, control=Control()):
+    def __init__(self, parent=None):
         super(GeneralTab, self).__init__(parent)
 
         self.parent = parent
-        self.control = control
+        self.control = Control()
         self._init_ui()
         self._connect_signals()
 
@@ -798,11 +797,11 @@ class EditGeneralDialog(QtWidgets.QDialog):
 class LoggerPropertiesTab(QtWidgets.QWidget):
     """Widget tabs for logger properties and analysis settings."""
 
-    def __init__(self, parent=None, control=Control()):
+    def __init__(self, parent=None):
         super(LoggerPropertiesTab, self).__init__(parent)
 
         self.parent = parent
-        self.control = control
+        self.control = Control()
         self._init_ui()
         self._connect_signals()
 
@@ -1701,12 +1700,12 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
 class SeascatterTab(QtWidgets.QWidget):
     """Tab to display transfer functions settings."""
 
-    def __init__(self, parent=None, control=Control(), scatter=Seascatter()):
+    def __init__(self, parent=None):
         super(SeascatterTab, self).__init__(parent)
 
         self.parent = parent
-        self.control = control
-        self.scatter = scatter
+        self.control = Control()
+        self.scatter = Seascatter()
         self._init_ui()
         self._connect_signals()
 
@@ -1880,11 +1879,11 @@ class EditSeascatterDialog(QtWidgets.QDialog):
 class TransferFunctionsTab(QtWidgets.QWidget):
     """Tab to display transfer functions settings."""
 
-    def __init__(self, parent=None, tf=TransferFunctions()):
+    def __init__(self, parent=None):
         super(TransferFunctionsTab, self).__init__(parent)
 
         self.parent = parent
-        self.tf = tf
+        self.tf = TransferFunctions()
         self._init_ui()
         self._connect_signals()
 

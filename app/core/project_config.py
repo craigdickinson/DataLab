@@ -127,6 +127,12 @@ class ProjectConfigJSONFile(QObject):
             key="spectral_folder",
             attr=control.spect_output_folder,
         )
+        control.integration_output_folder = self._get_key_value(
+            section=key,
+            data=data,
+            key="integration_folder",
+            attr=control.integration_output_folder,
+        )
         control.stats_to_h5 = self._get_key_value(
             section=key, data=data, key="stats_to_h5", attr=control.stats_to_h5
         )
@@ -201,6 +207,9 @@ class ProjectConfigJSONFile(QObject):
 
             # Logger screening settings
             logger = self._map_logger_screening_settings(logger, dict_logger)
+
+            # Logger time series integration settings
+            logger = self._map_logger_conversion_settings(logger, dict_logger)
 
             # Map Azure account settings (if any) to logger
             logger.azure_account_name = control.azure_account_name
@@ -471,6 +480,60 @@ class ProjectConfigJSONFile(QObject):
 
         return logger
 
+    def _map_logger_conversion_settings(self, logger, dict_logger):
+        """Retrieve logger conversion settings from JSON dictionary and map to logger object."""
+
+        logger.process_integration = self._get_key_value(
+            section=logger.logger_id,
+            data=dict_logger,
+            key="process_integration",
+            attr=logger.process_integration,
+        )
+        logger.acc_x_col = self._get_key_value(
+            section=logger.logger_id,
+            data=dict_logger,
+            key="conv_acc_x",
+            attr=logger.acc_x_col,
+        )
+        logger.acc_y_col = self._get_key_value(
+            section=logger.logger_id,
+            data=dict_logger,
+            key="conv_acc_y",
+            attr=logger.acc_y_col,
+        )
+        logger.acc_z_col = self._get_key_value(
+            section=logger.logger_id,
+            data=dict_logger,
+            key="conv_acc_z",
+            attr=logger.acc_z_col,
+        )
+        logger.ang_rate_x_col = self._get_key_value(
+            section=logger.logger_id,
+            data=dict_logger,
+            key="conv_ang_rate_x",
+            attr=logger.ang_rate_x_col,
+        )
+        logger.ang_rate_y_col = self._get_key_value(
+            section=logger.logger_id,
+            data=dict_logger,
+            key="conv_ang_rate_y",
+            attr=logger.ang_rate_y_col,
+        )
+        logger.ang_rate_z_col = self._get_key_value(
+            section=logger.logger_id,
+            data=dict_logger,
+            key="conv_ang_rate_z",
+            attr=logger.ang_rate_z_col,
+        )
+        logger.apply_gcorr = self._get_key_value(
+            section=logger.logger_id,
+            data=dict_logger,
+            key="apply_gravity_correction",
+            attr=logger.apply_gcorr,
+        )
+
+        return logger
+
     def _map_seascatter_dict(self, data, scatter):
         """Map the seascatter settings section to the transfer function object."""
 
@@ -568,6 +631,7 @@ class ProjectConfigJSONFile(QObject):
         d["global_process_spectral"] = control.global_process_spect
         d["stats_folder"] = control.stats_output_folder
         d["spectral_folder"] = control.spect_output_folder
+        d["integration_folder"] = control.integration_output_folder
         d["stats_to_h5"] = control.stats_to_h5
         d["stats_to_csv"] = control.stats_to_csv
         d["stats_to_xlsx"] = control.stats_to_xlsx
@@ -593,6 +657,9 @@ class ProjectConfigJSONFile(QObject):
 
             # Add logger stats and spectral settings
             dict_props = self._add_logger_screening_settings(logger, dict_props)
+
+            # Add logger stats and spectral settings
+            dict_props = self._add_logger_conversion_settings(logger, dict_props)
 
             # Add logger props dictionary to loggers dictionary
             self.data["loggers"][logger.logger_id] = dict_props
@@ -677,6 +744,22 @@ class ProjectConfigJSONFile(QObject):
         dict_props["psd_num_points_per_segment"] = logger.psd_nperseg
         dict_props["psd_window"] = logger.psd_window
         dict_props["psd_overlap"] = logger.psd_overlap
+
+        return dict_props
+
+    @staticmethod
+    def _add_logger_conversion_settings(logger, dict_props):
+        """Add control object logger conversion settings to JSON dictionary."""
+
+        # Processed columns group
+        dict_props["process_integration"] = logger.process_integration
+        dict_props["conv_acc_x"] = logger.acc_x_col
+        dict_props["conv_acc_y"] = logger.acc_y_col
+        dict_props["conv_acc_z"] = logger.acc_z_col
+        dict_props["conv_ang_rate_x"] = logger.ang_rate_x_col
+        dict_props["conv_ang_rate_y"] = logger.ang_rate_y_col
+        dict_props["conv_ang_rate_z"] = logger.ang_rate_z_col
+        dict_props["apply_gravity_correction"] = logger.apply_gcorr
 
         return dict_props
 
