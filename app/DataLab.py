@@ -1,7 +1,7 @@
 __author__ = "Craig Dickinson"
 __program__ = "DataLab"
-__version__ = "2.0.1.15"
-__date__ = "5 December 2019"
+__version__ = "2.0.1.16"
+__date__ = "13 December 2019"
 
 import logging
 import os
@@ -565,7 +565,7 @@ class DataLab(DataLabGui):
             logger.logger_warning_signal.connect(self.warning)
 
             # Set processed channel names and units as user values, if supplied, or file header values
-            logger.set_processed_columns()
+            logger.select_columns_to_process()
 
             # Check number of headers match number of columns to process
             logger.check_headers()

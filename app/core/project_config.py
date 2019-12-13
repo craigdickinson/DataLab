@@ -208,6 +208,9 @@ class ProjectConfigJSONFile(QObject):
             # Logger screening settings
             logger = self._map_logger_screening_settings(logger, dict_logger)
 
+            # Logger histogram settings
+            logger = self._map_logger_histogram_settings(logger, dict_logger)
+
             # Logger time series integration settings
             logger = self._map_logger_conversion_settings(logger, dict_logger)
 
@@ -480,6 +483,24 @@ class ProjectConfigJSONFile(QObject):
 
         return logger
 
+    def _map_logger_histogram_settings(self, logger, dict_logger):
+        """Retrieve logger rainflow histogram settings from JSON dictionary and map to logger object."""
+
+        logger.process_histograms = self._get_key_value(
+            section=logger.logger_id,
+            data=dict_logger,
+            key="process_histograms",
+            attr=logger.process_histograms,
+        )
+        logger.bin_size = self._get_key_value(
+            section=logger.logger_id,
+            data=dict_logger,
+            key="bin_size",
+            attr=logger.bin_size,
+        )
+
+        return logger
+
     def _map_logger_conversion_settings(self, logger, dict_logger):
         """Retrieve logger conversion settings from JSON dictionary and map to logger object."""
 
@@ -658,7 +679,10 @@ class ProjectConfigJSONFile(QObject):
             # Add logger stats and spectral settings
             dict_props = self._add_logger_screening_settings(logger, dict_props)
 
-            # Add logger stats and spectral settings
+            # Add logger histogram settings
+            dict_props = self._add_logger_histogram_settings(logger, dict_props)
+
+            # Add logger conversion settings
             dict_props = self._add_logger_conversion_settings(logger, dict_props)
 
             # Add logger props dictionary to loggers dictionary
@@ -748,10 +772,18 @@ class ProjectConfigJSONFile(QObject):
         return dict_props
 
     @staticmethod
+    def _add_logger_histogram_settings(logger, dict_props):
+        """Add control object logger histogram settings to JSON dictionary."""
+
+        dict_props["process_histograms"] = logger.process_histograms
+        dict_props["bin_size"] = logger.bin_size
+
+        return dict_props
+
+    @staticmethod
     def _add_logger_conversion_settings(logger, dict_props):
         """Add control object logger conversion settings to JSON dictionary."""
 
-        # Processed columns group
         dict_props["process_integration"] = logger.process_integration
         dict_props["conv_acc_x"] = logger.acc_x_col
         dict_props["conv_acc_y"] = logger.acc_y_col

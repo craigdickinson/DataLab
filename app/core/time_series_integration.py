@@ -1,4 +1,4 @@
-"""Time series integration in frequency domain class."""
+"""Time series integration in frequency domain module."""
 
 __author__ = "Craig Dickinson"
 
@@ -8,68 +8,164 @@ import os.path
 
 
 class IntegrateTimeSeries(object):
-    def __init__(self):
-        self.project_path = ""
+    def __init__(self, project_path=""):
+        self.project_path = project_path
+        self.acc_x_col = "-"
+        self.acc_y_col = "-"
+        self.acc_z_col = "-"
+        self.ang_rate_x_col = "-"
+        self.ang_rate_y_col = "-"
+        self.ang_rate_z_col = "-"
+        self.apply_g_correction = True
+
+    def set_logger(self, logger):
+        """Store conversion settings for logger."""
+
+        self.acc_x_col = logger.acc_x_col
+        self.acc_y_col = logger.acc_y_col
+        self.acc_z_col = logger.acc_z_col
+        self.ang_rate_x_col = logger.ang_rate_x_col
+        self.ang_rate_y_col = logger.ang_rate_y_col
+        self.ang_rate_z_col = logger.ang_rate_z_col
+        self.apply_g_correction = logger.apply_gcorr
 
     def process_file(self, file, df):
+        """Convert data frame accelerations to displacements and angular rates to angles on and export to csv."""
+
+        angles_data = []
+        angle_cols = []
+        disps_data = []
+        disp_cols = []
+        angles_x = None
+        angles_y = None
+        angles_z = None
         idx = df.iloc[:, 0]
-        cols = df.columns[1:]
 
         if isinstance(idx[0], pd.Timestamp):
             dt = (idx[1] - idx[0]).total_seconds()
         else:
             dt = idx[1] - idx[0]
 
-        angle_data = []
-        for col in cols:
-            angle_ts = self.angular_rate_to_angle(df[col], dt)
-            angle_data.append(angle_ts)
+        int_transform = integration_transform(len(df), dt)
 
-        df_int = pd.DataFrame(np.array(angle_data).T, index=idx, columns=cols)
+        # Convert angular rate columns to angles
+        # (We calculate angles first as need angles for gravity decontamination of displacements)
+        if self.ang_rate_x_col != "-":
+            angle_cols.append("Angle X (deg)")
+            ang_rates = df[self.ang_rate_x_col].values
+            angles_x = angular_rate_to_angle(ang_rates, int_transform)
+            angles_data.append(angles_x)
 
-        filename = os.path.basename(file)
-        filename, ext = os.path.splitext(filename)
+        if self.ang_rate_y_col != "-":
+            angle_cols.append("Angle Y (deg)")
+            ang_rates = df[self.ang_rate_y_col].values
+            angles_y = angular_rate_to_angle(ang_rates, int_transform)
+            angles_data.append(angles_y)
 
-        # Extract logger folder
-        folder = os.path.split(os.path.dirname(file))[-1]
-        path_to_file = os.path.join(self.project_path, "Angle Conversion", folder)
-        self._ensure_dir_exists(path_to_file)
+        if self.ang_rate_z_col != "-":
+            angle_cols.append("Angle Z (deg)")
+            ang_rates = df[self.ang_rate_z_col].values
+            angles_z = angular_rate_to_angle(ang_rates, int_transform)
+            angles_data.append(angles_z)
 
-        filename += "_Angle" + ext
-        filepath = os.path.join(path_to_file, filename)
-        df_int.to_csv(filepath)
+        # Convert acceleration columns to displacements (with optional gravity decontamination)
+        if self.acc_x_col != "-":
+            disp_cols.append("Displacement X (m)")
+            accels = df[self.acc_x_col].values
+            disps = accel_to_disp(
+                accels, int_transform, self.apply_g_correction, angles_x
+            )
+            disps_data.append(disps)
 
-    @staticmethod
-    def _ensure_dir_exists(directory):
-        """Create directory (and intermediate directories) if do not exist."""
+        if self.acc_y_col != "-":
+            disp_cols.append("Displacement Y (m)")
+            accels = df[self.acc_y_col].values
+            disps = accel_to_disp(
+                accels, int_transform, self.apply_g_correction, angles_y
+            )
+            disps_data.append(disps)
 
-        if directory != "" and os.path.exists(directory) is False:
-            os.makedirs(directory)
+        if self.acc_z_col != "-":
+            disp_cols.append("Displacement Z (m)")
+            accels = df[self.acc_z_col].values
+            disps = accel_to_disp(
+                accels, int_transform, self.apply_g_correction, angles_z, z_comp=True
+            )
+            disps_data.append(disps)
 
-    def angular_rate_to_angle(self, ang_rate_ts, dt):
-        """Convert angular rate to angle through single integration in frequency domain."""
+        # Compile new data frame if at least one column converted
+        data = disps_data + angles_data
+        cols = disp_cols + angle_cols
+        if cols:
+            df_int = pd.DataFrame(np.array(data).T, index=idx, columns=cols)
 
-        # FFT signal
-        fft = np.fft.fft(ang_rate_ts)
-        f = np.fft.fftfreq(len(ang_rate_ts), dt)
+            filename = os.path.basename(file)
+            filename, ext = os.path.splitext(filename)
+            filename += "_Converted" + ext
 
-        # Get integration transform
-        int_transform = integration_transform(f)
-
-        # Integrate in frequency domain
-        fft = fft * int_transform
-
-        # Inverse FFT to get angles
-        angle_ts = np.fft.ifft(fft).real
-
-        return angle_ts
-
-    def acceleration_to_displacement(self, apply_g_correction=False):
-        pass
+            # Extract logger folder
+            folder = os.path.split(os.path.dirname(file))[-1]
+            path_to_file = os.path.join(
+                self.project_path, "Displacements and Angles", folder
+            )
+            ensure_dir_exists(path_to_file)
+            filepath = os.path.join(path_to_file, filename)
+            df_int.to_csv(filepath)
 
 
-def integration_transform(f):
+def ensure_dir_exists(directory):
+    """Create directory (and intermediate directories) if do not exist."""
+
+    if directory != "" and os.path.exists(directory) is False:
+        os.makedirs(directory)
+
+
+def integration_transform(n, d):
+    """Calculate the integration transform: 1/(i*2pi*f)."""
+
+    f = np.fft.fftfreq(n, d)
     int_transform = 1 / (1j * 2 * np.pi * f[1:])
     int_transform = np.insert(int_transform, 0, 1)
 
     return int_transform
+
+
+def angular_rate_to_angle(ang_rates, int_transform):
+    """Convert angular rates to angles through single integration in frequency domain."""
+
+    # FFT signal
+    fft = np.fft.fft(ang_rates)
+
+    # Integrate in frequency domain
+    fft = fft * int_transform
+
+    # Inverse FFT to get angles
+    angles = np.fft.ifft(fft).real
+
+    return angles
+
+
+def accel_to_disp(
+    accels, int_transform, apply_g_correction=False, angles=None, z_comp=False
+):
+    """Convert accelerations to displacements through single integration in frequency domain."""
+
+    # FFT signal
+    fft = np.fft.fft(accels)
+
+    # Double integrate in frequency domain
+    fft = fft * int_transform ** 2
+
+    # Inverse FFT to get displacements
+    disps = np.fft.ifft(fft).real
+
+    # Remove gravity contamination if requested
+    if apply_g_correction:
+        g = 9.807
+
+        if z_comp:
+            disps -= g * np.sin(np.radians(angles))
+        else:
+            disps -= g * np.cos(np.radians(angles))
+
+    return disps

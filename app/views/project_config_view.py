@@ -288,6 +288,7 @@ class ConfigModule(QtWidgets.QWidget):
         self.generalTab.clear_dashboard()
         self.loggerPropsTab.clear_dashboard()
         self.screeningTab.clear_dashboard()
+        self.integrationTab.clear_dashboard()
         self.scatterTab.clear_dashboard()
         self.tfSettingsTab.clear_dashboard()
 
@@ -338,6 +339,7 @@ class ConfigModule(QtWidgets.QWidget):
         # Initialise dashboard layouts
         self.loggerPropsTab.set_logger_dashboard(logger)
         self.screeningTab.set_analysis_dashboard(logger)
+        self.integrationTab.set_analysis_dashboard(logger)
 
         # Select logger properties tab and open edit dialog
         self.setupTabs.setCurrentWidget(self.loggerPropsTab)
@@ -383,6 +385,7 @@ class ConfigModule(QtWidgets.QWidget):
                 self.columnList.clear()
                 self.loggerPropsTab.clear_dashboard()
                 self.screeningTab.clear_dashboard()
+                self.integrationTab.clear_dashboard()
                 self.scatterTab.clear_dashboard()
 
     def on_logger_selected(self):
@@ -405,6 +408,7 @@ class ConfigModule(QtWidgets.QWidget):
         logger = self.control.loggers[i]
         self.loggerPropsTab.set_logger_dashboard(logger)
         self.screeningTab.set_analysis_dashboard(logger)
+        self.integrationTab.set_analysis_dashboard(logger)
         self.set_logger_columns_list(logger)
 
     def on_logger_item_edited(self):
@@ -531,17 +535,6 @@ class ConfigModule(QtWidgets.QWidget):
             item.setFlags(item.flags() & ~QtCore.Qt.ItemIsSelectable)
             self.columnList.addItem(item)
 
-    def _map_setup_objects_to_tabs(self):
-        """Update the various project config tab objects with their associated settings objects."""
-
-        self.generalTab.control = self.control
-        self.loggerPropsTab.control = self.control
-        self.screeningTab.control = self.control
-        self.integrationTab.control = self.control
-        self.scatterTab.control = self.control
-        self.scatterTab.scatter = self.scatter
-        self.tfSettingsTab.tf = self.tf
-
     def _set_dashboards_on_load_config(self):
         """Set dashboard values with data in setup objects after loading JSON file."""
 
@@ -593,6 +586,17 @@ class ConfigModule(QtWidgets.QWidget):
 
         # Set transfer functions dashboard
         self.tfSettingsTab.set_tf_dashboard()
+
+    def _map_setup_objects_to_tabs(self):
+        """Update the various project config tab objects with their associated settings objects."""
+
+        self.generalTab.control = self.control
+        self.loggerPropsTab.control = self.control
+        self.screeningTab.control = self.control
+        self.integrationTab.control = self.control
+        self.scatterTab.control = self.control
+        self.scatterTab.scatter = self.scatter
+        self.tfSettingsTab.tf = self.tf
 
     @pyqtSlot(str)
     def warning(self, msg):

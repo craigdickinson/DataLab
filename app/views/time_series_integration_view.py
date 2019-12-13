@@ -115,7 +115,7 @@ class TimeSeriesIntegrationSetupTab(QtWidgets.QWidget):
         self.logger = logger
 
         # Process check state
-        self.processChkBox.setChecked(logger.process_stats)
+        self.processChkBox.setChecked(logger.process_integration)
 
         # Columns
         self.accXCol.setText(logger.acc_x_col)

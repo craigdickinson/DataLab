@@ -119,7 +119,12 @@ class LoggerProperties(QObject):
         self.sec_span = None
         self.ms_span = None
 
-        # SCREENING PROPERTIES
+        # Flag to force maximum interval length (i.e. file length) if file format is Custom format
+        # with raw files containing a time steps index;
+        # this is to ensure results files contain a unique file number index
+        self.enforce_max_duration = False
+
+        # GENERAL SCREENING SETTINGS
         # Channel columns to process
         self.cols_to_process = []
 
@@ -145,36 +150,31 @@ class LoggerProperties(QObject):
         self.low_cutoff_freq = 0.05
         self.high_cutoff_freq = 0.5
 
-        # Logger screening processing flags
+        # STATS SCREENING SETTINGS
         self.process_stats = True
-        self.process_spect = True
-        self.process_rainflow = True
-
-        # Interval (in seconds) to process stats and spectral on
         self.stats_interval = 0
+
+        # SPECTRAL SCREENING SETTINGS
+        self.process_spect = True
         self.spect_interval = 0
 
-        # Flag to force maximum interval length (i.e. file length) if file format is Custom format
-        # with raw files containing a time steps index;
-        # this is to ensure results files contain a unique file number index
-        self.enforce_max_duration = False
-
-        # Spectral screening - PSD parameters
+        # PSD parameters
         self.psd_nperseg = 1000
         self.psd_window = "Hann"
         self.psd_overlap = 50
 
-        # Rainflow counting settings
+        # RAINFLOW HISTOGRAM SETTINGS
+        self.process_histograms = True
         self.bin_size = 0.1
 
         # TIME SERIES INTEGRATION PROPERTIES
         self.process_integration = False
-        self.acc_x_col = ""
-        self.acc_y_col = ""
-        self.acc_z_col = ""
-        self.ang_rate_x_col = ""
-        self.ang_rate_y_col = ""
-        self.ang_rate_z_col = ""
+        self.acc_x_col = "-"
+        self.acc_y_col = "-"
+        self.acc_z_col = "-"
+        self.ang_rate_x_col = "-"
+        self.ang_rate_y_col = "-"
+        self.ang_rate_z_col = "-"
         self.apply_gcorr = True
 
     def get_filenames(self):
@@ -507,7 +507,7 @@ class LoggerProperties(QObject):
 
         return channels, units
 
-    def set_processed_columns(self):
+    def select_columns_to_process(self):
         """
         Assign user-defined channel names and units to logger if supplied.
         Otherwise use header info from a test file and create dummy header columns for any columns

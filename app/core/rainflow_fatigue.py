@@ -2,18 +2,9 @@
 
 __author__ = "Craig Dickinson"
 
-import os
-from datetime import timedelta
-
 import numpy as np
 import pandas as pd
 import rainflow
-from app.core.logger_properties import LoggerProperties
-from app.core.read_files import read_2hps2_acc, read_pulse_acc
-
-
-def get_column_series(df, col):
-    return df[col].values.flatten()
 
 
 def rainflow_count_data_frame(dict_df_col_hists, j, df, columns, bin_size=0.1):
@@ -23,7 +14,7 @@ def rainflow_count_data_frame(dict_df_col_hists, j, df, columns, bin_size=0.1):
     for col in columns:
         # Get histogram for column i
         y = get_column_series(df, col)
-        lb, ub, binned_cycles = get_hist(y, bin_size=0.001)
+        lb, ub, binned_cycles = calc_hist(y, bin_size)
 
         # Convert to data frame
         df_temp = pd.DataFrame(binned_cycles, index=lb, columns=[f"File {j + 1}"])
@@ -35,7 +26,11 @@ def rainflow_count_data_frame(dict_df_col_hists, j, df, columns, bin_size=0.1):
     return dict_df_col_hists
 
 
-def get_hist(y, bin_size):
+def get_column_series(df, col):
+    return df[col].values.flatten()
+
+
+def calc_hist(y, bin_size):
     """Compute rainflow counting histogram of time series y."""
 
     ranges, num_cycles = rainflow_counting(y)
@@ -135,23 +130,20 @@ if __name__ == "__main__":
     # x = np.arange(10)
     # y = np.sin(x)
     y = [1, 5, 2, 1, 3, 1]
-    peaks = reversals(y)
-    print(peaks)
-    cycles_array = extract_cycles(peaks)
-    print(cycles_array)
+    ranges, num_cycles = rainflow_counting(y)
 
     # Fatigue damage of actual stress ranges
-    stress_ranges = cycles_array[:, 0]
-    stress_cycles = cycles_array[:, 1]
-    print(f"Stress ranges = {stress_ranges}")
-    print(f"Stress cycles = {stress_cycles}")
-    fd = calc_damage(stress_ranges, stress_cycles, SN)
+    print(f"Stress ranges = {ranges}")
+    print(f"Stress cycles = {num_cycles}")
+    fd = calc_damage(ranges, num_cycles, SN)
     print(fd)
 
     # Fatigue damage of binned stress ranges
-    stress_ranges, stress_cycles = bin_ranges(cycles_array, bin_size=4)
-    # stress_ranges, stress_cycles = bin_ranges(cycles_array, bin_size=1)
-    print(f"Stress ranges = {stress_ranges}")
-    print(f"Stress cycles = {stress_cycles}")
-    fd = calc_damage(stress_ranges, stress_cycles, SN)
+    bin_size = 1
+    req_num_bins = np.ceil((ranges[-1] + 1e-9) / bin_size).astype(int)
+    lb, ub = create_hist_bins(req_num_bins, bin_size)
+    binned_cycles = bin_cycles(ranges, num_cycles, req_num_bins, bin_size)
+    print(f"Stress ranges = {ub}")
+    print(f"Stress cycles = {binned_cycles}")
+    fd = calc_damage(ub, binned_cycles, SN)
     print(fd)

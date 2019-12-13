@@ -65,9 +65,8 @@ class ScreeningSetupTab(QtWidgets.QWidget):
         self.spectH5ChkBox = QtWidgets.QCheckBox(".h5 (fast read/write)")
 
         # Rainflow counting settings
-        self.processRainflowChkBox = QtWidgets.QCheckBox("Include in processing")
-        self.processRainflowChkBox.setChecked(True)
-
+        self.processHistogramsChkBox = QtWidgets.QCheckBox("Include in processing")
+        self.processHistogramsChkBox.setChecked(True)
         self.rainflowFolder = QtWidgets.QLabel()
         self.binSize = QtWidgets.QLabel("-")
 
@@ -154,7 +153,7 @@ class ScreeningSetupTab(QtWidgets.QWidget):
         self.rainflowGroup = QtWidgets.QGroupBox("Rainflow Cycle Histogram Settings")
         self.rainflowGroup.setMinimumWidth(250)
         self.rainflowForm = QtWidgets.QFormLayout(self.rainflowGroup)
-        self.rainflowForm.addRow(self.processRainflowChkBox, QtWidgets.QLabel(""))
+        self.rainflowForm.addRow(self.processHistogramsChkBox, QtWidgets.QLabel(""))
         self.rainflowForm.addRow(
             QtWidgets.QLabel("Output folder:"), self.rainflowFolder
         )
@@ -191,6 +190,7 @@ class ScreeningSetupTab(QtWidgets.QWidget):
         self.editButton.clicked.connect(self.on_edit_clicked)
         self.processStatsChkBox.toggled.connect(self.on_process_stats_check_box_toggled)
         self.processSpectChkBox.toggled.connect(self.on_process_spect_check_box_toggled)
+        self.processHistogramsChkBox.toggled.connect(self.on_process_histograms_check_box_toggled)
         self.statsH5ChkBox.toggled.connect(self.on_stats_h5_toggled)
         self.statsCSVChkBox.toggled.connect(self.on_stats_csv_toggled)
         self.statsXLSXChkBox.toggled.connect(self.on_stats_xlsx_toggled)
@@ -218,16 +218,16 @@ class ScreeningSetupTab(QtWidgets.QWidget):
         editStatsSettings.show()
 
     def on_process_stats_check_box_toggled(self):
-        """Set include in processing state in logger object."""
-
         if self.parent.loggersList.count() > 0:
             self.logger.process_stats = self.processStatsChkBox.isChecked()
 
     def on_process_spect_check_box_toggled(self):
-        """Set include in processing state in logger object."""
-
         if self.parent.loggersList.count() > 0:
             self.logger.process_spect = self.processSpectChkBox.isChecked()
+
+    def on_process_histograms_check_box_toggled(self):
+        if self.parent.loggersList.count() > 0:
+            self.logger.process_histograms = self.processHistogramsChkBox.isChecked()
 
     def on_stats_h5_toggled(self):
         if self.parent.loggersList.count() > 0:
@@ -901,8 +901,8 @@ class EditScreeningSetupDialog(QtWidgets.QDialog):
 
         # Stats settings group
         if (
-            self.statsInterval.text() == ""
-            or int(float(self.statsInterval.text())) == 0
+                self.statsInterval.text() == ""
+                or int(float(self.statsInterval.text())) == 0
         ):
             logger.stats_interval = int(logger.duration)
         else:
@@ -911,8 +911,8 @@ class EditScreeningSetupDialog(QtWidgets.QDialog):
 
         # Spectral settings group
         if (
-            self.spectInterval.text() == ""
-            or int(float(self.spectInterval.text())) == 0
+                self.spectInterval.text() == ""
+                or int(float(self.spectInterval.text())) == 0
         ):
             logger.spect_interval = int(logger.duration)
         else:

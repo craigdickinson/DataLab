@@ -66,11 +66,17 @@ class DataScreen(object):
         # Apply bandpass signal filtering flag
         self.apply_filters = True
 
-        # Screening flags
+        # Screening requested flags
         self.stats_requested = False
-        self.stats_processed = False
         self.spect_requested = False
+        self.histograms_requested = False
+        self.integration_requested = False
+
+        # Screening processed flags
+        self.stats_processed = False
         self.spect_processed = False
+        self.histograms_processed = False
+        self.integration_processed = False
 
         if logger:
             self.set_logger(logger)

@@ -61,6 +61,12 @@ class ProcessingHub(QObject):
         # Lists of objects to hold data screening settings and logger stats
         self.data_screen_sets = []
 
+        # Expected data/processing to be done flags
+        self.any_data_on_azure = False
+        self.any_stats_expected = False
+        self.any_spect_expected = False
+        self.any_histograms_expected = False
+
         # Dictionaries to store all processed logger stats and spectrograms to load to gui after processing is complete
         self.dict_stats = {}
         self.dict_spectrograms = {}
@@ -82,21 +88,17 @@ class ProcessingHub(QObject):
 
         stats_screening = StatsScreening(self.control)
         spect_screening = SpectralScreening(self.control)
-        data_integration = IntegrateTimeSeries()
-        data_integration.project_path = self.control.project_path
+        data_integration = IntegrateTimeSeries(project_path=self.control.project_path)
 
-        # Create output stats to workbook object
-        # stats_out = StatsOutput(output_dir=self.control.stats_output_path)
+        # List of output files created
         output_files = []
 
         # Scan loggers to get total # files, list of logger names, files source (local or Azure)
         # and flags for whether stats and spectrograms are to be processed
-        total_files, logger_ids, any_data_on_azure, any_stats_expected, any_spect_expected = self._prepare_screening(
-            data_report
-        )
+        total_files, logger_ids = self._prepare_screening(data_report)
 
         # Connect to Azure account if to be used
-        if any_data_on_azure:
+        if self.any_data_on_azure:
             bloc_blob_service = connect_to_azure_account(
                 self.control.azure_account_name, self.control.azure_account_key
             )
@@ -108,9 +110,10 @@ class ProcessingHub(QObject):
         for i, data_screen in enumerate(self.data_screen_sets):
             logger = data_screen.logger
 
-            # Initialise logger stats and spectral objects
+            # Initialise logger screening objects
             stats_screening.init_logger_stats()
             spect_screening.init_logger_spect(logger.logger_id)
+            data_integration.set_logger(logger)
 
             # Get file number of first file to be processed (this is akin to load case number for no timestamp files)
             try:
@@ -183,8 +186,7 @@ class ProcessingHub(QObject):
                 data_screen.screen_data(file_num=j, df=df)
 
                 # Angular rate conversion
-                convert = True
-                if convert:
+                if logger.process_integration:
                     data_integration.process_file(file, df)
 
                 # Ignore file if not of expected length
@@ -204,10 +206,11 @@ class ProcessingHub(QObject):
                         )
 
                     # RAINFLOW COUNTING
-                    # Calculate rainflow counting histogram for each channel in data frame
-                    dict_df_col_hists = rainflow_count_data_frame(
-                        dict_df_col_hists, j, df, columns=logger.channel_names
-                    )
+                    if data_screen.histograms_requested:
+                        # Calculate rainflow counting histogram for each channel in data frame
+                        dict_df_col_hists = rainflow_count_data_frame(
+                            dict_df_col_hists, j, df, columns=logger.channel_names, bin_size=logger.bin_size
+                        )
 
                 file_count += 1
 
@@ -267,12 +270,12 @@ class ProcessingHub(QObject):
         print(f"Screening runtime = {t}")
 
         # Check and inform user if stats/spectrograms were requested but not calculated (e.g. due to bad files)
-        if any_stats_expected and not any_stats_processed:
+        if self.any_stats_expected and not any_stats_processed:
             warning = "Warning: Statistics requested but none calculated. Check Data Screening Report."
             output_files.append(warning)
             self.signal_update_output_info.emit(output_files)
 
-        if any_spect_expected and not any_spect_processed:
+        if self.any_spect_expected and not any_spect_processed:
             warning = "Warning: Spectrograms requested but none calculated. Check Data Screening Report."
             output_files.append(warning)
             self.signal_update_output_info.emit(output_files)
@@ -301,11 +304,10 @@ class ProcessingHub(QObject):
 
         total_files = 0
         logger_ids = []
-        any_data_on_azure = False
-        any_stats_expected = False
-        any_spect_expected = False
+
         global_process_stats = self.control.global_process_stats
         global_process_spect = self.control.global_process_spect
+        global_process_histograms = self.control.global_process_histograms
 
         for logger in self.control.loggers:
             # Add any bad filenames to screening report
@@ -327,25 +329,27 @@ class ProcessingHub(QObject):
             else:
                 data_screen.spect_requested = logger.process_spect
 
+            if global_process_histograms is False:
+                data_screen.histograms_requested = False
+            else:
+                data_screen.histograms_requested = logger.process_histograms
+
             # Check whether logger data is to be streamed from Azure
             if logger.data_on_azure:
-                any_data_on_azure = True
+                self.any_data_on_azure = True
 
             if global_process_stats is True and logger.process_stats is True:
-                any_stats_expected = True
+                self.any_stats_expected = True
 
             if global_process_spect is True and logger.process_spect is True:
-                any_spect_expected = True
+                self.any_spect_expected = True
+
+            if global_process_histograms is True and logger.process_histograms is True:
+                self.any_histograms_expected = True
 
             self.data_screen_sets.append(data_screen)
 
-        return (
-            total_files,
-            logger_ids,
-            any_data_on_azure,
-            any_stats_expected,
-            any_spect_expected,
-        )
+        return total_files, logger_ids
 
     def _publish_screening_report(self, data_report, output_files):
         """Compile and export Excel data screening report."""
