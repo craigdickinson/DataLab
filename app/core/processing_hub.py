@@ -14,7 +14,7 @@ from app.core.azure_cloud_storage import connect_to_azure_account, stream_blob
 from app.core.control import Control
 from app.core.data_screen import DataScreen
 from app.core.data_screen_report import DataScreenReport
-from app.core.rainflow_fatigue import rainflow_count_data_frame
+from app.core.rainflow_fatigue import file_histograms_processing
 from app.core.spectral_screening import SpectralScreening
 from app.core.stats_screening import StatsScreening
 from app.core.time_series_integration import IntegrateTimeSeries
@@ -126,7 +126,7 @@ class ProcessingHub(QObject):
             filename = ""
             n = len(data_screen.files)
 
-            # Histograms list for each column
+            # Initialise dictionary of histogram data frames for each column
             dict_df_col_hists = {
                 channel: pd.DataFrame() for channel in logger.channel_names
             }
@@ -169,8 +169,18 @@ class ProcessingHub(QObject):
                 # Read the file into a pandas data frame
                 df = data_screen.read_logger_file(file)
 
-                # Data munging/wrangling to prepare dataset for processing
+                # Wrangle data to prepare for processing
                 df = data_screen.wrangle_data(df, file_idx=j)
+
+                # TIME SERIES INTEGRATION
+                # Acceleration and/or angular rate conversion
+                if logger.process_integration:
+                    df_integrate = df.copy()
+                    data_integration.process_file(file, df_integrate)
+
+                # Select columns for screening
+                df = data_screen.select_columns_to_process(df)
+                df = data_screen.apply_unit_conversions(df)
 
                 # # Filter data if requested
                 # df_filt=pd.DataFrame()
@@ -184,10 +194,6 @@ class ProcessingHub(QObject):
                 # Data screening module
                 # Perform basic screening checks on file - check file has expected number of data points
                 data_screen.screen_data(file_num=j, df=df)
-
-                # Angular rate conversion
-                if logger.process_integration:
-                    data_integration.process_file(file, df)
 
                 # Ignore file if not of expected length
                 # TODO: Allowing short sample length (revisit)
@@ -205,11 +211,11 @@ class ProcessingHub(QObject):
                             df, data_screen, processed_file_num
                         )
 
-                    # RAINFLOW COUNTING
+                    # CALCULATE HISTOGRAMS
                     if data_screen.histograms_requested:
-                        # Calculate rainflow counting histogram for each channel in data frame
-                        dict_df_col_hists = rainflow_count_data_frame(
-                            dict_df_col_hists, j, df, columns=logger.channel_names, bin_size=logger.bin_size
+                        # Compute histograms for each channel in data frame
+                        dict_df_col_hists = file_histograms_processing(
+                            dict_df_col_hists, df, data_screen, processed_file_num
                         )
 
                 file_count += 1
@@ -250,15 +256,18 @@ class ProcessingHub(QObject):
         # Update progress dialog
         self.signal_update_output_info.emit(output_files)
 
-        # Check if any stats or spectral processing was done for any logger
+        # Check if any screening processing modules was done for any logger
         any_stats_processed = False
         any_spect_processed = False
+        any_histograms_processed = False
 
         for d in self.data_screen_sets:
             if d.stats_processed is True:
                 any_stats_processed = True
             if d.spect_processed is True:
                 any_spect_processed = True
+            if d.histograms_processed is True:
+                any_histograms_processed = True
 
         # Save stats workbook if requested
         if any_stats_processed and self.control.stats_to_xlsx is True:
@@ -277,6 +286,11 @@ class ProcessingHub(QObject):
 
         if self.any_spect_expected and not any_spect_processed:
             warning = "Warning: Spectrograms requested but none calculated. Check Data Screening Report."
+            output_files.append(warning)
+            self.signal_update_output_info.emit(output_files)
+
+        if self.any_histograms_expected and not any_histograms_processed:
+            warning = "Warning: Histograms requested but none calculated. Check Data Screening Report."
             output_files.append(warning)
             self.signal_update_output_info.emit(output_files)
 

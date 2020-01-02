@@ -187,7 +187,7 @@ class DataLabGui(QtWidgets.QMainWindow):
         self.toolBar = self.addToolBar("Modules")
         self.toolBar.setStyleSheet("QToolBar{spacing:5px}")
 
-        self.projConfigButton = QtWidgets.QPushButton("1. Project Config")
+        self.projConfigButton = QtWidgets.QPushButton("1. Input Data")
         self.projConfigButton.setShortcut("Ctrl+1")
         self.rawDataButton = QtWidgets.QPushButton("2. Inspect Raw Data")
         self.rawDataButton.setShortcut("Ctrl+2")

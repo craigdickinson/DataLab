@@ -62,6 +62,7 @@ class DataScreen(object):
         self.channel_names = []
         self.unit_conv_factors = []
         self.file_timestamp_embedded = True
+        self.first_col = "Timestamp"
 
         # Apply bandpass signal filtering flag
         self.apply_filters = True
@@ -160,7 +161,7 @@ class DataScreen(object):
 
         # Copy to prevent SettingWithCopyWarning
         df = df.copy()
-        first_col = "Timestamp"
+        self.first_col = "Timestamp"
 
         if self.logger.file_format == "Custom":
             df = df.dropna(axis=1)
@@ -174,7 +175,7 @@ class DataScreen(object):
                     timestamps = [start_timestamp + timedelta(seconds=t) for t in ts]
                     df.iloc[:, 0] = timestamps
                 else:
-                    first_col = "Time"
+                    self.first_col = "Time"
             #  Convert first column (should be timestamps string) to datetimes
             else:
                 try:
@@ -196,11 +197,22 @@ class DataScreen(object):
                             f"Check the 'Data Timestamp' property has the correct format.\n\n<{e}>"
                         )
 
-        #  Convert first column (should be timestamps string) to datetimes
+        # Convert first column (should be timestamps string) to datetimes
         if self.logger.file_format == "Fugro-csv":
             df.iloc[:, 0] = pd.to_datetime(
                 df.iloc[:, 0], format=self.logger.datetime_format, errors="coerce"
             )
+
+        # Trim column names
+        df.columns = [c.strip() for c in df.columns]
+
+        # Convert any non-numeric data to NaN
+        df.iloc[:, 1:] = df.iloc[:, 1:].apply(pd.to_numeric, errors="coerce")
+
+        return df
+
+    def select_columns_to_process(self, df):
+        """Select columns to screen on."""
 
         # Check all requested columns exist in file
         n = len(df.columns)
@@ -214,10 +226,14 @@ class DataScreen(object):
         for i in missing_cols:
             df["Dummy " + str(i + 1)] = np.nan
 
-        # Convert any non-numeric data to NaN
-        df.iloc[:, 1:] = df.iloc[:, 1:].apply(pd.to_numeric, errors="coerce")
+        # Replace column names with logger setup channel names (should only be different if user names supplied)
+        df.columns = [self.first_col] + self.channel_names
 
-        # Apply any unit conversions
+        return df
+
+    def apply_unit_conversions(self, df):
+        """Apply any unit conversions."""
+
         if len(self.unit_conv_factors) == len(df.columns) - 1:
             try:
                 df.iloc[:, 1:] = np.multiply(df.iloc[:, 1:], self.unit_conv_factors)
@@ -226,9 +242,6 @@ class DataScreen(object):
                     f"Data screen error: Data frame contains no channel columns.\n {e}"
                 )
                 raise TypeError(msg)
-
-        # Replace column names with setup channel names (should only be different if user names supplied)
-        df.columns = [first_col] + self.channel_names
 
         return df
 

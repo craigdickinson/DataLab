@@ -271,6 +271,11 @@ class Spectrogram(object):
         dict_df = {}
 
         for channel, spect in self.spectrograms.items():
+            # Check for possible units in column name and remove
+            if "(" in channel:
+                p = channel.index("(")
+                channel = channel[:p].strip()
+
             logger_id = "_".join(self.logger_id.split(" "))
             channel = "_".join(channel.split(" "))
 
@@ -278,9 +283,14 @@ class Spectrogram(object):
             if filtered is True:
                 key += "_filtered"
 
+            # Create file name stem
             file_stem = f"Spectrograms_Data_{logger_id}_{channel}"
             if filtered is True:
                 file_stem += "_(filtered)"
+
+            # Remove potential disallowed symbols from filename
+            file_stem = file_stem.replace("/", "")
+            file_stem = file_stem.replace(" ", "_")
 
             # Create directory if does not exist
             if self.output_dir != "" and os.path.exists(self.output_dir) is False:
@@ -297,7 +307,7 @@ class Spectrogram(object):
             df = pd.DataFrame(data=spect, index=self.index, columns=self.freq)
 
             # Replace _ in key with " "
-            key2 = " ".join(key.split("_"))
+            key2 = key.replace("_", " ")
 
             # Store channel spectrogram in dictionary
             dict_df[key2] = df

@@ -7,6 +7,20 @@ import pandas as pd
 import rainflow
 
 
+def file_histograms_processing(dict_df_col_hists, df_file, data_screen, file_num):
+    """Calculate histograms on a file."""
+
+    columns = data_screen.logger.channel_names
+    bin_size = data_screen.logger.bin_size
+    dict_df_col_hists = rainflow_count_data_frame(
+        dict_df_col_hists, file_num, df_file, columns, bin_size
+    )
+
+    data_screen.histograms_processed = True
+
+    return dict_df_col_hists
+
+
 def rainflow_count_data_frame(dict_df_col_hists, j, df, columns, bin_size=0.1):
     """Calculate rainflow counting histogram for each channel in data frame."""
 
@@ -17,7 +31,7 @@ def rainflow_count_data_frame(dict_df_col_hists, j, df, columns, bin_size=0.1):
         lb, ub, binned_cycles = calc_hist(y, bin_size)
 
         # Convert to data frame
-        df_temp = pd.DataFrame(binned_cycles, index=lb, columns=[f"File {j + 1}"])
+        df_temp = pd.DataFrame(binned_cycles, index=lb, columns=[f"File {j}"])
 
         # Join to existing data frame
         df_hist = dict_df_col_hists[col]

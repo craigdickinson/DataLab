@@ -70,12 +70,12 @@ class ConfigModule(QtWidgets.QWidget):
         self.newProjButton.setShortcut("Ctrl+N")
         self.newProjButton.setToolTip("Clear all settings (Ctrl+N)")
         self.openProjDirButton = QtWidgets.QPushButton("Open Project Folder")
-        self.openProjDirButton.setShortcut("Ctrl+Shift+O")
-        self.openProjDirButton.setToolTip("Ctrl+Shift+O")
-        self.addLoggerButton = QtWidgets.QPushButton("Add Logger...")
+        self.openProjDirButton.setShortcut("Ctrl+D")
+        self.openProjDirButton.setToolTip("Ctrl+D")
+        self.addLoggerButton = QtWidgets.QPushButton("Add Dataset...")
         self.addLoggerButton.setShortcut("Ctrl+A")
         self.addLoggerButton.setToolTip("Ctrl+A")
-        self.remLoggerButton = QtWidgets.QPushButton("Remove Logger")
+        self.remLoggerButton = QtWidgets.QPushButton("Remove Dataset")
         self.remLoggerButton.setShortcut("Ctrl+Del")
         self.remLoggerButton.setToolTip("Ctrl+Del")
         self.loggersList = QtWidgets.QListWidget()
@@ -134,14 +134,14 @@ class ConfigModule(QtWidgets.QWidget):
         self.hboxConfig.addStretch()
 
         # Loggers container
-        self.loggersGroup = QtWidgets.QGroupBox("Campaign Loggers")
+        self.loggersGroup = QtWidgets.QGroupBox("Project Datasets/Loggers")
         self.loggersGroup.setFixedWidth(180)
         self.vboxLoggers = QtWidgets.QVBoxLayout(self.loggersGroup)
         self.vboxLoggers.addWidget(self.addLoggerButton)
         self.vboxLoggers.addWidget(self.remLoggerButton)
-        self.vboxLoggers.addWidget(QtWidgets.QLabel("Loggers"))
+        self.vboxLoggers.addWidget(QtWidgets.QLabel("Datasets"))
         self.vboxLoggers.addWidget(self.loggersList)
-        self.vboxLoggers.addWidget(QtWidgets.QLabel("Logger Columns"))
+        self.vboxLoggers.addWidget(QtWidgets.QLabel("Columns"))
         self.vboxLoggers.addWidget(self.columnList)
 
         # Setup container
@@ -149,7 +149,7 @@ class ConfigModule(QtWidgets.QWidget):
         self.setupTabs.addTab(self.generalTab, "Project Details")
         self.setupTabs.addTab(self.loggerPropsTab, "Logger File Properties")
         self.setupTabs.addTab(self.screeningTab, "Screening Setup")
-        self.setupTabs.addTab(self.integrationTab, "Conversion Setup")
+        self.setupTabs.addTab(self.integrationTab, "Time Series Integration Setup")
         self.setupTabs.addTab(self.scatterTab, "Sea Scatter Setup")
         self.setupTabs.addTab(self.tfSettingsTab, "Transfer Functions Setup")
 

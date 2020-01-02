@@ -190,7 +190,9 @@ class ScreeningSetupTab(QtWidgets.QWidget):
         self.editButton.clicked.connect(self.on_edit_clicked)
         self.processStatsChkBox.toggled.connect(self.on_process_stats_check_box_toggled)
         self.processSpectChkBox.toggled.connect(self.on_process_spect_check_box_toggled)
-        self.processHistogramsChkBox.toggled.connect(self.on_process_histograms_check_box_toggled)
+        self.processHistogramsChkBox.toggled.connect(
+            self.on_process_histograms_check_box_toggled
+        )
         self.statsH5ChkBox.toggled.connect(self.on_stats_h5_toggled)
         self.statsCSVChkBox.toggled.connect(self.on_stats_csv_toggled)
         self.statsXLSXChkBox.toggled.connect(self.on_stats_xlsx_toggled)
@@ -901,8 +903,8 @@ class EditScreeningSetupDialog(QtWidgets.QDialog):
 
         # Stats settings group
         if (
-                self.statsInterval.text() == ""
-                or int(float(self.statsInterval.text())) == 0
+            self.statsInterval.text() == ""
+            or int(float(self.statsInterval.text())) == 0
         ):
             logger.stats_interval = int(logger.duration)
         else:
@@ -911,8 +913,8 @@ class EditScreeningSetupDialog(QtWidgets.QDialog):
 
         # Spectral settings group
         if (
-                self.spectInterval.text() == ""
-                or int(float(self.spectInterval.text())) == 0
+            self.spectInterval.text() == ""
+            or int(float(self.spectInterval.text())) == 0
         ):
             logger.spect_interval = int(logger.duration)
         else:

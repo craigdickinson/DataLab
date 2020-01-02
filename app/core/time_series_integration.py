@@ -70,7 +70,7 @@ class IntegrateTimeSeries(object):
 
         # Convert acceleration columns to displacements (with optional gravity decontamination)
         if self.acc_x_col != "-":
-            disp_cols.append("Displacement X (m)")
+            disp_cols.append("Disp X (m)")
             accels = df[self.acc_x_col].values
             disps = accel_to_disp(
                 accels, int_transform, self.apply_g_correction, angles_x
@@ -78,7 +78,7 @@ class IntegrateTimeSeries(object):
             disps_data.append(disps)
 
         if self.acc_y_col != "-":
-            disp_cols.append("Displacement Y (m)")
+            disp_cols.append("Disp Y (m)")
             accels = df[self.acc_y_col].values
             disps = accel_to_disp(
                 accels, int_transform, self.apply_g_correction, angles_y
@@ -86,7 +86,7 @@ class IntegrateTimeSeries(object):
             disps_data.append(disps)
 
         if self.acc_z_col != "-":
-            disp_cols.append("Displacement Z (m)")
+            disp_cols.append("Disp Z (m)")
             accels = df[self.acc_z_col].values
             disps = accel_to_disp(
                 accels, int_transform, self.apply_g_correction, angles_z, z_comp=True
