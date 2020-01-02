@@ -164,7 +164,8 @@ class AxesPlotData:
             logger_id = datasets[i].logger_id
 
             # Format logger name for legend label
-            logger_label = self._get_preferred_logger_label(logger_id)
+            # logger_label = self._get_preferred_logger_label(logger_id)
+            logger_label = logger_id
 
             # Retrieve logger stats data
             df = datasets[i].df
