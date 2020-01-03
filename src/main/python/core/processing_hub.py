@@ -49,13 +49,6 @@ class ProcessingHub(QObject):
     def __init__(self):
         super().__init__()
 
-        # if no_dat is False:
-        #     # Get dat file from command line if not already supplied
-        #     if datfile == "":
-        #         parser = parse_args(sys.argv[1:])
-        #         datfile = parser.datfile.name
-
-        # self.datfile = datfile
         self.control = Control()
 
         # Lists of objects to hold data screening settings and logger stats

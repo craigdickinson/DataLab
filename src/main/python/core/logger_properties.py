@@ -518,8 +518,13 @@ class LoggerProperties(QObject):
         if self.cols_to_process:
             last_col = max(self.cols_to_process)
         else:
-            msg = f"Need to input column numbers to process for {self.logger_id}."
-            raise LoggerError(msg)
+            # Use expected number of columns property to set full list
+            if self.num_columns > 0:
+                self.cols_to_process = list(range(2, self.num_columns + 1))
+                last_col = max(self.cols_to_process)
+            else:
+                msg = f"Need to input number of expected columns for {self.logger_id}."
+                raise LoggerError(msg)
 
         # Read first data row from a test file
         test_file, first_row = self._get_data_first_row()

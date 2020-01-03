@@ -1,10 +1,12 @@
 __author__ = "Craig Dickinson"
 __program__ = "DataLab"
-__version__ = "2.0.1.18"
-__date__ = "2 January 2020"
+__version__ = "2.1.0.1"
+__date__ = "3 January 2020"
 
 import logging
+import os
 import sys
+import traceback
 import webbrowser
 
 from PyQt5 import QtCore, QtWidgets
@@ -30,11 +32,49 @@ from views.project_config_view import AzureAccountSetupDialog
 from views.stats_view import StatsDataset
 
 
+def set_exception_logger():
+    """
+    Function to create a custom exception logging instance.
+    Two handlers are created for reporting exceptions to the console and a log file.
+    """
+
+    log_file = os.path.join(os.getcwd(), "log.out")
+    # logging.basicConfig(filename=log_file)
+
+    logger = logging.getLogger(__name__)
+    logger.setLevel(logging.DEBUG)
+
+    # Console logger
+    ch = logging.StreamHandler()
+    ch.setLevel(logging.DEBUG)
+    formatter = logging.Formatter("%(message)s")
+    ch.setFormatter(formatter)
+
+    # File logger
+    fh = logging.FileHandler(log_file)
+    fh.setLevel(logging.DEBUG)
+    formatter = logging.Formatter(
+        "%(asctime)s :: %(name)s - %(message)s", datefmt="%m/%d/%Y %H:%M:%S"
+    )
+    fh.setFormatter(formatter)
+
+    logger.addHandler(ch)
+    logger.addHandler(fh)
+
+    return logger
+
+
 class DataLab(DataLabGui):
     """Main class for DataLab program. Subclasses the ui class."""
 
     def __init__(self):
         super().__init__()
+
+        # Override exception hook to use my function
+        # Ensures all exceptions are handled if not covered by try/except
+        sys.excepthook = self.log_uncaught_exceptions
+
+        self.err_logger = set_exception_logger()
 
         self.version = __version__
         self.setWindowTitle(f"DataLab {self.version}")
@@ -108,6 +148,16 @@ class DataLab(DataLabGui):
             self.on_open_spectrograms_file
         )
 
+    def log_uncaught_exceptions(self, exctype, value, tb):
+        msg = "Unexpected error"
+        str_tb = "".join(traceback.format_tb(tb))
+
+        # Log error to console and log file
+        self.err_logger.error(f"{msg}\n{str_tb}{exctype}: {value}\n")
+
+        # Report error in gui
+        self.error(f"{msg}:\n{str_tb}{exctype}: {value}")
+
     def _message_information(self, title, message, buttons=QtWidgets.QMessageBox.Ok):
         return QtWidgets.QMessageBox.information(self, title, message, buttons)
 
@@ -119,7 +169,7 @@ class DataLab(DataLabGui):
 
     @pyqtSlot(str)
     def error(self, message):
-        print(f"Error: {message}")
+        # print(f"Error: {message}")
         self._message_warning("Error", message)
 
     @pyqtSlot(str)
@@ -808,7 +858,7 @@ def run_datalab():
     """Wrapper to run DataLab from a Jupyter Notebook."""
 
     appctxt = ApplicationContext()
-    # os.chdir(r"C:\Users\dickinsc\PycharmProjects\DataLab\demo_data\2. Project Configs")
+    os.chdir(r"C:\Users\dickinsc\PycharmProjects\DataLab\demo_data\2. Project Configs")
     # app = QtCore.QCoreApplication.instance()
     # if not app:
     #     app = QtWidgets.QApplication(sys.argv)
