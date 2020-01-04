@@ -424,6 +424,7 @@ class StatsWidget(QtWidgets.QWidget):
         self.loggerCombo = QtWidgets.QComboBox()
         self.channelCombo = QtWidgets.QComboBox()
         self.statCombo = QtWidgets.QComboBox()
+        self.statCombo.setFixedWidth(80)
 
         # X axis datetime interval options
         self.xaxisIntervalsCombo = QtWidgets.QComboBox()
@@ -478,7 +479,8 @@ class StatsWidget(QtWidgets.QWidget):
 
         # Selection container
         self.selectionContainer = QtWidgets.QWidget()
-        self.selectionContainer.setFixedWidth(200)
+        self.selectionContainer.setMinimumWidth(200)
+        # self.selectionContainer.resize(200, 847)
         self.vboxSel = QtWidgets.QVBoxLayout(self.selectionContainer)
         self.vboxSel.addWidget(self.openStatsButton)
         self.vboxSel.addWidget(self.clearDatasetsButton)
@@ -491,14 +493,20 @@ class StatsWidget(QtWidgets.QWidget):
         self.vboxSel.addWidget(self.plotSettingsGroup)
 
         # Plot figure
-        self.plotLayout = QtWidgets.QVBoxLayout()
+        self.plotWidget = QtWidgets.QWidget()
+        self.plotLayout = QtWidgets.QVBoxLayout(self.plotWidget)
         self.plotLayout.addWidget(navbar)
         self.plotLayout.addWidget(self.canvas)
 
+        # Splitter to allow resizing of widget containers
+        splitter = QtWidgets.QSplitter()
+        splitter.addWidget(self.selectionContainer)
+        splitter.addWidget(self.plotWidget)
+        splitter.setSizes([200, 10000])
+
         # LAYOUT
         self.layout = QtWidgets.QHBoxLayout(self)
-        self.layout.addWidget(self.selectionContainer)
-        self.layout.addLayout(self.plotLayout)
+        self.layout.addWidget(splitter)
 
     def _init_combos(self):
         """Populate combo boxes and store initial selections."""
@@ -1129,8 +1137,8 @@ class StatsWidget(QtWidgets.QWidget):
         """Set main plot title."""
 
         # Attempt to retrieve title from project setup dashboard
-        project_name = self.parent.projConfigModule.control.project_name
-        campaign_name = self.parent.projConfigModule.control.campaign_name
+        project_name = self.parent.inputDataModule.control.project_name
+        campaign_name = self.parent.inputDataModule.control.campaign_name
 
         if project_name == "":
             project_name = "Project Title"
@@ -1694,8 +1702,8 @@ class VesselStatsWidget(QtWidgets.QWidget):
         """Set main plot title."""
 
         # Attempt to retrieve title from project setup dashboard
-        project_name = self.parent.projConfigModule.control.project_name
-        campaign_name = self.parent.projConfigModule.control.campaign_name
+        project_name = self.parent.inputDataModule.control.project_name
+        campaign_name = self.parent.inputDataModule.control.campaign_name
 
         if project_name == "":
             project_name = "Project Title"
@@ -1854,8 +1862,8 @@ if __name__ == "__main__":
     # dataset = StatsDataset(logger_id="test", df=df)
     # dataset_names = ["test"]
 
-    # w = StatsWidget()
-    w = VesselStatsWidget()
+    w = StatsWidget()
+    # w = VesselStatsWidget()
     w.show()
     # w.datasets.append(dataset)
     # w.update_stats_datasets_list(dataset_names)

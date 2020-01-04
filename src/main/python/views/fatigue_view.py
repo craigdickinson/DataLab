@@ -68,15 +68,16 @@ class FatigueProcessingWidget(QtWidgets.QWidget):
 
         # CONTAINERS
         # Setup container
-        self.setupWidget = QtWidgets.QWidget()
-        self.setupWidget.setFixedWidth(200)
-        self.vboxSetup = QtWidgets.QVBoxLayout(self.setupWidget)
+        self.settingsWidget = QtWidgets.QWidget()
+        self.settingsWidget.setMinimumWidth(200)
+        self.vboxSetup = QtWidgets.QVBoxLayout(self.settingsWidget)
         self.vboxSetup.addWidget(self.openWCFATFileButton)
         self.vboxSetup.addWidget(self.openFATLASAFileButton)
         self.vboxSetup.addWidget(QtWidgets.QLabel("Assessed Fatigue Locations"))
         self.vboxSetup.addWidget(self.fatigueLocsList)
         self.vboxSetup.addWidget(self.damLogScale)
         self.vboxSetup.addWidget(self.damRatePerEvent)
+        self.vboxSetup.addStretch()
 
         # Plot container
         self.plotWidget = QtWidgets.QWidget()
@@ -84,10 +85,15 @@ class FatigueProcessingWidget(QtWidgets.QWidget):
         self.vboxPlot.addWidget(navbar)
         self.vboxPlot.addWidget(self.canvas)
 
+        # Splitter to allow resizing of widget containers
+        splitter = QtWidgets.QSplitter()
+        splitter.addWidget(self.settingsWidget)
+        splitter.addWidget(self.plotWidget)
+        splitter.setSizes([200, 10000])
+
         # LAYOUT
-        self.layout = QtWidgets.QGridLayout(self)
-        self.layout.addWidget(self.setupWidget, 0, 0, QtCore.Qt.AlignTop)
-        self.layout.addWidget(self.plotWidget, 0, 1)
+        self.layout = QtWidgets.QHBoxLayout(self)
+        self.layout.addWidget(splitter)
 
     def connect_signals(self):
         self.openWCFATFileButton.clicked.connect(self.on_open_wcfat_file_clicked)
@@ -220,8 +226,8 @@ class FatigueProcessingWidget(QtWidgets.QWidget):
         """Set plot title."""
 
         # Attempt to retrieve title from project setup dashboard
-        project_name = self.parent.projConfigModule.control.project_name
-        campaign_name = self.parent.projConfigModule.control.campaign_name
+        project_name = self.parent.inputDataModule.control.project_name
+        campaign_name = self.parent.inputDataModule.control.campaign_name
 
         if project_name == "":
             project_name = "Project Title"

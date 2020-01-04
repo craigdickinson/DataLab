@@ -164,7 +164,7 @@ class LoggerProperties(QObject):
         self.psd_overlap = 50
 
         # RAINFLOW HISTOGRAM SETTINGS
-        self.process_histograms = True
+        self.process_hists = True
         self.bin_size = 0.1
 
         # TIME SERIES INTEGRATION PROPERTIES

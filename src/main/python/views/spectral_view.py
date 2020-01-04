@@ -119,7 +119,7 @@ class SpectrogramWidget(QtWidgets.QWidget):
         # CONTAINERS
         # Selection layout
         self.selection = QtWidgets.QWidget()
-        self.selection.setFixedWidth(200)
+        self.selection.setMinimumWidth(200)
         self.grid = QtWidgets.QGridLayout(self.selection)
         self.grid.addWidget(self.openSpectButton, 0, 0)
         self.grid.addWidget(self.clearDatasetsButton, 1, 0)
@@ -133,15 +133,21 @@ class SpectrogramWidget(QtWidgets.QWidget):
 
         # Plot layout
         # Create plot figure, canvas widget to display figure and navbar
-        self.vbox = QtWidgets.QVBoxLayout()
+        self.plotWidget = QtWidgets.QWidget()
+        self.vbox = QtWidgets.QVBoxLayout(self.plotWidget)
         self.vbox.addWidget(navbar)
         self.vbox.addWidget(self.canvas)
         self.vbox.addWidget(self.natFreq)
 
+        # Splitter to allow resizing of widget containers
+        splitter = QtWidgets.QSplitter()
+        splitter.addWidget(self.selection)
+        splitter.addWidget(self.plotWidget)
+        splitter.setSizes([200, 10000])
+
         # LAYOUT
         self.layout = QtWidgets.QHBoxLayout(self)
-        self.layout.addWidget(self.selection)
-        self.layout.addLayout(self.vbox)
+        self.layout.addWidget(splitter)
 
     def _connect_signals(self):
         self.calcNatFreqButton.clicked.connect(self.on_calc_nat_freq_clicked)
@@ -518,8 +524,8 @@ class SpectrogramWidget(QtWidgets.QWidget):
         """Set plot title."""
 
         # Attempt to retrieve title from project setup dashboard
-        project_name = self.parent.projConfigModule.control.project_name
-        campaign_name = self.parent.projConfigModule.control.campaign_name
+        project_name = self.parent.inputDataModule.control.project_name
+        campaign_name = self.parent.inputDataModule.control.campaign_name
 
         if project_name == "":
             project_name = "Project Title"

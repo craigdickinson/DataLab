@@ -57,6 +57,11 @@ class RawDataDashboard(QtWidgets.QWidget):
         self.plotControls = PlotControlsDialog(self, self.plot_setup)
 
     def _init_ui(self):
+        # Widget sizing policy - prevent expansion
+        policy = QtWidgets.QSizePolicy(
+            QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed
+        )
+
         # WIDGETS
         self.axisCombo = QtWidgets.QComboBox()
         self.axisCombo.setFixedWidth(40)
@@ -133,6 +138,7 @@ class RawDataDashboard(QtWidgets.QWidget):
 
         # Filter cut-off frequencies group
         self.filterGroup = QtWidgets.QGroupBox("Selected Series Filters")
+        self.filterGroup.setSizePolicy(policy)
         self.filterForm = QtWidgets.QFormLayout(self.filterGroup)
         self.filterForm.addRow(self.lblLowCutoff, self.lowCutoff)
         self.filterForm.addRow(self.lblHighCutoff, self.highCutoff)
@@ -153,15 +159,17 @@ class RawDataDashboard(QtWidgets.QWidget):
         self.hboxPSD = QtWidgets.QHBoxLayout()
         self.hboxPSD.addWidget(self.psdXAxisGroup)
         self.hboxPSD.addWidget(self.psdGroup)
+        self.hboxPSD.addStretch()
 
-        # Buttons containers
+        # Buttons container
         self.hboxButtons = QtWidgets.QHBoxLayout()
         self.hboxButtons.addWidget(self.exportButton)
         self.hboxButtons.addWidget(self.plotSettingsButton)
+        self.hboxButtons.addStretch()
 
         # Setup container
         self.setupWidget = QtWidgets.QWidget()
-        self.setupWidget.setFixedWidth(250)
+        self.setupWidget.setMinimumWidth(250)
         self.vboxSetup = QtWidgets.QVBoxLayout(self.setupWidget)
         self.vboxSetup.addWidget(self.selectGroup)
         self.vboxSetup.addWidget(self.filterGroup)
@@ -169,14 +177,20 @@ class RawDataDashboard(QtWidgets.QWidget):
         self.vboxSetup.addLayout(self.hboxButtons)
 
         # Plot container
-        self.vbox = QtWidgets.QVBoxLayout()
+        self.plotWidget = QtWidgets.QWidget()
+        self.vbox = QtWidgets.QVBoxLayout(self.plotWidget)
         self.vbox.addWidget(navbar)
         self.vbox.addWidget(self.canvas)
 
+        # Splitter to allow resizing of widget containers
+        splitter = QtWidgets.QSplitter()
+        splitter.addWidget(self.setupWidget)
+        splitter.addWidget(self.plotWidget)
+        splitter.setSizes([250, 10000])
+
         # LAYOUT
         self.layout = QtWidgets.QHBoxLayout(self)
-        self.layout.addWidget(self.setupWidget)
-        self.layout.addLayout(self.vbox)
+        self.layout.addWidget(splitter)
 
     def _connect_signals(self):
         self.axisCombo.currentIndexChanged.connect(self.on_axis_changed)

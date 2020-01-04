@@ -486,11 +486,11 @@ class ProjectConfigJSONFile(QObject):
     def _map_logger_histogram_settings(self, logger, dict_logger):
         """Retrieve logger rainflow histogram settings from JSON dictionary and map to logger object."""
 
-        logger.process_histograms = self._get_key_value(
+        logger.process_hists = self._get_key_value(
             section=logger.logger_id,
             data=dict_logger,
             key="process_histograms",
-            attr=logger.process_histograms,
+            attr=logger.process_hists,
         )
         logger.bin_size = self._get_key_value(
             section=logger.logger_id,
@@ -775,7 +775,7 @@ class ProjectConfigJSONFile(QObject):
     def _add_logger_histogram_settings(logger, dict_props):
         """Add control object logger histogram settings to JSON dictionary."""
 
-        dict_props["process_histograms"] = logger.process_histograms
+        dict_props["process_histograms"] = logger.process_hists
         dict_props["bin_size"] = logger.bin_size
 
         return dict_props

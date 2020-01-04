@@ -42,7 +42,6 @@ class TransferFunctionsWidget(QtWidgets.QWidget):
         self.exportAveTFButton = QtWidgets.QPushButton("Export Averaged TFs")
         self.filesLabel = QtWidgets.QLabel("Transfer Functions")
         self.transferFuncsList = QtWidgets.QListWidget()
-        self.transferFuncsList.setFixedWidth(210)
         self.loggerCombo = QtWidgets.QComboBox()
         self.locCombo = QtWidgets.QComboBox()
         self.plotButton = QtWidgets.QPushButton("Replot")
@@ -60,7 +59,9 @@ class TransferFunctionsWidget(QtWidgets.QWidget):
         self.form.addRow(QtWidgets.QLabel("Location:"), self.locCombo)
 
         # Setup container
-        self.vbox1 = QtWidgets.QVBoxLayout()
+        self.settingsWidget = QtWidgets.QWidget()
+        self.settingsWidget.setMinimumWidth(250)
+        self.vbox1 = QtWidgets.QVBoxLayout(self.settingsWidget)
         self.vbox1.addWidget(self.openTFsButton)
         self.vbox1.addWidget(self.exportSSTFButton)
         self.vbox1.addWidget(self.exportAveTFButton)
@@ -70,14 +71,22 @@ class TransferFunctionsWidget(QtWidgets.QWidget):
         self.vbox1.addWidget(self.plotButton)
 
         # Plot container
-        self.vbox2 = QtWidgets.QVBoxLayout()
+        self.plotWidget = QtWidgets.QWidget()
+        self.vbox2 = QtWidgets.QVBoxLayout(self.plotWidget)
         self.vbox2.addWidget(navbar)
         self.vbox2.addWidget(self.canvas)
 
+        # Splitter to allow resizing of widget containers
+        splitter = QtWidgets.QSplitter()
+        splitter.addWidget(self.settingsWidget)
+        splitter.addWidget(self.plotWidget)
+        splitter.setSizes([250, 10000])
+
         # LAYOUT
         self.layout = QtWidgets.QHBoxLayout(self)
-        self.layout.addLayout(self.vbox1)
-        self.layout.addLayout(self.vbox2)
+        # self.layout.addLayout(self.vbox1)
+        # self.layout.addLayout(self.vbox2)
+        self.layout.addWidget(splitter)
 
     def _connect_signals(self):
         self.openTFsButton.clicked.connect(self.on_open_tfs_clicked)

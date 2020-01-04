@@ -229,7 +229,7 @@ class ScreeningSetupTab(QtWidgets.QWidget):
 
     def on_process_histograms_check_box_toggled(self):
         if self.parent.loggersList.count() > 0:
-            self.logger.process_histograms = self.processHistogramsChkBox.isChecked()
+            self.logger.process_hists = self.processHistogramsChkBox.isChecked()
 
     def on_stats_h5_toggled(self):
         if self.parent.loggersList.count() > 0:
@@ -281,6 +281,7 @@ class ScreeningSetupTab(QtWidgets.QWidget):
         # Process check states
         self.processStatsChkBox.setChecked(logger.process_stats)
         self.processSpectChkBox.setChecked(logger.process_spect)
+        self.processHistogramsChkBox.setChecked(logger.process_hists)
 
         # Columns
         cols_str = " ".join([str(i) for i in logger.cols_to_process])

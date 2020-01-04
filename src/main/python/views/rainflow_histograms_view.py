@@ -70,9 +70,9 @@ class RainflowHistogramDashboard(QtWidgets.QWidget):
         self.form.addRow(self.lblColumn, self.columnCombo)
 
         # Setup container
-        self.setupWidget = QtWidgets.QWidget()
-        self.setupWidget.setFixedWidth(200)
-        self.vboxSetup = QtWidgets.QVBoxLayout(self.setupWidget)
+        self.settingsWidget = QtWidgets.QWidget()
+        self.settingsWidget.setMinimumWidth(200)
+        self.vboxSetup = QtWidgets.QVBoxLayout(self.settingsWidget)
         self.vboxSetup.addWidget(self.openHistFileButton)
         self.vboxSetup.addWidget(self.clearDatasetsButton)
         self.vboxSetup.addLayout(self.form)
@@ -85,10 +85,15 @@ class RainflowHistogramDashboard(QtWidgets.QWidget):
         self.vboxPlot.addWidget(navbar)
         self.vboxPlot.addWidget(self.canvas)
 
+        # Splitter to allow resizing of widget containers
+        splitter = QtWidgets.QSplitter()
+        splitter.addWidget(self.settingsWidget)
+        splitter.addWidget(self.plotWidget)
+        splitter.setSizes([200, 10000])
+
         # LAYOUT
         self.layout = QtWidgets.QHBoxLayout(self)
-        self.layout.addWidget(self.setupWidget)
-        self.layout.addWidget(self.plotWidget)
+        self.layout.addWidget(splitter)
 
     def connect_signals(self):
         self.openHistFileButton.clicked.connect(self.on_open_histogram_file_clicked)
@@ -184,8 +189,8 @@ class RainflowHistogramDashboard(QtWidgets.QWidget):
         """Set plot title."""
 
         # Attempt to retrieve title from project setup dashboard
-        project_name = self.parent.projConfigModule.control.project_name
-        campaign_name = self.parent.projConfigModule.control.campaign_name
+        project_name = self.parent.inputDataModule.control.project_name
+        campaign_name = self.parent.inputDataModule.control.campaign_name
 
         if project_name == "":
             project_name = "Project Title"

@@ -1,7 +1,7 @@
 __author__ = "Craig Dickinson"
 __program__ = "DataLab"
-__version__ = "2.1.0.1"
-__date__ = "3 January 2020"
+__version__ = "2.1.0.2"
+__date__ = "4 January 2020"
 
 import logging
 import os
@@ -28,7 +28,7 @@ from core.read_files import (
 from core.read_files import read_wcfat_results
 from views.main_window_view import DataLabGui
 from views.processing_progress_view import ProcessingProgressBar
-from views.project_config_view import AzureAccountSetupDialog
+from views.input_data_view import AzureAccountSetupDialog
 from views.stats_view import StatsDataset
 
 
@@ -88,19 +88,19 @@ class DataLab(DataLabGui):
         self.screening = None
 
         # Map settings objects (control, seascatter, transfer functions)
-        self.control = self.projConfigModule.control
-        self.scatter = self.projConfigModule.scatter
-        self.tf = self.projConfigModule.tf
+        self.control = self.inputDataModule.control
+        self.scatter = self.inputDataModule.scatter
+        self.tf = self.inputDataModule.tf
 
     def _connect_signals(self):
         """Connect widget signals to methods/actions."""
 
         # File menu
         self.openConfigAction.triggered.connect(
-            self.projConfigModule.on_open_config_clicked
+            self.inputDataModule.on_open_config_clicked
         )
         self.saveConfigAction.triggered.connect(
-            self.projConfigModule.on_save_config_clicked
+            self.inputDataModule.on_save_config_clicked
         )
         self.openStatsAction.triggered.connect(self.on_open_stats_file_triggered)
         self.openSpectrogramsAction.triggered.connect(self.on_open_spectrograms_file)
@@ -390,7 +390,7 @@ class DataLab(DataLabGui):
 
     def view_proj_config_mod(self):
         self.set_active_tool_button("config")
-        self.modulesWidget.setCurrentWidget(self.projConfigModule)
+        self.modulesWidget.setCurrentWidget(self.inputDataModule)
 
     def view_mod_data_quality(self):
         self.set_active_tool_button("quality")
@@ -601,9 +601,9 @@ class DataLab(DataLabGui):
                 # Update columns list in config dashboard if this logger is the one selected
                 if (
                     logger.logger_id
-                    == self.projConfigModule.loggersList.currentItem().text()
+                    == self.inputDataModule.loggersList.currentItem().text()
                 ):
-                    self.projConfigModule.set_logger_columns_list(logger)
+                    self.inputDataModule.set_logger_columns_list(logger)
 
             # Check requested channels exist
             # Connect warning signal to warning message box in DataLab class
@@ -867,7 +867,7 @@ def run_datalab():
     # filepath = r"C:\Users\dickinsc\PycharmProjects\DataLab\demo_data\2. Project Configs\Project 21239\21239b_Total_WoS_Config.json"
     # filepath = r"C:\Users\dickinsc\PycharmProjects\DataLab\demo_data\2. Project Configs\Test A\21239_Project_A_Config.json"
     # filepath = r"C:\Users\dickinsc\PycharmProjects\DataLab\demo_data\2. Project Configs\Project 21368 - Dhaval\21368_Dhaval_Config.json"
-    # win.projConfigModule.load_config_file(filepath)
+    # win.inputDataModule.load_config_file(filepath)
     win.show()
     # sys.exit(app.exec_())
     exit_code = appctxt.app.exec_()

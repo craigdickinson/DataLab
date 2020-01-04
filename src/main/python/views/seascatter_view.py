@@ -77,15 +77,16 @@ class SeascatterDiagram(QtWidgets.QWidget):
         self.controlsLayout.addWidget(self.tpBinSize)
         self.controlsLayout.addStretch()
 
-        # Table and plots container
-        self.scatterLayout = QtWidgets.QHBoxLayout()
-        self.scatterLayout.addWidget(self.scatterTable, stretch=75)
-        self.scatterLayout.addWidget(self.canvas, stretch=25)
+        # Splitter to allow resizing of widget containers
+        splitter = QtWidgets.QSplitter()
+        splitter.addWidget(self.scatterTable)
+        splitter.addWidget(self.canvas)
+        splitter.setSizes([1000, 350])
 
         # LAYOUT
         self.layout = QtWidgets.QVBoxLayout(self)
         self.layout.addLayout(self.controlsLayout)
-        self.layout.addLayout(self.scatterLayout)
+        self.layout.addWidget(splitter)
 
     def connect_signals(self):
         self.hsBinSize.returnPressed.connect(self.on_hs_bins_updated)

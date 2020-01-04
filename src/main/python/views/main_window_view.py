@@ -8,7 +8,7 @@ from PyQt5 import QtWidgets
 
 from views.data_screening_view import DataQualityReport
 from views.fatigue_view import FatigueProcessingWidget
-from views.project_config_view import ConfigModule
+from views.input_data_view import InputDataModule
 from views.rainflow_histograms_view import RainflowHistogramDashboard
 from views.raw_data_view import RawDataDashboard
 from views.seascatter_view import SeascatterDiagram
@@ -41,8 +41,8 @@ class DataLabGui(QtWidgets.QMainWindow):
         self._menu_bar()
         self._tool_bar()
 
-        # Project config module
-        self.projConfigModule = ConfigModule(self)
+        # Input data module
+        self.inputDataModule = InputDataModule(self)
 
         # Raw data inspection module
         self.rawDataModule = RawDataDashboard(self)
@@ -80,7 +80,7 @@ class DataLabGui(QtWidgets.QMainWindow):
         self.fatigueModule.addTab(self.fatigueTab, "2HFATLASA")
 
         # Add stacked widgets
-        self.modulesWidget.addWidget(self.projConfigModule)
+        self.modulesWidget.addWidget(self.inputDataModule)
         self.modulesWidget.addWidget(self.rawDataModule)
         self.modulesWidget.addWidget(self.dataQualityModule)
         self.modulesWidget.addWidget(self.statsScreeningModule)

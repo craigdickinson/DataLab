@@ -339,7 +339,7 @@ class ProcessingHub(QObject):
             if global_process_histograms is False:
                 data_screen.histograms_requested = False
             else:
-                data_screen.histograms_requested = logger.process_histograms
+                data_screen.histograms_requested = logger.process_hists
 
             # Check whether logger data is to be streamed from Azure
             if logger.data_on_azure:
@@ -351,7 +351,7 @@ class ProcessingHub(QObject):
             if global_process_spect is True and logger.process_spect is True:
                 self.any_spect_expected = True
 
-            if global_process_histograms is True and logger.process_histograms is True:
+            if global_process_histograms is True and logger.process_hists is True:
                 self.any_histograms_expected = True
 
             self.data_screen_sets.append(data_screen)

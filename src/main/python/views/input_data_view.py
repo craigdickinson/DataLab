@@ -43,11 +43,11 @@ index_types = ["Timestamp", "Time Step"]
 delimiters = ["comma", "space", "tab"]
 
 
-class ConfigModule(QtWidgets.QWidget):
+class InputDataModule(QtWidgets.QWidget):
     """Main screen containing project configuration setup."""
 
     def __init__(self, parent=None):
-        super(ConfigModule, self).__init__(parent)
+        super(InputDataModule, self).__init__(parent)
 
         self.parent = parent
         self.skip_on_logger_item_edited = False
@@ -134,8 +134,8 @@ class ConfigModule(QtWidgets.QWidget):
         self.hboxConfig.addStretch()
 
         # Loggers container
-        self.loggersGroup = QtWidgets.QGroupBox("Project Datasets/Loggers")
-        self.loggersGroup.setFixedWidth(180)
+        self.loggersGroup = QtWidgets.QGroupBox("Datasets/Loggers")
+        self.loggersGroup.setMinimumWidth(180)
         self.vboxLoggers = QtWidgets.QVBoxLayout(self.loggersGroup)
         self.vboxLoggers.addWidget(self.addLoggerButton)
         self.vboxLoggers.addWidget(self.remLoggerButton)
@@ -172,10 +172,15 @@ class ConfigModule(QtWidgets.QWidget):
         self.vboxRun.addWidget(self.calcFatigueButton)
         self.vboxRun.addStretch()
 
+        # Splitter to allow resizing of widget containers
+        splitter = QtWidgets.QSplitter()
+        splitter.addWidget(self.loggersGroup)
+        splitter.addWidget(self.setupTabs)
+        splitter.setSizes([180, 10000])
+
         # LAYOUT
         self.hbox = QtWidgets.QHBoxLayout()
-        self.hbox.addWidget(self.loggersGroup)
-        self.hbox.addWidget(self.setupTabs)
+        self.hbox.addWidget(splitter)
 
         self.vbox = QtWidgets.QVBoxLayout()
         self.vbox.addLayout(self.hboxConfig)
