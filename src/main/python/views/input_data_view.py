@@ -57,6 +57,7 @@ class InputDataModule(QtWidgets.QWidget):
         self.tf = TransferFunctions()
         self._init_ui()
         self._connect_signals()
+        self._map_setup_objects_to_tabs()
 
     def _init_ui(self):
         # WIDGETS
@@ -562,6 +563,8 @@ class InputDataModule(QtWidgets.QWidget):
                 item = QtWidgets.QListWidgetItem(logger.logger_id)
                 item.setFlags(item.flags() | QtCore.Qt.ItemIsEditable)
                 self.loggersList.addItem(item)
+
+                # Repaint used to refresh gui as each logger is processed
                 self.repaint()
                 msg = f"Retrieving {logger.logger_id} raw file names..."
                 self.parent.statusbar.showMessage(msg)
@@ -843,34 +846,49 @@ class LoggerPropertiesTab(QtWidgets.QWidget):
         self.dataTimestampFormat = QtWidgets.QLabel("-")
         self.loggingFreq = QtWidgets.QLabel("-")
         self.loggingDuration = QtWidgets.QLabel("-")
+        self.numFiles = QtWidgets.QLabel("-")
+
+        # Labels
+        lblLoggerID = QtWidgets.QLabel("Logger ID:")
+        lblLoggerSrc = QtWidgets.QLabel("Logger source:")
+        lblPath = QtWidgets.QLabel("Logger path:")
+        lblFileFmt = QtWidgets.QLabel("File type:")
+        lblFileTimestampEmbedded = QtWidgets.QLabel("File timestamp embedded:")
+        lblFileTimestampFmt = QtWidgets.QLabel("File timestamp:")
+        lblFirstColData = QtWidgets.QLabel("First column data:")
+        lblExt = QtWidgets.QLabel("Extension:")
+        lblDelim = QtWidgets.QLabel("Delimiter:")
+        lblNumRows = QtWidgets.QLabel("Number of header rows:")
+        lblNumCols = QtWidgets.QLabel("Number of expected columns:")
+        lblChanRow = QtWidgets.QLabel("Channel header row:")
+        lblUnitsRow = QtWidgets.QLabel("Units header row:")
+        lblTimestampFmt = QtWidgets.QLabel("Data timestamp:")
+        lblFreq = QtWidgets.QLabel("Logging frequency (Hz):")
+        lblDuration = QtWidgets.QLabel("Logging duration (s):")
+        lblNumFiles = QtWidgets.QLabel("Number of files:")
 
         # CONTAINERS
         # Logger properties group
         self.loggerPropsGroup = QtWidgets.QGroupBox("Logger Properties")
         self.loggerPropsGroup.setMinimumWidth(500)
         self.form = QtWidgets.QFormLayout(self.loggerPropsGroup)
-        self.form.addRow(QtWidgets.QLabel("Logger ID:"), self.loggerID)
-        self.form.addRow(QtWidgets.QLabel("Logger source:"), self.dataSource)
-        self.form.addRow(QtWidgets.QLabel("Logger path:"), self.loggerPath)
-        self.form.addRow(QtWidgets.QLabel("File type:"), self.fileFormat)
-        self.form.addRow(
-            QtWidgets.QLabel("File timestamp embedded:"), self.fileTimestampEmbedded
-        )
-        self.form.addRow(QtWidgets.QLabel("File timestamp:"), self.fileTimestampFormat)
-        self.form.addRow(QtWidgets.QLabel("First column data:"), self.firstColData)
-        self.form.addRow(QtWidgets.QLabel("Extension:"), self.fileExt)
-        self.form.addRow(QtWidgets.QLabel("Delimiter:"), self.fileDelimiter)
-        self.form.addRow(QtWidgets.QLabel("Number of header rows:"), self.numHeaderRows)
-        self.form.addRow(
-            QtWidgets.QLabel("Number of expected columns:"), self.numColumns
-        )
-        self.form.addRow(QtWidgets.QLabel("Channel header row:"), self.channelHeaderRow)
-        self.form.addRow(QtWidgets.QLabel("Units header row:"), self.unitsHeaderRow)
-        self.form.addRow(QtWidgets.QLabel("Data timestamp:"), self.dataTimestampFormat)
-        self.form.addRow(QtWidgets.QLabel("Logging frequency (Hz):"), self.loggingFreq)
-        self.form.addRow(
-            QtWidgets.QLabel("Logging duration (s):"), self.loggingDuration
-        )
+        self.form.addRow(lblLoggerID, self.loggerID)
+        self.form.addRow(lblLoggerSrc, self.dataSource)
+        self.form.addRow(lblPath, self.loggerPath)
+        self.form.addRow(lblFileFmt, self.fileFormat)
+        self.form.addRow(lblFileTimestampEmbedded, self.fileTimestampEmbedded)
+        self.form.addRow(lblFileTimestampFmt, self.fileTimestampFormat)
+        self.form.addRow(lblFirstColData, self.firstColData)
+        self.form.addRow(lblExt, self.fileExt)
+        self.form.addRow(lblDelim, self.fileDelimiter)
+        self.form.addRow(lblNumRows, self.numHeaderRows)
+        self.form.addRow(lblNumCols, self.numColumns)
+        self.form.addRow(lblChanRow, self.channelHeaderRow)
+        self.form.addRow(lblUnitsRow, self.unitsHeaderRow)
+        self.form.addRow(lblTimestampFmt, self.dataTimestampFormat)
+        self.form.addRow(lblFreq, self.loggingFreq)
+        self.form.addRow(lblDuration, self.loggingDuration)
+        self.form.addRow(lblNumFiles, self.numFiles)
 
         # LAYOUT
         self.hboxButtons = QtWidgets.QHBoxLayout()
@@ -959,6 +977,7 @@ class LoggerPropertiesTab(QtWidgets.QWidget):
         self.dataTimestampFormat.setText(logger.timestamp_format)
         self.loggingFreq.setText(str(logger.freq))
         self.loggingDuration.setText(str(logger.duration))
+        self.numFiles.setText(str(logger.num_files))
 
     def clear_dashboard(self):
         """Initialise all values in logger dashboard."""
@@ -979,6 +998,7 @@ class LoggerPropertiesTab(QtWidgets.QWidget):
         self.dataTimestampFormat.setText("-")
         self.loggingFreq.setText("-")
         self.loggingDuration.setText("-")
+        self.numFiles.setText("-")
 
 
 class EditLoggerPropertiesDialog(QtWidgets.QDialog):
@@ -990,9 +1010,10 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
         # Store control settings and selected logger properties objects
         self.control = control
         self.logger_idx = logger_idx
-        if control.loggers:
+
+        try:
             self.logger = control.loggers[logger_idx]
-        else:
+        except:
             self.logger = LoggerProperties()
 
         # Store settings specific to initial file format that can be restored, if need be,
@@ -1101,19 +1122,19 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
 
         # Labels
         self.lblPath = QtWidgets.QLabel("Logger path:")
-        self.lblCopy = QtWidgets.QLabel("Logger to copy:")
-        self.lblFileFmt = QtWidgets.QLabel("File format:")
-        self.lblFileTimestampFmt = QtWidgets.QLabel("File timestamp format:")
-        self.lblFirstColData = QtWidgets.QLabel("First column data:")
-        self.lblExt = QtWidgets.QLabel("File extension:")
-        self.lblDelim = QtWidgets.QLabel("File delimiter:")
-        self.lblNumRows = QtWidgets.QLabel("Number of header rows:")
-        self.lblChanRow = QtWidgets.QLabel("Channel header row:")
-        self.lblUnitsRow = QtWidgets.QLabel("Units header row:")
-        self.lblTimestampFmt = QtWidgets.QLabel("Timestamp format:")
-        self.lblNumCols = QtWidgets.QLabel("Number of expected columns:")
-        self.lblFreq = QtWidgets.QLabel("Logging frequency (Hz):")
-        self.lblDuration = QtWidgets.QLabel("Logging duration (s):")
+        lblCopy = QtWidgets.QLabel("Logger to copy:")
+        lblFileFmt = QtWidgets.QLabel("File format:")
+        lblFileTimestampFmt = QtWidgets.QLabel("File timestamp format:")
+        lblFirstColData = QtWidgets.QLabel("First column data:")
+        lblExt = QtWidgets.QLabel("File extension:")
+        lblDelim = QtWidgets.QLabel("File delimiter:")
+        lblNumRows = QtWidgets.QLabel("Number of header rows:")
+        lblChanRow = QtWidgets.QLabel("Channel header row:")
+        lblUnitsRow = QtWidgets.QLabel("Units header row:")
+        lblTimestampFmt = QtWidgets.QLabel("Timestamp format:")
+        lblNumCols = QtWidgets.QLabel("Number of expected columns:")
+        lblFreq = QtWidgets.QLabel("Logging frequency (Hz):")
+        lblDuration = QtWidgets.QLabel("Logging duration (s):")
 
         self.buttonBox = QtWidgets.QDialogButtonBox(
             QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel
@@ -1151,7 +1172,7 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
             "Optional: Copy Properties from Another Logger"
         )
         self.hboxCopy = QtWidgets.QHBoxLayout(self.copyGroup)
-        self.hboxCopy.addWidget(self.lblCopy)
+        self.hboxCopy.addWidget(lblCopy)
         self.hboxCopy.addWidget(self.copyLogger)
         self.hboxCopy.addWidget(self.copyLoggerButton)
         self.hboxCopy.addStretch()
@@ -1159,26 +1180,26 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
         # Logger type group
         self.loggerFilePropsGroup = QtWidgets.QGroupBox("Logger File Properties")
         self.typeForm = QtWidgets.QFormLayout(self.loggerFilePropsGroup)
-        self.typeForm.addRow(self.lblFileFmt, self.fileFormat)
+        self.typeForm.addRow(lblFileFmt, self.fileFormat)
         self.typeForm.addRow(
             self.fileTimestampEmbeddedChkBox, self.detectTimestampFormatButton
         )
-        self.typeForm.addRow(self.lblFileTimestampFmt, self.fileTimestampFormat)
-        self.typeForm.addRow(self.lblFirstColData, self.firstColData)
-        self.typeForm.addRow(self.lblExt, self.fileExt)
-        self.typeForm.addRow(self.lblDelim, self.fileDelimiter)
-        self.typeForm.addRow(self.lblNumRows, self.numHeaderRows)
-        self.typeForm.addRow(self.lblChanRow, self.channelHeaderRow)
-        self.typeForm.addRow(self.lblUnitsRow, self.unitsHeaderRow)
+        self.typeForm.addRow(lblFileTimestampFmt, self.fileTimestampFormat)
+        self.typeForm.addRow(lblFirstColData, self.firstColData)
+        self.typeForm.addRow(lblExt, self.fileExt)
+        self.typeForm.addRow(lblDelim, self.fileDelimiter)
+        self.typeForm.addRow(lblNumRows, self.numHeaderRows)
+        self.typeForm.addRow(lblChanRow, self.channelHeaderRow)
+        self.typeForm.addRow(lblUnitsRow, self.unitsHeaderRow)
 
         # Logger properties group
         self.loggerDataPropsGroup = QtWidgets.QGroupBox("Logger Data Properties")
         self.propsForm = QtWidgets.QFormLayout(self.loggerDataPropsGroup)
         self.propsForm.addRow(self.detectPropsButton, QtWidgets.QLabel(""))
-        self.propsForm.addRow(self.lblTimestampFmt, self.dataTimestampFormat)
-        self.propsForm.addRow(self.lblNumCols, self.numColumns)
-        self.propsForm.addRow(self.lblFreq, self.loggingFreq)
-        self.propsForm.addRow(self.lblDuration, self.loggingDuration)
+        self.propsForm.addRow(lblTimestampFmt, self.dataTimestampFormat)
+        self.propsForm.addRow(lblNumCols, self.numColumns)
+        self.propsForm.addRow(lblFreq, self.loggingFreq)
+        self.propsForm.addRow(lblDuration, self.loggingDuration)
 
         # LAYOUT
         self.layout = QtWidgets.QVBoxLayout(self)
@@ -1213,7 +1234,7 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
 
         # Store logger properties specific to initial file format that can be restored, if need be, when selecting
         # between file formats. Note: self.logger is mapped to avoid mapping a temp logger if the copy another logger
-        # function has been used
+        # function has been used, since the parsed logger arg will be the temp logger
         self.init_logger = self.logger
         self.init_file_format = self.logger.file_format
 
@@ -1618,8 +1639,7 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
     def _set_control_data(self):
         """Assign values to the specific logger attribute of the control object."""
 
-        # Retrieve control logger to map confirmed settings to
-        logger = self.control.loggers[self.logger_idx]
+        logger = self.logger
 
         # Map Azure account settings (if any) to logger
         if self.azureCloudRadio.isChecked():

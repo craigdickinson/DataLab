@@ -89,6 +89,7 @@ class LoggerProperties(QObject):
         self.datetime_format = ""
         self.freq = 0
         self.duration = 0
+        self.num_files = 0
         self.expected_data_points = 0
 
         # Store index column name of raw files (to report in the channels list widget on the config dashboard)
@@ -105,7 +106,7 @@ class LoggerProperties(QObject):
         # and file index (out of the raw filenames list)
         self.files = []
         self.file_timestamps = []
-        self.file_indexes = []
+        self.file_indices = []
 
         # Dictionary of files with bad timestamps
         self.dict_bad_filenames = {}
@@ -142,6 +143,7 @@ class LoggerProperties(QObject):
         # Datetime or file index range to process over
         self.process_start = None
         self.process_end = None
+        self.num_selected_files = 0
 
         # Data type to screen on (unfiltered only, filtered only, both unfiltered and filtered)
         self.process_type = "Both unfiltered and filtered"
@@ -191,6 +193,7 @@ class LoggerProperties(QObject):
             filenames = self.get_filenames_on_local()
 
         self.raw_filenames = filenames
+        self.num_files = len(filenames)
 
         return filenames
 
@@ -271,7 +274,7 @@ class LoggerProperties(QObject):
 
         self.files = []
         self.file_timestamps = []
-        self.file_indexes = []
+        self.file_indices = []
 
         for i, f in enumerate(self.raw_filenames):
             date = self.get_file_timestamp(f)
@@ -282,7 +285,7 @@ class LoggerProperties(QObject):
                 # Append if date is successfully parsed
                 self.files.append(f)
                 self.file_timestamps.append(date)
-                self.file_indexes.append(i)
+                self.file_indices.append(i)
 
         # Check at least one valid file was found
         # if not self.files:
@@ -322,6 +325,20 @@ class LoggerProperties(QObject):
         except ValueError:
             return None
 
+    def set_selected_files(self):
+        """Set selected files to process."""
+
+        if self.file_timestamp_embedded is True:
+            self.get_timestamp_span()
+            self.check_file_timestamps()
+
+            # Select only files in date range to process on
+            self.select_files_in_date_range(self.process_start, self.process_end)
+        else:
+            self.select_files_in_index_range(self.process_start, self.process_end)
+
+        self.num_selected_files = len(self.files)
+
     def select_files_in_date_range(self, start_date=None, end_date=None):
         """
         Select files for processing within start_date, end_date range range.
@@ -341,14 +358,14 @@ class LoggerProperties(QObject):
 
         dates_files = [
             (i, d, f)
-            for i, d, f in zip(self.file_indexes, self.file_timestamps, self.files)
+            for i, d, f in zip(self.file_indices, self.file_timestamps, self.files)
             if start_date <= d <= end_date
         ]
 
         # Make sure files are processed in correct order (and make sure they are lists not tuples)
         try:
             i, d, f = list(zip(*dates_files))
-            self.file_indexes = list(i)
+            self.file_indices = list(i)
             self.file_timestamps = list(d)
             self.files = list(f)
         # Empty lists
@@ -366,15 +383,15 @@ class LoggerProperties(QObject):
         if start_idx is None:
             start_idx = 1
 
-        # Slice files to process
-        self.files = self.raw_filenames[start_idx - 1 : end_idx]
-
         # Use last file if no end index read from control file
         if end_idx is None:
             end_idx = len(self.files)
 
-        # Slice file indexes to process
-        self.file_indexes = list(range(start_idx - 1, end_idx))
+        # Slice files to process
+        self.files = self.raw_filenames[start_idx - 1 : end_idx]
+
+        # Slice file indices to process
+        self.file_indices = list(range(start_idx - 1, end_idx))
 
     def get_all_columns(self):
         """Store all channel and units names extracted from the header of a test file."""
@@ -518,7 +535,7 @@ class LoggerProperties(QObject):
         if self.cols_to_process:
             last_col = max(self.cols_to_process)
         else:
-            # Use expected number of columns property to set full list
+            # Select all columns using the expected number of columns property
             if self.num_columns > 0:
                 self.cols_to_process = list(range(2, self.num_columns + 1))
                 last_col = max(self.cols_to_process)

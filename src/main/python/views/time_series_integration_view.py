@@ -15,11 +15,11 @@ from core.logger_properties import LoggerProperties
 class TimeSeriesIntegrationSetupTab(QtWidgets.QWidget):
     """Tab widget to present time series integration setup."""
 
-    def __init__(self, parent=None, control=Control()):
+    def __init__(self, parent=None):
         super(TimeSeriesIntegrationSetupTab, self).__init__(parent)
 
         self.parent = parent
-        self.control = control
+        self.control = Control()
         self.logger = LoggerProperties()
         self._init_ui()
         self._connect_signals()
@@ -152,9 +152,10 @@ class EditIntegrationSetupDialog(QtWidgets.QDialog):
         # Store control settings and selected logger properties objects
         self.control = control
         self.logger_idx = logger_idx
-        if control.loggers:
+
+        try:
             self.logger = control.loggers[logger_idx]
-        else:
+        except:
             self.logger = LoggerProperties()
 
         self._init_ui()

@@ -110,7 +110,7 @@ class ProcessingHub(QObject):
 
             # Get file number of first file to be processed (this is akin to load case number for no timestamp files)
             try:
-                first_file_num = logger.file_indexes[0] + 1
+                first_file_num = logger.file_indices[0] + 1
             except IndexError:
                 first_file_num = 1
 

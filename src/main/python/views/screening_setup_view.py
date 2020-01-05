@@ -15,11 +15,11 @@ from core.logger_properties import LoggerProperties
 class ScreeningSetupTab(QtWidgets.QWidget):
     """GUI screen to control project setup."""
 
-    def __init__(self, parent=None, control=Control()):
+    def __init__(self, parent=None):
         super(ScreeningSetupTab, self).__init__(parent)
 
         self.parent = parent
-        self.control = control
+        self.control = Control()
         self.logger = LoggerProperties()
         self._init_ui()
         self._connect_signals()
@@ -37,6 +37,7 @@ class ScreeningSetupTab(QtWidgets.QWidget):
         self.channelUnits = QtWidgets.QLabel("-")
         self.processStart = QtWidgets.QLabel("-")
         self.processEnd = QtWidgets.QLabel("-")
+        self.numSelectedFiles = QtWidgets.QLabel("-")
         self.processType = QtWidgets.QLabel("-")
         self.lowCutoff = QtWidgets.QLabel("-")
         self.highCutoff = QtWidgets.QLabel("-")
@@ -70,9 +71,10 @@ class ScreeningSetupTab(QtWidgets.QWidget):
         self.rainflowFolder = QtWidgets.QLabel()
         self.binSize = QtWidgets.QLabel("-")
 
-        # Process range labels
+        # Labels
         self.lblProcessStart = QtWidgets.QLabel("Start timestamp:")
         self.lblProcessEnd = QtWidgets.QLabel("End timestamp:")
+        lblNumFilesSelected = QtWidgets.QLabel("Number of files selected:")
 
         # CONTAINERS
         # Columns to process group
@@ -96,6 +98,7 @@ class ScreeningSetupTab(QtWidgets.QWidget):
         self.processRangeForm = QtWidgets.QFormLayout(self.processRangeGroup)
         self.processRangeForm.addRow(self.lblProcessStart, self.processStart)
         self.processRangeForm.addRow(self.lblProcessEnd, self.processEnd)
+        self.processRangeForm.addRow(lblNumFilesSelected, self.numSelectedFiles)
 
         # Filters group
         self.filtersGroup = QtWidgets.QGroupBox("Frequency Filters")
@@ -302,11 +305,12 @@ class ScreeningSetupTab(QtWidgets.QWidget):
         # Set the process start/end labels in the Screening dashboard that pertain to the first logger (if exists)
         self.set_process_date_labels(logger.file_timestamp_embedded)
 
-        # Set start/end timestamp/index
+        # Set start/end timestamp/index of selected files to process
         process_start = self._set_process_start(logger)
         self.processStart.setText(process_start)
         process_end = self._set_process_end(logger)
         self.processEnd.setText(process_end)
+        self.numSelectedFiles.setText(str(logger.num_selected_files))
 
         # Low cut-off frequency
         if logger.low_cutoff_freq is None:
@@ -384,6 +388,7 @@ class ScreeningSetupTab(QtWidgets.QWidget):
         self.channelUnits.setText("-")
         self.processStart.setText("-")
         self.processEnd.setText("-")
+        self.numSelectedFiles.setText("-")
         self.lowCutoff.setText("-")
         self.highCutoff.setText("-")
         self.processType.setText("-")
@@ -415,9 +420,10 @@ class EditScreeningSetupDialog(QtWidgets.QDialog):
         # Store control settings and selected logger properties objects
         self.control = control
         self.logger_idx = logger_idx
-        if control.loggers:
+
+        try:
             self.logger = control.loggers[logger_idx]
-        else:
+        except:
             self.logger = LoggerProperties()
 
         self._init_ui()
@@ -773,6 +779,7 @@ class EditScreeningSetupDialog(QtWidgets.QDialog):
 
         try:
             self.logger = self._set_control_data()
+            self.logger.set_selected_files()
             self.parent.set_analysis_dashboard(self.logger)
         except Exception as e:
             msg = "Unexpected error assigning screening settings."
@@ -828,7 +835,7 @@ class EditScreeningSetupDialog(QtWidgets.QDialog):
         logger.user_channel_names = channel_names
         logger.user_channel_units = self.channelUnits.text().split()
 
-        # Process start and end dates or file indexes
+        # Process start and end dates or file indices
         process_start = self.processStart.text()
         process_end = self.processEnd.text()
 

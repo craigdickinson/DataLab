@@ -420,6 +420,12 @@ class ProjectConfigJSONFile(QObject):
                 )
                 self.signal_warning.emit(msg)
 
+        logger.num_selected_files = self._get_key_value(
+            section=logger.logger_id,
+            data=dict_logger,
+            key="number_of_selected_files",
+            attr=logger.num_selected_files,
+        )
         logger.process_type = self._get_key_value(
             section=logger.logger_id,
             data=dict_logger,
@@ -750,6 +756,9 @@ class ProjectConfigJSONFile(QObject):
                 )
             else:
                 dict_props["process_end"] = logger.process_end
+
+        # Number of files to process
+        dict_props["number_of_selected_files"] = logger.num_selected_files
 
         # Data type to screen on
         dict_props["process_type"] = logger.process_type

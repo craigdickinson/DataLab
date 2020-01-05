@@ -1,7 +1,7 @@
 __author__ = "Craig Dickinson"
 __program__ = "DataLab"
-__version__ = "2.1.0.2"
-__date__ = "4 January 2020"
+__version__ = "2.1.0.3"
+__date__ = "5 January 2020"
 
 import logging
 import os
@@ -574,19 +574,8 @@ class DataLab(DataLabGui):
             self.repaint()
             logger.get_filenames()
 
-            # If filenames contain timestamp, check and retrieve timestamps for all files
-            if logger.file_timestamp_embedded is True:
-                logger.get_timestamp_span()
-                logger.check_file_timestamps()
-
-                # Select only files in date range to process on
-                logger.select_files_in_date_range(
-                    logger.process_start, logger.process_end
-                )
-            else:
-                logger.select_files_in_index_range(
-                    logger.process_start, logger.process_end
-                )
+            # Select files to process and, if applicable, check file timestamps are valid
+            logger.set_selected_files()
 
             # Store expected file length
             logger.expected_data_points = logger.freq * logger.duration
