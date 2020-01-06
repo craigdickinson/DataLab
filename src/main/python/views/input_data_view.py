@@ -52,9 +52,12 @@ class InputDataModule(QtWidgets.QWidget):
         self.parent = parent
         self.skip_on_logger_item_edited = False
         self.del_logger = False
+
+        # Initialise settings objects
         self.control = Control()
         self.scatter = Seascatter()
         self.tf = TransferFunctions()
+
         self._init_ui()
         self._connect_signals()
         self._map_setup_objects_to_tabs()
@@ -73,10 +76,10 @@ class InputDataModule(QtWidgets.QWidget):
         self.openProjDirButton = QtWidgets.QPushButton("Open Project Folder")
         self.openProjDirButton.setShortcut("Ctrl+D")
         self.openProjDirButton.setToolTip("Ctrl+D")
-        self.addLoggerButton = QtWidgets.QPushButton("Add Dataset...")
+        self.addLoggerButton = QtWidgets.QPushButton("Add...")
         self.addLoggerButton.setShortcut("Ctrl+A")
         self.addLoggerButton.setToolTip("Ctrl+A")
-        self.remLoggerButton = QtWidgets.QPushButton("Remove Dataset")
+        self.remLoggerButton = QtWidgets.QPushButton("Remove")
         self.remLoggerButton.setShortcut("Ctrl+Del")
         self.remLoggerButton.setToolTip("Ctrl+Del")
         self.loggersList = QtWidgets.QListWidget()
@@ -137,15 +140,17 @@ class InputDataModule(QtWidgets.QWidget):
         # Loggers container
         self.loggersGroup = QtWidgets.QGroupBox("Datasets/Loggers")
         self.loggersGroup.setMinimumWidth(180)
+        self.hboxLoggers = QtWidgets.QHBoxLayout()
+        self.hboxLoggers.addWidget(self.addLoggerButton)
+        self.hboxLoggers.addWidget(self.remLoggerButton)
         self.vboxLoggers = QtWidgets.QVBoxLayout(self.loggersGroup)
-        self.vboxLoggers.addWidget(self.addLoggerButton)
-        self.vboxLoggers.addWidget(self.remLoggerButton)
+        self.vboxLoggers.addLayout(self.hboxLoggers)
         self.vboxLoggers.addWidget(QtWidgets.QLabel("Datasets"))
         self.vboxLoggers.addWidget(self.loggersList)
         self.vboxLoggers.addWidget(QtWidgets.QLabel("Columns"))
         self.vboxLoggers.addWidget(self.columnList)
 
-        # Setup container
+        # Setup tabs container
         self.setupTabs = QtWidgets.QTabWidget()
         self.setupTabs.addTab(self.generalTab, "Project Details")
         self.setupTabs.addTab(self.loggerPropsTab, "Logger File Properties")
@@ -237,13 +242,9 @@ class InputDataModule(QtWidgets.QWidget):
             config.add_loggers_settings(self.control.loggers)
             config.add_seascatter_settings(self.scatter)
             config.add_transfer_functions_settings(self.tf)
-            config.save_config(
-                proj_num=self.control.project_num,
-                proj_name=self.control.project_name,
-                proj_path=self.control.project_path,
-            )
+            config.save_config(self.control.project_path, self.control.config_file)
         except FileNotFoundError as e:
-            msg = f"Error saving config file. No such directoy:\n{self.control.project_path}."
+            msg = f"Error saving config file. No such directory:\n{self.control.project_path}."
             self.parent.error(msg)
             logging.exception(e)
         except Exception as e:
@@ -251,11 +252,8 @@ class InputDataModule(QtWidgets.QWidget):
             self.parent.error(f"{msg}:\n{e}\n{sys.exc_info()[0]}")
             logging.exception(e)
 
-        # Check file created
+        # Check file created and inform user
         if os.path.exists(config.full_path):
-            # Update config dashboard with config filename and inform user
-            self.control.config_file = config.filename
-            self.generalTab.configFilename.setText(config.filename)
             msg = f"Project config settings saved to:\n{config.full_path}"
             QtWidgets.QMessageBox.information(self, "Save Project Config", msg)
 
@@ -552,7 +550,7 @@ class InputDataModule(QtWidgets.QWidget):
         self.spectScreenChkBox.setChecked(self.control.global_process_spect)
 
         # Set campaign data to dashboard
-        self.generalTab.set_campaign_dashboard()
+        self.generalTab.set_dashboard()
 
         self.loggersList.clear()
         self.columnList.clear()
@@ -628,6 +626,9 @@ class GeneralTab(QtWidgets.QWidget):
         self.editButton = QtWidgets.QPushButton("Edit Data...")
         self.editButton.setShortcut("Ctrl+E")
         self.editButton.setToolTip("Ctrl+E")
+        self.renameConfigFileButton = QtWidgets.QPushButton("Rename Config File...")
+        self.renameConfigFileButton.setShortcut("Ctrl+R")
+        self.renameConfigFileButton.setToolTip("Ctrl+R")
         self.projNum = QtWidgets.QLabel("-")
         self.projNum.setFixedWidth(40)
         self.projName = QtWidgets.QLabel("-")
@@ -637,6 +638,12 @@ class GeneralTab(QtWidgets.QWidget):
         self.configFilename = QtWidgets.QLabel("-")
 
         # CONTAINERS
+        # Buttons
+        self.hboxButtons = QtWidgets.QHBoxLayout()
+        self.hboxButtons.addWidget(self.editButton)
+        self.hboxButtons.addWidget(self.renameConfigFileButton)
+        self.hboxButtons.addStretch()
+
         self.projGroup = QtWidgets.QGroupBox("Project Details")
         self.projGroup.setMinimumWidth(500)
         self.form = QtWidgets.QFormLayout(self.projGroup)
@@ -648,7 +655,7 @@ class GeneralTab(QtWidgets.QWidget):
 
         # LAYOUT
         self.vbox = QtWidgets.QVBoxLayout()
-        self.vbox.addWidget(self.editButton, stretch=0, alignment=QtCore.Qt.AlignLeft)
+        self.vbox.addLayout(self.hboxButtons)
         self.vbox.addWidget(self.projGroup)
         self.vbox.addStretch()
 
@@ -679,24 +686,44 @@ class GeneralTab(QtWidgets.QWidget):
 
     def _connect_signals(self):
         self.editButton.clicked.connect(self.on_edit_clicked)
+        self.renameConfigFileButton.clicked.connect(self.on_rename_config_file_clicked)
 
     def on_edit_clicked(self):
-        """Open campaign settings edit dialog."""
+        """Open general settings edit dialog."""
 
         editInfo = EditGeneralDialog(self, self.control)
         editInfo.show()
 
-    def set_campaign_dashboard(self):
-        """Set config tab campaign info."""
+    def on_rename_config_file_clicked(self):
+        """Open dialog to rename config file."""
 
-        self.projNum.setText(self.control.project_num)
-        self.projName.setText(self.control.project_name)
+        renameConfig = RenameConfigFileDialog(self, self.control)
+        renameConfig.show()
+
+    def set_dashboard(self):
+        """Set general info tab."""
+
+        if self.control.project_num == "":
+            self.projNum.setText("-")
+        else:
+            self.projNum.setText(self.control.project_num)
+
+        if self.control.project_name == "":
+            self.projName.setText("-")
+        else:
+            self.projName.setText(self.control.project_name)
+
         if self.control.campaign_name == "":
             self.campaignName.setText("-")
         else:
             self.campaignName.setText(self.control.campaign_name)
+
         self.projPath.setText(self.control.project_path)
-        self.configFilename.setText(self.control.config_file)
+
+        if self.control.config_file == "":
+            self.configFilename.setText("-")
+        else:
+            self.configFilename.setText(self.control.config_file)
 
     def clear_dashboard(self):
         """Initialise all values in logger dashboard."""
@@ -709,7 +736,7 @@ class GeneralTab(QtWidgets.QWidget):
 
 
 class EditGeneralDialog(QtWidgets.QDialog):
-    """Edit window for project and campaign data."""
+    """Edit dialog for project and campaign data."""
 
     def __init__(self, parent=None, control=Control()):
         super(EditGeneralDialog, self).__init__(parent)
@@ -782,7 +809,7 @@ class EditGeneralDialog(QtWidgets.QDialog):
             return
 
         self.set_control_data()
-        self.parent.set_campaign_dashboard()
+        self.parent.set_dashboard()
 
     def set_control_data(self):
         """Assign values to the control object."""
@@ -797,6 +824,22 @@ class EditGeneralDialog(QtWidgets.QDialog):
         else:
             control.project_path = self.projPath.toPlainText()
 
+        if not control.config_file:
+            control.config_file = self.create_config_filename(control)
+
+    @staticmethod
+    def create_config_filename(control):
+        """Construct config filename for a new project."""
+
+        if control.project_num == "" or control.project_name == "":
+            return ""
+        else:
+            filename = "_".join(
+                (control.project_num, control.project_name, "Config.json")
+            ).replace(" ", "_")
+
+            return filename
+
     def set_project_path(self):
         """Set location of project root directory."""
 
@@ -804,6 +847,66 @@ class EditGeneralDialog(QtWidgets.QDialog):
 
         if dir_path:
             self.projPath.setPlainText(dir_path)
+
+
+class RenameConfigFileDialog(QtWidgets.QDialog):
+    """Dialog to edit the config filename."""
+
+    def __init__(self, parent=None, control=Control()):
+        super(RenameConfigFileDialog, self).__init__(parent)
+
+        self.parent = parent
+        self.control = control
+        self._init_ui()
+        self._connect_signals()
+        self._set_dialog()
+
+    def _init_ui(self):
+        """Create widget layout."""
+
+        self.setWindowTitle("Rename Config File")
+
+        # WIDGETS
+        self.renameConfigFile = QtWidgets.QLineEdit()
+        self.buttonBox = QtWidgets.QDialogButtonBox(
+            QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel
+        )
+
+        # CONTAINERS
+        self.form = QtWidgets.QFormLayout()
+        self.form.addRow(QtWidgets.QLabel("Config file name:"), self.renameConfigFile)
+
+        # LAYOUT
+        self.vbox = QtWidgets.QVBoxLayout(self)
+        self.vbox.addLayout(self.form)
+        self.vbox.addWidget(self.buttonBox)
+
+        self.setFixedSize(self.sizeHint())
+        self.setMinimumWidth(300)
+
+    def _connect_signals(self):
+        self.buttonBox.accepted.connect(self.on_ok_clicked)
+        self.buttonBox.accepted.connect(self.accept)
+        self.buttonBox.rejected.connect(self.reject)
+
+    def _set_dialog(self):
+        self.renameConfigFile.setText(self.control.config_file)
+
+    def on_ok_clicked(self):
+        """Set new config filename to control object and dashboard."""
+
+        filename = self.renameConfigFile.text()
+
+        # Do nothing if not text present
+        if filename == "":
+            return
+
+        # Check filename has .json extension
+        if filename[-5:] != ".json":
+            filename += filename + ".json"
+
+        self.control.config_file = filename
+        self.parent.configFilename.setText(filename)
 
 
 class LoggerPropertiesTab(QtWidgets.QWidget):
@@ -2316,7 +2419,6 @@ class AzureAccountSetupDialog(QtWidgets.QDialog):
 
     def _init_ui(self):
         self.setWindowTitle("Connect to Microsoft Azure Cloud Storage Account")
-        self.setFixedWidth(650)
 
         # WIDGETS
         self.accountName = QtWidgets.QLineEdit(self.account_name)
@@ -2338,6 +2440,9 @@ class AzureAccountSetupDialog(QtWidgets.QDialog):
         self.layout = QtWidgets.QVBoxLayout(self)
         self.layout.addLayout(self.form)
         self.layout.addWidget(self.buttonBox)
+
+        self.setFixedSize(self.sizeHint())
+        self.setFixedWidth(650)
 
     def _connect_signals(self):
         self.buttonBox.accepted.connect(self.on_ok_clicked)
@@ -2380,9 +2485,10 @@ if __name__ == "__main__":
     # For testing widget layout
     app = QtWidgets.QApplication(sys.argv)
     # win = ConfigModule()
-    # win = CampaignInfoTab()
-    # win = EditCampaignInfoDialog()
-    win = LoggerPropertiesTab()
+    # win = GeneralTab()
+    # win = EditGeneralDialog()
+    win = RenameConfigFileDialog()
+    # win = LoggerPropertiesTab()
     # win = EditLoggerPropertiesDialog()
     # win = SeascatterTab()
     # win = EditSeascatterDialog()

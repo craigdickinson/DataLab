@@ -832,13 +832,11 @@ class ProjectConfigJSONFile(QObject):
 
         self.data["transfer_functions"] = d
 
-    def save_config(self, proj_num, proj_name, proj_path):
+    def save_config(self, proj_path, filename):
         """Export project configuration data as JSON file."""
 
-        # Create file path to save to
-        proj_name = "_".join(proj_name.split())
-        self.filename = "_".join((proj_num, proj_name, "Config.json"))
-        self.full_path = os.path.join(proj_path, self.filename)
+        self.filename = filename
+        self.full_path = os.path.join(proj_path, filename)
 
         # Save as JSON file
         # Prevent ascii characters in file. Indent gives nicer layout instead of one long line string

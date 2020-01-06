@@ -1,7 +1,7 @@
 __author__ = "Craig Dickinson"
 __program__ = "DataLab"
-__version__ = "2.1.0.3"
-__date__ = "5 January 2020"
+__version__ = "2.1.0.4"
+__date__ = "6 January 2020"
 
 import logging
 import os
