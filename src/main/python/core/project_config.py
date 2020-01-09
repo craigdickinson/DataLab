@@ -42,7 +42,6 @@ class ProjectConfigJSONFile(QObject):
         control.config_file = self.filename
         data = self.data
         control = self._map_general_dict(data, control)
-        control = self._map_campaign_dict(data, control)
         control = self._map_loggers_dict(data, control)
 
         return control
@@ -75,7 +74,7 @@ class ProjectConfigJSONFile(QObject):
         """Map the general settings section to the control object."""
 
         key = "general"
-        if key in data.keys():
+        if key in data:
             data = data[key]
         else:
             msg = f"'{key}' key not found in config file."
@@ -154,44 +153,11 @@ class ProjectConfigJSONFile(QObject):
 
         return control
 
-    def _map_campaign_dict(self, data, control):
-        """DEPRECATED - TO REMOVE IN NEXT RELEASE
-        Map the config campaign section to the control object.
-        """
-
-        # TODO: Deprecated
-        key = "campaign"
-        if key in data.keys():
-            data = data[key]
-            msg = (
-                f"'{key}' key is deprecated in v1.1.0 and will be removed in a future update.\n"
-                f"Warning can be safely ignored for now.\n"
-                f"Save your project to update the config file to the new format."
-            )
-            self.signal_warning.emit(msg)
-        else:
-            return control
-
-        control.project_num = self._get_key_value(
-            section=key, data=data, key="project_number", attr=control.project_num
-        )
-        control.project_name = self._get_key_value(
-            section=key, data=data, key="project_name", attr=control.project_name
-        )
-        control.campaign_name = self._get_key_value(
-            section=key, data=data, key="campaign_name", attr=control.campaign_name
-        )
-        control.project_path = self._get_key_value(
-            section=key, data=data, key="project_location", attr=control.project_path
-        )
-
-        return control
-
     def _map_loggers_dict(self, data, control):
         """Map the config loggers section to the control object for all logger."""
 
         key = "loggers"
-        if key in data.keys():
+        if key in data:
             data = data[key]
         else:
             msg = f"'{key}' key not found in config file."
@@ -565,7 +531,7 @@ class ProjectConfigJSONFile(QObject):
         """Map the seascatter settings section to the transfer function object."""
 
         key = "seascatter"
-        if key in data.keys():
+        if key in data:
             data = data[key]
         else:
             msg = f"'{key}' key not found in config file."
@@ -597,7 +563,7 @@ class ProjectConfigJSONFile(QObject):
         """Map the transfer functions settings section to the transfer function object."""
 
         key = "transfer_functions"
-        if key in data.keys():
+        if key in data:
             data = data[key]
         else:
             msg = f"'{key}' key not found in config file."
@@ -637,7 +603,7 @@ class ProjectConfigJSONFile(QObject):
     def _get_key_value(self, section, data, key, attr=None):
         """Assign data from a JSON key to control object attribute."""
 
-        if key in data.keys():
+        if key in data:
             return data[key]
         else:
             msg = f"'{key}' key not found in config file under '{section}' dictionary."

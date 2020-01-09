@@ -779,7 +779,7 @@ class EditScreeningSetupDialog(QtWidgets.QDialog):
 
         try:
             self.logger = self._set_control_data()
-            self.logger.set_selected_files()
+            self.logger.set_files_to_process()
             self.parent.set_analysis_dashboard(self.logger)
         except Exception as e:
             msg = "Unexpected error assigning screening settings."

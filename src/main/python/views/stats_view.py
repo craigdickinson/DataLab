@@ -1130,8 +1130,12 @@ class StatsWidget(QtWidgets.QWidget):
         # Apply global subplots min/max
         if apply_global_limits is True:
             for subplot in self.subplots:
-                subplot.ax1.set_ylim(glob_ymin1, glob_ymax1)
-                subplot.ax2.set_ylim(glob_ymin2, glob_ymax2)
+                try:
+                    subplot.ax1.set_ylim(glob_ymin1, glob_ymax1)
+                    subplot.ax2.set_ylim(glob_ymin2, glob_ymax2)
+                except ValueError:
+                    # If glob limits happen to be +/- inf
+                    pass
 
     def _set_title(self):
         """Set main plot title."""

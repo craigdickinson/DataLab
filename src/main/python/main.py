@@ -1,7 +1,7 @@
 __author__ = "Craig Dickinson"
 __program__ = "DataLab"
-__version__ = "2.1.0.4"
-__date__ = "6 January 2020"
+__version__ = "2.1.0.5"
+__date__ = "9 January 2020"
 
 import logging
 import os
@@ -491,6 +491,18 @@ class DataLab(DataLabGui):
     def process_screening(self):
         """Screen loggers and process statistical and spectral analysis."""
 
+        self.control.processing_mode = "screening"
+        self.do_processing()
+
+    def process_ts_integration(self):
+        """Convert time series accelerations to displacement and angular rates to angles."""
+
+        self.control.processing_mode = "integration"
+        self.do_processing()
+
+    def do_processing(self):
+        """Screen loggers and process statistical and spectral analysis."""
+
         try:
             self.repaint()
             self.analyse_screening_setup()
@@ -520,7 +532,7 @@ class DataLab(DataLabGui):
             self.error(f"{msg}:\n{e}\n{sys.exc_info()[0]}")
             logging.exception(e)
         else:
-            self.run_screening()
+            self.create_and_run_worker()
 
     def analyse_screening_setup(self):
         """Prepare and check screening setup."""
@@ -575,7 +587,7 @@ class DataLab(DataLabGui):
             logger.get_filenames()
 
             # Select files to process and, if applicable, check file timestamps are valid
-            logger.set_selected_files()
+            logger.set_files_to_process()
 
             # Store expected file length
             logger.expected_data_points = logger.freq * logger.duration
@@ -604,31 +616,25 @@ class DataLab(DataLabGui):
             logger.logger_warning_signal.connect(self.warning)
 
             # Set processed channel names and units as user values, if supplied, or file header values
-            logger.select_columns_to_process()
+            logger.set_selected_column_and_units_names()
 
             # Check number of headers match number of columns to process
             logger.check_headers()
 
-    def run_screening(self):
-        """Run statistical and spectral analysis in config setup."""
+    def create_and_run_worker(self):
+        """Create worker thread to setup and run processing."""
 
         # Run processing on QThread worker - prevents GUI lock up
-        try:
-            # Create processing object, map control data and screen datasets
-            processing_hub = ProcessingHub()
-            processing_hub.control = self.control
+        # Create processing object, map control data
+        processing_hub = ProcessingHub(control=self.control)
 
-            # Create worker thread, connect signals to methods in this class and start, which calls worker.run()
-            self.worker = ProcessingWorker(processing_hub, parent=self)
-            self.worker.signal_screening_output_to_gui.connect(
-                self.set_screening_output_to_gui
-            )
-            self.worker.signal_error.connect(self.error)
-            self.worker.start()
-        except Exception as e:
-            msg = "Unexpected error during processing"
-            self.error(f"{msg}:\n{e}\n{sys.exc_info()[0]}")
-            logging.exception(e)
+        # Create worker thread, connect signals to methods in this class and start, which calls worker.run()
+        self.worker = ProcessingWorker(processing_hub, parent=self)
+        self.worker.signal_screening_output_to_gui.connect(
+            self.set_screening_output_to_gui
+        )
+        self.worker.signal_error.connect(self.error)
+        self.worker.start()
 
     @pyqtSlot(object)
     def set_screening_output_to_gui(self, screening):
@@ -759,10 +765,9 @@ class DataLab(DataLabGui):
             logging.exception(e)
 
     def calc_fatigue(self):
-        # return QtWidgets.QMessageBox.information(
-        #     self, "To Do", "Feature coming in a future update."
-        # )
-        self.process_screening()
+        return QtWidgets.QMessageBox.information(
+            self, "To Do", "Feature coming in a future update."
+        )
 
 
 class ProcessingWorker(QtCore.QThread):
@@ -784,6 +789,9 @@ class ProcessingWorker(QtCore.QThread):
         # Processing hub object
         self.processing_hub = processing_hub
 
+        # Flag to indicate processing mode
+        self.processing_mode = processing_hub.control.processing_mode
+
         # Initialise progress bar
         self.pb = ProcessingProgressBar(
             logger_ids=self.processing_hub.control.logger_ids
@@ -803,7 +811,12 @@ class ProcessingWorker(QtCore.QThread):
             self.parent.setEnabled(False)
 
             # Run DataLab processing; compute and write requested logger statistics and spectrograms
-            self.processing_hub.process()
+            if self.processing_mode == "screening":
+                self.processing_hub.run_screening()
+            elif self.processing_mode == "integration":
+                self.processing_hub.run_ts_integration()
+
+            # Emit processed results to outside worker to present in gui
             self.signal_screening_output_to_gui.emit(self.processing_hub)
         except ValueError as e:
             self.signal_error.emit(str(e))
@@ -854,9 +867,10 @@ def run_datalab():
     # win = QtDesignerGui()
     win = DataLab()
     # filepath = r"C:\Users\dickinsc\PycharmProjects\DataLab\demo_data\2. Project Configs\Project 21239\21239b_Total_WoS_Config.json"
-    # filepath = r"C:\Users\dickinsc\PycharmProjects\DataLab\demo_data\2. Project Configs\Test A\21239_Project_A_Config.json"
+    filepath = r"C:\Users\dickinsc\PycharmProjects\DataLab\demo_data\2. Project Configs\Test A\21239_Project_A_Config.json"
     # filepath = r"C:\Users\dickinsc\PycharmProjects\DataLab\demo_data\2. Project Configs\Project 21368 - Dhaval\21368_Dhaval_Config.json"
-    # win.inputDataModule.load_config_file(filepath)
+    # filepath = r"C:\Users\dickinsc\PycharmProjects\DataLab\demo_data\2. Project Configs\Project 21239 Acc to Disp to AR-Ang\21239_Time_Series_Conversion_Config.json"
+    win.inputDataModule.load_config_file(filepath)
     win.show()
     # sys.exit(app.exec_())
     exit_code = appctxt.app.exec_()

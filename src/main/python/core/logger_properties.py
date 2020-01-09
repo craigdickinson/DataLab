@@ -325,7 +325,7 @@ class LoggerProperties(QObject):
         except ValueError:
             return None
 
-    def set_selected_files(self):
+    def set_files_to_process(self):
         """Set selected files to process."""
 
         if self.file_timestamp_embedded is True:
@@ -435,8 +435,19 @@ class LoggerProperties(QObject):
             channels, units = self.read_column_names_2hps2(test_file, delim, c)
 
         # Assign channels and units list to logger - encode and decode to handle ascii characters
-        self.all_channel_names = [c.strip().encode("latin1").decode() for c in channels]
-        self.all_channel_units = [u.strip().encode("latin1").decode() for u in units]
+        try:
+            self.all_channel_names = [
+                c.strip().encode("latin1").decode() for c in channels
+            ]
+        except UnicodeDecodeError:
+            self.all_channel_names = [c.strip() for c in channels]
+
+        try:
+            self.all_channel_units = [
+                u.strip().encode("latin1").decode() for u in units
+            ]
+        except UnicodeDecodeError:
+            self.all_channel_units = [u.strip() for u in units]
 
         return channels, units
 
@@ -524,7 +535,7 @@ class LoggerProperties(QObject):
 
         return channels, units
 
-    def select_columns_to_process(self):
+    def set_selected_column_and_units_names(self):
         """
         Assign user-defined channel names and units to logger if supplied.
         Otherwise use header info from a test file and create dummy header columns for any columns

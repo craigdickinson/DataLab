@@ -103,8 +103,8 @@ class StatsScreening(object):
                 stats_filename = self.stats_out.write_to_hdf5(self.h5_write_mode)
 
                 # Add to output files list - and write to progress window
-                file_subpath = self.control.stats_output_folder + "/" + stats_filename
-                output_files.append(file_subpath + self.h5_output_file_suffix)
+                rel_filepath = self.control.stats_output_folder + "/" + stats_filename
+                output_files.append(rel_filepath + self.h5_output_file_suffix)
 
                 # Set write mode to append to file for additional loggers
                 if self.h5_write_mode == "w":
@@ -115,8 +115,8 @@ class StatsScreening(object):
                 stats_filename = self.stats_out.write_to_csv()
 
                 # Add to output files list - and write to progress window
-                file_subpath = self.control.stats_output_folder + "/" + stats_filename
-                output_files.append(file_subpath)
+                rel_filepath = self.control.stats_output_folder + "/" + stats_filename
+                output_files.append(rel_filepath)
 
             if self.control.stats_to_xlsx is True:
                 self.stats_out.write_to_excel()
@@ -127,8 +127,8 @@ class StatsScreening(object):
         stats_filename = self.stats_out.save_workbook()
 
         # Add to output files list - and write to progress window
-        file_subpath = self.control.stats_output_folder + "/" + stats_filename
-        output_files.append(file_subpath)
+        rel_filepath = self.control.stats_output_folder + "/" + stats_filename
+        output_files.append(rel_filepath)
 
 
 class LoggerStats(object):

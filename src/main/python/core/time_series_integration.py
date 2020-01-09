@@ -99,18 +99,26 @@ class IntegrateTimeSeries(object):
         if cols:
             df_int = pd.DataFrame(np.array(data).T, index=idx, columns=cols)
 
+            # New filename
             filename = os.path.basename(file)
             filename, ext = os.path.splitext(filename)
             filename += "_Converted" + ext
 
             # Extract logger folder
             folder = os.path.split(os.path.dirname(file))[-1]
+
+            # Create directory path, check exists and export file
             path_to_file = os.path.join(
                 self.project_path, "Displacements and Angles", folder
             )
             ensure_dir_exists(path_to_file)
             filepath = os.path.join(path_to_file, filename)
             df_int.to_csv(filepath)
+
+            # Relative file path to report in progress bar
+            rel_filepath = os.path.join("Displacements and Angles", folder, filename)
+
+            return rel_filepath
 
 
 def ensure_dir_exists(directory):

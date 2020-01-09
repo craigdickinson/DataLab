@@ -164,7 +164,8 @@ class DataScreen(object):
         self.first_col = "Timestamp"
 
         if self.logger.file_format == "Custom":
-            df = df.dropna(axis=1)
+            # Drop columns that are all nan (can happen with poorly delimited csv files, e.g. trailing commas)
+            df = df.dropna(axis=1, how="all")
 
             # Time steps data
             if self.logger.first_col_data == "Time Step":
@@ -182,20 +183,20 @@ class DataScreen(object):
                     df.iloc[:, 0] = pd.to_datetime(
                         df.iloc[:, 0], format=self.logger.datetime_format
                     )
+                # TODO: isinstance error doesn't seem to work - get rid of error
+                # except ValueError as e:
+                #     try:
+                #         # Try without code but could be a lot slower
+                #         # TODO: Warn code is bad and slow
+                #         df.iloc[:, 0] = pd.to_datetime(df.iloc[:, 0])
                 except ValueError as e:
-                    if not isinstance(df.iloc[0, 0], pd.Timestamp):
-                        raise ValueError(
-                            f"Expected the first column of {self.logger.files[file_idx]} "
-                            f"to contain dates.\n"
-                            f"The time series appears to use a time step index but the "
-                            f"'First column data' property is set to 'Timestamp'. Change this to 'Time Step'."
-                        )
-                    else:
-                        raise ValueError(
-                            f"Could not convert the first column of {self.logger.files[file_idx]} "
-                            f"to datetime.\n"
-                            f"Check the 'Data Timestamp' property has the correct format.\n\n<{e}>"
-                        )
+                    msg = (
+                        f"Could not convert the first column of {self.logger.files[file_idx]} to datetime.\n\n"
+                        f"If the first column is expected to be a time step index, ensure the 'First column data' "
+                        f"property is set to 'Time Step'. Otherwise, check the 'Data Timestamp' property is the "
+                        f"correct format.\n\n<{e}>"
+                    )
+                    raise ValueError(msg)
 
         # Convert first column (should be timestamps string) to datetimes
         if self.logger.file_format == "Fugro-csv":

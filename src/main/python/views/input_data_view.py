@@ -95,28 +95,46 @@ class InputDataModule(QtWidgets.QWidget):
         self.spectScreenChkBox = QtWidgets.QCheckBox("Spectral Screening")
         self.spectScreenChkBox.setChecked(True)
 
-        # Process buttons
+        # Run processes buttons
+        # Button height and space
         h = 30
+        self.spacer = QtWidgets.QSpacerItem(1, 20)
+
+        self.runDataQualityChecksButton = QtWidgets.QPushButton(
+            "Run Data Quality Checks"
+        )
+        self.runDataQualityChecksButton.setFixedHeight(h)
+        tooltip = "Create a data quality report of selected loggers (F6)"
+        self.runDataQualityChecksButton.setToolTip(tooltip)
+
         self.processButton = QtWidgets.QPushButton("Process Screening")
         self.processButton.setFixedHeight(h)
-        self.processButton.setToolTip(
-            "Screen loggers and calculate stats and spectral data (F6)"
+        tooltip = "Screen loggers and calculate stats and spectral data (F6)"
+        self.processButton.setToolTip(tooltip)
+
+        self.runTimeSeriesIntegrationButton = QtWidgets.QPushButton(
+            "Run Time Series Integration"
         )
+        self.runTimeSeriesIntegrationButton.setFixedHeight(h)
+        tooltip = (
+            "Convert accelerations to displacement and angular rates to angles (F6)"
+        )
+        self.runTimeSeriesIntegrationButton.setToolTip(tooltip)
 
         self.calcSeascatterButton = QtWidgets.QPushButton("Create Sea Scatter")
         self.calcSeascatterButton.setFixedHeight(h)
-        self.calcSeascatterButton.setToolTip("Create Hs-Tp sea scatter diagram (F7)")
+        tooltip = "Create Hs-Tp sea scatter diagram (F7)"
+        self.calcSeascatterButton.setToolTip(tooltip)
 
         self.calcTFButton = QtWidgets.QPushButton("Calculate Transfer Functions")
         self.calcTFButton.setFixedHeight(h)
-        self.calcTFButton.setToolTip(
-            "Calculate frequency-dependent transfer functions (F8)"
-        )
+        tooltip = "Calculate frequency-dependent transfer functions (F8)"
+        self.calcTFButton.setToolTip(tooltip)
 
         self.calcFatigueButton = QtWidgets.QPushButton("Calculate Fatigue")
         self.calcFatigueButton.setFixedHeight(h)
-        self.calcFatigueButton.setToolTip("Run spectral fatigue analysis (F9)")
-        self.spacer = QtWidgets.QSpacerItem(1, 20)
+        tooltip = "Run spectral fatigue analysis (F9)"
+        self.calcFatigueButton.setToolTip(tooltip)
 
         # Config tab widgets
         self.generalTab = GeneralTab(self)
@@ -159,17 +177,22 @@ class InputDataModule(QtWidgets.QWidget):
         self.setupTabs.addTab(self.scatterTab, "Sea Scatter Setup")
         self.setupTabs.addTab(self.tfSettingsTab, "Transfer Functions Setup")
 
-        # Screening check boxes and process buttons container
+        # Screening check boxes container
         self.screeningGroup = QtWidgets.QGroupBox("Global Screening Flags")
         self.vboxFlags = QtWidgets.QVBoxLayout(self.screeningGroup)
         self.vboxFlags.addWidget(self.reportScreenChkBox)
         self.vboxFlags.addWidget(self.statsScreenChkBox)
         self.vboxFlags.addWidget(self.spectScreenChkBox)
 
+        # Run processing buttons container
         self.vboxRun = QtWidgets.QVBoxLayout()
         self.vboxRun.addWidget(self.screeningGroup)
         self.vboxRun.addItem(self.spacer)
+        self.vboxRun.addWidget(self.runDataQualityChecksButton)
+        self.vboxRun.addItem(self.spacer)
         self.vboxRun.addWidget(self.processButton)
+        self.vboxRun.addItem(self.spacer)
+        self.vboxRun.addWidget(self.runTimeSeriesIntegrationButton)
         self.vboxRun.addItem(self.spacer)
         self.vboxRun.addWidget(self.calcSeascatterButton)
         self.vboxRun.addItem(self.spacer)
@@ -207,6 +230,9 @@ class InputDataModule(QtWidgets.QWidget):
         self.loggersList.itemChanged.connect(self.on_logger_item_edited)
         self.statsScreenChkBox.toggled.connect(self.on_stats_screen_toggled)
         self.spectScreenChkBox.toggled.connect(self.on_spect_screen_toggled)
+        self.runTimeSeriesIntegrationButton.clicked.connect(
+            self.on_run_ts_integration_clicked
+        )
         self.processButton.clicked.connect(self.on_process_screening_clicked)
         self.calcSeascatterButton.clicked.connect(self.on_calc_seascatter_clicked)
         self.calcTFButton.clicked.connect(self.on_calc_transfer_functions_clicked)
@@ -330,7 +356,10 @@ class InputDataModule(QtWidgets.QWidget):
         logger = set_custom_file_format(logger)
 
         item = QtWidgets.QListWidgetItem(logger_id)
-        item.setFlags(item.flags() | QtCore.Qt.ItemIsEditable)
+        item.setFlags(
+            item.flags() | QtCore.Qt.ItemIsUserCheckable | QtCore.Qt.ItemIsEditable
+        )
+        item.setCheckState(QtCore.Qt.Checked)
         self.loggersList.addItem(item)
         self.loggersList.setCurrentRow(n)
 
@@ -448,6 +477,9 @@ class InputDataModule(QtWidgets.QWidget):
     def on_process_screening_clicked(self):
         self.parent.process_screening()
 
+    def on_run_ts_integration_clicked(self):
+        self.parent.process_ts_integration()
+
     def on_calc_seascatter_clicked(self):
         self.parent.calc_seascatter()
 
@@ -559,7 +591,12 @@ class InputDataModule(QtWidgets.QWidget):
         if self.control.loggers:
             for logger in self.control.loggers:
                 item = QtWidgets.QListWidgetItem(logger.logger_id)
-                item.setFlags(item.flags() | QtCore.Qt.ItemIsEditable)
+                item.setFlags(
+                    item.flags()
+                    | QtCore.Qt.ItemIsUserCheckable
+                    | QtCore.Qt.ItemIsEditable
+                )
+                item.setCheckState(QtCore.Qt.Checked)
                 self.loggersList.addItem(item)
 
                 # Repaint used to refresh gui as each logger is processed
@@ -881,8 +918,8 @@ class RenameConfigFileDialog(QtWidgets.QDialog):
         self.vbox.addLayout(self.form)
         self.vbox.addWidget(self.buttonBox)
 
-        self.setFixedSize(self.sizeHint())
-        self.setMinimumWidth(300)
+        self.setFixedHeight(71)
+        self.setMinimumWidth(350)
 
     def _connect_signals(self):
         self.buttonBox.accepted.connect(self.on_ok_clicked)

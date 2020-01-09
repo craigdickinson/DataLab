@@ -316,18 +316,18 @@ class Spectrogram(object):
             if dict_formats_to_write["h5"] is True:
                 # Note HDF5 files should use a contiguous key name
                 filename = file_stem + ".h5"
-                file_path = os.path.join(self.output_dir, filename)
-                df.to_hdf(file_path, key, mode="w")
+                filepath = os.path.join(self.output_dir, filename)
+                df.to_hdf(filepath, key, mode="w")
                 self.output_files.append(self.output_folder + "/" + filename)
             if dict_formats_to_write["csv"] is True:
                 filename = file_stem + ".csv"
-                file_path = os.path.join(self.output_dir, filename)
-                df.to_csv(file_path)
+                filepath = os.path.join(self.output_dir, filename)
+                df.to_csv(filepath)
                 self.output_files.append(self.output_folder + "/" + filename)
             if dict_formats_to_write["xlsx"] is True:
                 filename = file_stem + ".xlsx"
-                file_path = os.path.join(self.output_dir, filename)
-                writer = pd.ExcelWriter(file_path)
+                filepath = os.path.join(self.output_dir, filename)
+                writer = pd.ExcelWriter(filepath)
 
                 # Worksheet name length limit is 31
                 if len(key) > 31:

@@ -46,10 +46,10 @@ class ProcessingHub(QObject):
     signal_notify_progress = pyqtSignal(dict)
     signal_update_output_info = pyqtSignal(list)
 
-    def __init__(self):
+    def __init__(self, control=Control()):
         super().__init__()
 
-        self.control = Control()
+        self.control = control
 
         # Lists of objects to hold data screening settings and logger stats
         self.data_screen_sets = []
@@ -65,7 +65,79 @@ class ProcessingHub(QObject):
         self.dict_spectrograms = {}
         self.dict_histograms = {}
 
-    def process(self):
+    def _prepare_screening(self, data_report):
+        """Review loggers and set properties for screening."""
+
+        total_files = 0
+        logger_ids = []
+
+        global_process_stats = self.control.global_process_stats
+        global_process_spect = self.control.global_process_spect
+        global_process_histograms = self.control.global_process_histograms
+
+        for logger in self.control.loggers:
+            # Add any bad filenames to screening report
+            data_report.add_bad_filenames(logger.logger_id, logger.dict_bad_filenames)
+
+            # Create data screen logger with logger and set screening properties
+            data_screen = DataScreen(logger)
+            total_files += len(logger.files)
+            logger_ids.append(logger.logger_id)
+
+            # Check and update process flags
+            if global_process_stats is False:
+                data_screen.stats_requested = False
+            else:
+                data_screen.stats_requested = logger.process_stats
+
+            if global_process_spect is False:
+                data_screen.spect_requested = False
+            else:
+                data_screen.spect_requested = logger.process_spect
+
+            if global_process_histograms is False:
+                data_screen.histograms_requested = False
+            else:
+                data_screen.histograms_requested = logger.process_hists
+
+            # Check whether logger data is to be streamed from Azure
+            if logger.data_on_azure:
+                self.any_data_on_azure = True
+
+            if global_process_stats is True and logger.process_stats is True:
+                self.any_stats_expected = True
+
+            if global_process_spect is True and logger.process_spect is True:
+                self.any_spect_expected = True
+
+            if global_process_histograms is True and logger.process_hists is True:
+                self.any_histograms_expected = True
+
+            self.data_screen_sets.append(data_screen)
+
+        return total_files, logger_ids
+
+    def _prepare_ts_int_screening(self):
+        """Review loggers and set properties for screening."""
+
+        total_files = 0
+        logger_ids = []
+
+        for logger in self.control.loggers:
+            # Create data screen logger with logger and set screening properties
+            data_screen = DataScreen(logger)
+            total_files += len(logger.files)
+            logger_ids.append(logger.logger_id)
+
+            # Check whether logger data is to be streamed from Azure
+            if logger.data_on_azure:
+                self.any_data_on_azure = True
+
+            self.data_screen_sets.append(data_screen)
+
+        return total_files, logger_ids
+
+    def run_screening(self):
         """Process screening setup."""
 
         # SETUP
@@ -108,6 +180,11 @@ class ProcessingHub(QObject):
             spect_screening.init_logger_spect(logger.logger_id)
             data_integration.set_logger(logger)
 
+            # Initialise dictionary of histogram data frames for each column
+            dict_df_col_hists = {
+                channel: pd.DataFrame() for channel in logger.channel_names
+            }
+
             # Get file number of first file to be processed (this is akin to load case number for no timestamp files)
             try:
                 first_file_num = logger.file_indices[0] + 1
@@ -118,11 +195,6 @@ class ProcessingHub(QObject):
             j = 0
             filename = ""
             n = len(data_screen.files)
-
-            # Initialise dictionary of histogram data frames for each column
-            dict_df_col_hists = {
-                channel: pd.DataFrame() for channel in logger.channel_names
-            }
 
             # Process each file
             # Expose each sample here; that way it can be sent to different processing modules
@@ -236,9 +308,10 @@ class ProcessingHub(QObject):
                 self.signal_update_output_info.emit(output_files)
 
             # Calculate aggregate histogram for each column
-            for key in dict_df_col_hists.keys():
-                dict_df_col_hists[key] = dict_df_col_hists[key].fillna(0)
-                dict_df_col_hists[key]["Cum"] = dict_df_col_hists[key].sum(axis=1)
+            for col, df_hist in dict_df_col_hists.items():
+                df_hist.fillna(0, inplace=True)
+                df_hist["Cum"] = df_hist.sum(axis=1)
+                dict_df_col_hists[col] = df_hist
 
             # Store dataset histograms
             self.dict_histograms[logger.logger_id] = dict_df_col_hists
@@ -249,11 +322,10 @@ class ProcessingHub(QObject):
         # Update progress dialog
         self.signal_update_output_info.emit(output_files)
 
-        # Check if any screening processing modules was done for any logger
+        # Check if screening modules were run for any logger
         any_stats_processed = False
         any_spect_processed = False
         any_histograms_processed = False
-
         for d in self.data_screen_sets:
             if d.stats_processed is True:
                 any_stats_processed = True
@@ -306,57 +378,114 @@ class ProcessingHub(QObject):
         # Send data package to progress bar
         self.signal_notify_progress.emit(dict_progress)
 
-    def _prepare_screening(self, data_report):
-        """Review loggers and set properties for screening."""
+    def run_ts_integration(self):
+        """Run time series integration setup."""
 
-        total_files = 0
-        logger_ids = []
+        # SETUP
+        bloc_blob_service = None
+        t0 = time()
+        data_integration = IntegrateTimeSeries(project_path=self.control.project_path)
 
-        global_process_stats = self.control.global_process_stats
-        global_process_spect = self.control.global_process_spect
-        global_process_histograms = self.control.global_process_histograms
+        # List of output files created
+        output_files = []
 
-        for logger in self.control.loggers:
-            # Add any bad filenames to screening report
-            data_report.add_bad_filenames(logger.logger_id, logger.dict_bad_filenames)
+        # Scan loggers to get total # files, list of logger names, files source (local or Azure)
+        # and flags for whether stats and spectrograms are to be processed
+        total_files, logger_ids = self._prepare_ts_int_screening()
 
-            # Create data screen logger with logger and set screening properties
-            data_screen = DataScreen(logger)
-            total_files += len(logger.files)
-            logger_ids.append(logger.logger_id)
+        # Connect to Azure account if to be used
+        if self.any_data_on_azure:
+            bloc_blob_service = connect_to_azure_account(
+                self.control.azure_account_name, self.control.azure_account_key
+            )
 
-            # Check and update process flags
-            if global_process_stats is False:
-                data_screen.stats_requested = False
-            else:
-                data_screen.stats_requested = logger.process_stats
+        # PROCESSING
+        # Process each dataset
+        print("Processing loggers...")
+        file_count = 0
+        for i, data_screen in enumerate(self.data_screen_sets):
+            logger = data_screen.logger
 
-            if global_process_spect is False:
-                data_screen.spect_requested = False
-            else:
-                data_screen.spect_requested = logger.process_spect
+            # Initialise logger screening objects
+            data_integration.set_logger(logger)
 
-            if global_process_histograms is False:
-                data_screen.histograms_requested = False
-            else:
-                data_screen.histograms_requested = logger.process_hists
+            # Get file number of first file to be processed (this is akin to load case number for no timestamp files)
+            try:
+                first_file_num = logger.file_indices[0] + 1
+            except IndexError:
+                first_file_num = 1
 
-            # Check whether logger data is to be streamed from Azure
-            if logger.data_on_azure:
-                self.any_data_on_azure = True
+            # Initialise file parameters in case there are no files to process
+            j = 0
+            filename = ""
+            n = len(data_screen.files)
 
-            if global_process_stats is True and logger.process_stats is True:
-                self.any_stats_expected = True
+            # Process each file
+            # Expose each sample here; that way it can be sent to different processing modules
+            for j, file in enumerate(data_screen.files):
+                # TODO: If expected file in sequence is missing, store results as nan
+                # Update console
+                filename = os.path.basename(file)
+                processed_file_num = first_file_num + j
+                progress = (
+                    f"Processing {logger.logger_id} file {j + 1} of {n} ({filename})"
+                )
+                print(f"\r{progress}", end="")
+                t = str(timedelta(seconds=round(time() - t0)))
 
-            if global_process_spect is True and logger.process_spect is True:
-                self.any_spect_expected = True
+                # Update progress info dict and emit to progress bar
+                dict_progress = dict(
+                    logger_ids=logger_ids,
+                    logger_i=i,
+                    file_i=j,
+                    filename=filename,
+                    num_logger_files=n,
+                    file_count=file_count,
+                    total_files=total_files,
+                    elapsed_time=t,
+                )
+                self.signal_notify_progress.emit(dict_progress)
 
-            if global_process_histograms is True and logger.process_hists is True:
-                self.any_histograms_expected = True
+                # READ FILE TO DATA FRAME
+                # If streaming data from Azure Cloud read as a file stream
+                if logger.data_on_azure:
+                    file = stream_blob(
+                        bloc_blob_service, logger.container_name, logger.blobs[j]
+                    )
 
-            self.data_screen_sets.append(data_screen)
+                # Read the file into a pandas data frame
+                df = data_screen.read_logger_file(file)
 
-        return total_files, logger_ids
+                # Wrangle data to prepare for processing
+                df = data_screen.wrangle_data(df, file_idx=j)
+
+                # TIME SERIES INTEGRATION
+                # Acceleration and/or angular rate conversion
+                if logger.process_integration:
+                    out_filename = data_integration.process_file(file, df)
+                    output_files.append(out_filename)
+
+                file_count += 1
+
+                # Update progress dialog
+                self.signal_update_output_info.emit(output_files)
+
+        print("Processing complete")
+        t = str(timedelta(seconds=round(time() - t0)))
+        print(f"Screening runtime = {t}")
+
+        # Final progress info dict to emit to progress bar
+        dict_progress = dict(
+            logger_ids=logger_ids,
+            logger_i=i,
+            file_i=j,
+            filename=filename,
+            num_logger_files=n,
+            file_count=file_count,
+            total_files=total_files,
+            elapsed_time=t,
+        )
+        self.signal_notify_progress.emit(dict_progress)
 
     def _publish_screening_report(self, data_report, output_files):
         """Compile and export Excel data screening report."""

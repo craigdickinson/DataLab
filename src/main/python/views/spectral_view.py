@@ -332,17 +332,20 @@ class SpectrogramWidget(QtWidgets.QWidget):
 
         if self.log_scale is True:
             self.z = np.log10(df.values)
+
+            # Replace any inf values with nan
+            self.z[np.isinf(self.z)] = np.nan
         else:
             self.z = df.values
 
         # Min/max amplitudes
-        self.zmin = math.floor(self.z.min())
+        self.zmin = math.floor(np.nanmin(self.z))
 
         # If amplitudes are < 1 don't integer round (need to plot on a smaller scale)
         if self.z.max() < 1:
             self.zmax = self.z.max()
         else:
-            self.zmax = math.ceil(self.z.max())
+            self.zmax = math.ceil(np.nanmax(self.z))
 
         # Populate index/timestamps list and update list label
         if self.index_is_dates:

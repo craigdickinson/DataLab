@@ -34,7 +34,8 @@ class DataScreenReport(object):
         compiled_bad_files = self.compile_bad_files(logger_id, dict_bad_files)
         self.bad_files.extend(compiled_bad_files)
 
-    def compile_bad_files(self, logger_id, dict_bad_files):
+    @staticmethod
+    def compile_bad_files(logger_id, dict_bad_files):
         """
         Create list of errors encountered when processing logger filenames or screening files,
         in format to write to Excel.

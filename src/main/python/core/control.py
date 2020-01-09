@@ -79,6 +79,9 @@ class Control(object):
         # Each logger object will contain the majority of the setup information
         self.loggers = []
 
+        # Flag to indicate type of processing worker to run
+        self.processing_mode = "screening"
+
     def set_up_output_folders(self):
         """Construct file paths for output folders and create folders if required."""
 
