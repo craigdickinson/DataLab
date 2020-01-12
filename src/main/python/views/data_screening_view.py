@@ -37,12 +37,8 @@ class DataQualityReport(QtWidgets.QWidget):
         self.qualityGroup.setFixedSize(300, 100)
         self.form = QtWidgets.QFormLayout(self.qualityGroup)
         self.form.addRow(QtWidgets.QLabel("Number of files:"), self.numFiles)
-        self.form.addRow(
-            QtWidgets.QLabel("Number of bad file names:"), self.numBadFilenames
-        )
-        self.form.addRow(
-            QtWidgets.QLabel("Percentage of complete data:"), self.percCompleteData
-        )
+        self.form.addRow(QtWidgets.QLabel("Number of bad file names:"), self.numBadFilenames)
+        self.form.addRow(QtWidgets.QLabel("Percentage of complete data:"), self.percCompleteData)
         # self.form.addRow(QtWidgets.QLabel('Percentage of complete data:'), self.minResTable)
 
         # LAYOUT

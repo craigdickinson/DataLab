@@ -88,25 +88,23 @@ class TimeSeriesIntegrationSetupTab(QtWidgets.QWidget):
         if not self.parent:
             return
 
-        if self.parent.loggersList.count() == 0:
+        if self.parent.loggerList.count() == 0:
             msg = f"No loggers exist to edit. Add a logger first."
             return QtWidgets.QMessageBox.information(
                 self, "Edit Time Series Integration Settings", msg
             )
 
         # Retrieve selected logger object
-        logger_idx = self.parent.loggersList.currentRow()
+        logger_idx = self.parent.loggerList.currentRow()
 
         # Edit stats dialog class
-        editIntegrationSettings = EditIntegrationSetupDialog(
-            self, self.control, logger_idx
-        )
+        editIntegrationSettings = EditIntegrationSetupDialog(self, self.control, logger_idx)
         editIntegrationSettings.show()
 
     def on_process_check_box_toggled(self):
         """Set include in processing state in logger object."""
 
-        if self.parent.loggersList.count() > 0:
+        if self.parent.loggerList.count() > 0:
             self.logger.process_integration = self.processChkBox.isChecked()
 
     def set_analysis_dashboard(self, logger):
@@ -202,14 +200,10 @@ class EditIntegrationSetupDialog(QtWidgets.QDialog):
         self.lblIntegrationFolder = QtWidgets.QLabel("Output folder:")
 
         # CONTAINERS
-        policy = QtWidgets.QSizePolicy(
-            QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed
-        )
+        policy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed)
 
         # Copy logger group
-        self.copyGroup = QtWidgets.QGroupBox(
-            "Optional: Copy Settings from Another Logger"
-        )
+        self.copyGroup = QtWidgets.QGroupBox("Optional: Copy Settings from Another Logger")
         self.copyGroup.setSizePolicy(policy)
         self.hboxCopy = QtWidgets.QHBoxLayout(self.copyGroup)
         self.hboxCopy.addWidget(self.lblCopy)
@@ -218,9 +212,7 @@ class EditIntegrationSetupDialog(QtWidgets.QDialog):
         self.hboxCopy.addStretch()
 
         # Columns to process settings group
-        self.setupGroup = QtWidgets.QGroupBox(
-            "Select Columns to Convert to Displacements/Angles"
-        )
+        self.setupGroup = QtWidgets.QGroupBox("Select Columns to Convert to Displacements/Angles")
         self.setupGroup.setSizePolicy(policy)
         self.setupForm = QtWidgets.QFormLayout(self.setupGroup)
         self.setupForm.addRow(self.lblAccX, self.accXCombo)
@@ -281,9 +273,7 @@ class EditIntegrationSetupDialog(QtWidgets.QDialog):
         """Set the copy screening settings combo box with list of available loggers, excluding the current one."""
 
         # Get list of available loggers to copy
-        loggers_to_copy = [
-            i for i in self.control.logger_ids if i != self.logger.logger_id
-        ]
+        loggers_to_copy = [i for i in self.control.logger_ids if i != self.logger.logger_id]
         self.copyLogger.addItems(loggers_to_copy)
 
     def on_copy_logger_clicked(self):

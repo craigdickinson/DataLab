@@ -200,13 +200,7 @@ class StatsOutput(object):
         self.wb.remove(ws)
 
     def compile_stats(
-        self,
-        logger,
-        file_nums,
-        sample_start,
-        sample_end,
-        logger_stats,
-        logger_stats_filt,
+        self, logger, file_nums, sample_start, sample_end, logger_stats, logger_stats_filt
     ):
         """
         Compile statistics into data frame for exporting and for use by gui.
@@ -231,9 +225,7 @@ class StatsOutput(object):
         # Create headers
         channels = logger.channel_names
         channels_header_unfilt = [x for chan in channels for x in [chan] * 4]
-        channels_header_filt = [
-            x for chan in channels for x in [f"{chan} (filtered)"] * 4
-        ]
+        channels_header_filt = [x for chan in channels for x in [f"{chan} (filtered)"] * 4]
         stats_header = ["min", "max", "mean", "std"] * len(channels)
 
         # TODO: McDermott project hack - don't keep this!
@@ -283,9 +275,7 @@ class StatsOutput(object):
         if stats_unfilt and stats_filt:
             cols = self._reorder_columns(df_stats)
             df_stats = df_stats[cols]
-            self.df_stats_export = self.df_stats_export[
-                ["File Number", "Start", "End"] + cols
-            ]
+            self.df_stats_export = self.df_stats_export[["File Number", "Start", "End"] + cols]
 
         return df_stats
 
@@ -329,15 +319,12 @@ class StatsOutput(object):
             )
 
         header = pd.MultiIndex.from_arrays(
-            [channel_header, stats_header, units_header],
-            names=["channels", "stats", "units"],
+            [channel_header, stats_header, units_header], names=["channels", "stats", "units"]
         )
         return header
 
     @staticmethod
-    def _create_export_stats_dataframe(
-        stats, file_nums, sample_start, sample_end, header
-    ):
+    def _create_export_stats_dataframe(stats, file_nums, sample_start, sample_end, header):
         """
         Create an alternative statistics data frame layout for exporting to file (csv/xlsx/hdf5).
         The only difference is that the sample end timestamps column is included and a standard integer index is used.

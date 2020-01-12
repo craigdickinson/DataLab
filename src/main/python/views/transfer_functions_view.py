@@ -132,9 +132,7 @@ class TransferFunctionsWidget(QtWidgets.QWidget):
         if retval is True:
             path = os.path.join(root_dir, self.tf.output_folder1)
             msg = f"Transfer functions exported successfully to:\n{path}"
-            return QtWidgets.QMessageBox.information(
-                self, "Export Transfer Functions", msg
-            )
+            return QtWidgets.QMessageBox.information(self, "Export Transfer Functions", msg)
 
     def on_export_ave_tf_button_clicked(self):
         """Export sea state percentage occurrence averaged transfer functions to csv files."""
@@ -152,9 +150,7 @@ class TransferFunctionsWidget(QtWidgets.QWidget):
         if retval is True:
             path = os.path.join(root_dir, self.tf.output_folder2)
             msg = f"Transfer functions exported successfully to:\n{path}"
-            return QtWidgets.QMessageBox.information(
-                self, "Export Transfer Functions", msg
-            )
+            return QtWidgets.QMessageBox.information(self, "Export Transfer Functions", msg)
 
     def plot(self):
         self.ax.cla()

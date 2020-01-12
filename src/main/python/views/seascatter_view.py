@@ -145,9 +145,7 @@ class SeascatterDiagram(QtWidgets.QWidget):
         """Create and display seascatter diagram from Hs/Tp data."""
 
         # Generate seascatter diagram
-        self.df_scatter = calc_seascatter_diagram(
-            self.hs, self.tp, self.hs_bins, self.tp_bins
-        )
+        self.df_scatter = calc_seascatter_diagram(self.hs, self.tp, self.hs_bins, self.tp_bins)
 
         # Apply sea scatter to table and plot Hs/Tp distributions
         self.set_scatter_table(self.df_scatter)
@@ -225,9 +223,7 @@ class SeascatterDiagram(QtWidgets.QWidget):
         writer = pd.ExcelWriter(filename, engine="xlsxwriter")
 
         # Seastates sheet
-        self.df_ss.to_excel(
-            writer, sheet_name="Sea States", na_rep="N/A", float_format="%.2f"
-        )
+        self.df_ss.to_excel(writer, sheet_name="Sea States", na_rep="N/A", float_format="%.2f")
         ws = writer.sheets["Sea States"]
         ws.set_column("A:A", 11)
         # wb = writer.book
@@ -237,9 +233,7 @@ class SeascatterDiagram(QtWidgets.QWidget):
         # Seascatter sheet
         # Replace zeros with blanks
         df_scatter = self.df_scatter.replace({0: ""})
-        df_scatter.to_excel(
-            writer, sheet_name="Sea Scatter Diagram", float_format="%.2f"
-        )
+        df_scatter.to_excel(writer, sheet_name="Sea Scatter Diagram", float_format="%.2f")
         ws.set_column("A:A", 18)
         writer.save()
 

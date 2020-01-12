@@ -90,8 +90,7 @@ def bin_cycles(ranges, num_cycles, num_bins, bin_size):
 
     # Bin cycles
     binned_cycles = [
-        num_cycles[bin_locs == i].sum() if i in unique_bins else 0
-        for i in range(num_bins)
+        num_cycles[bin_locs == i].sum() if i in unique_bins else 0 for i in range(num_bins)
     ]
 
     return np.array(binned_cycles)

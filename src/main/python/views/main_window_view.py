@@ -169,9 +169,7 @@ class DataLabGui(QtWidgets.QMainWindow):
         self.menuExport.addAction(self.exportScatterDiagAction)
 
         # Azure menu actions
-        self.azureSettingsAction = QtWidgets.QAction(
-            "Azure Cloud Storage Account Settings"
-        )
+        self.azureSettingsAction = QtWidgets.QAction("Azure Cloud Storage Account Settings")
         self.menuAzure.addAction(self.azureSettingsAction)
 
         # Help menu actions

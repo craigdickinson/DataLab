@@ -79,9 +79,7 @@ class SpectrogramWidget(QtWidgets.QWidget):
     def _init_ui(self):
         # WIDGETS
         self.openSpectButton = QtWidgets.QPushButton("Open Spectrograms...")
-        self.openSpectButton.setToolTip(
-            "Open logger spectrograms (*.h5;*.csv;*.xlsx) (F4)"
-        )
+        self.openSpectButton.setToolTip("Open logger spectrograms (*.h5;*.csv;*.xlsx) (F4)")
         self.lblDatasets = QtWidgets.QLabel("Loaded Datasets")
         self.datasetsList = QtWidgets.QListWidget()
         self.datasetsList.setFixedHeight(100)
@@ -111,9 +109,7 @@ class SpectrogramWidget(QtWidgets.QWidget):
         self.natFreq.setFont(font)
 
         # Widget sizing policy - prevent vertical expansion
-        policy = QtWidgets.QSizePolicy(
-            QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Fixed
-        )
+        policy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Fixed)
         self.natFreq.setSizePolicy(policy)
 
         # CONTAINERS
@@ -154,9 +150,7 @@ class SpectrogramWidget(QtWidgets.QWidget):
         self.clearDatasetsButton.clicked.connect(self.on_clear_datasets_clicked)
         self.openPlotSettingsButton.clicked.connect(self.on_open_plot_settings_clicked)
         self.datasetsList.itemDoubleClicked.connect(self.on_dataset_double_clicked)
-        self.timestampList.itemDoubleClicked.connect(
-            self.on_timestamp_list_double_clicked
-        )
+        self.timestampList.itemDoubleClicked.connect(self.on_timestamp_list_double_clicked)
         self.slider.valueChanged.connect(self.on_slider_changed)
 
     def _draw_axes(self):
@@ -242,9 +236,7 @@ class SpectrogramWidget(QtWidgets.QWidget):
         """Estimate mean natural frequency for selected dataset."""
 
         if self.datasetsList.count() == 0:
-            return self.parent.error(
-                "No data currently plotted. Load a spectrogram file first."
-            )
+            return self.parent.error("No data currently plotted. Load a spectrogram file first.")
 
         # self.parent.statusbar.showMessage('Calculating estimate natural frequency...')
         dataset = self.datasetsList.currentItem().text()
@@ -431,9 +423,7 @@ class SpectrogramWidget(QtWidgets.QWidget):
             ax1.set_ylabel("File Number (Load Case)")
 
         # Maximise figure space before applying colour bar as colour bar will not reposition if applied after
-        self.fig.tight_layout(
-            rect=[0, 0.1, 1, 0.92]
-        )  # (rect=[left, bottom, right, top])
+        self.fig.tight_layout(rect=[0, 0.1, 1, 0.92])  # (rect=[left, bottom, right, top])
 
         # Apply colour bar
         try:
@@ -553,9 +543,7 @@ class SpectroPlotSettings(QtWidgets.QDialog):
     def _init_ui(self):
         self.setWindowTitle("Spectrogram Plot Settings")
 
-        policy = QtWidgets.QSizePolicy(
-            QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed
-        )
+        policy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed)
 
         # WIDGETS
         # Title
@@ -607,12 +595,8 @@ class SpectroPlotSettings(QtWidgets.QDialog):
         self.buttonBox.accepted.connect(self.on_ok_clicked)
         self.buttonBox.accepted.connect(self.accept)
         self.buttonBox.rejected.connect(self.reject)
-        self.buttonBox.button(QtWidgets.QDialogButtonBox.Apply).clicked.connect(
-            self.on_ok_clicked
-        )
-        self.buttonBox.button(QtWidgets.QDialogButtonBox.Reset).clicked.connect(
-            self.reset_values
-        )
+        self.buttonBox.button(QtWidgets.QDialogButtonBox.Apply).clicked.connect(self.on_ok_clicked)
+        self.buttonBox.button(QtWidgets.QDialogButtonBox.Reset).clicked.connect(self.reset_values)
 
     def set_dialog_data(self):
         """Get plot parameters from the spectrogram widget and assign to settings widget."""
@@ -630,10 +614,7 @@ class SpectroPlotSettings(QtWidgets.QDialog):
         # Check numeric parameters are of valid type
         try:
             # Assign axes limits
-            self.parent.xlim = (
-                float(self.optFreqMin.text()),
-                float(self.optFreqMax.text()),
-            )
+            self.parent.xlim = (float(self.optFreqMin.text()), float(self.optFreqMax.text()))
 
             # Now apply decimal formatting to plot settings
             self.optFreqMin.setText(str(round(self.parent.xlim[0], 3)))

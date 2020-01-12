@@ -32,9 +32,7 @@ def extract_container_name_and_folders_path(fullpath):
 
 
 def get_blobs(bloc_blob_service, container_name, virtual_folders_path=""):
-    generator = bloc_blob_service.list_blobs(
-        container_name, prefix=virtual_folders_path
-    )
+    generator = bloc_blob_service.list_blobs(container_name, prefix=virtual_folders_path)
     blobs = [blob.name for blob in generator]
 
     return blobs

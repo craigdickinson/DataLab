@@ -43,8 +43,7 @@ def example_data_file():
     ax, ay, Rx, Ry = example_data(sample_freq, Ts)
 
     data = [
-        ",".join([time_str[i], str(ax[i]), str(ay[i]), str(Rx[i]), str(Ry[i])])
-        for i in range(N)
+        ",".join([time_str[i], str(ax[i]), str(ay[i]), str(Rx[i]), str(Ry[i])]) for i in range(N)
     ]
 
     data.insert(0, header3)

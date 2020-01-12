@@ -72,17 +72,13 @@ class IntegrateTimeSeries(object):
         if self.acc_x_col != "-":
             disp_cols.append("Disp X (m)")
             accels = df[self.acc_x_col].values
-            disps = accel_to_disp(
-                accels, int_transform, self.apply_g_correction, angles_x
-            )
+            disps = accel_to_disp(accels, int_transform, self.apply_g_correction, angles_x)
             disps_data.append(disps)
 
         if self.acc_y_col != "-":
             disp_cols.append("Disp Y (m)")
             accels = df[self.acc_y_col].values
-            disps = accel_to_disp(
-                accels, int_transform, self.apply_g_correction, angles_y
-            )
+            disps = accel_to_disp(accels, int_transform, self.apply_g_correction, angles_y)
             disps_data.append(disps)
 
         if self.acc_z_col != "-":
@@ -108,9 +104,7 @@ class IntegrateTimeSeries(object):
             folder = os.path.split(os.path.dirname(file))[-1]
 
             # Create directory path, check exists and export file
-            path_to_file = os.path.join(
-                self.project_path, "Displacements and Angles", folder
-            )
+            path_to_file = os.path.join(self.project_path, "Displacements and Angles", folder)
             ensure_dir_exists(path_to_file)
             filepath = os.path.join(path_to_file, filename)
             df_int.to_csv(filepath)
@@ -153,9 +147,7 @@ def angular_rate_to_angle(ang_rates, int_transform):
     return angles
 
 
-def accel_to_disp(
-    accels, int_transform, apply_g_correction=False, angles=None, z_comp=False
-):
+def accel_to_disp(accels, int_transform, apply_g_correction=False, angles=None, z_comp=False):
     """Convert accelerations to displacements through single integration in frequency domain."""
 
     # FFT signal

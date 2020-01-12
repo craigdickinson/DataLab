@@ -102,9 +102,7 @@ class DataScreen(object):
         self.header_row = self.logger.channel_header_row - 1
 
         # Additional header rows to skip - only using the first header row for data frame column names
-        self.skip_rows = [
-            i for i in range(self.logger.num_headers) if i > self.header_row
-        ]
+        self.skip_rows = [i for i in range(self.logger.num_headers) if i > self.header_row]
 
         # No header row specified
         if self.header_row < 0:
@@ -239,9 +237,7 @@ class DataScreen(object):
             try:
                 df.iloc[:, 1:] = np.multiply(df.iloc[:, 1:], self.unit_conv_factors)
             except TypeError as e:
-                msg = (
-                    f"Data screen error: Data frame contains no channel columns.\n {e}"
-                )
+                msg = f"Data screen error: Data frame contains no channel columns.\n {e}"
                 raise TypeError(msg)
 
         return df
@@ -356,17 +352,13 @@ class DataScreen(object):
 
         # Need index to be time - calculate time delta from t0 and convert to seconds (float) then set as index
         if self.file_timestamp_embedded is True:
-            df.index = (
-                (df.iloc[:, 0] - df.iloc[0, 0]).dt.total_seconds().values.round(3)
-            )
+            df.index = (df.iloc[:, 0] - df.iloc[0, 0]).dt.total_seconds().values.round(3)
             df.drop(df.columns[0], axis=1, inplace=True)
         else:
             df.set_index(df.columns[0], inplace=True)
 
         # Apply bandpass filter
-        df_filtered = filter_signal(
-            df, self.logger.low_cutoff_freq, self.logger.high_cutoff_freq
-        )
+        df_filtered = filter_signal(df, self.logger.low_cutoff_freq, self.logger.high_cutoff_freq)
 
         if not df_filtered.empty:
             # Insert timestamps/time column and reset index to return a data frame in same format as unfiltered one

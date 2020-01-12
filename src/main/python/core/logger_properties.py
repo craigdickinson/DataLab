@@ -57,6 +57,7 @@ class LoggerProperties(QObject):
         # LOGGER PROPERTIES
         # Name and location
         self.logger_id = logger_id
+        self.enabled = True
         self.data_on_azure = False
         self.logger_path = ""
 
@@ -202,9 +203,7 @@ class LoggerProperties(QObject):
 
         # Get filenames and use natsort to ensure files are sorted correctly
         # (i.e. not lexicographically e.g. 0, 1, 10, 2)
-        filenames = [
-            os.path.basename(f) for f in glob(self.logger_path + "/*." + self.file_ext)
-        ]
+        filenames = [os.path.basename(f) for f in glob(self.logger_path + "/*." + self.file_ext)]
         filenames = natsorted(filenames)
 
         if not filenames:
@@ -241,9 +240,7 @@ class LoggerProperties(QObject):
             raise LoggerError(msg)
 
         ext = "." + self.file_ext.lower()
-        filenames = [
-            os.path.basename(f) for f in blobs if os.path.splitext(f)[1].lower() == ext
-        ]
+        filenames = [os.path.basename(f) for f in blobs if os.path.splitext(f)[1].lower() == ext]
 
         if not filenames:
             msg = (
@@ -422,13 +419,9 @@ class LoggerProperties(QObject):
 
         # Get column names and units, if exist
         if file_format == "Custom":
-            channels, units = self.read_column_names(
-                test_file, delim, c, u, decoding="utf-8"
-            )
+            channels, units = self.read_column_names(test_file, delim, c, u, decoding="utf-8")
         elif file_format == "Fugro-csv":
-            channels, units = self.read_column_names(
-                test_file, delim, c, u, decoding="latin1"
-            )
+            channels, units = self.read_column_names(test_file, delim, c, u, decoding="latin1")
         elif file_format == "Pulse-acc":
             channels, units = self.read_columns_pulse(test_file, c)
         elif file_format == "2HPS2-acc":
@@ -436,16 +429,12 @@ class LoggerProperties(QObject):
 
         # Assign channels and units list to logger - encode and decode to handle ascii characters
         try:
-            self.all_channel_names = [
-                c.strip().encode("latin1").decode() for c in channels
-            ]
+            self.all_channel_names = [c.strip().encode("latin1").decode() for c in channels]
         except UnicodeDecodeError:
             self.all_channel_names = [c.strip() for c in channels]
 
         try:
-            self.all_channel_units = [
-                u.strip().encode("latin1").decode() for u in units
-            ]
+            self.all_channel_units = [u.strip().encode("latin1").decode() for u in units]
         except UnicodeDecodeError:
             self.all_channel_units = [u.strip() for u in units]
 
@@ -462,9 +451,7 @@ class LoggerProperties(QObject):
             ]
         else:
             with open(test_file) as f:
-                header_lines = [
-                    f.readline().strip().split(delim) for _ in range(self.num_headers)
-                ]
+                header_lines = [f.readline().strip().split(delim) for _ in range(self.num_headers)]
 
         # Extract list of channel names and units (drop the first item - expected to be timestamp)
         if c > 0:
@@ -587,9 +574,7 @@ class LoggerProperties(QObject):
             dummy_cols = [f"Column {i}" for i in missing_cols]
 
             # Keep headers requested (append dummy channel names if exist)
-            self.channel_names = [
-                all_channels[i - 2] for i in present_cols
-            ] + dummy_cols
+            self.channel_names = [all_channels[i - 2] for i in present_cols] + dummy_cols
 
             if missing_cols:
                 warn_flag = True

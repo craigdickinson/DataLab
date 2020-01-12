@@ -97,9 +97,7 @@ class RainflowHistogramDashboard(QtWidgets.QWidget):
 
     def connect_signals(self):
         self.openHistFileButton.clicked.connect(self.on_open_histogram_file_clicked)
-        self.histogramsList.itemDoubleClicked.connect(
-            self.on_histogram_file_double_clicked
-        )
+        self.histogramsList.itemDoubleClicked.connect(self.on_histogram_file_double_clicked)
 
     def on_open_histogram_file_clicked(self):
         self.parent.open_wcfat_damage_file()
@@ -116,9 +114,7 @@ class RainflowHistogramDashboard(QtWidgets.QWidget):
         self.event_length = self.get_event_length(df_dam)
 
         # Rescale reported fatigue damage rate
-        self.df_dam_per_event = self.rescale_damage_rate(
-            df_dam, period=self.event_length
-        )
+        self.df_dam_per_event = self.rescale_damage_rate(df_dam, period=self.event_length)
 
         if self.scale_dam_rate_to_event_len is True:
             self.df_dam = self.df_dam_per_event

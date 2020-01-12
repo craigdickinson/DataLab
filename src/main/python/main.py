@@ -1,7 +1,7 @@
 __author__ = "Craig Dickinson"
 __program__ = "DataLab"
-__version__ = "2.1.0.5"
-__date__ = "9 January 2020"
+__version__ = "2.1.0.6"
+__date__ = "12 January 2020"
 
 import logging
 import os
@@ -96,12 +96,8 @@ class DataLab(DataLabGui):
         """Connect widget signals to methods/actions."""
 
         # File menu
-        self.openConfigAction.triggered.connect(
-            self.inputDataModule.on_open_config_clicked
-        )
-        self.saveConfigAction.triggered.connect(
-            self.inputDataModule.on_save_config_clicked
-        )
+        self.openConfigAction.triggered.connect(self.inputDataModule.on_open_config_clicked)
+        self.saveConfigAction.triggered.connect(self.inputDataModule.on_save_config_clicked)
         self.openStatsAction.triggered.connect(self.on_open_stats_file_triggered)
         self.openSpectrogramsAction.triggered.connect(self.on_open_spectrograms_file)
 
@@ -120,9 +116,7 @@ class DataLab(DataLabGui):
         self.spectPlotSettingsAction.triggered.connect(self.open_spect_plot_settings)
 
         # Export menu
-        self.exportScatterDiagAction.triggered.connect(
-            self.on_export_scatter_diagram_triggered
-        )
+        self.exportScatterDiagAction.triggered.connect(self.on_export_scatter_diagram_triggered)
 
         # Azure menu
         self.azureSettingsAction.triggered.connect(self.open_azure_account_settings)
@@ -144,9 +138,7 @@ class DataLab(DataLabGui):
     def _connect_child_signals(self):
         self.statsTab.openStatsButton.clicked.connect(self.on_open_stats_file)
         self.vesselStatsTab.openStatsButton.clicked.connect(self.on_open_stats_file)
-        self.spectrogramTab.openSpectButton.clicked.connect(
-            self.on_open_spectrograms_file
-        )
+        self.spectrogramTab.openSpectButton.clicked.connect(self.on_open_spectrograms_file)
 
     def log_uncaught_exceptions(self, exctype, value, tb):
         msg = "Unexpected error"
@@ -237,9 +229,7 @@ class DataLab(DataLabGui):
                             f"You cannot plot stats that use a different type of index. "
                             f"To load this stats file, first clear the existing datasets from the stats dashboard."
                         )
-                        return self._message_information(
-                            "Unable to Load Statistics File", msg
-                        )
+                        return self._message_information("Unable to Load Statistics File", msg)
 
                     # Add stats dataset to stats and vessel stats tabs
                     self.statsTab.datasets.append(dataset)
@@ -271,9 +261,7 @@ class DataLab(DataLabGui):
         """Open spectrograms file."""
 
         spect_file, _ = QtWidgets.QFileDialog.getOpenFileName(
-            self,
-            caption="Open Spectrogram File",
-            filter="Spectrogram Files (*.h5;*.csv;*.xlsx)",
+            self, caption="Open Spectrogram File", filter="Spectrogram Files (*.h5;*.csv;*.xlsx)"
         )
 
         if spect_file:
@@ -308,9 +296,7 @@ class DataLab(DataLabGui):
         """Open 2HWCFAT .dmg file."""
 
         dmg_file, _ = QtWidgets.QFileDialog.getOpenFileName(
-            self,
-            caption="Open 2HWCFAT Fatigue Damage File",
-            filter="2HWCFAT Damage Files (*.dmg)",
+            self, caption="Open 2HWCFAT Fatigue Damage File", filter="2HWCFAT Damage Files (*.dmg)"
         )
 
         if dmg_file:
@@ -492,16 +478,16 @@ class DataLab(DataLabGui):
         """Screen loggers and process statistical and spectral analysis."""
 
         self.control.processing_mode = "screening"
-        self.do_processing()
+        self.process_loggers()
 
     def process_ts_integration(self):
         """Convert time series accelerations to displacement and angular rates to angles."""
 
         self.control.processing_mode = "integration"
-        self.do_processing()
+        self.process_loggers()
 
-    def do_processing(self):
-        """Screen loggers and process statistical and spectral analysis."""
+    def process_loggers(self):
+        """Set up and run logger processing for all enabled loggers."""
 
         try:
             self.repaint()
@@ -554,12 +540,14 @@ class DataLab(DataLabGui):
         control.check_logger_ids()
 
         # Check logging durations and sample lengths are positive
-        for logger in control.loggers:
+        enabled_loggers = (logger for logger in control.loggers if logger.enabled)
+        for logger in enabled_loggers:
             if logger.duration <= 0:
                 msg = f"Cannot process: Logging duration for logger {logger.logger_id} is {logger.duration}.\n"
                 f"Logging duration must be greater than zero."
                 raise LoggerWarning(msg)
 
+            # TODO: Move to logger properties as a setup function
             if control.global_process_stats is True and logger.process_stats is True:
                 if logger.stats_interval <= 0:
                     msg = f"Cannot process: Statistics sample length for logger "
@@ -574,11 +562,13 @@ class DataLab(DataLabGui):
                     f"Spectral sample length must be greater than zero."
                     raise LoggerWarning(msg)
 
+        # TODO: Move to processing hub and create folders if required
         # Set up output folders
         control.set_up_output_folders()
 
         # Get raw filenames, check timestamps and select files in processing datetime range
-        for logger in control.loggers:
+        enabled_loggers = (logger for logger in control.loggers if logger.enabled)
+        for logger in enabled_loggers:
             # Store logger filenames and check file timestamps
             self.statusbar.showMessage(
                 f"Checking setup: Checking file names for {logger.logger_id}. Please wait..."
@@ -593,17 +583,11 @@ class DataLab(DataLabGui):
             logger.expected_data_points = logger.freq * logger.duration
 
             # Get all channel names and units if not already stored in logger object
-            if (
-                len(logger.all_channel_names) == 0
-                and len(logger.all_channel_units) == 0
-            ):
+            if len(logger.all_channel_names) == 0 and len(logger.all_channel_units) == 0:
                 logger.get_all_columns()
 
                 # Update columns list in config dashboard if this logger is the one selected
-                if (
-                    logger.logger_id
-                    == self.inputDataModule.loggersList.currentItem().text()
-                ):
+                if logger.logger_id == self.inputDataModule.loggerList.currentItem().text():
                     self.inputDataModule.set_logger_columns_list(logger)
 
             # Check requested channels exist
@@ -630,9 +614,7 @@ class DataLab(DataLabGui):
 
         # Create worker thread, connect signals to methods in this class and start, which calls worker.run()
         self.worker = ProcessingWorker(processing_hub, parent=self)
-        self.worker.signal_screening_output_to_gui.connect(
-            self.set_screening_output_to_gui
-        )
+        self.worker.signal_screening_output_to_gui.connect(self.set_screening_output_to_gui)
         self.worker.signal_error.connect(self.error)
         self.worker.start()
 
@@ -695,9 +677,7 @@ class DataLab(DataLabGui):
         """Create seascatter diagram if vessel stats data is loaded."""
 
         logger = self.scatter.metocean_logger
-        df_metocean = self.scatter.check_metocean_dataset_loaded(
-            datasets=self.statsTab.datasets
-        )
+        df_metocean = self.scatter.check_metocean_dataset_loaded(datasets=self.statsTab.datasets)
 
         # Warn if the stats dataset user has specified is not in memory
         if df_metocean is False:
@@ -792,10 +772,10 @@ class ProcessingWorker(QtCore.QThread):
         # Flag to indicate processing mode
         self.processing_mode = processing_hub.control.processing_mode
 
-        # Initialise progress bar
-        self.pb = ProcessingProgressBar(
-            logger_ids=self.processing_hub.control.logger_ids
-        )
+        # Initialise progress bar with enabled loggers
+        loggers = self.processing_hub.control.loggers
+        enabled_logger_ids = [logger.logger_id for logger in loggers if logger.enabled]
+        self.pb = ProcessingProgressBar(enabled_logger_ids)
         self.pb.show()
         self._connect_signals()
 
@@ -866,8 +846,8 @@ def run_datalab():
     #     app = QtWidgets.QApplication(sys.argv)
     # win = QtDesignerGui()
     win = DataLab()
-    # filepath = r"C:\Users\dickinsc\PycharmProjects\DataLab\demo_data\2. Project Configs\Project 21239\21239b_Total_WoS_Config.json"
-    filepath = r"C:\Users\dickinsc\PycharmProjects\DataLab\demo_data\2. Project Configs\Test A\21239_Project_A_Config.json"
+    filepath = r"C:\Users\dickinsc\PycharmProjects\DataLab\demo_data\2. Project Configs\Project 21239\21239_Total_WoS_Config.json"
+    # filepath = r"C:\Users\dickinsc\PycharmProjects\DataLab\demo_data\2. Project Configs\Test A\21239_Project_A_Config.json"
     # filepath = r"C:\Users\dickinsc\PycharmProjects\DataLab\demo_data\2. Project Configs\Project 21368 - Dhaval\21368_Dhaval_Config.json"
     # filepath = r"C:\Users\dickinsc\PycharmProjects\DataLab\demo_data\2. Project Configs\Project 21239 Acc to Disp to AR-Ang\21239_Time_Series_Conversion_Config.json"
     win.inputDataModule.load_config_file(filepath)

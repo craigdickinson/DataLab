@@ -54,9 +54,7 @@ class RawDataRead(object):
         units_row = logger.units_header_row - 1
 
         # Additional header rows to skip - only using the first header row for data frame column names
-        self.skip_rows = [
-            i for i in range(logger.num_headers) if i > header_row and i != units_row
-        ]
+        self.skip_rows = [i for i in range(logger.num_headers) if i > header_row and i != units_row]
 
         # No header row specified
         if header_row < 0:
@@ -110,9 +108,7 @@ class RawDataRead(object):
         # Convert first column (should be timestamps string) to datetimes
         else:
             try:
-                df.iloc[:, 0] = pd.to_datetime(
-                    df.iloc[:, 0], format=self.datetime_format
-                )
+                df.iloc[:, 0] = pd.to_datetime(df.iloc[:, 0], format=self.datetime_format)
 
                 # Create time stamps index
                 t = (df.iloc[:, 0] - df.iloc[0, 0]).dt.total_seconds().values.round(3)

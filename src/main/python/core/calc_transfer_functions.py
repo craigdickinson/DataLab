@@ -93,9 +93,7 @@ class TransferFunctions(QObject):
         header_row = self.get_header_row(filename)
 
         # Read file and drop wave elevation column
-        df = pd.read_csv(
-            filename, header=header_row, index_col=0, skip_blank_lines=False
-        )
+        df = pd.read_csv(filename, header=header_row, index_col=0, skip_blank_lines=False)
         df = df.drop(df.columns[0], axis=1)
 
         return df
@@ -186,9 +184,7 @@ class TransferFunctions(QObject):
         """
 
         loggers = [i.strip().replace("_", " ") for i in loggers]
-        loggers = [
-            i.rsplit(" ", 1)[0] if i.lower().endswith("dispy") else i for i in loggers
-        ]
+        loggers = [i.rsplit(" ", 1)[0] if i.lower().endswith("dispy") else i for i in loggers]
         return loggers
 
     @staticmethod
@@ -221,10 +217,7 @@ class TransferFunctions(QObject):
         h = self.df_disp.index[1] - self.df_disp.index[0]
 
         # Double differentiate node displacements to get accelerations
-        acc = (
-            -(self.df_disp.shift(1) - 2 * self.df_disp + self.df_disp.shift(-1))
-            / h ** 2
-        )
+        acc = -(self.df_disp.shift(1) - 2 * self.df_disp + self.df_disp.shift(-1)) / h ** 2
 
         # Gravity component from node rotations
         g = 9.807
@@ -352,12 +345,7 @@ class TransferFunctions(QObject):
 
             for j in range(self.num_locs):
                 # For each logger, multiply each column (location) by percentage occurrence and average
-                df = (
-                    self.trans_funcs[i][j]
-                    .apply(lambda x: perc_occ * x, axis=1)
-                    .sum(axis=1)
-                    / n
-                )
+                df = self.trans_funcs[i][j].apply(lambda x: perc_occ * x, axis=1).sum(axis=1) / n
                 df_ave = pd.concat((df_ave, df), axis=1)
 
             df_ave.index.name = "Freq (Hz)"
@@ -383,9 +371,7 @@ class TransferFunctions(QObject):
                 df_ss = pd.DataFrame()
 
                 for k, loc in enumerate(self.loc_names):
-                    df_ss = pd.concat(
-                        (df_ss, self.trans_funcs[i][k].iloc[:, j]), axis=1
-                    )
+                    df_ss = pd.concat((df_ss, self.trans_funcs[i][k].iloc[:, j]), axis=1)
 
                 df_ss.columns = self.loc_names
                 df_ss.index.name = "Freq (Hz)"
@@ -425,9 +411,7 @@ class TransferFunctions(QObject):
         tp_list = np.asarray(tp_list)
 
         # Make window sea state data frame
-        df = pd.DataFrame(
-            np.vstack((windows, hs_list, tp_list)).T, columns=["Windows", "Hs", "Tp"]
-        )
+        df = pd.DataFrame(np.vstack((windows, hs_list, tp_list)).T, columns=["Windows", "Hs", "Tp"])
 
         # Find nearest Tp
         i = np.abs(df["Tp"] - tp_i).idxmin()

@@ -94,43 +94,25 @@ class ProjectConfigJSONFile(QObject):
             section=key, data=data, key="project_location", attr=control.project_path
         )
         control.azure_account_name = self._get_key_value(
-            section=key,
-            data=data,
-            key="azure_account_name",
-            attr=control.azure_account_name,
+            section=key, data=data, key="azure_account_name", attr=control.azure_account_name
         )
         control.azure_account_key = self._get_key_value(
-            section=key,
-            data=data,
-            key="azure_account_key",
-            attr=control.azure_account_key,
+            section=key, data=data, key="azure_account_key", attr=control.azure_account_key
         )
         control.global_process_stats = self._get_key_value(
-            section=key,
-            data=data,
-            key="global_process_stats",
-            attr=control.global_process_stats,
+            section=key, data=data, key="global_process_stats", attr=control.global_process_stats
         )
         control.global_process_spect = self._get_key_value(
-            section=key,
-            data=data,
-            key="global_process_spectral",
-            attr=control.global_process_spect,
+            section=key, data=data, key="global_process_spectral", attr=control.global_process_spect
         )
         control.stats_output_folder = self._get_key_value(
             section=key, data=data, key="stats_folder", attr=control.stats_output_folder
         )
         control.spect_output_folder = self._get_key_value(
-            section=key,
-            data=data,
-            key="spectral_folder",
-            attr=control.spect_output_folder,
+            section=key, data=data, key="spectral_folder", attr=control.spect_output_folder
         )
         control.integration_output_folder = self._get_key_value(
-            section=key,
-            data=data,
-            key="integration_folder",
-            attr=control.integration_output_folder,
+            section=key, data=data, key="integration_folder", attr=control.integration_output_folder
         )
         control.stats_to_h5 = self._get_key_value(
             section=key, data=data, key="stats_to_h5", attr=control.stats_to_h5
@@ -194,6 +176,9 @@ class ProjectConfigJSONFile(QObject):
     def _map_logger_props(self, logger, dict_logger):
         """Retrieve logger properties from JSON dictionary and map to logger object."""
 
+        logger.enabled = self._get_key_value(
+            section=logger.logger_id, data=dict_logger, key="enabled", attr=logger.enabled
+        )
         logger.data_on_azure = self._get_key_value(
             section=logger.logger_id,
             data=dict_logger,
@@ -201,16 +186,10 @@ class ProjectConfigJSONFile(QObject):
             attr=logger.data_on_azure,
         )
         logger.logger_path = self._get_key_value(
-            section=logger.logger_id,
-            data=dict_logger,
-            key="logger_path",
-            attr=logger.logger_path,
+            section=logger.logger_id, data=dict_logger, key="logger_path", attr=logger.logger_path
         )
         logger.file_format = self._get_key_value(
-            section=logger.logger_id,
-            data=dict_logger,
-            key="file_format",
-            attr=logger.file_format,
+            section=logger.logger_id, data=dict_logger, key="file_format", attr=logger.file_format
         )
         logger.file_timestamp_embedded = self._get_key_value(
             section=logger.logger_id,
@@ -231,10 +210,7 @@ class ProjectConfigJSONFile(QObject):
             attr=logger.first_col_data,
         )
         logger.file_ext = self._get_key_value(
-            section=logger.logger_id,
-            data=dict_logger,
-            key="file_ext",
-            attr=logger.file_ext,
+            section=logger.logger_id, data=dict_logger, key="file_ext", attr=logger.file_ext
         )
         logger.file_delimiter = self._get_key_value(
             section=logger.logger_id,
@@ -249,10 +225,7 @@ class ProjectConfigJSONFile(QObject):
             attr=logger.num_headers,
         )
         logger.num_columns = self._get_key_value(
-            section=logger.logger_id,
-            data=dict_logger,
-            key="num_columns",
-            attr=logger.num_columns,
+            section=logger.logger_id, data=dict_logger, key="num_columns", attr=logger.num_columns
         )
         logger.channel_header_row = self._get_key_value(
             section=logger.logger_id,
@@ -279,16 +252,10 @@ class ProjectConfigJSONFile(QObject):
             attr=logger.datetime_format,
         )
         logger.freq = self._get_key_value(
-            section=logger.logger_id,
-            data=dict_logger,
-            key="logging_freq",
-            attr=logger.freq,
+            section=logger.logger_id, data=dict_logger, key="logging_freq", attr=logger.freq
         )
         logger.duration = self._get_key_value(
-            section=logger.logger_id,
-            data=dict_logger,
-            key="logging_duration",
-            attr=logger.duration,
+            section=logger.logger_id, data=dict_logger, key="logging_duration", attr=logger.duration
         )
         logger.enforce_max_duration = self._get_key_value(
             section=logger.logger_id,
@@ -365,10 +332,7 @@ class ProjectConfigJSONFile(QObject):
                 self.signal_warning.emit(msg)
 
         process_end = self._get_key_value(
-            section=logger.logger_id,
-            data=dict_logger,
-            key="process_end",
-            attr=logger.process_end,
+            section=logger.logger_id, data=dict_logger, key="process_end", attr=logger.process_end
         )
 
         # End file index used
@@ -381,9 +345,7 @@ class ProjectConfigJSONFile(QObject):
             try:
                 logger.process_end = parse(process_end, yearfirst=True)
             except ValueError:
-                msg = (
-                    f"Process end format not recognised for logger {logger.logger_id}."
-                )
+                msg = f"Process end format not recognised for logger {logger.logger_id}."
                 self.signal_warning.emit(msg)
 
         logger.num_selected_files = self._get_key_value(
@@ -393,10 +355,7 @@ class ProjectConfigJSONFile(QObject):
             attr=logger.num_selected_files,
         )
         logger.process_type = self._get_key_value(
-            section=logger.logger_id,
-            data=dict_logger,
-            key="process_type",
-            attr=logger.process_type,
+            section=logger.logger_id, data=dict_logger, key="process_type", attr=logger.process_type
         )
         logger.low_cutoff_freq = self._get_key_value(
             section=logger.logger_id,
@@ -441,16 +400,10 @@ class ProjectConfigJSONFile(QObject):
             attr=logger.psd_nperseg,
         )
         logger.psd_window = self._get_key_value(
-            section=logger.logger_id,
-            data=dict_logger,
-            key="psd_window",
-            attr=logger.psd_window,
+            section=logger.logger_id, data=dict_logger, key="psd_window", attr=logger.psd_window
         )
         logger.psd_overlap = self._get_key_value(
-            section=logger.logger_id,
-            data=dict_logger,
-            key="psd_overlap",
-            attr=logger.psd_overlap,
+            section=logger.logger_id, data=dict_logger, key="psd_overlap", attr=logger.psd_overlap
         )
 
         return logger
@@ -465,10 +418,7 @@ class ProjectConfigJSONFile(QObject):
             attr=logger.process_hists,
         )
         logger.bin_size = self._get_key_value(
-            section=logger.logger_id,
-            data=dict_logger,
-            key="bin_size",
-            attr=logger.bin_size,
+            section=logger.logger_id, data=dict_logger, key="bin_size", attr=logger.bin_size
         )
 
         return logger
@@ -483,22 +433,13 @@ class ProjectConfigJSONFile(QObject):
             attr=logger.process_integration,
         )
         logger.acc_x_col = self._get_key_value(
-            section=logger.logger_id,
-            data=dict_logger,
-            key="conv_acc_x",
-            attr=logger.acc_x_col,
+            section=logger.logger_id, data=dict_logger, key="conv_acc_x", attr=logger.acc_x_col
         )
         logger.acc_y_col = self._get_key_value(
-            section=logger.logger_id,
-            data=dict_logger,
-            key="conv_acc_y",
-            attr=logger.acc_y_col,
+            section=logger.logger_id, data=dict_logger, key="conv_acc_y", attr=logger.acc_y_col
         )
         logger.acc_z_col = self._get_key_value(
-            section=logger.logger_id,
-            data=dict_logger,
-            key="conv_acc_z",
-            attr=logger.acc_z_col,
+            section=logger.logger_id, data=dict_logger, key="conv_acc_z", attr=logger.acc_z_col
         )
         logger.ang_rate_x_col = self._get_key_value(
             section=logger.logger_id,
@@ -539,10 +480,7 @@ class ProjectConfigJSONFile(QObject):
             return scatter
 
         scatter.metocean_logger = self._get_key_value(
-            section=key,
-            data=data,
-            key="metocean_logger_id",
-            attr=scatter.metocean_logger,
+            section=key, data=data, key="metocean_logger_id", attr=scatter.metocean_logger
         )
         scatter.hs_col = self._get_key_value(
             section=key, data=data, key="hs_column", attr=scatter.hs_col
@@ -664,6 +602,7 @@ class ProjectConfigJSONFile(QObject):
     def _add_logger_props(logger, dict_props):
         """Add control object logger properties to JSON dictionary."""
 
+        dict_props["enabled"] = logger.enabled
         dict_props["data_on_azure"] = logger.data_on_azure
         dict_props["logger_path"] = logger.logger_path
         dict_props["file_format"] = logger.file_format
@@ -704,9 +643,7 @@ class ProjectConfigJSONFile(QObject):
         else:
             # Start date used
             if logger.file_timestamp_embedded is True:
-                dict_props["process_start"] = logger.process_start.strftime(
-                    "%Y-%m-%d %H:%M"
-                )
+                dict_props["process_start"] = logger.process_start.strftime("%Y-%m-%d %H:%M")
             # Start file index used
             else:
                 dict_props["process_start"] = logger.process_start
@@ -717,9 +654,7 @@ class ProjectConfigJSONFile(QObject):
         else:
             # End date used
             if logger.file_timestamp_embedded is True:
-                dict_props["process_end"] = logger.process_end.strftime(
-                    "%Y-%m-%d %H:%M"
-                )
+                dict_props["process_end"] = logger.process_end.strftime("%Y-%m-%d %H:%M")
             else:
                 dict_props["process_end"] = logger.process_end
 

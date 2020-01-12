@@ -26,9 +26,9 @@ class ProcessingProgressBar(QtWidgets.QDialog):
 
         # WIDGETS
         self.loggersLabel = QtWidgets.QLabel("Logger Status")
-        self.loggersList = QtWidgets.QListWidget()
-        self.loggersList.setFixedWidth(160)
-        self.loggersList.setFixedHeight(100)
+        self.loggerList = QtWidgets.QListWidget()
+        self.loggerList.setFixedWidth(160)
+        self.loggerList.setFixedHeight(100)
         self.outputFilesLabel = QtWidgets.QLabel("Files Output to Project Location")
         self.outputFilesList = QtWidgets.QListWidget()
         self.pb = QtWidgets.QProgressBar()
@@ -45,7 +45,7 @@ class ProcessingProgressBar(QtWidgets.QDialog):
         # CONTAINERS
         self.vbox1 = QtWidgets.QVBoxLayout()
         self.vbox1.addWidget(self.loggersLabel)
-        self.vbox1.addWidget(self.loggersList)
+        self.vbox1.addWidget(self.loggerList)
 
         self.vbox2 = QtWidgets.QVBoxLayout()
         self.vbox2.addWidget(self.progLabel)
@@ -74,8 +74,7 @@ class ProcessingProgressBar(QtWidgets.QDialog):
         self.buttonBox.rejected.connect(self.cancel)
 
     def _populate_loggers_list(self, logger_ids):
-        if logger_ids:
-            self.loggersList.addItems(logger_ids)
+        self.loggerList.addItems(logger_ids)
 
     def cancel(self):
         """Cancel progress bar."""
@@ -98,17 +97,15 @@ class ProcessingProgressBar(QtWidgets.QDialog):
 
         # Update loggers status list
         logger = logger_ids[logger_i]
-        self.loggersList.item(logger_i).setText(f"{logger} - Processing")
+        self.loggerList.item(logger_i).setText(f"{logger} - Processing")
 
         if logger_i > 0:
             prev_logger = logger_ids[logger_i - 1]
-            self.loggersList.item(logger_i - 1).setText(f"{prev_logger} - Complete")
+            self.loggerList.item(logger_i - 1).setText(f"{prev_logger} - Complete")
 
         # Update progress label
         self.progLabel.setText(f"Processing file {filename} (file {file_i + 1} of {n})")
-        self.progLabel2.setText(
-            f"Processed {total_file_count} of {total_files} files in total"
-        )
+        self.progLabel2.setText(f"Processed {total_file_count} of {total_files} files in total")
         self.elapsedTimeLabel.setText(f"Elapsed time = {elapsed_time}")
 
         # Set percentage progress
@@ -120,7 +117,7 @@ class ProcessingProgressBar(QtWidgets.QDialog):
 
         # On 100% update last logger in list to "Complete", report runtime and re-enable OK button
         if int(perc) == 100:
-            self.loggersList.item(logger_i).setText(f"{logger} - Complete")
+            self.loggerList.item(logger_i).setText(f"{logger} - Complete")
             self.procCompleteLabel.setText("Processing complete")
             self.buttonBox.button(QtWidgets.QDialogButtonBox.Ok).setEnabled(True)
 

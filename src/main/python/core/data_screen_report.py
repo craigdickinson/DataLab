@@ -45,8 +45,7 @@ class DataScreenReport(object):
         """
 
         bad_files = [
-            [logger_id] + [k, v]
-            for k, v in zip(dict_bad_files.keys(), dict_bad_files.values())
+            [logger_id] + [k, v] for k, v in zip(dict_bad_files.keys(), dict_bad_files.values())
         ]
 
         return bad_files

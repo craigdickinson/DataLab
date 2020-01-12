@@ -18,9 +18,7 @@ def calc_psd(data, fs, window="boxcar", nperseg=None, noverlap=None):
     :return: Arrays of frequencies and PSD amplitudes
     """
 
-    f, pxx = signal.welch(
-        data, fs=fs, window=window, nperseg=nperseg, noverlap=noverlap
-    )
+    f, pxx = signal.welch(data, fs=fs, window=window, nperseg=nperseg, noverlap=noverlap)
 
     return f, pxx
 

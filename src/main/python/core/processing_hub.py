@@ -26,9 +26,7 @@ def parse_args(args):
     """Parse command line arguments."""
 
     parser = argparse.ArgumentParser(prog="DataLab", description=prog_info)
-    parser.add_argument(
-        "-V", "--version", version="%(prog)s (version 0.1)", action="version"
-    )
+    parser.add_argument("-V", "--version", version="%(prog)s (version 0.1)", action="version")
     parser.add_argument(
         "datfile",
         action="store",
@@ -75,7 +73,9 @@ class ProcessingHub(QObject):
         global_process_spect = self.control.global_process_spect
         global_process_histograms = self.control.global_process_histograms
 
-        for logger in self.control.loggers:
+        # Set up for enabled loggers
+        enabled_loggers = (logger for logger in self.control.loggers if logger.enabled)
+        for logger in enabled_loggers:
             # Add any bad filenames to screening report
             data_report.add_bad_filenames(logger.logger_id, logger.dict_bad_filenames)
 
@@ -146,9 +146,7 @@ class ProcessingHub(QObject):
 
         # Structure to amalgamate data screening results
         data_report = DataScreenReport(
-            self.control.project_name,
-            self.control.campaign_name,
-            self.control.report_output_path,
+            self.control.project_name, self.control.campaign_name, self.control.report_output_path
         )
 
         stats_screening = StatsScreening(self.control)
@@ -181,9 +179,7 @@ class ProcessingHub(QObject):
             data_integration.set_logger(logger)
 
             # Initialise dictionary of histogram data frames for each column
-            dict_df_col_hists = {
-                channel: pd.DataFrame() for channel in logger.channel_names
-            }
+            dict_df_col_hists = {channel: pd.DataFrame() for channel in logger.channel_names}
 
             # Get file number of first file to be processed (this is akin to load case number for no timestamp files)
             try:
@@ -203,9 +199,7 @@ class ProcessingHub(QObject):
                 # Update console
                 filename = os.path.basename(file)
                 processed_file_num = first_file_num + j
-                progress = (
-                    f"Processing {logger.logger_id} file {j + 1} of {n} ({filename})"
-                )
+                progress = f"Processing {logger.logger_id} file {j + 1} of {n} ({filename})"
                 print(f"\r{progress}", end="")
                 t = str(timedelta(seconds=round(time() - t0)))
 
@@ -227,9 +221,7 @@ class ProcessingHub(QObject):
                 # READ FILE TO DATA FRAME
                 # If streaming data from Azure Cloud read as a file stream
                 if logger.data_on_azure:
-                    file = stream_blob(
-                        bloc_blob_service, logger.container_name, logger.blobs[j]
-                    )
+                    file = stream_blob(bloc_blob_service, logger.container_name, logger.blobs[j])
 
                 # Read the file into a pandas data frame
                 df = data_screen.read_logger_file(file)
@@ -266,15 +258,11 @@ class ProcessingHub(QObject):
                 if data_screen.points_per_file[j] <= logger.expected_data_points:
                     # STATS SCREENING
                     if data_screen.stats_requested:
-                        stats_screening.file_stats_processing(
-                            df, data_screen, processed_file_num
-                        )
+                        stats_screening.file_stats_processing(df, data_screen, processed_file_num)
 
                     # SPECTRAL SCREENING
                     if data_screen.spect_requested:
-                        spect_screening.file_spect_processing(
-                            df, data_screen, processed_file_num
-                        )
+                        spect_screening.file_spect_processing(df, data_screen, processed_file_num)
 
                     # CALCULATE HISTOGRAMS
                     if data_screen.histograms_requested:
@@ -288,14 +276,10 @@ class ProcessingHub(QObject):
             # Operations for logger i after all logger i files have been processed
             if logger.files:
                 coverage = data_screen.calc_data_completeness()
-                print(
-                    f"\nData coverage for {logger.logger_id} logger = {coverage.min():.1f}%\n"
-                )
+                print(f"\nData coverage for {logger.logger_id} logger = {coverage.min():.1f}%\n")
 
             # Add any files containing errors to screening report
-            data_report.add_files_with_bad_data(
-                logger.logger_id, data_screen.dict_bad_files
-            )
+            data_report.add_files_with_bad_data(logger.logger_id, data_screen.dict_bad_files)
 
             # Check logger stats requested and processed for current logger
             if data_screen.stats_requested and data_screen.stats_processed:
@@ -345,17 +329,23 @@ class ProcessingHub(QObject):
 
         # Check and inform user if stats/spectrograms were requested but not calculated (e.g. due to bad files)
         if self.any_stats_expected and not any_stats_processed:
-            warning = "Warning: Statistics requested but none calculated. Check Data Screening Report."
+            warning = (
+                "Warning: Statistics requested but none calculated. Check Data Screening Report."
+            )
             output_files.append(warning)
             self.signal_update_output_info.emit(output_files)
 
         if self.any_spect_expected and not any_spect_processed:
-            warning = "Warning: Spectrograms requested but none calculated. Check Data Screening Report."
+            warning = (
+                "Warning: Spectrograms requested but none calculated. Check Data Screening Report."
+            )
             output_files.append(warning)
             self.signal_update_output_info.emit(output_files)
 
         if self.any_histograms_expected and not any_histograms_processed:
-            warning = "Warning: Histograms requested but none calculated. Check Data Screening Report."
+            warning = (
+                "Warning: Histograms requested but none calculated. Check Data Screening Report."
+            )
             output_files.append(warning)
             self.signal_update_output_info.emit(output_files)
 
@@ -427,9 +417,7 @@ class ProcessingHub(QObject):
                 # Update console
                 filename = os.path.basename(file)
                 processed_file_num = first_file_num + j
-                progress = (
-                    f"Processing {logger.logger_id} file {j + 1} of {n} ({filename})"
-                )
+                progress = f"Processing {logger.logger_id} file {j + 1} of {n} ({filename})"
                 print(f"\r{progress}", end="")
                 t = str(timedelta(seconds=round(time() - t0)))
 
@@ -449,9 +437,7 @@ class ProcessingHub(QObject):
                 # READ FILE TO DATA FRAME
                 # If streaming data from Azure Cloud read as a file stream
                 if logger.data_on_azure:
-                    file = stream_blob(
-                        bloc_blob_service, logger.container_name, logger.blobs[j]
-                    )
+                    file = stream_blob(bloc_blob_service, logger.container_name, logger.blobs[j])
 
                 # Read the file into a pandas data frame
                 df = data_screen.read_logger_file(file)

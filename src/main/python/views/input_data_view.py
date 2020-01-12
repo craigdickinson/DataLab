@@ -9,7 +9,7 @@ from datetime import datetime
 from glob import glob
 
 from PyQt5 import QtCore, QtGui, QtWidgets
-from PyQt5.QtCore import pyqtSlot
+from PyQt5.QtCore import pyqtSlot, Qt
 
 from core.azure_cloud_storage import check_azure_account_exists
 from core.calc_seascatter import Seascatter
@@ -17,19 +17,10 @@ from core.calc_transfer_functions import TransferFunctions
 from core.control import Control, InputError
 from core.custom_date import get_datetime_format
 from core.detect_file_timestamp_format import detect_file_timestamp_format
-from core.file_props_2hps2_acc import (
-    detect_2hps2_logger_properties,
-    set_2hps2_acc_file_format,
-)
+from core.file_props_2hps2_acc import detect_2hps2_logger_properties, set_2hps2_acc_file_format
 from core.file_props_custom_format import set_custom_file_format
-from core.file_props_fugro_csv import (
-    detect_fugro_logger_properties,
-    set_fugro_csv_file_format,
-)
-from core.file_props_pulse_acc import (
-    detect_pulse_logger_properties,
-    set_pulse_acc_file_format,
-)
+from core.file_props_fugro_csv import detect_fugro_logger_properties, set_fugro_csv_file_format
+from core.file_props_pulse_acc import detect_pulse_logger_properties, set_pulse_acc_file_format
 from core.logger_properties import LoggerError, LoggerProperties
 from core.project_config import ProjectConfigJSONFile
 from views.screening_setup_view import ScreeningSetupTab
@@ -50,7 +41,7 @@ class InputDataModule(QtWidgets.QWidget):
         super(InputDataModule, self).__init__(parent)
 
         self.parent = parent
-        self.skip_on_logger_item_edited = False
+        self.skip_on_logger_item_changed = False
         self.del_logger = False
 
         # Initialise settings objects
@@ -67,9 +58,7 @@ class InputDataModule(QtWidgets.QWidget):
         self.openConfigButton = QtWidgets.QPushButton("Open...")
         self.openConfigButton.setToolTip("Open config (*.json) file (Ctrl+O)")
         self.saveConfigButton = QtWidgets.QPushButton("Save")
-        self.saveConfigButton.setToolTip(
-            "Export project settings to config (*.json) file (Ctrl+S)"
-        )
+        self.saveConfigButton.setToolTip("Export project settings to config (*.json) file (Ctrl+S)")
         self.newProjButton = QtWidgets.QPushButton("New Project")
         self.newProjButton.setShortcut("Ctrl+N")
         self.newProjButton.setToolTip("Clear all settings (Ctrl+N)")
@@ -82,7 +71,7 @@ class InputDataModule(QtWidgets.QWidget):
         self.remLoggerButton = QtWidgets.QPushButton("Remove")
         self.remLoggerButton.setShortcut("Ctrl+Del")
         self.remLoggerButton.setToolTip("Ctrl+Del")
-        self.loggersList = QtWidgets.QListWidget()
+        self.loggerList = QtWidgets.QListWidget()
         self.columnList = QtWidgets.QListWidget()
         self.colSpacer = QtWidgets.QSpacerItem(20, 1)
 
@@ -100,9 +89,7 @@ class InputDataModule(QtWidgets.QWidget):
         h = 30
         self.spacer = QtWidgets.QSpacerItem(1, 20)
 
-        self.runDataQualityChecksButton = QtWidgets.QPushButton(
-            "Run Data Quality Checks"
-        )
+        self.runDataQualityChecksButton = QtWidgets.QPushButton("Run Data Quality Checks")
         self.runDataQualityChecksButton.setFixedHeight(h)
         tooltip = "Create a data quality report of selected loggers (F6)"
         self.runDataQualityChecksButton.setToolTip(tooltip)
@@ -112,13 +99,9 @@ class InputDataModule(QtWidgets.QWidget):
         tooltip = "Screen loggers and calculate stats and spectral data (F6)"
         self.processButton.setToolTip(tooltip)
 
-        self.runTimeSeriesIntegrationButton = QtWidgets.QPushButton(
-            "Run Time Series Integration"
-        )
+        self.runTimeSeriesIntegrationButton = QtWidgets.QPushButton("Run Time Series Integration")
         self.runTimeSeriesIntegrationButton.setFixedHeight(h)
-        tooltip = (
-            "Convert accelerations to displacement and angular rates to angles (F6)"
-        )
+        tooltip = "Convert accelerations to displacement and angular rates to angles (F6)"
         self.runTimeSeriesIntegrationButton.setToolTip(tooltip)
 
         self.calcSeascatterButton = QtWidgets.QPushButton("Create Sea Scatter")
@@ -164,7 +147,7 @@ class InputDataModule(QtWidgets.QWidget):
         self.vboxLoggers = QtWidgets.QVBoxLayout(self.loggersGroup)
         self.vboxLoggers.addLayout(self.hboxLoggers)
         self.vboxLoggers.addWidget(QtWidgets.QLabel("Datasets"))
-        self.vboxLoggers.addWidget(self.loggersList)
+        self.vboxLoggers.addWidget(self.loggerList)
         self.vboxLoggers.addWidget(QtWidgets.QLabel("Columns"))
         self.vboxLoggers.addWidget(self.columnList)
 
@@ -226,13 +209,12 @@ class InputDataModule(QtWidgets.QWidget):
         self.openProjDirButton.clicked.connect(self.on_open_project_folder_clicked)
         self.addLoggerButton.clicked.connect(self.on_add_logger_clicked)
         self.remLoggerButton.clicked.connect(self.on_remove_logger_clicked)
-        self.loggersList.currentItemChanged.connect(self.on_logger_selected)
-        self.loggersList.itemChanged.connect(self.on_logger_item_edited)
+        self.loggerList.currentItemChanged.connect(self.on_logger_selected)
+        self.loggerList.itemChanged.connect(self.on_logger_item_changed)
+        self.loggerList.itemDoubleClicked.connect(self.on_logger_item_double_clicked)
         self.statsScreenChkBox.toggled.connect(self.on_stats_screen_toggled)
         self.spectScreenChkBox.toggled.connect(self.on_spect_screen_toggled)
-        self.runTimeSeriesIntegrationButton.clicked.connect(
-            self.on_run_ts_integration_clicked
-        )
+        self.runTimeSeriesIntegrationButton.clicked.connect(self.on_run_ts_integration_clicked)
         self.processButton.clicked.connect(self.on_process_screening_clicked)
         self.calcSeascatterButton.clicked.connect(self.on_calc_seascatter_clicked)
         self.calcTFButton.clicked.connect(self.on_calc_transfer_functions_clicked)
@@ -311,7 +293,7 @@ class InputDataModule(QtWidgets.QWidget):
 
         # Clear logger combo box
         # Note: This will trigger the clearing of the logger properties, stats and spectral dashboards
-        self.loggersList.clear()
+        self.loggerList.clear()
         self.columnList.clear()
 
         # Clear campaign data dashboard and update window title to include config file path
@@ -336,14 +318,12 @@ class InputDataModule(QtWidgets.QWidget):
         try:
             os.startfile(self.control.project_path)
         except:
-            QtWidgets.QMessageBox.warning(
-                self, "Open Project Folder", "Couldn't open folder."
-            )
+            QtWidgets.QMessageBox.warning(self, "Open Project Folder", "Couldn't open folder.")
 
     def on_add_logger_clicked(self):
         """Add new logger to list. Initial logger name is 'Logger n'."""
 
-        n = self.loggersList.count()
+        n = self.loggerList.count()
         logger_id = f"Logger {n + 1}"
 
         # Create logger properties object and append to loggers list in control object
@@ -356,12 +336,10 @@ class InputDataModule(QtWidgets.QWidget):
         logger = set_custom_file_format(logger)
 
         item = QtWidgets.QListWidgetItem(logger_id)
-        item.setFlags(
-            item.flags() | QtCore.Qt.ItemIsUserCheckable | QtCore.Qt.ItemIsEditable
-        )
-        item.setCheckState(QtCore.Qt.Checked)
-        self.loggersList.addItem(item)
-        self.loggersList.setCurrentRow(n)
+        item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
+        item.setCheckState(Qt.Checked)
+        self.loggerList.addItem(item)
+        self.loggerList.setCurrentRow(n)
 
         # Also add logger id to raw data module dataset combo box
         try:
@@ -381,17 +359,17 @@ class InputDataModule(QtWidgets.QWidget):
     def on_remove_logger_clicked(self):
         """Remove selected logger."""
 
-        if self.loggersList.count() == 0:
+        if self.loggerList.count() == 0:
             return
 
         # Get logger selected in list to remove
-        if self.loggersList.currentItem():
-            i = self.loggersList.currentRow()
-            logger = self.loggersList.currentItem().text()
+        if self.loggerList.currentItem():
+            i = self.loggerList.currentRow()
+            logger = self.loggerList.currentItem().text()
         # Remove last item
         else:
-            i = self.loggersList.count() - 1
-            logger = self.loggersList.item(i).text()
+            i = self.loggerList.count() - 1
+            logger = self.loggerList.item(i).text()
 
         # Confirm with users
         msg = f"Are you sure you want to remove logger {logger}?"
@@ -407,14 +385,14 @@ class InputDataModule(QtWidgets.QWidget):
 
             # Remove logger from loggers list
             self.del_logger = True
-            self.loggersList.takeItem(i)
+            self.loggerList.takeItem(i)
             self.del_logger = False
 
             # Remove logger from raw data dashboard combo box and data list
             self.parent.rawDataModule.remove_dataset(i)
 
             # Clear relevant dashboards if all loggers removed
-            if self.loggersList.count() == 0:
+            if self.loggerList.count() == 0:
                 self.columnList.clear()
                 self.loggerPropsTab.clear_dashboard()
                 self.screeningTab.clear_dashboard()
@@ -424,7 +402,7 @@ class InputDataModule(QtWidgets.QWidget):
     def on_logger_selected(self):
         """Update dashboard data pertaining to selected logger."""
 
-        i = self.loggersList.currentRow()
+        i = self.loggerList.currentRow()
         if i == -1:
             return
 
@@ -444,29 +422,42 @@ class InputDataModule(QtWidgets.QWidget):
         self.integrationTab.set_analysis_dashboard(logger)
         self.set_logger_columns_list(logger)
 
-    def on_logger_item_edited(self):
-        """Update logger combo box to match logger names of list widget."""
+    def on_logger_item_changed(self):
+        """Update logger enabled property on check state change."""
 
         # Skip function if logger id is edited through the edit dialog
-        if self.skip_on_logger_item_edited is True:
+        if self.skip_on_logger_item_changed is True:
             return
 
-        # Retrieve new logger id from list
-        i = self.loggersList.currentRow()
-        new_logger_id = self.loggersList.currentItem().text()
+        # Retrieve selected logger list item and logger object
+        i = self.loggerList.currentRow()
+        item = self.loggerList.currentItem()
+        logger = self.control.loggers[i]
 
-        # Update logger id in control object
-        self.control.loggers[i].logger_id = new_logger_id
+        # Update logger enabled property from item check state
+        if item.checkState() == Qt.Checked:
+            logger.enabled = True
+        else:
+            logger.enabled = False
 
-        # Update dashboard logger id
-        self.loggerPropsTab.loggerID.setText(new_logger_id)
+    def on_logger_item_double_clicked(self):
+        """Change logger item check state and update logger object."""
 
-        # Update the logger ids lists in the control object
-        self.control.logger_ids[i] = new_logger_id
-        self.control.logger_ids_upper[i] = new_logger_id.upper()
+        # Retrieve selected logger list item and logger object
+        i = self.loggerList.currentRow()
+        item = self.loggerList.currentItem()
+        logger = self.control.loggers[i]
+        self.skip_on_logger_item_changed = True
 
-        # Update logger id in raw dashboard dataset combo box
-        self.parent.rawDataModule.update_dateset_name(i, new_logger_id)
+        # Change item check state and map to logger enabled property
+        if item.checkState() == Qt.Checked:
+            item.setCheckState(Qt.Unchecked)
+            logger.enabled = False
+        else:
+            item.setCheckState(Qt.Checked)
+            logger.enabled = True
+
+        self.skip_on_logger_item_changed = False
 
     def on_stats_screen_toggled(self):
         self.control.global_process_stats = self.statsScreenChkBox.isChecked()
@@ -541,10 +532,10 @@ class InputDataModule(QtWidgets.QWidget):
     def update_logger_id_list(self, logger_id, logger_idx):
         """Update logger name in the loggers list if logger id in edit dialog is changed."""
 
-        # Set flag to skip logger list item edited action when triggered
-        self.skip_on_logger_item_edited = True
-        self.loggersList.item(logger_idx).setText(logger_id)
-        self.skip_on_logger_item_edited = False
+        # Set flag to skip logger list item changed action when triggered
+        self.skip_on_logger_item_changed = True
+        self.loggerList.item(logger_idx).setText(logger_id)
+        self.skip_on_logger_item_changed = False
 
         # Update the logger ids lists in the control object
         self.control.logger_ids[logger_idx] = logger_id
@@ -584,20 +575,22 @@ class InputDataModule(QtWidgets.QWidget):
         # Set campaign data to dashboard
         self.generalTab.set_dashboard()
 
-        self.loggersList.clear()
+        self.loggerList.clear()
         self.columnList.clear()
 
         # Add loggers in control object to loggers list
         if self.control.loggers:
             for logger in self.control.loggers:
                 item = QtWidgets.QListWidgetItem(logger.logger_id)
-                item.setFlags(
-                    item.flags()
-                    | QtCore.Qt.ItemIsUserCheckable
-                    | QtCore.Qt.ItemIsEditable
-                )
-                item.setCheckState(QtCore.Qt.Checked)
-                self.loggersList.addItem(item)
+                item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
+
+                # Set logger item check state
+                if logger.enabled:
+                    item.setCheckState(Qt.Checked)
+                else:
+                    item.setCheckState(Qt.Unchecked)
+
+                self.loggerList.addItem(item)
 
                 # Repaint used to refresh gui as each logger is processed
                 self.repaint()
@@ -615,7 +608,7 @@ class InputDataModule(QtWidgets.QWidget):
             self.parent.statusbar.showMessage("")
 
             # Select first logger and set dashboards
-            self.loggersList.setCurrentRow(0)
+            self.loggerList.setCurrentRow(0)
             logger = self.control.loggers[0]
             self.loggerPropsTab.set_logger_dashboard(logger)
             self.screeningTab.set_analysis_dashboard(logger)
@@ -789,9 +782,7 @@ class EditGeneralDialog(QtWidgets.QDialog):
         self.setFixedWidth(500)
 
         # Sizing policy
-        policy = QtWidgets.QSizePolicy(
-            QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed
-        )
+        policy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed)
 
         # WIDGETS
         self.projNum = QtWidgets.QLineEdit()
@@ -800,9 +791,7 @@ class EditGeneralDialog(QtWidgets.QDialog):
         self.campaignName = QtWidgets.QLineEdit()
         self.projPath = QtWidgets.QPlainTextEdit()
         self.projPath.setFixedHeight(40)
-        self.projPath.setToolTip(
-            "If not input the current working directory will be used."
-        )
+        self.projPath.setToolTip("If not input the current working directory will be used.")
         self.browseButton = QtWidgets.QPushButton("&Browse...")
         self.browseButton.setSizePolicy(policy)
         self.buttonBox = QtWidgets.QDialogButtonBox(
@@ -871,9 +860,9 @@ class EditGeneralDialog(QtWidgets.QDialog):
         if control.project_num == "" or control.project_name == "":
             return ""
         else:
-            filename = "_".join(
-                (control.project_num, control.project_name, "Config.json")
-            ).replace(" ", "_")
+            filename = "_".join((control.project_num, control.project_name, "Config.json")).replace(
+                " ", "_"
+            )
 
             return filename
 
@@ -1052,15 +1041,13 @@ class LoggerPropertiesTab(QtWidgets.QWidget):
     def on_edit_clicked(self):
         """Open logger properties edit dialog."""
 
-        if self.parent.loggersList.count() == 0:
+        if self.parent.loggerList.count() == 0:
             msg = f"No loggers exist to edit. Add a logger first."
-            return QtWidgets.QMessageBox.information(
-                self, "Edit Logger Properties", msg
-            )
+            return QtWidgets.QMessageBox.information(self, "Edit Logger Properties", msg)
 
         # Retrieve selected logger object
         # TODO: If adding logger, dialog should show new logger id - works but if remove one first, id may not be unique
-        logger_idx = self.parent.loggersList.currentRow()
+        logger_idx = self.parent.loggerList.currentRow()
 
         # Create edit logger properties dialog window instance
         editLoggerProps = EditLoggerPropertiesDialog(self, self.control, logger_idx)
@@ -1070,7 +1057,7 @@ class LoggerPropertiesTab(QtWidgets.QWidget):
         """Open logger files source folder."""
 
         try:
-            i = self.parent.loggersList.currentRow()
+            i = self.parent.loggerList.currentRow()
         except:
             return
 
@@ -1080,9 +1067,7 @@ class LoggerPropertiesTab(QtWidgets.QWidget):
         try:
             os.startfile(self.control.loggers[i].logger_path)
         except:
-            QtWidgets.QMessageBox.warning(
-                self, "Open Raw Files Folder", "Couldn't open folder."
-            )
+            QtWidgets.QMessageBox.warning(self, "Open Raw Files Folder", "Couldn't open folder.")
 
     def set_logger_dashboard(self, logger):
         """Set dashboard with logger properties from logger object."""
@@ -1178,9 +1163,7 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
         dbl_validator = QtGui.QDoubleValidator()
 
         # Sizing policy
-        policy = QtWidgets.QSizePolicy(
-            QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed
-        )
+        policy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed)
 
         # WIDGETS
         self.loggerID = QtWidgets.QLineEdit()
@@ -1204,13 +1187,9 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
         self.fileFormat = QtWidgets.QComboBox()
         self.fileFormat.setFixedWidth(100)
         self.fileFormat.addItems(file_types)
-        self.fileTimestampEmbeddedChkBox = QtWidgets.QCheckBox(
-            "Timestamp embedded in file name"
-        )
+        self.fileTimestampEmbeddedChkBox = QtWidgets.QCheckBox("Timestamp embedded in file name")
         self.fileTimestampEmbeddedChkBox.setChecked(True)
-        self.detectTimestampFormatButton = QtWidgets.QPushButton(
-            "Detect File &Timestamp Format"
-        )
+        self.detectTimestampFormatButton = QtWidgets.QPushButton("Detect File &Timestamp Format")
         self.detectTimestampFormatButton.setSizePolicy(policy)
         self.fileTimestampFormat = QtWidgets.QLineEdit()
         msg = (
@@ -1308,9 +1287,7 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
         self.locLayout.addWidget(self.loggerLocGroup)
 
         # Copy logger group
-        self.copyGroup = QtWidgets.QGroupBox(
-            "Optional: Copy Properties from Another Logger"
-        )
+        self.copyGroup = QtWidgets.QGroupBox("Optional: Copy Properties from Another Logger")
         self.hboxCopy = QtWidgets.QHBoxLayout(self.copyGroup)
         self.hboxCopy.addWidget(lblCopy)
         self.hboxCopy.addWidget(self.copyLogger)
@@ -1321,9 +1298,7 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
         self.loggerFilePropsGroup = QtWidgets.QGroupBox("Logger File Properties")
         self.typeForm = QtWidgets.QFormLayout(self.loggerFilePropsGroup)
         self.typeForm.addRow(lblFileFmt, self.fileFormat)
-        self.typeForm.addRow(
-            self.fileTimestampEmbeddedChkBox, self.detectTimestampFormatButton
-        )
+        self.typeForm.addRow(self.fileTimestampEmbeddedChkBox, self.detectTimestampFormatButton)
         self.typeForm.addRow(lblFileTimestampFmt, self.fileTimestampFormat)
         self.typeForm.addRow(lblFirstColData, self.firstColData)
         self.typeForm.addRow(lblExt, self.fileExt)
@@ -1360,9 +1335,7 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
         self.browseButton.clicked.connect(self.on_browse_path_clicked)
         self.copyLoggerButton.clicked.connect(self.on_copy_logger_clicked)
         self.fileFormat.currentIndexChanged.connect(self.on_file_format_changed)
-        self.fileTimestampEmbeddedChkBox.toggled.connect(
-            self.on_file_timestamp_embedded_toggled
-        )
+        self.fileTimestampEmbeddedChkBox.toggled.connect(self.on_file_timestamp_embedded_toggled)
         self.detectTimestampFormatButton.clicked.connect(
             self.on_detect_file_timestamp_format_clicked
         )
@@ -1409,9 +1382,7 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
         """Set the copy logger properties combo box with list of available loggers, excluding the current one."""
 
         # Get list of available loggers to copy
-        loggers_to_copy = [
-            i for i in self.control.logger_ids if i != self.logger.logger_id
-        ]
+        loggers_to_copy = [i for i in self.control.logger_ids if i != self.logger.logger_id]
         self.copyLogger.addItems(loggers_to_copy)
 
     def _set_enabled_inputs(self, file_format):
@@ -1500,9 +1471,7 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
     def on_browse_path_clicked(self):
         """Set location of logger directory."""
 
-        logger_path = QtWidgets.QFileDialog.getExistingDirectory(
-            self, "Logger Location"
-        )
+        logger_path = QtWidgets.QFileDialog.getExistingDirectory(self, "Logger Location")
 
         if logger_path:
             self.loggerPath.setPlainText(logger_path)
@@ -1595,16 +1564,12 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
         logger_path = self.loggerPath.toPlainText()
         if not os.path.exists(logger_path):
             msg = "Logger path does not exist. Set a logger path first."
-            return QtWidgets.QMessageBox.information(
-                self, "Detect File Timestamp Format", msg
-            )
+            return QtWidgets.QMessageBox.information(self, "Detect File Timestamp Format", msg)
 
         raw_files = glob(logger_path + "/*." + self.fileExt.text())
         if not raw_files:
             msg = f"No files found in {logger_path}"
-            return QtWidgets.QMessageBox.information(
-                self, "Detect File Timestamp Format", msg
-            )
+            return QtWidgets.QMessageBox.information(self, "Detect File Timestamp Format", msg)
 
         # Attempt to decipher file timestamp format code (e.g. xxxxYYYYxmmDDxHHMM)
         test_filename = os.path.basename(raw_files[0])
@@ -1632,9 +1597,7 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
             # Convert datetime to string - check whether seconds identifier is included
             if test_logger.sec_span[0] != -1:
                 try:
-                    test_timestamp = datetime.strftime(
-                        test_datetime, "%Y-%m-%d %H:%M:%S"
-                    )
+                    test_timestamp = datetime.strftime(test_datetime, "%Y-%m-%d %H:%M:%S")
                 except:
                     test_timestamp = ""
             else:
@@ -1651,9 +1614,7 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
                     "If this is not correct then the file timestamp format code needs manual correction."
                 )
 
-        QtWidgets.QMessageBox.information(
-            self, "Detect File Timestamp Format Test", msg
-        )
+        QtWidgets.QMessageBox.information(self, "Detect File Timestamp Format Test", msg)
 
         # Set format to dialog
         self.fileTimestampFormat.setText(file_timestamp_format)
@@ -1676,9 +1637,7 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
         # TODO: Add Azure support
         if not os.path.exists(logger_path):
             msg = "Logger path does not exist. Set a logger path first."
-            return QtWidgets.QMessageBox.information(
-                self, "Detect Logger Properties", msg
-            )
+            return QtWidgets.QMessageBox.information(self, "Detect Logger Properties", msg)
 
         # Create a test logger object to assign properties since we do not want to
         # assign them to the control object until the dialog OK button is clicked
@@ -1691,9 +1650,7 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
                 # Set current file format properties in the dialog
                 test_logger.file_format = "Custom"
                 test_logger.file_ext = self.fileExt.text()
-                test_logger.file_delimiter = delims_gui_to_logger[
-                    self.fileDelimiter.currentText()
-                ]
+                test_logger.file_delimiter = delims_gui_to_logger[self.fileDelimiter.currentText()]
                 test_logger.num_headers = int(self.numHeaderRows.text())
                 test_logger.channel_header_row = int(self.channelHeaderRow.text())
                 test_logger.units_header_row = int(self.unitsHeaderRow.text())
@@ -1737,21 +1694,15 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
 
             self._detect_header()
             self.parent.set_logger_dashboard(self.logger)
-            self.parent.parent.update_logger_id_list(
-                self.logger.logger_id, self.logger_idx
-            )
+            self.parent.parent.update_logger_id_list(self.logger.logger_id, self.logger_idx)
             self.parent.parent.set_logger_columns_list(self.logger)
 
             # Set the process start/end labels in the Screening dashboard that pertain to the logger
             file_timestamp_embedded = self.logger.file_timestamp_embedded
-            self.parent.parent.screeningTab.set_process_date_labels(
-                file_timestamp_embedded
-            )
+            self.parent.parent.screeningTab.set_process_date_labels(file_timestamp_embedded)
 
             # Update file list in raw data module if required
-            self.parent.parent.parent.rawDataModule.map_logger_props_to_dataset(
-                self.logger_idx
-            )
+            self.parent.parent.parent.rawDataModule.map_logger_props_to_dataset(self.logger_idx)
         except Exception as e:
             msg = "Unexpected error assigning logger properties"
             self.error(f"{msg}:\n{e}\n{sys.exc_info()[0]}")
@@ -1815,9 +1766,7 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
 
         if float(self.loggingDuration.text()) < 0:
             msg = "Logging duration must be positive."
-            QtWidgets.QMessageBox.information(
-                self, "Invalid Logging Duration Input", msg
-            )
+            QtWidgets.QMessageBox.information(self, "Invalid Logging Duration Input", msg)
         else:
             logger.duration = float(self.loggingDuration.text())
 
@@ -1832,14 +1781,10 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
         # If stats or spectral sample length is zero set to logger duration and update screening tab
         if logger.stats_interval == 0:
             logger.stats_interval = logger.duration
-            self.parent.parent.screeningTab.statsInterval.setText(
-                str(logger.stats_interval)
-            )
+            self.parent.parent.screeningTab.statsInterval.setText(str(logger.stats_interval))
         if logger.spect_interval == 0:
             logger.spect_interval = logger.duration
-            self.parent.parent.screeningTab.spectInterval.setText(
-                str(logger.spect_interval)
-            )
+            self.parent.parent.screeningTab.spectInterval.setText(str(logger.spect_interval))
 
         return logger
 
@@ -1891,21 +1836,13 @@ class SeascatterTab(QtWidgets.QWidget):
         self.detailsGroup = QtWidgets.QGroupBox("Sea Scatter Data Details")
         self.detailsGroup.setMinimumWidth(500)
         self.form = QtWidgets.QFormLayout(self.detailsGroup)
-        self.form.addRow(
-            QtWidgets.QLabel("Logger containing metocean data:"), self.logger
-        )
-        self.form.addRow(
-            QtWidgets.QLabel("Significant wave height column:"), self.hsCol
-        )
-        self.form.addRow(
-            QtWidgets.QLabel("Significant wave period column:"), self.tpCol
-        )
+        self.form.addRow(QtWidgets.QLabel("Logger containing metocean data:"), self.logger)
+        self.form.addRow(QtWidgets.QLabel("Significant wave height column:"), self.hsCol)
+        self.form.addRow(QtWidgets.QLabel("Significant wave period column:"), self.tpCol)
 
         # LAYOUT
         self.layout1 = QtWidgets.QVBoxLayout()
-        self.layout1.addWidget(
-            self.editButton, stretch=0, alignment=QtCore.Qt.AlignLeft
-        )
+        self.layout1.addWidget(self.editButton, stretch=0, alignment=QtCore.Qt.AlignLeft)
         self.layout1.addWidget(self.detailsGroup)
         self.layout1.addStretch()
 
@@ -1968,15 +1905,9 @@ class EditSeascatterDialog(QtWidgets.QDialog):
         # CONTAINERS
         self.detailsGroup = QtWidgets.QGroupBox("Define Metocean Logger Details")
         self.form = QtWidgets.QFormLayout(self.detailsGroup)
-        self.form.addRow(
-            QtWidgets.QLabel("Logger containing metocean data:"), self.loggerCombo
-        )
-        self.form.addRow(
-            QtWidgets.QLabel("Significant wave height column:"), self.hsColCombo
-        )
-        self.form.addRow(
-            QtWidgets.QLabel("Significant wave period column:"), self.tpColCombo
-        )
+        self.form.addRow(QtWidgets.QLabel("Logger containing metocean data:"), self.loggerCombo)
+        self.form.addRow(QtWidgets.QLabel("Significant wave height column:"), self.hsColCombo)
+        self.form.addRow(QtWidgets.QLabel("Significant wave period column:"), self.tpColCombo)
 
         # LAYOUT
         self.layout = QtWidgets.QVBoxLayout(self)
@@ -2075,27 +2006,15 @@ class TransferFunctionsTab(QtWidgets.QWidget):
         self.pathsGroup = QtWidgets.QGroupBox("FEA Time Series Locations")
         self.pathsGroup.setMinimumWidth(500)
         self.form1 = QtWidgets.QFormLayout(self.pathsGroup)
-        self.form1.addRow(
-            QtWidgets.QLabel("Logger displacements directory:"), self.loggerDispPath
-        )
-        self.form1.addRow(
-            QtWidgets.QLabel("Logger rotations directory:"), self.loggerRotPath
-        )
-        self.form1.addRow(
-            QtWidgets.QLabel("Location bending moments directory:"), self.locBMPath
-        )
+        self.form1.addRow(QtWidgets.QLabel("Logger displacements directory:"), self.loggerDispPath)
+        self.form1.addRow(QtWidgets.QLabel("Logger rotations directory:"), self.loggerRotPath)
+        self.form1.addRow(QtWidgets.QLabel("Location bending moments directory:"), self.locBMPath)
 
         self.detailsGroup = QtWidgets.QGroupBox("FEA Details")
         self.form2 = QtWidgets.QFormLayout(self.detailsGroup)
-        self.form2.addRow(
-            QtWidgets.QLabel("Number of FEA loggers detected:"), self.numLoggers
-        )
-        self.form2.addRow(
-            QtWidgets.QLabel("Number of FEA locations detected:"), self.numLocs
-        )
-        self.form2.addRow(
-            QtWidgets.QLabel("Number of FEA sea states detected:"), self.numSeastates
-        )
+        self.form2.addRow(QtWidgets.QLabel("Number of FEA loggers detected:"), self.numLoggers)
+        self.form2.addRow(QtWidgets.QLabel("Number of FEA locations detected:"), self.numLocs)
+        self.form2.addRow(QtWidgets.QLabel("Number of FEA sea states detected:"), self.numSeastates)
 
         self.group1 = QtWidgets.QGroupBox("Logger Names")
         self.vbox1 = QtWidgets.QVBoxLayout(self.group1)
@@ -2120,9 +2039,7 @@ class TransferFunctionsTab(QtWidgets.QWidget):
 
         # LAYOUT
         self.layout1 = QtWidgets.QVBoxLayout()
-        self.layout1.addWidget(
-            self.editButton, stretch=0, alignment=QtCore.Qt.AlignLeft
-        )
+        self.layout1.addWidget(self.editButton, stretch=0, alignment=QtCore.Qt.AlignLeft)
         self.layout1.addWidget(self.pathsGroup)
         self.layout1.addLayout(self.hbox)
         self.layout1.addStretch()
@@ -2220,16 +2137,10 @@ class EditTransferFunctionsDialog(QtWidgets.QDialog):
         self.pathsGroup = QtWidgets.QGroupBox("FEA Time Series Locations")
         self.grid = QtWidgets.QGridLayout(self.pathsGroup)
         self.grid.addWidget(
-            QtWidgets.QLabel("Logger displacements directory:"),
-            0,
-            0,
-            alignment=QtCore.Qt.AlignTop,
+            QtWidgets.QLabel("Logger displacements directory:"), 0, 0, alignment=QtCore.Qt.AlignTop
         )
         self.grid.addWidget(
-            QtWidgets.QLabel("Logger rotations directory:"),
-            1,
-            0,
-            alignment=QtCore.Qt.AlignTop,
+            QtWidgets.QLabel("Logger rotations directory:"), 1, 0, alignment=QtCore.Qt.AlignTop
         )
         self.grid.addWidget(
             QtWidgets.QLabel("Location bending moments directory:"),
@@ -2246,15 +2157,9 @@ class EditTransferFunctionsDialog(QtWidgets.QDialog):
 
         self.detailsGroup = QtWidgets.QGroupBox("FEA Details")
         self.form = QtWidgets.QFormLayout(self.detailsGroup)
-        self.form.addRow(
-            QtWidgets.QLabel("Number of FEA loggers detected:"), self.numLoggers
-        )
-        self.form.addRow(
-            QtWidgets.QLabel("Number of FEA locations detected:"), self.numLocs
-        )
-        self.form.addRow(
-            QtWidgets.QLabel("Number of FEA sea states detected:"), self.numSeastates
-        )
+        self.form.addRow(QtWidgets.QLabel("Number of FEA loggers detected:"), self.numLoggers)
+        self.form.addRow(QtWidgets.QLabel("Number of FEA locations detected:"), self.numLocs)
+        self.form.addRow(QtWidgets.QLabel("Number of FEA sea states detected:"), self.numSeastates)
 
         self.vbox1 = QtWidgets.QVBoxLayout()
         self.vbox1.addWidget(QtWidgets.QLabel("Loggers Time Series"))
@@ -2275,9 +2180,7 @@ class EditTransferFunctionsDialog(QtWidgets.QDialog):
         # LAYOUT
         self.layout = QtWidgets.QVBoxLayout(self)
         self.layout.addWidget(self.pathsGroup)
-        self.layout.addWidget(
-            self.detectButton, stretch=0, alignment=QtCore.Qt.AlignLeft
-        )
+        self.layout.addWidget(self.detectButton, stretch=0, alignment=QtCore.Qt.AlignLeft)
         self.layout.addWidget(self.detailsGroup)
         self.layout.addLayout(self.hbox)
 
@@ -2312,17 +2215,13 @@ class EditTransferFunctionsDialog(QtWidgets.QDialog):
         self.percOcc.setPlainText("\n".join(list(map(str, self.tf.perc_occ))))
 
     def on_set_disp_path_clicked(self):
-        dir_path = QtWidgets.QFileDialog.getExistingDirectory(
-            self, "Logger Displacements Folder"
-        )
+        dir_path = QtWidgets.QFileDialog.getExistingDirectory(self, "Logger Displacements Folder")
 
         if dir_path:
             self.loggerDispPath.setPlainText(dir_path)
 
     def on_set_rot_path_clicked(self):
-        dir_path = QtWidgets.QFileDialog.getExistingDirectory(
-            self, "Logger Rotations Folder"
-        )
+        dir_path = QtWidgets.QFileDialog.getExistingDirectory(self, "Logger Rotations Folder")
 
         if dir_path:
             self.loggerRotPath.setPlainText(dir_path)
@@ -2384,14 +2283,10 @@ class EditTransferFunctionsDialog(QtWidgets.QDialog):
         if perc_occ:
             try:
                 # Convert values to float
-                self.tf.perc_occ = list(
-                    map(float, self.percOcc.toPlainText().split("\n"))
-                )
+                self.tf.perc_occ = list(map(float, self.percOcc.toPlainText().split("\n")))
             except ValueError as e:
                 msg = "Percentage occurrences must be numeric."
-                QtWidgets.QMessageBox.information(
-                    self, "Invalid Percentage Occurrences Input", msg
-                )
+                QtWidgets.QMessageBox.information(self, "Invalid Percentage Occurrences Input", msg)
                 logging.exception(e)
         else:
             self.tf.perc_occ = []

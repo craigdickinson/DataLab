@@ -80,12 +80,8 @@ class ScreeningSetupTab(QtWidgets.QWidget):
         # Columns to process group
         self.colsGroup = QtWidgets.QGroupBox("Columns to Process Settings")
         self.colsForm = QtWidgets.QFormLayout(self.colsGroup)
-        self.colsForm.addRow(
-            QtWidgets.QLabel("Column numbers to process:"), self.columns
-        )
-        self.colsForm.addRow(
-            QtWidgets.QLabel("Unit conversion factors:"), self.unitConvs
-        )
+        self.colsForm.addRow(QtWidgets.QLabel("Column numbers to process:"), self.columns)
+        self.colsForm.addRow(QtWidgets.QLabel("Unit conversion factors:"), self.unitConvs)
         self.colsForm.addRow(
             QtWidgets.QLabel("Channel names override (optional):"), self.channelNames
         )
@@ -104,12 +100,8 @@ class ScreeningSetupTab(QtWidgets.QWidget):
         self.filtersGroup = QtWidgets.QGroupBox("Frequency Filters")
         self.filtersForm = QtWidgets.QFormLayout(self.filtersGroup)
         self.filtersForm.addRow(QtWidgets.QLabel("Screen on:"), self.processType)
-        self.filtersForm.addRow(
-            QtWidgets.QLabel("Low cut-off frequency (Hz):"), self.lowCutoff
-        )
-        self.filtersForm.addRow(
-            QtWidgets.QLabel("High cut-off frequency (Hz):"), self.highCutoff
-        )
+        self.filtersForm.addRow(QtWidgets.QLabel("Low cut-off frequency (Hz):"), self.lowCutoff)
+        self.filtersForm.addRow(QtWidgets.QLabel("High cut-off frequency (Hz):"), self.highCutoff)
 
         # Stats settings group
         self.statsGroup = QtWidgets.QGroupBox("Statistical Analysis Settings")
@@ -117,9 +109,7 @@ class ScreeningSetupTab(QtWidgets.QWidget):
         self.statsForm = QtWidgets.QFormLayout(self.statsGroup)
         self.statsForm.addRow(self.processStatsChkBox, QtWidgets.QLabel(""))
         self.statsForm.addRow(QtWidgets.QLabel("Output folder:"), self.statsFolder)
-        self.statsForm.addRow(
-            QtWidgets.QLabel("Sample length (s):"), self.statsInterval
-        )
+        self.statsForm.addRow(QtWidgets.QLabel("Sample length (s):"), self.statsInterval)
 
         # Spectral settings group
         self.spectGroup = QtWidgets.QGroupBox("Spectral Analysis Settings")
@@ -127,12 +117,8 @@ class ScreeningSetupTab(QtWidgets.QWidget):
         self.spectForm = QtWidgets.QFormLayout(self.spectGroup)
         self.spectForm.addRow(self.processSpectChkBox, QtWidgets.QLabel(""))
         self.spectForm.addRow(QtWidgets.QLabel("Output folder:"), self.spectFolder)
-        self.spectForm.addRow(
-            QtWidgets.QLabel("Sample length (s):"), self.spectInterval
-        )
-        self.spectForm.addRow(
-            QtWidgets.QLabel("Number of points per segment:"), self.psdNperseg
-        )
+        self.spectForm.addRow(QtWidgets.QLabel("Sample length (s):"), self.spectInterval)
+        self.spectForm.addRow(QtWidgets.QLabel("Number of points per segment:"), self.psdNperseg)
         self.spectForm.addRow(QtWidgets.QLabel("Window:"), self.psdWindow)
         self.spectForm.addRow(QtWidgets.QLabel("Segment overlap (%):"), self.psdOverlap)
 
@@ -157,9 +143,7 @@ class ScreeningSetupTab(QtWidgets.QWidget):
         self.rainflowGroup.setMinimumWidth(250)
         self.rainflowForm = QtWidgets.QFormLayout(self.rainflowGroup)
         self.rainflowForm.addRow(self.processHistogramsChkBox, QtWidgets.QLabel(""))
-        self.rainflowForm.addRow(
-            QtWidgets.QLabel("Output folder:"), self.rainflowFolder
-        )
+        self.rainflowForm.addRow(QtWidgets.QLabel("Output folder:"), self.rainflowFolder)
         self.rainflowForm.addRow(QtWidgets.QLabel("Bin size:"), self.binSize)
 
         # LAYOUT
@@ -193,9 +177,7 @@ class ScreeningSetupTab(QtWidgets.QWidget):
         self.editButton.clicked.connect(self.on_edit_clicked)
         self.processStatsChkBox.toggled.connect(self.on_process_stats_check_box_toggled)
         self.processSpectChkBox.toggled.connect(self.on_process_spect_check_box_toggled)
-        self.processHistogramsChkBox.toggled.connect(
-            self.on_process_histograms_check_box_toggled
-        )
+        self.processHistogramsChkBox.toggled.connect(self.on_process_histograms_check_box_toggled)
         self.statsH5ChkBox.toggled.connect(self.on_stats_h5_toggled)
         self.statsCSVChkBox.toggled.connect(self.on_stats_csv_toggled)
         self.statsXLSXChkBox.toggled.connect(self.on_stats_xlsx_toggled)
@@ -209,68 +191,68 @@ class ScreeningSetupTab(QtWidgets.QWidget):
         if not self.parent:
             return
 
-        if self.parent.loggersList.count() == 0:
+        if self.parent.loggerList.count() == 0:
             msg = f"No loggers exist to edit. Add a logger first."
             return QtWidgets.QMessageBox.information(
                 self, "Edit Logger Statistics and Spectral Analysis Settings", msg
             )
 
         # Retrieve selected logger object
-        logger_idx = self.parent.loggersList.currentRow()
+        logger_idx = self.parent.loggerList.currentRow()
 
         # Edit stats dialog class
         editStatsSettings = EditScreeningSetupDialog(self, self.control, logger_idx)
         editStatsSettings.show()
 
     def on_process_stats_check_box_toggled(self):
-        if self.parent.loggersList.count() > 0:
+        if self.parent.loggerList.count() > 0:
             self.logger.process_stats = self.processStatsChkBox.isChecked()
 
     def on_process_spect_check_box_toggled(self):
-        if self.parent.loggersList.count() > 0:
+        if self.parent.loggerList.count() > 0:
             self.logger.process_spect = self.processSpectChkBox.isChecked()
 
     def on_process_histograms_check_box_toggled(self):
-        if self.parent.loggersList.count() > 0:
+        if self.parent.loggerList.count() > 0:
             self.logger.process_hists = self.processHistogramsChkBox.isChecked()
 
     def on_stats_h5_toggled(self):
-        if self.parent.loggersList.count() > 0:
+        if self.parent.loggerList.count() > 0:
             if self.statsH5ChkBox.isChecked():
                 self.control.stats_to_h5 = True
             else:
                 self.control.stats_to_h5 = False
 
     def on_stats_csv_toggled(self):
-        if self.parent.loggersList.count() > 0:
+        if self.parent.loggerList.count() > 0:
             if self.statsCSVChkBox.isChecked():
                 self.control.stats_to_csv = True
             else:
                 self.control.stats_to_csv = False
 
     def on_stats_xlsx_toggled(self):
-        if self.parent.loggersList.count() > 0:
+        if self.parent.loggerList.count() > 0:
             if self.statsXLSXChkBox.isChecked():
                 self.control.stats_to_xlsx = True
             else:
                 self.control.stats_to_xlsx = False
 
     def on_spect_h5_toggled(self):
-        if self.parent.loggersList.count() > 0:
+        if self.parent.loggerList.count() > 0:
             if self.spectH5ChkBox.isChecked():
                 self.control.spect_to_h5 = True
             else:
                 self.control.spect_to_h5 = False
 
     def on_spect_csv_toggled(self):
-        if self.parent.loggersList.count() > 0:
+        if self.parent.loggerList.count() > 0:
             if self.spectCSVChkBox.isChecked():
                 self.control.spect_to_csv = True
             else:
                 self.control.spect_to_csv = False
 
     def on_spect_xlsx_toggled(self):
-        if self.parent.loggersList.count() > 0:
+        if self.parent.loggerList.count() > 0:
             if self.spectXLSXChkBox.isChecked():
                 self.control.spect_to_xlsx = True
             else:
@@ -471,8 +453,7 @@ class EditScreeningSetupDialog(QtWidgets.QDialog):
         )
         self.channelNames = QtWidgets.QLineEdit()
         self.channelNames.setToolTip(
-            "COMMA-separated custom channel names.\n"
-            "E.g. AccelX, AccelY, AngRateX, AngRateY."
+            "COMMA-separated custom channel names.\n" "E.g. AccelX, AccelY, AngRateX, AngRateY."
         )
         self.channelUnits = QtWidgets.QLineEdit()
         self.channelUnits.setToolTip(
@@ -553,29 +534,27 @@ class EditScreeningSetupDialog(QtWidgets.QDialog):
         if self.logger.file_timestamp_embedded is True:
             self.lblProcessStart = QtWidgets.QLabel("Start timestamp:")
             self.lblProcessEnd = QtWidgets.QLabel("End timestamp:")
-            proc_start_tip = "If blank or 'First', the timestamp of the first file will be used (if detected)."
-            proc_end_tip = "If blank or 'Last', the timestamp of the last file will be used (if detected)."
+            proc_start_tip = (
+                "If blank or 'First', the timestamp of the first file will be used (if detected)."
+            )
+            proc_end_tip = (
+                "If blank or 'Last', the timestamp of the last file will be used (if detected)."
+            )
         else:
             self.lblProcessStart = QtWidgets.QLabel("Start file number:")
             self.lblProcessEnd = QtWidgets.QLabel("End file number:")
             proc_start_tip = "If blank or 'First', the first file number will be used."
-            proc_end_tip = (
-                "If blank or 'Last', the last file number will be used (if detected)."
-            )
+            proc_end_tip = "If blank or 'Last', the last file number will be used (if detected)."
 
         # Set appropriate process start and end tooltip
         self.processStart.setToolTip(proc_start_tip)
         self.processEnd.setToolTip(proc_end_tip)
 
         # CONTAINERS
-        policy = QtWidgets.QSizePolicy(
-            QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed
-        )
+        policy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed)
 
         # Copy logger group
-        self.copyGroup = QtWidgets.QGroupBox(
-            "Optional: Copy Settings from Another Logger"
-        )
+        self.copyGroup = QtWidgets.QGroupBox("Optional: Copy Settings from Another Logger")
         self.copyGroup.setSizePolicy(policy)
         self.hboxCopy = QtWidgets.QHBoxLayout(self.copyGroup)
         self.hboxCopy.addWidget(self.lblCopy)
@@ -634,9 +613,7 @@ class EditScreeningSetupDialog(QtWidgets.QDialog):
         # LAYOUT
         # Horizontal groups
         self.hboxRangeAndFilters = QtWidgets.QHBoxLayout()
-        self.hboxRangeAndFilters.addWidget(
-            self.processRangeGroup, alignment=QtCore.Qt.AlignTop
-        )
+        self.hboxRangeAndFilters.addWidget(self.processRangeGroup, alignment=QtCore.Qt.AlignTop)
         self.hboxRangeAndFilters.addWidget(self.filtersGroup)
         self.hboxRangeAndFilters.addStretch()
 
@@ -737,9 +714,7 @@ class EditScreeningSetupDialog(QtWidgets.QDialog):
         """Set the copy screening settings combo box with list of available loggers, excluding the current one."""
 
         # Get list of available loggers to copy
-        loggers_to_copy = [
-            i for i in self.control.logger_ids if i != self.logger.logger_id
-        ]
+        loggers_to_copy = [i for i in self.control.logger_ids if i != self.logger.logger_id]
         self.copyLogger.addItems(loggers_to_copy)
 
     def _configure_interval_inputs(self):
@@ -811,9 +786,7 @@ class EditScreeningSetupDialog(QtWidgets.QDialog):
                     "Only integer column numbers are allowed.\n"
                     "Separate each number with a space, e.g. 2 3 4 5."
                 )
-                QtWidgets.QMessageBox.information(
-                    self, "Invalid Requested Columns Input", msg
-                )
+                QtWidgets.QMessageBox.information(self, "Invalid Requested Columns Input", msg)
 
         try:
             logger.unit_conv_factors = list(map(float, self.unitConvs.text().split()))
@@ -822,9 +795,7 @@ class EditScreeningSetupDialog(QtWidgets.QDialog):
                 "Unit conversion factors must be numeric.\n"
                 "Separate each input with a space, e.g. 0.001 0.001 57.29578 57.29578."
             )
-            QtWidgets.QMessageBox.information(
-                self, "Invalid Unit Conversion Factors Input", msg
-            )
+            QtWidgets.QMessageBox.information(self, "Invalid Unit Conversion Factors Input", msg)
 
         # Extract channel names to list
         # Note, because splitting by comma, if input is empty, [""] is returned but want [] so check if populated
@@ -842,9 +813,7 @@ class EditScreeningSetupDialog(QtWidgets.QDialog):
         # Process selection made by timestamps
         if logger.file_timestamp_embedded is True:
             if process_start == "" or process_start.lower() == "first":
-                logger.process_start = self.get_timestamp_in_filename(
-                    logger, file_idx=0
-                )
+                logger.process_start = self.get_timestamp_in_filename(logger, file_idx=0)
             else:
                 try:
                     logger.process_start = parse(process_start, yearfirst=True)
@@ -910,20 +879,14 @@ class EditScreeningSetupDialog(QtWidgets.QDialog):
         logger.process_type = self.processType.currentText()
 
         # Stats settings group
-        if (
-            self.statsInterval.text() == ""
-            or int(float(self.statsInterval.text())) == 0
-        ):
+        if self.statsInterval.text() == "" or int(float(self.statsInterval.text())) == 0:
             logger.stats_interval = int(logger.duration)
         else:
             # TODO: Question why this is forced to be an int not float?
             logger.stats_interval = int(float(self.statsInterval.text()))
 
         # Spectral settings group
-        if (
-            self.spectInterval.text() == ""
-            or int(float(self.spectInterval.text())) == 0
-        ):
+        if self.spectInterval.text() == "" or int(float(self.spectInterval.text())) == 0:
             logger.spect_interval = int(logger.duration)
         else:
             # TODO: Question why this is forced to be an int not float?

@@ -8,12 +8,7 @@ import logging
 import PIL
 import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
-from matplotlib.ticker import (
-    AutoLocator,
-    AutoMinorLocator,
-    MultipleLocator,
-    MaxNLocator,
-)
+from matplotlib.ticker import AutoLocator, AutoMinorLocator, MultipleLocator, MaxNLocator
 
 import numpy as np
 import pandas as pd
@@ -31,17 +26,9 @@ register_matplotlib_converters()
 # from matplotlib.font_manager import findfont, FontProperties
 # import colormap as cmaps
 
-stat_ylabels = [
-    "Acceleration ($\mathregular{m/s^2}$)",
-    "Angular Rate ($\mathregular{deg/s}$)",
-]
+stat_ylabels = ["Acceleration ($\mathregular{m/s^2}$)", "Angular Rate ($\mathregular{deg/s}$)"]
 
-variance_channels_combo = [
-    "Acceleration X",
-    "Acceleration Y",
-    "Angular Rate X",
-    "Angular Rate Y",
-]
+variance_channels_combo = ["Acceleration X", "Acceleration Y", "Angular Rate X", "Angular Rate Y"]
 
 motion_types = ["Surge/Sway/Heave", "Roll/Pitch/Yaw"]
 vessel_trans = ["Surge", "Sway", "Heave"]
@@ -266,17 +253,9 @@ class AxesPlotData:
 
                 # Plot mean, range and SD range
                 line1 = ax.plot(
-                    t,
-                    ave,
-                    label=label_1,
-                    color=color,
-                    ls=linestyle,
-                    lw=1,
-                    marker=marker,
+                    t, ave, label=label_1, color=color, ls=linestyle, lw=1, marker=marker
                 )
-                line2 = ax.fill_between(
-                    t, mn, mx, label=label_2, facecolor=color, alpha=0.2
-                )
+                line2 = ax.fill_between(t, mn, mx, label=label_2, facecolor=color, alpha=0.2)
                 line3 = ax.fill_between(
                     t, ave - std, ave + std, label=label_3, facecolor=color2, alpha=0.2
                 )
@@ -286,9 +265,7 @@ class AxesPlotData:
             # Plot a single channel stat on selected axes
             else:
                 y = df.values.flatten()
-                line = ax.plot(
-                    t, y, label=label, color=color, ls=linestyle, lw=1, marker=marker
-                )
+                line = ax.plot(t, y, label=label, color=color, ls=linestyle, lw=1, marker=marker)
                 handles.append(line[0])
 
             ax.set_ylabel(ylabel, size=ylabel_size)
@@ -448,9 +425,7 @@ class StatsWidget(QtWidgets.QWidget):
         # CONTAINERS
         # Number of plots
         self.numPlotsForm = QtWidgets.QFormLayout()
-        self.numPlotsForm.addRow(
-            QtWidgets.QLabel("Number of plots:"), self.numPlotsCombo
-        )
+        self.numPlotsForm.addRow(QtWidgets.QLabel("Number of plots:"), self.numPlotsCombo)
 
         # Plot selection group
         self.plotGroup = QtWidgets.QGroupBox("Select Plot Data")
@@ -465,9 +440,7 @@ class StatsWidget(QtWidgets.QWidget):
         self.plotSettingsGroup = QtWidgets.QGroupBox("Plot Settings")
         self.form2 = QtWidgets.QFormLayout()
         self.form2.addRow(QtWidgets.QLabel("X-axis type:"), self.xaxisTypeCombo)
-        self.form2.addRow(
-            QtWidgets.QLabel("X-axis interval:"), self.xaxisIntervalsCombo
-        )
+        self.form2.addRow(QtWidgets.QLabel("X-axis interval:"), self.xaxisIntervalsCombo)
         self.vbox = QtWidgets.QVBoxLayout()
         self.vbox.addWidget(self.equalPriSecYAxisChkBox)
         self.vbox.addWidget(self.shareSubplotYAxes1ChkBox)
@@ -536,16 +509,10 @@ class StatsWidget(QtWidgets.QWidget):
         self.channelCombo.currentIndexChanged.connect(self.on_channel_combo_changed)
         self.statCombo.currentIndexChanged.connect(self.on_stat_combo_changed)
         self.xaxisTypeCombo.currentIndexChanged.connect(self.on_xaxis_type_changed)
-        self.xaxisIntervalsCombo.currentIndexChanged.connect(
-            self.on_xaxis_interval_changed
-        )
+        self.xaxisIntervalsCombo.currentIndexChanged.connect(self.on_xaxis_interval_changed)
         self.equalPriSecYAxisChkBox.toggled.connect(self.on_equal_pri_sec_yaxis_toggled)
-        self.shareSubplotYAxes1ChkBox.toggled.connect(
-            self.on_share_subplot_yaxes1_toggled
-        )
-        self.shareSubplotYAxes2ChkBox.toggled.connect(
-            self.on_share_subplot_yaxes2_toggled
-        )
+        self.shareSubplotYAxes1ChkBox.toggled.connect(self.on_share_subplot_yaxes1_toggled)
+        self.shareSubplotYAxes2ChkBox.toggled.connect(self.on_share_subplot_yaxes2_toggled)
 
     @staticmethod
     def _get_plot_numbers_list(n):
@@ -831,10 +798,7 @@ class StatsWidget(QtWidgets.QWidget):
 
         # Remove all but the first item in each combo box
         [self.loggerCombo.removeItem(i) for i in range(self.loggerCombo.count(), 0, -1)]
-        [
-            self.channelCombo.removeItem(i)
-            for i in range(self.channelCombo.count(), 0, -1)
-        ]
+        [self.channelCombo.removeItem(i) for i in range(self.channelCombo.count(), 0, -1)]
 
         self.logger_i = 0
         self.channel_i = 0
@@ -936,10 +900,7 @@ class StatsWidget(QtWidgets.QWidget):
 
         # Remove all but first item
         self.removing_channel_items = True
-        [
-            self.channelCombo.removeItem(i)
-            for i in range(self.channelCombo.count(), 0, -1)
-        ]
+        [self.channelCombo.removeItem(i) for i in range(self.channelCombo.count(), 0, -1)]
         self.removing_channel_items = False
 
         # Don't add any channels if no logger selected;
@@ -979,10 +940,7 @@ class StatsWidget(QtWidgets.QWidget):
 
             # Plot the data
             subplot.plot_data(
-                stat=self.stat,
-                axis=0,
-                num_plots=self.num_plots,
-                index_type=self.xaxis_type,
+                stat=self.stat, axis=0, num_plots=self.num_plots, index_type=self.xaxis_type
             )
 
             # Check if no data was plotted on primary axes but the secondary axes is in use.
@@ -1008,10 +966,7 @@ class StatsWidget(QtWidgets.QWidget):
 
             # Create combined stats plot
             subplot.plot_data(
-                stat=self.stat,
-                axis=1,
-                num_plots=self.num_plots,
-                index_type=self.xaxis_type,
+                stat=self.stat, axis=1, num_plots=self.num_plots, index_type=self.xaxis_type
             )
 
         # Format plot
@@ -1254,9 +1209,7 @@ class StatsWidget(QtWidgets.QWidget):
             labels = [labels[0], labels[3], labels[1], labels[4], labels[2], labels[5]]
             ncol = 3
 
-        subplot.ax1.legend(
-            lines, labels, loc="upper right", ncol=ncol, fontsize=fontsize
-        )
+        subplot.ax1.legend(lines, labels, loc="upper right", ncol=ncol, fontsize=fontsize)
 
     def _add_fig_legend(self):
         """Add legend to bottom of figure."""
@@ -1385,9 +1338,7 @@ class VesselStatsWidget(QtWidgets.QWidget):
     def connect_signals(self):
         self.clearDatasetsButton.clicked.connect(self.on_clear_datasets_clicked)
         self.datasetsList.currentItemChanged.connect(self.on_dataset_list_changed)
-        self.vesselMotionsCombo.currentIndexChanged.connect(
-            self.on_motions_combo_changed
-        )
+        self.vesselMotionsCombo.currentIndexChanged.connect(self.on_motions_combo_changed)
         self.stats1Combo.currentIndexChanged.connect(self.on_stats1_combo_changed)
         self.axis2Logger.currentIndexChanged.connect(self.on_axis2_logger_combo_changed)
         self.stats2Combo.currentIndexChanged.connect(self.on_stats2_combo_changed)
@@ -1633,27 +1584,21 @@ class VesselStatsWidget(QtWidgets.QWidget):
             col = df_vessel.columns[0]
             motion = col[0]
             units = col[1]
-            self.ax1.plot(
-                df_vessel[col], "r", lw=linewidth, label=motion + " Acceleration"
-            )
+            self.ax1.plot(df_vessel[col], "r", lw=linewidth, label=motion + " Acceleration")
             label = f"{motion} ($\mathregular{{{units}}}$)"
             self.ax1.set_ylabel(label)
 
             col = df_vessel.columns[1]
             motion = col[0]
             units = col[1]
-            self.ax2.plot(
-                df_vessel[col], "g", lw=linewidth, label=motion + " Acceleration"
-            )
+            self.ax2.plot(df_vessel[col], "g", lw=linewidth, label=motion + " Acceleration")
             label = f"{motion} ($\mathregular{{{units}}}$)"
             self.ax2.set_ylabel(label)
 
             col = df_vessel.columns[2]
             motion = col[0]
             units = col[1]
-            self.ax3.plot(
-                df_vessel[col], "purple", lw=linewidth, label=motion + " Acceleration"
-            )
+            self.ax3.plot(df_vessel[col], "purple", lw=linewidth, label=motion + " Acceleration")
             label = f"{motion} ($\mathregular{{{units}}}$)"
             self.ax3.set_ylabel(label)
             plot = True
@@ -1696,9 +1641,7 @@ class VesselStatsWidget(QtWidgets.QWidget):
 
             self.fig.legend(loc="lower center", ncol=4, fontsize=11)
             # Ensure plots don't overlap suptitle and legend
-            self.fig.tight_layout(
-                rect=[0, 0.05, 1, 0.9]
-            )  # (rect=[left, bottom, right, top])
+            self.fig.tight_layout(rect=[0, 0.05, 1, 0.9])  # (rect=[left, bottom, right, top])
 
         self.canvas.draw()
 
@@ -1809,9 +1752,7 @@ class PlotStyle2H:
         # Format title
         ax.set_title("")
         plt.text(0.5, 1.18, title1, transform=ax.transAxes, fontdict=self.title1_props)
-        plt.text(
-            0.5, 1.1, title2.upper(), transform=ax.transAxes, fontdict=self.title2_props
-        )
+        plt.text(0.5, 1.1, title2.upper(), transform=ax.transAxes, fontdict=self.title2_props)
         plt.text(0.5, 1.04, title3, transform=ax.transAxes, fontdict=self.title1_props)
 
         # Format axes labels

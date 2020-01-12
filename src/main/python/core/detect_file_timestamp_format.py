@@ -21,9 +21,7 @@ def detect_file_timestamp_format(filename):
     # Don't expect any datetime elements to be of odd length
     pattern = re.compile(r"\d+")
     groups = [group for group in pattern.findall(filename) if len(group) % 2 == 0]
-    matches = [
-        match for match in pattern.finditer(filename) if len(match.group()) % 2 == 0
-    ]
+    matches = [match for match in pattern.finditer(filename) if len(match.group()) % 2 == 0]
 
     # Initialise end index of last match for trimming superfluous characters of the format string
     end = 0

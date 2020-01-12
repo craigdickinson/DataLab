@@ -48,12 +48,8 @@ class FatigueProcessingWidget(QtWidgets.QWidget):
         # WIDGETS
         self.openWCFATFileButton = QtWidgets.QPushButton("Open 2HWCFAT Damage File...")
         self.openWCFATFileButton.setToolTip("Open 2HWCFAT fatigue damage (.dmg) file")
-        self.openFATLASAFileButton = QtWidgets.QPushButton(
-            "Open 2HFATLASA Damage File..."
-        )
-        self.openFATLASAFileButton.setToolTip(
-            "Open 2HFATLASA max fatigue damage (.csv) file"
-        )
+        self.openFATLASAFileButton = QtWidgets.QPushButton("Open 2HFATLASA Damage File...")
+        self.openFATLASAFileButton.setToolTip("Open 2HFATLASA max fatigue damage (.csv) file")
         self.fatigueLocsList = QtWidgets.QListWidget()
         self.fatigueLocsList.setFixedHeight(150)
         self.damLogScale = QtWidgets.QCheckBox("Fatigue damage log scale")
@@ -98,9 +94,7 @@ class FatigueProcessingWidget(QtWidgets.QWidget):
     def connect_signals(self):
         self.openWCFATFileButton.clicked.connect(self.on_open_wcfat_file_clicked)
         self.openFATLASAFileButton.clicked.connect(self.on_open_fatlasa_file_clicked)
-        self.fatigueLocsList.itemDoubleClicked.connect(
-            self.on_fatigue_loc_double_clicked
-        )
+        self.fatigueLocsList.itemDoubleClicked.connect(self.on_fatigue_loc_double_clicked)
         self.damLogScale.stateChanged.connect(self.on_log_scale_changed)
         self.damRatePerEvent.stateChanged.connect(self.on_scale_damage_rate_changed)
 
@@ -140,9 +134,7 @@ class FatigueProcessingWidget(QtWidgets.QWidget):
         self.event_length = self.get_event_length(df_dam)
 
         # Rescale reported fatigue damage rate
-        self.df_dam_per_event = self.rescale_damage_rate(
-            df_dam, period=self.event_length
-        )
+        self.df_dam_per_event = self.rescale_damage_rate(df_dam, period=self.event_length)
 
         if self.scale_dam_rate_to_event_len is True:
             self.df_dam = self.df_dam_per_event

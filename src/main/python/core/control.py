@@ -121,9 +121,7 @@ class Control(object):
         ref_logger = self.loggers[logger_idx]
 
         # Copy attributes from reference logger
-        self.copy_logger_attributes(
-            obj_from=ref_logger, obj_to=dest_logger, attribute_names=names
-        )
+        self.copy_logger_attributes(obj_from=ref_logger, obj_to=dest_logger, attribute_names=names)
 
     def copy_logger_screening_settings(self, ref_logger_id, dest_logger):
         """Copy screening settings of another logger."""

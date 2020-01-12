@@ -98,9 +98,7 @@ class SpectralScreening(object):
         if self.spect_unfilt.spectrograms:
             # Set index as dates if used, otherwise file numbers
             self.spect_unfilt.set_spectrogram_index(dates, file_nums)
-            df_dict = self.spect_unfilt.export_spectrograms_data(
-                self.dict_spect_export_formats
-            )
+            df_dict = self.spect_unfilt.export_spectrograms_data(self.dict_spect_export_formats)
             self.dict_spectrograms.update(df_dict)
 
             # Add to output files list
@@ -217,9 +215,7 @@ class Spectrogram(object):
                 self.expected_length = len(self.freq)
             else:
                 try:
-                    self.spectrograms[channel] = np.row_stack(
-                        [self.spectrograms[channel], psd[i]]
-                    )
+                    self.spectrograms[channel] = np.row_stack([self.spectrograms[channel], psd[i]])
                 except:
                     self.spectrograms[channel] = np.row_stack(
                         [self.spectrograms[channel], dummy_row]

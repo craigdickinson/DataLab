@@ -10,12 +10,7 @@ import pandas as pd
 
 
 def read_general_file(
-    file,
-    delim=",",
-    header_rows="infer",
-    skip_rows=None,
-    skip_blank_lines=True,
-    encoding=None,
+    file, delim=",", header_rows="infer", skip_rows=None, skip_blank_lines=True, encoding=None
 ):
     """Read time series (logger) files with custom format settings to data frame."""
 
@@ -39,9 +34,7 @@ def read_fugro_csv(file):
     try:
         df.index = pd.to_datetime(df.index, format="%d-%b-%Y %H:%M:%S.%f")
     except ValueError:
-        raise ValueError(
-            "Could not convert timestamps to datetime. Expect dates in UTC format."
-        )
+        raise ValueError("Could not convert timestamps to datetime. Expect dates in UTC format.")
 
     # Calculate time delta from t0 and convert to seconds (float)
     t = (df.index - df.index[0]).total_seconds().values.round(3)

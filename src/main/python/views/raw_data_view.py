@@ -58,9 +58,7 @@ class RawDataDashboard(QtWidgets.QWidget):
 
     def _init_ui(self):
         # Widget sizing policy - prevent expansion
-        policy = QtWidgets.QSizePolicy(
-            QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed
-        )
+        policy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed)
 
         # WIDGETS
         self.axisCombo = QtWidgets.QComboBox()
@@ -630,7 +628,9 @@ class RawDataDashboard(QtWidgets.QWidget):
 
             return df
         except FileNotFoundError as e:
-            msg = f"Attempted to load {filename} to Raw Data Inspection dashboard but file not found."
+            msg = (
+                f"Attempted to load {filename} to Raw Data Inspection dashboard but file not found."
+            )
             self.parent.warn_info(msg)
             logging.exception(e)
 
@@ -839,9 +839,7 @@ class RawDataDashboard(QtWidgets.QWidget):
         # self.fig.tight_layout(rect=[0, 0.05, 1, 0.95])
         # self.fig.tight_layout()
         # (rect=[left, bottom, right, top])
-        self.fig.subplots_adjust(
-            left=0.07, bottom=0.15, right=0.93, top=0.9, hspace=0.4
-        )
+        self.fig.subplots_adjust(left=0.07, bottom=0.15, right=0.93, top=0.9, hspace=0.4)
         # (left, bottom, right, top, wspace, hspace)
         self.canvas.draw()
 
@@ -907,9 +905,7 @@ class RawDataDashboard(QtWidgets.QWidget):
 
             # Plot filtered time series
             if len(srs.y_filt) > 0:
-                srs.ts_line_filt = self._add_ts_line_plot(
-                    srs, ax=self.ax1, filtered=True
-                )
+                srs.ts_line_filt = self._add_ts_line_plot(srs, ax=self.ax1, filtered=True)
                 axis1_is_plotted = True
 
         # Plot all populated axis 2 series
@@ -921,9 +917,7 @@ class RawDataDashboard(QtWidgets.QWidget):
 
             # # Plot filtered time series
             if len(srs.y_filt) > 0:
-                srs.ts_line_filt = self._add_ts_line_plot(
-                    srs, ax=self.ax1b, filtered=True
-                )
+                srs.ts_line_filt = self._add_ts_line_plot(srs, ax=self.ax1b, filtered=True)
                 axis2_is_plotted = True
 
         return axis1_is_plotted, axis2_is_plotted
@@ -941,23 +935,17 @@ class RawDataDashboard(QtWidgets.QWidget):
 
             # Plot filtered time series
             if len(srs.y_filt) > 0:
-                srs.psd_line_filt = self._add_psd_line_plot(
-                    srs, ax=self.ax2, filtered=True
-                )
+                srs.psd_line_filt = self._add_psd_line_plot(srs, ax=self.ax2, filtered=True)
 
         # Plot all populated axis 2 series
         for srs in self.plot_setup.axis2_series_list:
             # Plot unfiltered time series
             if len(srs.y) > 0 and plot_filt_only is False:
-                srs.psd_line = self._add_psd_line_plot(
-                    srs, ax=self.ax2b, filtered=False
-                )
+                srs.psd_line = self._add_psd_line_plot(srs, ax=self.ax2b, filtered=False)
 
             # Plot filtered time series
             if len(srs.y_filt) > 0:
-                srs.psd_line_filt = self._add_psd_line_plot(
-                    srs, ax=self.ax2b, filtered=True
-                )
+                srs.psd_line_filt = self._add_psd_line_plot(srs, ax=self.ax2b, filtered=True)
 
         # Set x and y axis limits from stored values
         self.ax2.set_xlim(self.plot_setup.psd_xlim)
@@ -1074,11 +1062,7 @@ class RawDataDashboard(QtWidgets.QWidget):
             # f, pxx = signal.welch(df.T, fs=fs)
             # Calculate PSD using Welch method
             f, pxx = calc_psd(
-                data=df.values.flatten(),
-                fs=fs,
-                window=window,
-                nperseg=nperseg,
-                noverlap=noverlap,
+                data=df.values.flatten(), fs=fs, window=window, nperseg=nperseg, noverlap=noverlap
             )
         except Exception as e:
             raise ValueError(f"Could not calculate PSD\n{e}")
@@ -1492,9 +1476,7 @@ class PlotControlsDialog(QtWidgets.QDialog):
         self.setWindowTitle("Raw Data Dashboard Plot Settings")
 
         # Widget sizing policy - prevent expansion
-        policy = QtWidgets.QSizePolicy(
-            QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed
-        )
+        policy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed)
 
         # WIDGETS
         self.optProject = QtWidgets.QLineEdit()
@@ -1602,19 +1584,13 @@ class PlotControlsDialog(QtWidgets.QDialog):
 
         # PSD parameters form
         self.formLayout = QtWidgets.QFormLayout()
-        self.formLayout.addRow(
-            QtWidgets.QLabel("Number of segments:"), self.optNumEnsembles
-        )
+        self.formLayout.addRow(QtWidgets.QLabel("Number of segments:"), self.optNumEnsembles)
         self.formLayout.addRow(QtWidgets.QLabel("Window:"), self.optWindow)
-        self.formLayout.addRow(
-            QtWidgets.QLabel("Segment overlap (%):"), self.optOverlap
-        )
+        self.formLayout.addRow(QtWidgets.QLabel("Segment overlap (%):"), self.optOverlap)
         self.formLayout.addRow(
             QtWidgets.QLabel("Number of points per segment (echo):"), self.optNperseg
         )
-        self.formLayout.addRow(
-            QtWidgets.QLabel("Sampling frequency (Hz) (echo):"), self.optFs
-        )
+        self.formLayout.addRow(QtWidgets.QLabel("Sampling frequency (Hz) (echo):"), self.optFs)
 
         # PSD parameters group
         self.paramGroup = QtWidgets.QGroupBox("Power Spectral Density Parameters")
@@ -1652,12 +1628,8 @@ class PlotControlsDialog(QtWidgets.QDialog):
         self.buttonBox.accepted.connect(self.on_ok_clicked)
         self.buttonBox.accepted.connect(self.accept)
         self.buttonBox.rejected.connect(self.reject)
-        self.buttonBox.button(QtWidgets.QDialogButtonBox.Apply).clicked.connect(
-            self.on_ok_clicked
-        )
-        self.buttonBox.button(QtWidgets.QDialogButtonBox.Reset).clicked.connect(
-            self.reset_values
-        )
+        self.buttonBox.button(QtWidgets.QDialogButtonBox.Apply).clicked.connect(self.on_ok_clicked)
+        self.buttonBox.button(QtWidgets.QDialogButtonBox.Reset).clicked.connect(self.reset_values)
 
     def on_psd_params_type_toggled(self):
         """Switch between default and custom PSD parameters."""
