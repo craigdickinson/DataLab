@@ -229,14 +229,9 @@ class ProcessingHub(QObject):
                 # Wrangle data to prepare for processing
                 df = data_screen.wrangle_data(df, file_idx=j)
 
-                # TIME SERIES INTEGRATION
-                # Acceleration and/or angular rate conversion
-                if logger.process_integration:
-                    df_integrate = df.copy()
-                    data_integration.process_file(file, df_integrate)
-
                 # Select columns for screening
                 df = data_screen.select_columns_to_process(df)
+                df = data_screen.set_column_names(df)
                 df = data_screen.apply_unit_conversions(df)
 
                 # # Filter data if requested

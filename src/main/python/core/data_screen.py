@@ -225,9 +225,12 @@ class DataScreen(object):
         for i in missing_cols:
             df["Dummy " + str(i + 1)] = np.nan
 
-        # Replace column names with logger setup channel names (should only be different if user names supplied)
-        df.columns = [self.first_col] + self.channel_names
+        return df
 
+    def set_column_names(self, df):
+        """Replace column names with logger setup channel names - only different if user names supplied."""
+
+        df.columns = [self.first_col] + self.channel_names
         return df
 
     def apply_unit_conversions(self, df):

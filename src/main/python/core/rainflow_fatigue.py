@@ -10,28 +10,25 @@ import rainflow
 def file_histograms_processing(dict_df_col_hists, df_file, data_screen, file_num):
     """Calculate histograms on a file."""
 
-    columns = data_screen.logger.channel_names
     bin_size = data_screen.logger.bin_size
-    dict_df_col_hists = rainflow_count_data_frame(
-        dict_df_col_hists, file_num, df_file, columns, bin_size
-    )
+    dict_df_col_hists = dataframe_histogram(dict_df_col_hists, file_num, df_file, bin_size)
 
     data_screen.histograms_processed = True
 
     return dict_df_col_hists
 
 
-def rainflow_count_data_frame(dict_df_col_hists, j, df, columns, bin_size=0.1):
+def dataframe_histogram(dict_df_col_hists, j, df, bin_size=1):
     """Calculate rainflow counting histogram for each channel in data frame."""
 
-    # Calculate rainflow counting histogram for each column
-    for col in columns:
+    # Calculate (binned) histogram for each column using rainflow counting
+    for col in df.columns:
         # Get histogram for column i
-        y = get_column_series(df, col)
-        lb, ub, binned_cycles = calc_hist(y, bin_size)
+        y = df[col].values.flatten()
+        bin_edges, hist = histogram(y, bin_size)
 
-        # Convert to data frame
-        df_temp = pd.DataFrame(binned_cycles, index=lb, columns=[f"File {j}"])
+        # Convert to data frame - index with lower bound bins
+        df_temp = pd.DataFrame(hist, index=bin_edges[:-1], columns=[f"File {j}"])
 
         # Join to existing data frame
         df_hist = dict_df_col_hists[col]
@@ -40,60 +37,78 @@ def rainflow_count_data_frame(dict_df_col_hists, j, df, columns, bin_size=0.1):
     return dict_df_col_hists
 
 
-def get_column_series(df, col):
-    return df[col].values.flatten()
+def histogram(y, bin_size=1):
+    """
+    Compute rainflow counting histogram of time series y.
+    Three stages:
+    1. Do rainflow counting on series
+    2. Get required number of bins
+    3. Bin rainflow cycles
+    """
+
+    ranges, cycles = rainflow_cycles(y)
+    num_bins = number_of_bins(ranges[-1], bin_size)
+    bin_edges, hist = bin_cycles(ranges, cycles, num_bins, bin_size)
+
+    return bin_edges, hist
 
 
-def calc_hist(y, bin_size):
-    """Compute rainflow counting histogram of time series y."""
-
-    ranges, num_cycles = rainflow_counting(y)
-
-    # Use last range to get number of bins required
-    # (add a delta to handle case of range equalling bin limit)
-    req_num_bins = np.ceil((ranges[-1] + 1e-9) / bin_size).astype(int)
-
-    # Create lbound and ubound bins
-    lb, ub = create_hist_bins(req_num_bins, bin_size)
-
-    binned_cycles = bin_cycles(ranges, num_cycles, req_num_bins, bin_size)
-
-    return lb, ub, binned_cycles
-
-
-def rainflow_counting(y):
+def rainflow_cycles(y):
     """Use rainflow package to count number of cycles in an array."""
 
-    cycles = rainflow.count_cycles(y, left=True, right=True)
+    # Settings mimic output of OrcaFlex OrcFxAPI.RainflowHalfCycles function
+    cycles = rainflow.count_cycles(y, left=False, right=True)
 
     # Split tuple and convert to arrays
-    ranges, num_cycles = zip(*cycles)
-    ranges = np.asarray(ranges)
+    cycle_range, num_cycles = zip(*cycles)
+    cycle_range = np.asarray(cycle_range)
     num_cycles = np.asarray(num_cycles)
 
-    return ranges, num_cycles
+    return cycle_range, num_cycles
 
 
-def create_hist_bins(num_bins, bin_size):
-    lb = np.arange(0, num_bins) * bin_size
-    ub = lb + bin_size
+def number_of_bins(last_range, bin_size=1):
+    """Use last range and bin size to get number of bins required in histogram."""
 
-    return lb, ub
+    if last_range == bin_size:
+        num_bins = np.ceil(last_range / bin_size).astype(int)
+    else:
+        # We add a delta to ensure integers are rounded up to give the last bin
+        num_bins = np.ceil((last_range + 1e-9) / bin_size).astype(int)
+
+    return num_bins
 
 
-def bin_cycles(ranges, num_cycles, num_bins, bin_size):
+def bin_cycles(ranges, cycles, num_bins=10, bin_size=1):
     """Bin rainflow counting cycles based on number of bins and bin size input."""
+
+    bin_edges = calc_bin_intervals(num_bins, bin_size)
+    ranges = np.asarray(ranges)
+    cycles = np.asarray(cycles)
 
     # Get bin index of each range
     bin_locs = np.floor(ranges / bin_size).astype(int)
     unique_bins = np.unique(bin_locs)
 
     # Bin cycles
-    binned_cycles = [
-        num_cycles[bin_locs == i].sum() if i in unique_bins else 0 for i in range(num_bins)
-    ]
+    # If bin size equals the last cycle range then we only want one bin, which all cycles fall into
+    if num_bins == 1:
+        hist = np.array(
+            [cycles[bin_locs == i].sum() if i in unique_bins else 0 for i in range(num_bins + 1)]
+        )
+        hist = np.asarray(hist.sum())
+    else:
+        hist = np.array(
+            [cycles[bin_locs == i].sum() if i in unique_bins else 0 for i in range(num_bins)]
+        )
 
-    return np.array(binned_cycles)
+    return bin_edges, hist
+
+
+def calc_bin_intervals(num_bins=10, bin_size=1):
+    """Return bins edges. """
+
+    return np.arange(num_bins + 1) * bin_size
 
 
 def calc_damage(stress_ranges, stress_cycles, SN):
@@ -101,6 +116,12 @@ def calc_damage(stress_ranges, stress_cycles, SN):
 
     stress_ranges = np.asarray(stress_ranges)
     stress_cycles = np.asarray(stress_cycles)
+
+    # Drop zero cycles
+    nonzero_idx = np.where(stress_cycles > 0)
+    stress_ranges = stress_ranges[nonzero_idx]
+    stress_cycles = stress_cycles[nonzero_idx]
+
     sn_region = np.zeros(len(stress_ranges)).astype(int)
 
     for i in range(len(SN)):
@@ -143,7 +164,7 @@ if __name__ == "__main__":
     # x = np.arange(10)
     # y = np.sin(x)
     y = [1, 5, 2, 1, 3, 1]
-    ranges, num_cycles = rainflow_counting(y)
+    ranges, num_cycles = rainflow_cycles(y)
 
     # Fatigue damage of actual stress ranges
     print(f"Stress ranges = {ranges}")
@@ -153,10 +174,13 @@ if __name__ == "__main__":
 
     # Fatigue damage of binned stress ranges
     bin_size = 1
-    req_num_bins = np.ceil((ranges[-1] + 1e-9) / bin_size).astype(int)
-    lb, ub = create_hist_bins(req_num_bins, bin_size)
-    binned_cycles = bin_cycles(ranges, num_cycles, req_num_bins, bin_size)
-    print(f"Stress ranges = {ub}")
-    print(f"Stress cycles = {binned_cycles}")
-    fd = calc_damage(ub, binned_cycles, SN)
-    print(fd)
+    bin_edges, hist = histogram(y, bin_size)
+    lb = bin_edges[:-1]
+    ub = bin_edges[1:]
+    print(f"Lower bins = {lb}")
+    print(f"Upper bins = {ub}")
+    print(f"Hist cycles = {hist}")
+    lfd = calc_damage(lb, hist, SN)
+    ufd = calc_damage(ub, hist, SN)
+    print(lfd)
+    print(ufd)
