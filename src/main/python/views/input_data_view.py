@@ -209,7 +209,7 @@ class InputDataModule(QtWidgets.QWidget):
         self.openProjDirButton.clicked.connect(self.on_open_project_folder_clicked)
         self.addLoggerButton.clicked.connect(self.on_add_logger_clicked)
         self.remLoggerButton.clicked.connect(self.on_remove_logger_clicked)
-        self.loggerList.currentItemChanged.connect(self.on_logger_selected)
+        self.loggerList.currentItemChanged.connect(self.on_current_logger_item_changed)
         self.loggerList.itemChanged.connect(self.on_logger_item_changed)
         self.loggerList.itemDoubleClicked.connect(self.on_logger_item_double_clicked)
         self.statsScreenChkBox.toggled.connect(self.on_stats_screen_toggled)
@@ -399,8 +399,8 @@ class InputDataModule(QtWidgets.QWidget):
                 self.integrationTab.clear_dashboard()
                 self.scatterTab.clear_dashboard()
 
-    def on_logger_selected(self):
-        """Update dashboard data pertaining to selected logger."""
+    def on_current_logger_item_changed(self):
+        """Triggered when logger selected. Update dashboard data pertaining to selected logger."""
 
         i = self.loggerList.currentRow()
         if i == -1:
@@ -423,22 +423,25 @@ class InputDataModule(QtWidgets.QWidget):
         self.set_logger_columns_list(logger)
 
     def on_logger_item_changed(self):
-        """Update logger enabled property on check state change."""
+        """
+        Update logger enabled property on check state change.
+        Triggered when any item check state is changed.
+        """
 
         # Skip function if logger id is edited through the edit dialog
         if self.skip_on_logger_item_changed is True:
             return
 
-        # Retrieve selected logger list item and logger object
-        i = self.loggerList.currentRow()
-        item = self.loggerList.currentItem()
-        logger = self.control.loggers[i]
+        # Because the item changed need not be the currently selected item, need to refresh all item check states
+        for i in range(self.loggerList.count()):
+            item = self.loggerList.item(i)
+            logger = self.control.loggers[i]
 
-        # Update logger enabled property from item check state
-        if item.checkState() == Qt.Checked:
-            logger.enabled = True
-        else:
-            logger.enabled = False
+            # Update logger enabled property from item check state
+            if item.checkState() == Qt.Checked:
+                logger.enabled = True
+            else:
+                logger.enabled = False
 
     def on_logger_item_double_clicked(self):
         """Change logger item check state and update logger object."""

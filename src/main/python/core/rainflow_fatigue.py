@@ -10,19 +10,21 @@ import rainflow
 def file_histograms_processing(dict_df_col_hists, df_file, data_screen, file_num):
     """Calculate histograms on a file."""
 
+    # Select stored columns here as we don't want to include the timestamp column
+    columns = data_screen.logger.channel_names
     bin_size = data_screen.logger.bin_size
-    dict_df_col_hists = dataframe_histogram(dict_df_col_hists, file_num, df_file, bin_size)
+    dict_df_col_hists = dataframe_histogram(dict_df_col_hists, file_num, df_file, columns, bin_size)
 
     data_screen.histograms_processed = True
 
     return dict_df_col_hists
 
 
-def dataframe_histogram(dict_df_col_hists, j, df, bin_size=1):
+def dataframe_histogram(dict_df_col_hists, j, df, columns, bin_size=1):
     """Calculate rainflow counting histogram for each channel in data frame."""
 
     # Calculate (binned) histogram for each column using rainflow counting
-    for col in df.columns:
+    for col in columns:
         # Get histogram for column i
         y = df[col].values.flatten()
         bin_edges, hist = histogram(y, bin_size)
@@ -96,7 +98,7 @@ def bin_cycles(ranges, cycles, num_bins=10, bin_size=1):
         hist = np.array(
             [cycles[bin_locs == i].sum() if i in unique_bins else 0 for i in range(num_bins + 1)]
         )
-        hist = np.asarray(hist.sum())
+        hist = np.array([hist.sum()])
     else:
         hist = np.array(
             [cycles[bin_locs == i].sum() if i in unique_bins else 0 for i in range(num_bins)]
