@@ -98,7 +98,7 @@ class Control(object):
             raise InputError(msg)
 
     def copy_logger_properties(self, ref_logger_id, dest_logger):
-        """Copy file format of another logger."""
+        """Copy another logger's file format properties."""
 
         # Attributes to copy
         names = [
@@ -121,10 +121,10 @@ class Control(object):
         ref_logger = self.loggers[logger_idx]
 
         # Copy attributes from reference logger
-        self.copy_logger_attributes(obj_from=ref_logger, obj_to=dest_logger, attribute_names=names)
+        self.copy_attributes(obj_from=ref_logger, obj_to=dest_logger, attribute_names=names)
 
     def copy_logger_screening_settings(self, ref_logger_id, dest_logger):
-        """Copy screening settings of another logger."""
+        """Copy anotehr logger's screening settings."""
 
         # Attributes to copy
         names = [
@@ -148,10 +148,31 @@ class Control(object):
         ref_logger = self.loggers[logger_idx]
 
         # Copy attributes from reference logger
-        self.copy_logger_attributes(ref_logger, dest_logger, names)
+        self.copy_attributes(ref_logger, dest_logger, names)
+
+    def copy_logger_integration_settings(self, ref_logger_id, dest_logger):
+        """Copy another logger's time series integration settings (acc to disp and angular rate to angle)."""
+
+        # Attributes to copy
+        names = [
+            "acc_x_col",
+            "acc_y_col",
+            "acc_z_col",
+            "ang_rate_x_col",
+            "ang_rate_y_col",
+            "ang_rate_z_col",
+            "apply_gcorr",
+        ]
+
+        # Get reference logger to copy
+        logger_idx = self.logger_ids.index(ref_logger_id)
+        ref_logger = self.loggers[logger_idx]
+
+        # Copy attributes from reference logger
+        self.copy_attributes(ref_logger, dest_logger, names)
 
     @staticmethod
-    def copy_logger_attributes(obj_from, obj_to, attribute_names):
+    def copy_attributes(obj_from, obj_to, attribute_names):
         """Function to copy attributes from one object to another."""
 
         for n in attribute_names:

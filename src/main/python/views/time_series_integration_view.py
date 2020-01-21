@@ -5,8 +5,7 @@ __author__ = "Craig Dickinson"
 import logging
 import sys
 
-from PyQt5 import QtCore, QtGui, QtWidgets
-from dateutil.parser import parse
+from PyQt5 import QtWidgets
 
 from core.control import Control
 from core.logger_properties import LoggerProperties
@@ -289,8 +288,8 @@ class EditIntegrationSetupDialog(QtWidgets.QDialog):
         # before mapping to the control logger
         temp_logger = LoggerProperties()
 
-        # Map logger properties from reference logger to active logger and update dialog values
-        self.control.copy_logger_screening_settings(ref_logger_id, temp_logger)
+        # Map integration settings from reference logger to active logger and update dialog properties
+        self.control.copy_logger_integration_settings(ref_logger_id, temp_logger)
 
         # Set dialog with temp settings so they can confirmed by the user
         self._set_dialog_data(temp_logger)

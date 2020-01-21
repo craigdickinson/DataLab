@@ -222,7 +222,7 @@ def read_logger_txt(filename):
 
     try:
         df = pd.read_csv(filename, header=None, skiprows=10, sep="\t")
-        df = df.dropna(axis=1)
+        df = df.dropna(axis=1, how="all")
         df.index = df.iloc[:, 0]
         df.index.name = "Time (s)"
         df.columns = cols

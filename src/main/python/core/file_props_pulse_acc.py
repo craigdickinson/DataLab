@@ -1,3 +1,5 @@
+__author__ = "Craig Dickinson"
+
 """
 Methods to set up data read from a pulse-acc file.
 
@@ -73,9 +75,11 @@ def detect_pulse_logger_properties(logger):
 
     # Store sample frequency
     if fs > 0:
-        logger.freq = int(fs)
+        logger.freq = fs
     else:
-        msg = f"Could not read sample interval for logger {logger.logger_id}\nFile: {test_filename}"
+        msg = (
+            f"Could not read sample frequency for logger {logger.logger_id}\nFile: {test_filename}"
+        )
         raise Exception(msg)
 
     # Store expected number of columns (+1 to include timestamp column)
@@ -87,7 +91,7 @@ def detect_pulse_logger_properties(logger):
     return logger
 
 
-def read_pulse_header_info(filename):
+def read_pulse_header_info(file):
     """
     Retrieve the following information from the header of a Pulse-acc file:
     sample frequency
@@ -96,7 +100,7 @@ def read_pulse_header_info(filename):
     channel units
     """
 
-    with open(filename, "r") as f:
+    with open(file, "r") as f:
         # Read sampling frequency
         [next(f) for _ in range(9)]
         fs = f.readline().strip().split(" ")[-1]

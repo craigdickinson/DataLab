@@ -18,7 +18,7 @@ from core.control import Control, InputError
 from core.custom_date import get_datetime_format
 from core.detect_file_timestamp_format import detect_file_timestamp_format
 from core.file_props_2hps2_acc import detect_2hps2_logger_properties, set_2hps2_acc_file_format
-from core.file_props_custom_format import set_custom_file_format
+from core.file_props_custom_format import set_custom_file_format, detect_custom_logger_properties
 from core.file_props_fugro_csv import detect_fugro_logger_properties, set_fugro_csv_file_format
 from core.file_props_pulse_acc import detect_pulse_logger_properties, set_pulse_acc_file_format
 from core.logger_properties import LoggerError, LoggerProperties
@@ -972,10 +972,10 @@ class LoggerPropertiesTab(QtWidgets.QWidget):
         self.fileExt = QtWidgets.QLabel("-")
         self.fileDelimiter = QtWidgets.QLabel("-")
         self.numHeaderRows = QtWidgets.QLabel("-")
-        self.numColumns = QtWidgets.QLabel("-")
         self.channelHeaderRow = QtWidgets.QLabel("-")
         self.unitsHeaderRow = QtWidgets.QLabel("-")
         self.dataTimestampFormat = QtWidgets.QLabel("-")
+        self.numColumns = QtWidgets.QLabel("-")
         self.loggingFreq = QtWidgets.QLabel("-")
         self.loggingDuration = QtWidgets.QLabel("-")
         self.numFiles = QtWidgets.QLabel("-")
@@ -991,10 +991,10 @@ class LoggerPropertiesTab(QtWidgets.QWidget):
         lblExt = QtWidgets.QLabel("Extension:")
         lblDelim = QtWidgets.QLabel("Delimiter:")
         lblNumRows = QtWidgets.QLabel("Number of header rows:")
-        lblNumCols = QtWidgets.QLabel("Number of expected columns:")
         lblChanRow = QtWidgets.QLabel("Channel header row:")
         lblUnitsRow = QtWidgets.QLabel("Units header row:")
         lblTimestampFmt = QtWidgets.QLabel("Data timestamp:")
+        lblNumCols = QtWidgets.QLabel("Number of expected columns:")
         lblFreq = QtWidgets.QLabel("Logging frequency (Hz):")
         lblDuration = QtWidgets.QLabel("Logging duration (s):")
         lblNumFiles = QtWidgets.QLabel("Number of files:")
@@ -1014,10 +1014,10 @@ class LoggerPropertiesTab(QtWidgets.QWidget):
         self.form.addRow(lblExt, self.fileExt)
         self.form.addRow(lblDelim, self.fileDelimiter)
         self.form.addRow(lblNumRows, self.numHeaderRows)
-        self.form.addRow(lblNumCols, self.numColumns)
         self.form.addRow(lblChanRow, self.channelHeaderRow)
         self.form.addRow(lblUnitsRow, self.unitsHeaderRow)
         self.form.addRow(lblTimestampFmt, self.dataTimestampFormat)
+        self.form.addRow(lblNumCols, self.numColumns)
         self.form.addRow(lblFreq, self.loggingFreq)
         self.form.addRow(lblDuration, self.loggingDuration)
         self.form.addRow(lblNumFiles, self.numFiles)
@@ -1196,7 +1196,7 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
         self.detectTimestampFormatButton.setSizePolicy(policy)
         self.fileTimestampFormat = QtWidgets.QLineEdit()
         msg = (
-            "Specify a format code to identify where the datetime info is located in the file names.\n"
+            "Input a format code to identify where the datetime info is located in the file names.\n"
             "E.g. For file names of the format:\n"
             "    BOP_2018_0607_1620,\n"
             "the required input is:\n"
@@ -1232,6 +1232,23 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
         self.detectPropsButton = QtWidgets.QPushButton("&Detect Properties")
         self.detectPropsButton.setSizePolicy(policy)
         self.dataTimestampFormat = QtWidgets.QLineEdit()
+        msg = (
+            "Input a code to identify the timestamp format of first column to convert to datetimes.\n"
+            "E.g. For a timestamp format:\n"
+            "    16/04/2020 16:20:00.0,\n"
+            "the required input is:\n"
+            "   dd/mm/yyyy HH:MM:SS.f,\n"
+            "where,\n"
+            "yyyy or yy = year (e.g. 2020)\n"
+            "mm or m = month (e.g 04)\n"
+            "mmm = month (e.g. Jan)\n"
+            "dd or d = day\n"
+            "HH = hour\n"
+            "MM = minute\n"
+            "SS = second\n"
+            "f = millisecond."
+        )
+        self.dataTimestampFormat.setToolTip(msg)
         self.numColumns = QtWidgets.QLineEdit()
         self.numColumns.setFixedWidth(30)
         self.numColumns.setValidator(int_validator)
@@ -1657,6 +1674,7 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
                 test_logger.num_headers = int(self.numHeaderRows.text())
                 test_logger.channel_header_row = int(self.channelHeaderRow.text())
                 test_logger.units_header_row = int(self.unitsHeaderRow.text())
+                test_logger = detect_custom_logger_properties(test_logger)
             elif file_format == "Fugro-csv":
                 test_logger = set_fugro_csv_file_format(test_logger)
                 test_logger = detect_fugro_logger_properties(test_logger)

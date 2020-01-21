@@ -740,7 +740,7 @@ class EditScreeningSetupDialog(QtWidgets.QDialog):
         # before mapping to the control logger
         temp_logger = LoggerProperties()
 
-        # Map logger properties from reference logger to active logger and update dialog values
+        # Map screening settings from reference logger to active logger and update dialog values
         self.control.copy_logger_screening_settings(ref_logger_id, temp_logger)
 
         # Set dialog with temp settings so they can confirmed by the user

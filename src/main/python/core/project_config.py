@@ -224,9 +224,6 @@ class ProjectConfigJSONFile(QObject):
             key="num_header_rows",
             attr=logger.num_headers,
         )
-        logger.num_columns = self._get_key_value(
-            section=logger.logger_id, data=dict_logger, key="num_columns", attr=logger.num_columns
-        )
         logger.channel_header_row = self._get_key_value(
             section=logger.logger_id,
             data=dict_logger,
@@ -250,6 +247,9 @@ class ProjectConfigJSONFile(QObject):
             data=dict_logger,
             key="data_datetime_format",
             attr=logger.datetime_format,
+        )
+        logger.num_columns = self._get_key_value(
+            section=logger.logger_id, data=dict_logger, key="num_columns", attr=logger.num_columns
         )
         logger.freq = self._get_key_value(
             section=logger.logger_id, data=dict_logger, key="logging_freq", attr=logger.freq
@@ -612,11 +612,11 @@ class ProjectConfigJSONFile(QObject):
         dict_props["file_ext"] = logger.file_ext
         dict_props["file_delimiter"] = logger.file_delimiter
         dict_props["num_header_rows"] = logger.num_headers
-        dict_props["num_columns"] = logger.num_columns
         dict_props["channel_header_row"] = logger.channel_header_row
         dict_props["units_header_row"] = logger.units_header_row
         dict_props["data_timestamp_format"] = logger.timestamp_format
         dict_props["data_datetime_format"] = logger.datetime_format
+        dict_props["num_columns"] = logger.num_columns
         dict_props["logging_freq"] = logger.freq
         dict_props["logging_duration"] = logger.duration
         dict_props["enforce_max_duration"] = logger.enforce_max_duration

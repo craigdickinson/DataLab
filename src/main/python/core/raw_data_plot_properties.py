@@ -98,8 +98,8 @@ class RawDataRead(object):
         if self.header_rows is None:
             df.columns = df.columns.astype(str)
 
-        # Remove any nan columns (can arise from superfluous delimiters)
-        df = df.dropna(axis=1)
+        # Drop columns that are all nan (can happen with poorly delimited csv files, e.g. trailing commas)
+        df = df.dropna(axis=1, how="all")
 
         # Copy time steps column to index
         # (Can't drop time steps column as need to keep a consistent data frame structure)

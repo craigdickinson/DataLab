@@ -1,7 +1,7 @@
 __author__ = "Craig Dickinson"
 __program__ = "DataLab"
-__version__ = "2.1.0.8"
-__date__ = "19 January 2020"
+__version__ = "2.1.0.9"
+__date__ = "21 January 2020"
 
 import logging
 import os
@@ -846,8 +846,8 @@ def run_datalab():
     #     app = QtWidgets.QApplication(sys.argv)
     # win = QtDesignerGui()
     win = DataLab()
-    # filepath = r"C:\Users\dickinsc\PycharmProjects\DataLab\demo_data\2. Project Configs\Project 21239\21239_Total_WoS_Config.json"
-    filepath = r"C:\Users\dickinsc\PycharmProjects\DataLab\demo_data\2. Project Configs\Project 21239\21239_BOP_Hist.json"
+    filepath = r"C:\Users\dickinsc\PycharmProjects\DataLab\demo_data\2. Project Configs\Project 21239\21239_Total_WoS_Config.json"
+    # filepath = r"C:\Users\dickinsc\PycharmProjects\DataLab\demo_data\2. Project Configs\Project 21239\21239_BOP_Hist.json"
     # filepath = r"C:\Users\dickinsc\PycharmProjects\DataLab\demo_data\2. Project Configs\Test A\21239_Project_A_Config.json"
     # filepath = r"C:\Users\dickinsc\PycharmProjects\DataLab\demo_data\2. Project Configs\Project 21368 - Dhaval\21368_Dhaval_Config.json"
     # filepath = r"C:\Users\dickinsc\PycharmProjects\DataLab\demo_data\2. Project Configs\Project 21239 Acc to Disp to AR-Ang\21239_Time_Series_Conversion_Config.json"

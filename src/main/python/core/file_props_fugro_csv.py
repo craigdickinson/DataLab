@@ -1,3 +1,5 @@
+__author__ = "Craig Dickinson"
+
 """
 Methods to set up data read from a fugro-csv file.
 
