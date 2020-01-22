@@ -130,13 +130,24 @@ class DataScreen(object):
 
         # Read data to data frame
         if self.file_format == "Custom":
-            df = pd.read_csv(
-                file,
-                sep=self.delim,
-                header=self.header_row,
-                skiprows=self.skip_rows,
-                skip_blank_lines=False,
-            )
+            try:
+                df = pd.read_csv(
+                    file,
+                    sep=self.delim,
+                    header=self.header_row,
+                    skiprows=self.skip_rows,
+                    skip_blank_lines=False,
+                )
+            # Attempt to handle non-utf-8 encoded files
+            except UnicodeDecodeError:
+                df = pd.read_csv(
+                    file,
+                    sep=self.delim,
+                    header=self.header_rows,
+                    skiprows=self.skip_rows,
+                    skip_blank_lines=False,
+                    encoding="latin1",
+                )
         elif self.file_format == "Fugro-csv":
             df = pd.read_csv(
                 file,

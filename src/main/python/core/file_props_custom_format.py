@@ -3,9 +3,11 @@ __author__ = "Craig Dickinson"
 import os
 from glob import glob
 from dateutil.parser import parse
+from datetime import datetime
+from core.logger_properties import LoggerProperties
 
 
-def set_custom_file_format(logger):
+def set_custom_file_format(logger: LoggerProperties):
     """Return a LoggerProperties object populated with default file format properties of a Custom file."""
 
     logger.file_format = "Custom"
@@ -20,35 +22,34 @@ def set_custom_file_format(logger):
     return logger
 
 
-def detect_custom_logger_properties(logger):
-    """
-    For custom logger file detect:
-        sample frequency
-        expected number of columns
-        expected logging duration
-    """
+def get_test_file(logger: LoggerProperties):
+    """Return first file in source logger path to interrogate."""
 
     path = logger.logger_path
     ext = logger.file_ext
-    delim = logger.file_delimiter
-    num_headers = logger.num_headers
 
     # TODO: Add Azure support
     raw_files = glob(path + "/*." + ext)
 
     if len(raw_files) == 0:
-        msg = f"No files with the extension {ext} found in {path}"
+        msg = f"No files with the extension {ext} found in {path}."
         raise FileNotFoundError(msg)
 
-    test_file = raw_files[0]
-    test_filename = os.path.basename(test_file)
+    return raw_files[0]
 
-    with open(test_file) as f:
-        # Skip header rows
+
+def read_test_file(file, num_headers):
+    """Read test file - skipping header rows."""
+
+    with open(file) as f:
         [next(f) for _ in range(num_headers)]
-
-        # Read body
         data = f.readlines()
+
+    return data
+
+
+def get_sampling_freq(data, delim):
+    """Attempt to determine sampling frequency from test file data."""
 
     # Attempt to determine sampling frequency from first two time rows
     try:
@@ -67,18 +68,49 @@ def detect_custom_logger_properties(logger):
             d = t1 - t0
 
         fs = 1 / d
-    except Exception:
-        msg = (
-            f"Could not read sample frequency for logger {logger.logger_id}\nFile: {test_filename}"
-        )
-        raise Exception(msg)
+    except ValueError:
+        fs = 0
 
-    # Store sample frequency
-    if fs > 0:
-        logger.freq = fs
+    return fs, t0_str
 
-    logger.num_columns = len(data[0].strip().split(delim))
-    n = len(data)
-    logger.duration = n / logger.freq
 
-    return logger
+def detect_timestamp_format(timestamp):
+    """Attempt to detect the datetime format of the first column timestamps."""
+
+    # expected_dt = parse(timestamp)
+    success = False
+
+    # Test a variety of common datetime formats to try to find a match
+    # 1. E.g. 02-Apr-2020 20:26:00.0"
+    try:
+        test_fmt = "%d-%b-%Y %H:%M:%S.%f"
+        timestamp_code = "dd-mmm-yyyy HH:MM:SS.F"
+        datetime.strptime(timestamp, test_fmt)
+        success = True
+    except ValueError:
+        pass
+
+    # 2. E.g. 02/14/20 20:26:00.0"
+    if not success:
+        try:
+            test_fmt = "%d/%m/%y %H:%M:%S.%f"
+            timestamp_code = "dd/mm/yy HH:MM:SS.F"
+            datetime.strptime(timestamp, test_fmt)
+            success = True
+        except ValueError:
+            success = False
+
+    # 3. E.g. 02/14/2020 20:26:00.0"
+    if not success:
+        try:
+            test_fmt = "%d/%m/%Y %H:%M:%S.%f"
+            timestamp_code = "dd/mm/yyyy HH:MM:SS.F"
+            datetime.strptime(timestamp, test_fmt)
+            success = True
+        except ValueError:
+            success = False
+
+    if success:
+        return timestamp_code
+    else:
+        return "Not detected - must set manually (refer to tooltip)"

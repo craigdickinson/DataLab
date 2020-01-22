@@ -409,7 +409,7 @@ class SpectrogramWidget(QtWidgets.QWidget):
             ti = mdates.date2num(self.t)
         else:
             ti = self.t
-        self.event_line, = ax1.plot([f0, f1], [ti, ti], "k--")
+        (self.event_line,) = ax1.plot([f0, f1], [ti, ti], "k--")
 
         self._set_title()
         ax1.margins(0)
@@ -459,7 +459,7 @@ class SpectrogramWidget(QtWidgets.QWidget):
 
         self.ax2.cla()
         # self.ax2.patch.set_facecolor('none')
-        self.psd_line, = self.ax2.plot(self.freqs, zi, "k")
+        (self.psd_line,) = self.ax2.plot(self.freqs, zi, "k")
         self.ax2.set_ylim(self.zmin, self.zmax)
         self.ax2.margins(0)
         self.ax2.set_xlabel("Frequency (Hz)")

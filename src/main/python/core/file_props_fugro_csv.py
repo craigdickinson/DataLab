@@ -43,7 +43,7 @@ def detect_fugro_logger_properties(logger):
     raw_files = glob(logger.logger_path + "/*." + logger.file_ext)
 
     if len(raw_files) == 0:
-        msg = f"No files with the extension {logger.file_ext} found in {logger.logger_path}"
+        msg = f"No files with the extension {logger.file_ext} found in {logger.logger_path}."
         raise FileNotFoundError(msg)
 
     test_file = raw_files[0]

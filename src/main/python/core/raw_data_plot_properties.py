@@ -69,13 +69,24 @@ class RawDataRead(object):
 
         # Read data to data frame
         if self.file_format == "Custom":
-            df = pd.read_csv(
-                file,
-                sep=self.delim,
-                header=self.header_rows,
-                skiprows=self.skip_rows,
-                skip_blank_lines=False,
-            )
+            try:
+                df = pd.read_csv(
+                    file,
+                    sep=self.delim,
+                    header=self.header_rows,
+                    skiprows=self.skip_rows,
+                    skip_blank_lines=False,
+                )
+            # Attempt to handle non-utf-8 encoded files
+            except UnicodeDecodeError:
+                df = pd.read_csv(
+                    file,
+                    sep=self.delim,
+                    header=self.header_rows,
+                    skiprows=self.skip_rows,
+                    skip_blank_lines=False,
+                    encoding="latin1",
+                )
             df = self.wrangle_data(df, os.path.basename(file))
         elif self.file_format == "Fugro-csv":
             df = read_fugro_csv(file)

@@ -9,7 +9,7 @@ from datetime import datetime
 from glob import glob
 
 from PyQt5 import QtCore, QtGui, QtWidgets
-from PyQt5.QtCore import pyqtSlot, Qt
+from PyQt5.QtCore import Qt, pyqtSlot
 
 from core.azure_cloud_storage import check_azure_account_exists
 from core.calc_seascatter import Seascatter
@@ -18,7 +18,13 @@ from core.control import Control, InputError
 from core.custom_date import get_datetime_format
 from core.detect_file_timestamp_format import detect_file_timestamp_format
 from core.file_props_2hps2_acc import detect_2hps2_logger_properties, set_2hps2_acc_file_format
-from core.file_props_custom_format import set_custom_file_format, detect_custom_logger_properties
+from core.file_props_custom_format import (
+    detect_timestamp_format,
+    get_sampling_freq,
+    get_test_file,
+    read_test_file,
+    set_custom_file_format,
+)
 from core.file_props_fugro_csv import detect_fugro_logger_properties, set_fugro_csv_file_format
 from core.file_props_pulse_acc import detect_pulse_logger_properties, set_pulse_acc_file_format
 from core.logger_properties import LoggerError, LoggerProperties
@@ -1233,7 +1239,7 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
         self.detectPropsButton.setSizePolicy(policy)
         self.dataTimestampFormat = QtWidgets.QLineEdit()
         msg = (
-            "Input a code to identify the timestamp format of first column to convert to datetimes.\n"
+            "Input a code to identify the timestamp format of the first column to convert to datetimes.\n"
             "E.g. For a timestamp format:\n"
             "    16/04/2020 16:20:00.0,\n"
             "the required input is:\n"
@@ -1644,8 +1650,10 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
 
         if self.firstColData.currentText() == "Time Step":
             self.dataTimestampFormat.setText("N/A")
+            self.dataTimestampFormat.setEnabled(False)
         else:
             self.dataTimestampFormat.setText(self.logger.timestamp_format)
+            self.dataTimestampFormat.setEnabled(True)
 
     def on_detect_props_clicked(self):
         """Detect standard logger properties for selected file format."""
@@ -1674,7 +1682,9 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
                 test_logger.num_headers = int(self.numHeaderRows.text())
                 test_logger.channel_header_row = int(self.channelHeaderRow.text())
                 test_logger.units_header_row = int(self.unitsHeaderRow.text())
-                test_logger = detect_custom_logger_properties(test_logger)
+
+                # Detect file properties from a logger test file
+                test_logger = self._detect_custom_logger_properties(test_logger)
             elif file_format == "Fugro-csv":
                 test_logger = set_fugro_csv_file_format(test_logger)
                 test_logger = detect_fugro_logger_properties(test_logger)
@@ -1729,7 +1739,7 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
             self.error(f"{msg}:\n{e}\n{sys.exc_info()[0]}")
             logging.exception(e)
 
-    def _set_detected_file_props_to_dialog(self, test_logger):
+    def _set_detected_file_props_to_dialog(self, test_logger: LoggerProperties):
         """
         Set the following detected (if found) logger properties to the edit dialog:
             sampling frequency
@@ -1739,14 +1749,10 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
         """
 
         # Set detected logger properties
-        if test_logger.freq != 0:
-            self.loggingFreq.setText(str(test_logger.freq))
-        if test_logger.timestamp_format != "":
-            self.dataTimestampFormat.setText(test_logger.timestamp_format)
-        if test_logger.num_columns != 0:
-            self.numColumns.setText(str(test_logger.num_columns))
-        if test_logger.duration != 0:
-            self.loggingDuration.setText(str(test_logger.duration))
+        self.loggingFreq.setText(str(test_logger.freq))
+        self.dataTimestampFormat.setText(test_logger.timestamp_format)
+        self.numColumns.setText(str(test_logger.num_columns))
+        self.loggingDuration.setText(str(test_logger.duration))
 
     def _set_control_data(self):
         """Assign values to the specific logger attribute of the control object."""
@@ -1818,6 +1824,39 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
             msg = "Unexpected error detecting logger file properties"
             self.error(f"{msg}:\n{e}\n{sys.exc_info()[0]}")
             logging.exception(e)
+
+    def _detect_custom_logger_properties(self, test_logger: LoggerProperties):
+        """
+        For custom logger file formats, detect from a test raw file:
+            sample frequency
+            expected number of columns
+            expected logging duration
+        """
+
+        test_file = get_test_file(test_logger)
+        data = read_test_file(test_file, test_logger.num_headers)
+        delim = test_logger.file_delimiter
+
+        fs, test_timestamp = get_sampling_freq(data, delim)
+        test_logger.freq = fs
+
+        if fs > 0:
+            test_logger.duration = len(data) / fs
+        else:
+            test_logger.duration = 0
+            test_filename = os.path.basename(test_file)
+            msg = f"Could not determine sample frequency and duration from test file {test_filename}. Input manually."
+            self.warn_info(msg)
+
+        test_logger.num_columns = len(data[0].strip().split(delim))
+
+        # Attempt to decipher the datetime format
+        try:
+            float(test_timestamp)
+        except ValueError:
+            test_logger.timestamp_format = detect_timestamp_format(test_timestamp)
+
+        return test_logger
 
     def warn_info(self, msg):
         print(f"Warning: {msg}")

@@ -71,9 +71,9 @@ def get_datetime_format(timestamp_format_str):
     """
     Convert a Fugro-style timestamp format code to a datetime format string for parsing dates to datetime objects
     in Pandas.
-    Example 1: Timestamp format: dd-mmm-yyyy HH:MM:SS.FFF
+    Example 1: Timestamp format: dd-mmm-yyyy HH:MM:SS.F
                Datetime format:  %d-%b-%Y %H:%M:%S.%f
-    Example 2: Timestamp format: dd/mm/yy HH:MM:SS.FFF
+    Example 2: Timestamp format: dd/mm/yy HH:MM:SS.F
                Datetime format:  %d/%m/%y %H:%M:%S.%f
     :param timestamp_format_str: Fugro-style timestamp format code
     :return: Datetime format string

@@ -971,7 +971,7 @@ class RawDataDashboard(QtWidgets.QWidget):
             color = srs.color
 
         # Add line plot
-        line, = ax.plot(x, y, label=srs.label, c=color, lw=linewidth)
+        (line,) = ax.plot(x, y, label=srs.label, c=color, lw=linewidth)
 
         if srs.units == "-":
             ylabel = ""
@@ -1032,7 +1032,7 @@ class RawDataDashboard(QtWidgets.QWidget):
         linewidth = srs.linewidth
 
         # Plot PSD
-        line, = ax.plot(f, pxx, c=color, lw=linewidth)
+        (line,) = ax.plot(f, pxx, c=color, lw=linewidth)
         ax.set_ylabel(ylabel, size=10)
 
         # Store frequencies and amplitudes
