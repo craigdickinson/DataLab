@@ -5,16 +5,16 @@ __author__ = "Craig Dickinson"
 import argparse
 import os
 from datetime import timedelta
+from pathlib import Path
 from time import time
 
-import pandas as pd
 from PyQt5.QtCore import QObject, pyqtSignal
 
 from core.azure_cloud_storage import connect_to_azure_account, stream_blob
 from core.control import Control
 from core.data_screen import DataScreen
 from core.data_screen_report import DataScreenReport
-from core.rainflow_fatigue import file_histograms_processing
+from core.histograms import Histograms
 from core.spectral_screening import SpectralScreening
 from core.stats_screening import StatsScreening
 from core.time_series_integration import IntegrateTimeSeries
@@ -37,6 +37,13 @@ def parse_args(args):
     return parser.parse_args(args)
 
 
+def create_output_folder(path_to_folder):
+    """Create requested output folder if doesn't exist."""
+
+    path = Path(path_to_folder)
+    path.mkdir(parents=True, exist_ok=True)
+
+
 class ProcessingHub(QObject):
     """Class for main DataLab program. Defined as a QObject for use with gui."""
 
@@ -54,9 +61,9 @@ class ProcessingHub(QObject):
 
         # Expected data/processing to be done flags
         self.any_data_on_azure = False
-        self.any_stats_expected = False
-        self.any_spect_expected = False
-        self.any_histograms_expected = False
+        self.any_stats_requested = False
+        self.any_spect_requested = False
+        self.any_histograms_requested = False
 
         # Dictionaries to store all processed logger stats and spectrograms to load to gui after processing is complete
         self.dict_stats = {}
@@ -73,7 +80,7 @@ class ProcessingHub(QObject):
         global_process_spect = self.control.global_process_spect
         global_process_histograms = self.control.global_process_histograms
 
-        # Set up for enabled loggers
+        # Select only enabled loggers
         enabled_loggers = (logger for logger in self.control.loggers if logger.enabled)
         for logger in enabled_loggers:
             # Add any bad filenames to screening report
@@ -104,14 +111,15 @@ class ProcessingHub(QObject):
             if logger.data_on_azure:
                 self.any_data_on_azure = True
 
+            # Set flags for if analysis of a particular type is expected to be run for any dataset
             if global_process_stats is True and logger.process_stats is True:
-                self.any_stats_expected = True
+                self.any_stats_requested = True
 
             if global_process_spect is True and logger.process_spect is True:
-                self.any_spect_expected = True
+                self.any_spect_requested = True
 
             if global_process_histograms is True and logger.process_hists is True:
-                self.any_histograms_expected = True
+                self.any_histograms_requested = True
 
             self.data_screen_sets.append(data_screen)
 
@@ -123,7 +131,9 @@ class ProcessingHub(QObject):
         total_files = 0
         logger_ids = []
 
-        for logger in self.control.loggers:
+        # Select only enabled loggers
+        enabled_loggers = (logger for logger in self.control.loggers if logger.enabled)
+        for logger in enabled_loggers:
             # Create data screen logger with logger and set screening properties
             data_screen = DataScreen(logger)
             total_files += len(logger.files)
@@ -149,16 +159,26 @@ class ProcessingHub(QObject):
             self.control.project_name, self.control.campaign_name, self.control.report_output_path
         )
 
-        stats_screening = StatsScreening(self.control)
-        spect_screening = SpectralScreening(self.control)
-        data_integration = IntegrateTimeSeries(project_path=self.control.project_path)
-
-        # List of output files created
-        output_files = []
-
         # Scan loggers to get total # files, list of logger names, files source (local or Azure)
         # and flags for whether stats and spectrograms are to be processed
         total_files, logger_ids = self._prepare_screening(data_report)
+
+        # Create processing object for requested analysis and create output folders if don't exist
+        if self.any_stats_requested:
+            stats_screening = StatsScreening(self.control)
+            create_output_folder(self.control.stats_output_path)
+        if self.any_spect_requested:
+            spect_screening = SpectralScreening(self.control)
+            create_output_folder(self.control.spect_output_path)
+        if self.any_histograms_requested:
+            histograms = Histograms(self.control)
+            create_output_folder(self.control.hist_output_path)
+
+        # Screening report output folder
+        create_output_folder(self.control.report_output_path)
+
+        # List of output files created
+        output_files = []
 
         # Connect to Azure account if to be used
         if self.any_data_on_azure:
@@ -172,14 +192,15 @@ class ProcessingHub(QObject):
         file_count = 0
         for i, data_screen in enumerate(self.data_screen_sets):
             logger = data_screen.logger
+            logger_id = logger.logger_id
 
             # Initialise logger screening objects
-            stats_screening.init_logger_stats()
-            spect_screening.init_logger_spect(logger.logger_id)
-            data_integration.set_logger(logger)
-
-            # Initialise dictionary of histogram data frames for each column
-            dict_df_col_hists = {channel: pd.DataFrame() for channel in logger.channel_names}
+            if data_screen.stats_requested:
+                stats_screening.init_logger_stats()
+            if data_screen.spect_requested:
+                spect_screening.init_logger_spect(logger_id)
+            if data_screen.histograms_requested:
+                histograms.init_dataset(data_screen)
 
             # Get file number of first file to be processed (this is akin to load case number for no timestamp files)
             try:
@@ -199,7 +220,7 @@ class ProcessingHub(QObject):
                 # Update console
                 filename = os.path.basename(file)
                 processed_file_num = first_file_num + j
-                progress = f"Processing {logger.logger_id} file {j + 1} of {n} ({filename})"
+                progress = f"Processing {logger_id} file {j + 1} of {n} ({filename})"
                 print(f"\r{progress}", end="")
                 t = str(timedelta(seconds=round(time() - t0)))
 
@@ -223,7 +244,7 @@ class ProcessingHub(QObject):
                 if logger.data_on_azure:
                     file = stream_blob(bloc_blob_service, logger.container_name, logger.blobs[j])
 
-                # Read the file into a pandas data frame
+                # Read the file into a pandas dataframe
                 df = data_screen.read_logger_file(file)
 
                 # Wrangle data to prepare for processing
@@ -261,20 +282,18 @@ class ProcessingHub(QObject):
 
                     # CALCULATE HISTOGRAMS
                     if data_screen.histograms_requested:
-                        # Compute histograms for each channel in data frame
-                        dict_df_col_hists = file_histograms_processing(
-                            dict_df_col_hists, df, data_screen, processed_file_num
-                        )
+                        # Compute histograms for each channel in dataframe
+                        histograms.calc_histograms(df, data_screen, processed_file_num)
 
                 file_count += 1
 
             # Operations for logger i after all logger i files have been processed
             if logger.files:
                 coverage = data_screen.calc_data_completeness()
-                print(f"\nData coverage for {logger.logger_id} logger = {coverage.min():.1f}%\n")
+                print(f"\nData coverage for {logger_id} logger = {coverage.min():.1f}%\n")
 
             # Add any files containing errors to screening report
-            data_report.add_files_with_bad_data(logger.logger_id, data_screen.dict_bad_files)
+            data_report.add_files_with_bad_data(logger_id, data_screen.dict_bad_files)
 
             # Check logger stats requested and processed for current logger
             if data_screen.stats_requested and data_screen.stats_processed:
@@ -287,13 +306,13 @@ class ProcessingHub(QObject):
                 self.signal_update_output_info.emit(output_files)
 
             # Calculate aggregate histogram for each column
-            for col, df_hist in dict_df_col_hists.items():
-                df_hist.fillna(0, inplace=True)
-                df_hist["Cum"] = df_hist.sum(axis=1)
-                dict_df_col_hists[col] = df_hist
+            histograms.calc_aggregate_histograms()
 
             # Store dataset histograms
-            self.dict_histograms[logger.logger_id] = dict_df_col_hists
+            self.dict_histograms[logger_id] = histograms.dict_df_col_hists
+
+            # Export dataset histograms
+            histograms.export_histograms()
 
         # Publish data screening report
         self._publish_screening_report(data_report, output_files)
@@ -323,21 +342,21 @@ class ProcessingHub(QObject):
         print(f"Screening runtime = {t}")
 
         # Check and inform user if stats/spectrograms were requested but not calculated (e.g. due to bad files)
-        if self.any_stats_expected and not any_stats_processed:
+        if self.any_stats_requested and not any_stats_processed:
             warning = (
                 "Warning: Statistics requested but none calculated. Check Data Screening Report."
             )
             output_files.append(warning)
             self.signal_update_output_info.emit(output_files)
 
-        if self.any_spect_expected and not any_spect_processed:
+        if self.any_spect_requested and not any_spect_processed:
             warning = (
                 "Warning: Spectrograms requested but none calculated. Check Data Screening Report."
             )
             output_files.append(warning)
             self.signal_update_output_info.emit(output_files)
 
-        if self.any_histograms_expected and not any_histograms_processed:
+        if self.any_histograms_requested and not any_histograms_processed:
             warning = (
                 "Warning: Histograms requested but none calculated. Check Data Screening Report."
             )
@@ -345,8 +364,10 @@ class ProcessingHub(QObject):
             self.signal_update_output_info.emit(output_files)
 
         # Store processing results dictionaries
-        self.dict_stats = stats_screening.dict_stats
-        self.dict_spectrograms = spect_screening.dict_spectrograms
+        if self.any_stats_requested:
+            self.dict_stats = stats_screening.dict_stats
+        if self.any_spect_requested:
+            self.dict_spectrograms = spect_screening.dict_spectrograms
 
         # Final progress info package to emit to progress bar
         dict_progress = dict(
@@ -369,7 +390,7 @@ class ProcessingHub(QObject):
         # SETUP
         bloc_blob_service = None
         t0 = time()
-        data_integration = IntegrateTimeSeries(project_path=self.control.project_path)
+        data_integration = IntegrateTimeSeries(output_path=self.control.integration_output_path)
 
         # List of output files created
         output_files = []
@@ -390,8 +411,9 @@ class ProcessingHub(QObject):
         file_count = 0
         for i, data_screen in enumerate(self.data_screen_sets):
             logger = data_screen.logger
+            logger_id = logger.logger_id
 
-            # Initialise logger screening objects
+            # Initialise integrations object
             data_integration.set_logger(logger)
 
             # Get file number of first file to be processed (this is akin to load case number for no timestamp files)
@@ -408,11 +430,17 @@ class ProcessingHub(QObject):
             # Process each file
             # Expose each sample here; that way it can be sent to different processing modules
             for j, file in enumerate(data_screen.files):
+                # For first file, create logger output folder
+                if j == 0:
+                    folder = os.path.basename(os.path.dirname(data_screen.files[0]))
+                    output_path = os.path.join(self.control.integration_output_path, folder)
+                    create_output_folder(output_path)
+
                 # TODO: If expected file in sequence is missing, store results as nan
                 # Update console
                 filename = os.path.basename(file)
                 processed_file_num = first_file_num + j
-                progress = f"Processing {logger.logger_id} file {j + 1} of {n} ({filename})"
+                progress = f"Processing {logger_id} file {j + 1} of {n} ({filename})"
                 print(f"\r{progress}", end="")
                 t = str(timedelta(seconds=round(time() - t0)))
 
@@ -434,7 +462,7 @@ class ProcessingHub(QObject):
                 if logger.data_on_azure:
                     file = stream_blob(bloc_blob_service, logger.container_name, logger.blobs[j])
 
-                # Read the file into a pandas data frame
+                # Read the file into a pandas dataframe
                 df = data_screen.read_logger_file(file)
 
                 # Wrangle data to prepare for processing

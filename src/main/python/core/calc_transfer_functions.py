@@ -223,7 +223,7 @@ class TransferFunctions(QObject):
         g = 9.807
         g_cont = g * np.sin(np.radians(self.df_rot))
 
-        # Acc and g_cont data frames need to have the same column names in order to add data frames together
+        # Acc and g_cont dataframes need to have the same column names in order to add dataframes together
         cols = []
         for i in range(self.num_ss):
             for j in range(self.num_loggers):
@@ -238,14 +238,14 @@ class TransferFunctions(QObject):
 
     def clean_acc_and_bm_dataframes(self):
         """
-        Remove nan rows from g-cont accelerations data frame and equivalent rows in BM data frame
+        Remove nan rows from g-cont accelerations dataframe and equivalent rows in BM dataframe
         and rebase time index to 0.
         """
 
         # Store index of nan rows (this will actually be the first and last rows) and remove from df_bm so shape is same
         nan_idx = self.df_acc.index[self.df_acc.isna().any(axis=1)]
 
-        # Drop nan rows from bending moment and acceleration data frames and rescale time index to zero
+        # Drop nan rows from bending moment and acceleration dataframes and rescale time index to zero
         self.df_bm.drop(nan_idx, inplace=True)
         self.df_acc.dropna(inplace=True)
         self.df_bm.index = self.df_bm.index - self.df_bm.index[0]
@@ -257,12 +257,12 @@ class TransferFunctions(QObject):
         freq, psds = calc_psd(data=df.T.values, fs=fs, nperseg=1000, noverlap=0)
         freq = np.round(freq, 3)
 
-        # Create list of logger acceleration PSD data frames
+        # Create list of logger acceleration PSD dataframes
         n = self.num_loggers
         self.loc_bm_psds = []
 
         for i in range(n):
-            # Select every logger i row, transpose and construct data frame
+            # Select every logger i row, transpose and construct dataframe
             data = psds[i::n].T
             cols = [f"Logger {i + 1} SS{j + 1}" for j in range(self.num_ss)]
             df = pd.DataFrame(data, index=freq, columns=cols)
@@ -274,12 +274,12 @@ class TransferFunctions(QObject):
         freq, psds = calc_psd(data=df.T.values, fs=fs, nperseg=1000, noverlap=0)
         freq = np.round(freq, 3)
 
-        # Create list of location bending moment PSD data frames
+        # Create list of location bending moment PSD dataframes
         n = self.num_locs
         self.loc_bm_psds = []
 
         for i in range(n):
-            # Select every location i row, transpose and construct data frame
+            # Select every location i row, transpose and construct dataframe
             data = psds[i::n].T
             cols = [f"Loc {i + 1} SS{j + 1}" for j in range(self.num_ss)]
             df = pd.DataFrame(data, index=freq, columns=cols)
@@ -410,14 +410,14 @@ class TransferFunctions(QObject):
         hs_list = np.asarray(hs_list)
         tp_list = np.asarray(tp_list)
 
-        # Make window sea state data frame
+        # Make window sea state dataframe
         df = pd.DataFrame(np.vstack((windows, hs_list, tp_list)).T, columns=["Windows", "Hs", "Tp"])
 
         # Find nearest Tp
         i = np.abs(df["Tp"] - tp_i).idxmin()
         nearest_tp = df.loc[i, "Tp"]
 
-        # Slice data frame on nearest Tp and find nearest Hs in subset and return window number
+        # Slice dataframe on nearest Tp and find nearest Hs in subset and return window number
         df = df[df["Tp"] == nearest_tp]
         i = np.abs(df["Hs"] - hs_i).idxmin()
         win = df.loc[i, "Windows"]

@@ -2,26 +2,77 @@
 
 __author__ = "Craig Dickinson"
 
+import os
+
 import numpy as np
 import pandas as pd
 import rainflow
 
+from core.control import Control
+from core.data_screen import DataScreen
 
-def file_histograms_processing(dict_df_col_hists, df_file, data_screen, file_num):
-    """Calculate histograms on a file."""
 
-    # Select stored columns here as we don't want to include the timestamp column
-    columns = data_screen.logger.channel_names
-    bin_size = data_screen.logger.bin_size
-    dict_df_col_hists = dataframe_histogram(dict_df_col_hists, file_num, df_file, columns, bin_size)
+class Histograms(object):
+    def __init__(self, control=Control()):
+        self.logger_id = ""
+        self.output_path = control.hist_output_path
+        self.dict_df_col_hists = {}
+        self.channels = []
+        self.bin_size = 0.001
 
-    data_screen.histograms_processed = True
+        # If writing stats HDF5 file, stats for all loggers are written to the same file
+        # Set write mode to write new file for first logger then append for all others
+        self.h5_write_mode = "w"
+        self.h5_output_file_suffix = ""
 
-    return dict_df_col_hists
+        # Dictionary of True/False flags of histogram output file formats to create
+        self.dict_hist_export_formats = dict(
+            csv=control.hist_to_csv, xlsx=control.hist_to_xlsx, h5=control.hist_to_h5,
+        )
+
+    def init_dataset(self, data_screen: DataScreen):
+        self.logger_id = data_screen.logger_id
+        self.channels = data_screen.logger.channel_names
+        self.bin_size = data_screen.logger.bin_size
+        self.dict_df_col_hists = {channel: pd.DataFrame() for channel in self.channels}
+
+    def calc_histograms(self, df_file, data_screen: DataScreen, file_num):
+        """Calculate histograms of each channel in the file dataframe."""
+
+        # Select stored columns here as we don't want to include the timestamp column
+        self.dict_df_col_hists = dataframe_histogram(
+            self.dict_df_col_hists, file_num, df_file, self.channels, self.bin_size
+        )
+        data_screen.histograms_processed = True
+
+        return self.dict_df_col_hists
+
+    def calc_aggregate_histograms(self):
+        """Add aggregate histograms row to each channel dataframe."""
+
+        for col, df_hist in self.dict_df_col_hists.items():
+            df_hist.fillna(0, inplace=True)
+            df_hist.insert(0, "Aggregate", df_hist.sum(axis=1))
+            self.dict_df_col_hists[col] = df_hist
+
+        return self.dict_df_col_hists
+
+    def export_histograms(self):
+        """Export histograms to selected output formats."""
+
+        if self.dict_hist_export_formats["csv"] is True:
+            export_histograms_to_csv(self.dict_df_col_hists, self.output_path, self.logger_id)
+        if self.dict_hist_export_formats["xlsx"] is True:
+            export_histograms_to_excel(self.dict_df_col_hists, self.output_path, self.logger_id)
+        if self.dict_hist_export_formats["h5"] is True:
+            export_histograms_to_hdf5(
+                self.dict_df_col_hists, self.output_path, self.logger_id, self.h5_write_mode
+            )
+            self.h5_write_mode = "a"
 
 
 def dataframe_histogram(dict_df_col_hists, j, df, columns, bin_size=1):
-    """Calculate rainflow counting histogram for each channel in data frame."""
+    """Calculate rainflow counting histogram for each channel in dataframe."""
 
     # Calculate (binned) histogram for each column using rainflow counting
     for col in columns:
@@ -29,10 +80,12 @@ def dataframe_histogram(dict_df_col_hists, j, df, columns, bin_size=1):
         y = df[col].values.flatten()
         bin_edges, hist = histogram(y, bin_size)
 
-        # Convert to data frame - index with lower bound bins
+        # Convert to dataframe - index with lower bound bins
         df_temp = pd.DataFrame(hist, index=bin_edges[:-1], columns=[f"File {j}"])
+        df_temp.index.name = "Bins"
 
-        # Join to existing data frame
+        # Join to existing dataframe
+        # dict_df_col_hists.setdefault(col, df_temp)
         df_hist = dict_df_col_hists[col]
         dict_df_col_hists[col] = df_hist.join(df_temp, how="outer")
 
@@ -111,6 +164,43 @@ def calc_bin_intervals(num_bins=10, bin_size=1):
     """Return bins edges. """
 
     return np.arange(num_bins + 1) * bin_size
+
+
+def export_histograms_to_csv(dict_df_col_hists, path_to_folder, logger_id):
+    """Export dataset histograms to csv."""
+
+    filestem = f"Histograms {logger_id}"
+
+    for channel, df in dict_df_col_hists.items():
+        filename = f"{filestem} {channel}.csv"
+        filepath = os.path.join(path_to_folder, filename)
+        df.to_csv(filepath)
+
+
+def export_histograms_to_excel(dict_df_col_hists, path_to_folder, logger_id):
+    """Export dataset histograms to Excel."""
+
+    filename = f"Histograms {logger_id}.xlsx"
+    filepath = os.path.join(path_to_folder, filename)
+    writer = pd.ExcelWriter(filepath)
+
+    for channel, df in dict_df_col_hists.items():
+        df.to_excel(writer, sheet_name=channel)
+
+    writer.save()
+
+    return filename
+
+
+def export_histograms_to_hdf5(dict_df_col_hists, path_to_folder, logger_id, mode="w"):
+    """Export dataset histograms to HDF5 file."""
+
+    filename = "Histograms.h5"
+
+    for channel, df in dict_df_col_hists.items():
+        filepath = os.path.join(path_to_folder, filename)
+        key = f"{logger_id}_{channel}".replace(" ", "_")
+        df.to_hdf(filepath, key, mode=mode)
 
 
 def calc_damage(stress_ranges, stress_cycles, SN):

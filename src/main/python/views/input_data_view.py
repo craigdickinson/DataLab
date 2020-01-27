@@ -323,7 +323,7 @@ class InputDataModule(QtWidgets.QWidget):
     def on_open_project_folder_clicked(self):
         try:
             os.startfile(self.control.project_path)
-        except:
+        except FileNotFoundError:
             QtWidgets.QMessageBox.warning(self, "Open Project Folder", "Couldn't open folder.")
 
     def on_add_logger_clicked(self):
@@ -1067,7 +1067,7 @@ class LoggerPropertiesTab(QtWidgets.QWidget):
 
         try:
             i = self.parent.loggerList.currentRow()
-        except:
+        except ValueError:
             return
 
         if i == -1:
@@ -1075,7 +1075,7 @@ class LoggerPropertiesTab(QtWidgets.QWidget):
 
         try:
             os.startfile(self.control.loggers[i].logger_path)
-        except:
+        except FileNotFoundError:
             QtWidgets.QMessageBox.warning(self, "Open Raw Files Folder", "Couldn't open folder.")
 
     def set_logger_dashboard(self, logger):
@@ -1147,7 +1147,7 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
 
         try:
             self.logger = control.loggers[logger_idx]
-        except:
+        except IndexError:
             self.logger = LoggerProperties()
 
         # Store settings specific to initial file format that can be restored, if need be,
@@ -1314,6 +1314,7 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
 
         # Copy logger group
         self.copyGroup = QtWidgets.QGroupBox("Optional: Copy Properties from Another Logger")
+        self.copyGroup.setSizePolicy(policy)
         self.hboxCopy = QtWidgets.QHBoxLayout(self.copyGroup)
         self.hboxCopy.addWidget(lblCopy)
         self.hboxCopy.addWidget(self.copyLogger)
@@ -1649,11 +1650,11 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
         """Set appropriate timestamp format input based on first column data selection."""
 
         if self.firstColData.currentText() == "Time Step":
-            self.dataTimestampFormat.setText("N/A")
             self.dataTimestampFormat.setEnabled(False)
+            self.dataTimestampFormat.setText("N/A")
         else:
-            self.dataTimestampFormat.setText(self.logger.timestamp_format)
             self.dataTimestampFormat.setEnabled(True)
+            self.dataTimestampFormat.setText(self.logger.timestamp_format)
 
     def on_detect_props_clicked(self):
         """Detect standard logger properties for selected file format."""
@@ -1853,6 +1854,7 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
         # Attempt to decipher the datetime format
         try:
             float(test_timestamp)
+            test_logger.timestamp_format = "N/A"
         except ValueError:
             test_logger.timestamp_format = detect_timestamp_format(test_timestamp)
 
@@ -2006,9 +2008,9 @@ class EditSeascatterDialog(QtWidgets.QDialog):
 
         self.cols = self.control.loggers[i].cols_to_process
         self.hsColCombo.clear()
-        self.hsColCombo.addItems(map(str, self.cols))
+        self.hsColCombo.addItems((str(i) for i in self.cols))
         self.tpColCombo.clear()
-        self.tpColCombo.addItems(map(str, self.cols))
+        self.tpColCombo.addItems((str(i) for i in self.cols))
 
     def on_ok_clicked(self):
         """Store time traces paths in transfer functions class."""
@@ -2130,7 +2132,7 @@ class TransferFunctionsTab(QtWidgets.QWidget):
         self.numSeastates.setText(str(tf.num_ss))
         self.loggerNames.setText("\n".join(tf.logger_names))
         self.locNames.setText("\n".join(tf.loc_names))
-        self.percOcc.setText("\n".join(map(str, tf.perc_occ)))
+        self.percOcc.setText("\n".join((str(i) for i in tf.perc_occ)))
 
     def clear_dashboard(self):
         """Initialise all values in transfer functions dashboard."""
@@ -2272,7 +2274,7 @@ class EditTransferFunctionsDialog(QtWidgets.QDialog):
         # Convert list items to strings separated by newlines
         self.loggerNames.setPlainText("\n".join(self.tf.logger_names))
         self.locNames.setPlainText("\n".join(self.tf.loc_names))
-        self.percOcc.setPlainText("\n".join(list(map(str, self.tf.perc_occ))))
+        self.percOcc.setPlainText("\n".join([str(i) for i in self.tf.perc_occ]))
 
     def on_set_disp_path_clicked(self):
         dir_path = QtWidgets.QFileDialog.getExistingDirectory(self, "Logger Displacements Folder")
@@ -2343,7 +2345,7 @@ class EditTransferFunctionsDialog(QtWidgets.QDialog):
         if perc_occ:
             try:
                 # Convert values to float
-                self.tf.perc_occ = list(map(float, self.percOcc.toPlainText().split("\n")))
+                self.tf.perc_occ = [float(i) for i in self.percOcc.toPlainText().split("\n")]
             except ValueError as e:
                 msg = "Percentage occurrences must be numeric."
                 QtWidgets.QMessageBox.information(self, "Invalid Percentage Occurrences Input", msg)

@@ -7,9 +7,9 @@ import sys
 from PyQt5 import QtWidgets
 
 from views.data_screening_view import DataQualityReport
-from views.fatigue_view import FatigueProcessingWidget
+from views.fatigue_view import FatigueDashboard
 from views.input_data_view import InputDataModule
-from views.rainflow_histograms_view import RainflowHistogramDashboard
+from views.histograms_view import HistogramDashboard
 from views.raw_data_view import RawDataDashboard
 from views.seascatter_view import SeascatterDiagram
 from views.spectral_view import SpectrogramWidget
@@ -74,8 +74,8 @@ class DataLabGui(QtWidgets.QMainWindow):
 
         # Fatigue processing module
         self.fatigueModule = QtWidgets.QTabWidget()
-        self.histogramsTab = RainflowHistogramDashboard(self)
-        self.fatigueTab = FatigueProcessingWidget(self)
+        self.histogramsTab = HistogramDashboard(self)
+        self.fatigueTab = FatigueDashboard(self)
         self.fatigueModule.addTab(self.histogramsTab, "Rainflow Counting Histograms")
         self.fatigueModule.addTab(self.fatigueTab, "2HFATLASA")
 
@@ -175,7 +175,7 @@ class DataLabGui(QtWidgets.QMainWindow):
         # Help menu actions
         self.helpAction = QtWidgets.QAction("DataLab Guidance")
         self.helpAction.setShortcut("F1")
-        self.aboutAction = QtWidgets.QAction("About")
+        self.aboutAction = QtWidgets.QAction("&About")
         self.menuHelp.addAction(self.helpAction)
         self.menuHelp.addAction(self.aboutAction)
 

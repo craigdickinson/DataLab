@@ -26,11 +26,11 @@ class RainflowHistograms(object):
         self.histograms = {}
 
 
-class RainflowHistogramDashboard(QtWidgets.QWidget):
+class HistogramDashboard(QtWidgets.QWidget):
     """Create dashboard for rainflow counting histograms."""
 
     def __init__(self, parent=None):
-        super(RainflowHistogramDashboard, self).__init__(parent)
+        super(HistogramDashboard, self).__init__(parent)
 
         # So can access parent class
         self.parent = parent
@@ -48,7 +48,7 @@ class RainflowHistogramDashboard(QtWidgets.QWidget):
     def init_ui(self):
         # WIDGETS
         self.openHistFileButton = QtWidgets.QPushButton("Open Histograms File...")
-        self.openHistFileButton.setToolTip("Open rainflow histograms file")
+        self.openHistFileButton.setToolTip("Open histograms file")
         self.clearDatasetsButton = QtWidgets.QPushButton("Clear Datasets")
         self.datasetCombo = QtWidgets.QComboBox()
         self.columnCombo = QtWidgets.QComboBox()
@@ -201,6 +201,6 @@ class RainflowHistogramDashboard(QtWidgets.QWidget):
 # For testing layout
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
-    win = RainflowHistogramDashboard()
+    win = HistogramDashboard()
     win.show()
     sys.exit(app.exec_())

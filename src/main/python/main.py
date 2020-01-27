@@ -1,7 +1,7 @@
 __author__ = "Craig Dickinson"
 __program__ = "DataLab"
-__version__ = "2.1.0.10"
-__date__ = "22 January 2020"
+__version__ = "2.1.0.11"
+__date__ = "27 January 2020"
 
 import logging
 import os
@@ -194,7 +194,7 @@ class DataLab(DataLabGui):
                 # Get file extension
                 ext = stats_file.split(".")[-1]
 
-                # Read spreadsheet to data frame
+                # Read spreadsheet to dataframe
                 # TODO: Check that file read is valid
                 if ext == "h5":
                     dict_stats = read_stats_hdf5(stats_file)
@@ -268,7 +268,7 @@ class DataLab(DataLabGui):
             # Get file extension
             ext = spect_file.split(".")[-1]
 
-            # Read spreadsheet to data frame
+            # Read spreadsheet to dataframe
             # TODO: Check that file read is valid
             if ext == "h5":
                 dataset_id, df = read_spectrograms_hdf5(spect_file)
@@ -562,9 +562,8 @@ class DataLab(DataLabGui):
                     f"Spectral sample length must be greater than zero."
                     raise LoggerWarning(msg)
 
-        # TODO: Move to processing hub and create folders if required
-        # Set up output folders
-        control.set_up_output_folders()
+        # Paths to output folders
+        control.set_output_paths()
 
         # Get raw filenames, check timestamps and select files in processing datetime range
         enabled_loggers = (logger for logger in control.loggers if logger.enabled)
@@ -637,7 +636,7 @@ class DataLab(DataLabGui):
             for logger_id, df in screening.dict_stats.items():
                 dataset = StatsDataset(logger_id, df)
 
-                # Store data frame index type (timestamp or file number) and
+                # Store dataframe index type (timestamp or file number) and
                 # configure x-axis type combo accordingly
                 self.statsTab.df_index_type = dataset.index_type
                 self.statsTab.set_xaxis_type_combo()
@@ -846,11 +845,14 @@ def run_datalab():
     #     app = QtWidgets.QApplication(sys.argv)
     # win = QtDesignerGui()
     win = DataLab()
-    filepath = r"C:\Users\dickinsc\PycharmProjects\DataLab\demo_data\2. Project Configs\Project 21239\21239_Total_WoS_Config.json"
-    # filepath = r"C:\Users\dickinsc\PycharmProjects\DataLab\demo_data\2. Project Configs\Project 21239\21239_BOP_Hist.json"
-    # filepath = r"C:\Users\dickinsc\PycharmProjects\DataLab\demo_data\2. Project Configs\Test A\21239_Project_A_Config.json"
-    # filepath = r"C:\Users\dickinsc\PycharmProjects\DataLab\demo_data\2. Project Configs\Project 21368 - Dhaval\21368_Dhaval_Config.json"
-    # filepath = r"C:\Users\dickinsc\PycharmProjects\DataLab\demo_data\2. Project Configs\Project 21239 Acc to Disp to AR-Ang\21239_Time_Series_Conversion_Config.json"
+    root = r"C:\Users\dickinsc\PycharmProjects\DataLab\demo_data\2. Project Configs"
+    # path = r"Project 21239\21239_Total_WoS_Config.json"
+    # path = r"Project 21239\21239_BOP_Hist.json"
+    # path = r"Test A\21239_Project_A_Config.json"
+    # path = r"Project 21368 - Dhaval\21368_Dhaval_Config.json"
+    # path = r"Project 21239 Acc to Disp to AR-Ang\21239_Time_Series_Conversion_Config.json"
+    path = r"Project 21342\21342_Histograms_Config.json"
+    filepath = os.path.join(root, path)
     win.inputDataModule.load_config_file(filepath)
     win.show()
     # sys.exit(app.exec_())

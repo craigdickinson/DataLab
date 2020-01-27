@@ -19,11 +19,11 @@ color_2H = np.array([0, 49, 80]) / 255
 title_args = dict(size=14, fontname="tahoma", color=color_2H, weight="bold")
 
 
-class FatigueProcessingWidget(QtWidgets.QWidget):
+class FatigueDashboard(QtWidgets.QWidget):
     """Create raw time series plots widget."""
 
     def __init__(self, parent=None):
-        super(FatigueProcessingWidget, self).__init__(parent)
+        super(FatigueDashboard, self).__init__(parent)
 
         # So can access parent class
         self.parent = parent
@@ -162,9 +162,9 @@ class FatigueProcessingWidget(QtWidgets.QWidget):
     def rescale_damage_rate(self, df, period=None):
         """
         Transform fatigue damage rates from 1/year to period input (e.g. 20 minutes).
-        :param df: Fatigue damage data frame - will be 1/year by default
+        :param df: Fatigue damage dataframe - will be 1/year by default
         :param period: Event length in minutes to transform damage rate to. If None (default) damage rate is unchanged.
-        :return: Fatigue damage data frame for transformed period
+        :return: Fatigue damage dataframe for transformed period
         """
 
         if period is None:
@@ -234,6 +234,6 @@ class FatigueProcessingWidget(QtWidgets.QWidget):
 # For testing layout
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
-    win = FatigueProcessingWidget()
+    win = FatigueDashboard()
     win.show()
     sys.exit(app.exec_())

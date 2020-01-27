@@ -1,9 +1,10 @@
 __author__ = "Craig Dickinson"
 
-import os
-from glob import glob
-from dateutil.parser import parse
 from datetime import datetime
+from glob import glob
+
+from dateutil.parser import parse
+
 from core.logger_properties import LoggerProperties
 
 
@@ -77,11 +78,10 @@ def get_sampling_freq(data, delim):
 def detect_timestamp_format(timestamp):
     """Attempt to detect the datetime format of the first column timestamps."""
 
-    # expected_dt = parse(timestamp)
     success = False
 
     # Test a variety of common datetime formats to try to find a match
-    # 1. E.g. 02-Apr-2020 20:26:00.0"
+    # 1. E.g. 24-Apr-2020 20:26:00.0"
     try:
         test_fmt = "%d-%b-%Y %H:%M:%S.%f"
         timestamp_code = "dd-mmm-yyyy HH:MM:SS.F"
@@ -90,7 +90,7 @@ def detect_timestamp_format(timestamp):
     except ValueError:
         pass
 
-    # 2. E.g. 02/14/20 20:26:00.0"
+    # 2. E.g. 24/04/20 20:26:00.0"
     if not success:
         try:
             test_fmt = "%d/%m/%y %H:%M:%S.%f"
@@ -100,11 +100,41 @@ def detect_timestamp_format(timestamp):
         except ValueError:
             success = False
 
-    # 3. E.g. 02/14/2020 20:26:00.0"
+    # 3. E.g. 24/04/2020 20:26:00.0"
     if not success:
         try:
             test_fmt = "%d/%m/%Y %H:%M:%S.%f"
             timestamp_code = "dd/mm/yyyy HH:MM:SS.F"
+            datetime.strptime(timestamp, test_fmt)
+            success = True
+        except ValueError:
+            success = False
+
+    # 3. E.g. 04/24/2020 20:26:00.0"
+    if not success:
+        try:
+            test_fmt = "%m/%d/%Y %H:%M:%S.%f"
+            timestamp_code = "mm/dd/yyyy HH:MM:SS.F"
+            datetime.strptime(timestamp, test_fmt)
+            success = True
+        except ValueError:
+            success = False
+
+    # 4. E.g. 2020/04/24 20:26:00.0"
+    if not success:
+        try:
+            test_fmt = "%Y/%m/%d %H:%M:%S.%f"
+            timestamp_code = "yyyy/mm/dd HH:MM:SS.F"
+            datetime.strptime(timestamp, test_fmt)
+            success = True
+        except ValueError:
+            success = False
+
+    # 5. E.g. 2020-04-24 20:26:00.0"
+    if not success:
+        try:
+            test_fmt = "%Y-%m-%d %H:%M:%S.%f"
+            timestamp_code = "yyyy-mm-dd HH:MM:SS.F"
             datetime.strptime(timestamp, test_fmt)
             success = True
         except ValueError:

@@ -21,6 +21,7 @@ class DataScreen(object):
         """Instantiate with empty logger."""
 
         self.logger = LoggerProperties()
+        self.logger_id = ""
         self.files = []
         self.stats_file_nums = []
         self.spect_file_nums = []
@@ -48,10 +49,6 @@ class DataScreen(object):
         self.stats_sample_end = []
         self.spect_sample_start = []
         self.spect_sample_end = []
-
-        # Interval to process on
-        self.stats_sample_length = 0
-        self.spect_sample_length = 0
 
         # File read properties
         self.file_format = "Custom"
@@ -82,10 +79,11 @@ class DataScreen(object):
         if logger:
             self.set_logger(logger)
 
-    def set_logger(self, logger):
+    def set_logger(self, logger: LoggerProperties):
         """Set the logger filenames to be assessed and required read file properties."""
 
         self.logger = logger
+        self.logger_id = logger.logger_id
         self.channel_names = logger.channel_names
 
         # Full file path
@@ -101,7 +99,7 @@ class DataScreen(object):
         self.delim = self.logger.file_delimiter
         self.header_row = self.logger.channel_header_row - 1
 
-        # Additional header rows to skip - only using the first header row for data frame column names
+        # Additional header rows to skip - only using the first header row for dataframe column names
         self.skip_rows = [i for i in range(self.logger.num_headers) if i > self.header_row]
 
         # No header row specified
@@ -126,10 +124,15 @@ class DataScreen(object):
             self.apply_filters = False
 
     def read_logger_file(self, file):
-        """Read logger file into data frame."""
+        """Read logger file into dataframe."""
 
-        # Read data to data frame
-        if self.file_format == "Custom":
+        # Read data to dataframe
+        if self.file_format == "Custom" or self.file_format == "Fugro-csv":
+            if self.file_format == "Fugro-csv":
+                encoding = "latin1"
+            else:
+                encoding = None
+
             try:
                 df = pd.read_csv(
                     file,
@@ -137,6 +140,7 @@ class DataScreen(object):
                     header=self.header_row,
                     skiprows=self.skip_rows,
                     skip_blank_lines=False,
+                    encoding=encoding,
                 )
             # Attempt to handle non-utf-8 encoded files
             except UnicodeDecodeError:
@@ -148,14 +152,6 @@ class DataScreen(object):
                     skip_blank_lines=False,
                     encoding="latin1",
                 )
-        elif self.file_format == "Fugro-csv":
-            df = pd.read_csv(
-                file,
-                sep=self.delim,
-                header=self.header_row,
-                skiprows=self.skip_rows,
-                encoding="latin1",
-            )
         elif self.file_format == "Pulse-acc":
             df = read_pulse_acc(file, multi_header=False)
         elif self.file_format == "2HPS2-acc":
@@ -175,6 +171,10 @@ class DataScreen(object):
         if self.logger.file_format == "Custom":
             # Drop columns that are all nan (can happen with poorly delimited csv files, e.g. trailing commas)
             df = df.dropna(axis=1, how="all")
+
+            # If no header rows set, the columns index will be Int64Index - instead set custom column names
+            if self.header_row is None:
+                df.columns = [f"Column {i + 1}" for i in range(len(df.columns))]
 
             # Time steps data
             if self.logger.first_col_data == "Time Step":
@@ -251,13 +251,13 @@ class DataScreen(object):
             try:
                 df.iloc[:, 1:] = np.multiply(df.iloc[:, 1:], self.unit_conv_factors)
             except TypeError as e:
-                msg = f"Data screen error: Data frame contains no channel columns.\n {e}"
+                msg = f"Data screen error: Dataframe contains no channel columns.\n {e}"
                 raise TypeError(msg)
 
         return df
 
     def screen_data(self, file_num, df):
-        """Perform basic data screening operations on data frame."""
+        """Perform basic data screening operations on dataframe."""
 
         # Number of rows in file
         pts = len(df)
@@ -283,7 +283,7 @@ class DataScreen(object):
     @staticmethod
     def _resolution(df):
         """
-        Return smallest difference between rows of a data frame for each
+        Return smallest difference between rows of a dataframe for each
         column. Assumes column names are not multi-indexed.
         """
 
@@ -317,11 +317,11 @@ class DataScreen(object):
         """
         Extract data sample from file.
         Move the required rows from data to sample to make len(sample) = sample_length.
-        :param df_sample: Current subset data frame of main logger file (initially empty)
-        :param df: Current logger file data frame (sample data gets dropped)
+        :param df_sample: Current subset dataframe of main logger file (initially empty)
+        :param df: Current logger file dataframe (sample data gets dropped)
         :param sample_length: Number of expected data points sample is to have
         :param type: stats or spectral string
-        :return: Updated sample data frame and logger file data frame with sample data dropped
+        :return: Updated sample dataframe and logger file dataframe with sample data dropped
         """
 
         # if type == "stats":
@@ -339,12 +339,12 @@ class DataScreen(object):
         cutoff = min(sample_length - ns, nd)
 
         if ns < sample_length and nd > 0:
-            # Append data to sample data frame and drop sample from main data frame
+            # Append data to sample dataframe and drop sample from main dataframe
             df_sample = df_sample.append(df[:cutoff].copy(), ignore_index=True)
             df.drop(df.index[:cutoff], inplace=True)
 
             # TODO: Allowing short sample length (revisit)
-            # Store start and end times of sample data if data frame contains target length
+            # Store start and end times of sample data if dataframe contains target length
             # if len(df_sample) == sample_length:
             if len(df_sample) <= sample_length:
                 if type == "stats":
@@ -375,7 +375,7 @@ class DataScreen(object):
         df_filtered = filter_signal(df, self.logger.low_cutoff_freq, self.logger.high_cutoff_freq)
 
         if not df_filtered.empty:
-            # Insert timestamps/time column and reset index to return a data frame in same format as unfiltered one
+            # Insert timestamps/time column and reset index to return a dataframe in same format as unfiltered one
             df_filtered.reset_index(drop=True, inplace=True)
             df_filtered.insert(loc=0, column=t.name, value=t)
 

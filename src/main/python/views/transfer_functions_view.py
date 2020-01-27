@@ -162,7 +162,7 @@ class TransferFunctionsWidget(QtWidgets.QWidget):
             logger_i = self.loggerCombo.currentIndex()
             loc_i = self.locCombo.currentIndex()
 
-            # Select TF data frame
+            # Select TF dataframe
             df = self.tf.trans_funcs[logger_i][loc_i]
             df.plot(ax=self.ax)
             labels = [f"Sea State {i + 1}" for i in range(self.tf.num_ss)]

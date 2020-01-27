@@ -635,7 +635,7 @@ class LoggerProperties(QObject):
                 first_row = f.readline().strip().split(self.file_delimiter)
 
         # Remove blanks (can happen with space-delimited files)
-        first_row = list(filter(None, first_row))
+        first_row = [x for x in first_row if x != ""]
 
         return test_file, first_row
 

@@ -8,8 +8,8 @@ import os.path
 
 
 class IntegrateTimeSeries(object):
-    def __init__(self, project_path=""):
-        self.project_path = project_path
+    def __init__(self, output_path=""):
+        self.output_path = output_path
         self.acc_x_col = "-"
         self.acc_y_col = "-"
         self.acc_z_col = "-"
@@ -30,7 +30,7 @@ class IntegrateTimeSeries(object):
         self.apply_g_correction = logger.apply_gcorr
 
     def process_file(self, file, df):
-        """Convert data frame accelerations to displacements and angular rates to angles on and export to csv."""
+        """Convert dataframe accelerations to displacements and angular rates to angles on and export to csv."""
 
         angles_data = []
         angle_cols = []
@@ -89,7 +89,7 @@ class IntegrateTimeSeries(object):
             )
             disps_data.append(disps)
 
-        # Compile new data frame if at least one column converted
+        # Compile new dataframe if at least one column converted
         data = disps_data + angles_data
         cols = disp_cols + angle_cols
         if cols:
@@ -104,8 +104,7 @@ class IntegrateTimeSeries(object):
             folder = os.path.split(os.path.dirname(file))[-1]
 
             # Create directory path, check exists and export file
-            path_to_file = os.path.join(self.project_path, "Displacements and Angles", folder)
-            ensure_dir_exists(path_to_file)
+            path_to_file = os.path.join(self.output_path, folder)
             filepath = os.path.join(path_to_file, filename)
             df_int.to_csv(filepath)
 
@@ -113,13 +112,6 @@ class IntegrateTimeSeries(object):
             rel_filepath = os.path.join("Displacements and Angles", folder, filename)
 
             return rel_filepath
-
-
-def ensure_dir_exists(directory):
-    """Create directory (and intermediate directories) if do not exist."""
-
-    if directory != "" and os.path.exists(directory) is False:
-        os.makedirs(directory)
 
 
 def integration_transform(n, d):

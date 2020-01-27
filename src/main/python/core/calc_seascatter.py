@@ -24,7 +24,7 @@ class Seascatter(object):
         return False
 
     def get_hs_tp_data(self, df):
-        """Retrieve mean Hs and Tp columns from data frame."""
+        """Retrieve mean Hs and Tp columns from dataframe."""
 
         try:
             # Select the mean stats
@@ -37,7 +37,7 @@ class Seascatter(object):
             hs = df.iloc[:, hs_i].values
             tp = df.iloc[:, tp_i].values
 
-            # Store seastates as data frame
+            # Store seastates as dataframe
             self.df_ss = df.iloc[:, [hs_i, tp_i]]
             self.df_ss.columns = ["Hs (m)", "Tp (s)"]
         except IndexError:
@@ -47,7 +47,7 @@ class Seascatter(object):
         return hs, tp
 
     def _check_column_indexes(self, df):
-        """Correct hs-tp column indexes if stats data frame contains both unfiltered and filtered columns."""
+        """Correct hs-tp column indexes if stats dataframe contains both unfiltered and filtered columns."""
 
         hs_i = self.hs_col_idx
         tp_i = self.tp_col_idx
@@ -62,7 +62,7 @@ class Seascatter(object):
 
 
 def calc_seascatter_diagram(hs, tp, hs_bins, tp_bins):
-    """Create sea scatter diagram data frame."""
+    """Create sea scatter diagram dataframe."""
 
     df = pd.DataFrame(np.vstack((hs, tp)).T, columns=["Hs", "Tp"])
 

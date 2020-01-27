@@ -24,7 +24,7 @@ class SeascatterDiagram(QtWidgets.QWidget):
         self.hs = np.array([])
         self.tp = np.array([])
 
-        # Seastate and seascatter diagram data frames
+        # Seastate and seascatter diagram dataframes
         self.df_ss = pd.DataFrame()
         self.df_scatter = pd.DataFrame()
 
@@ -191,7 +191,7 @@ class SeascatterDiagram(QtWidgets.QWidget):
     def plot_hs_tp_distribution(self):
         """Plot distribution of Hs and Tp for generated sea scatter diagram."""
 
-        # Calculate Hs and Tp bin midpoints (the data frame indexes are interval types)
+        # Calculate Hs and Tp bin midpoints (the dataframe indexes are interval types)
         hs = self.df_scatter.iloc[:-1, -1]
         hs.index = [i.mid for i in hs.index]
         tp = self.df_scatter.iloc[-1, :-1]

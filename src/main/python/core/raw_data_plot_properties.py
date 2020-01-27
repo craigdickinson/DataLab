@@ -53,7 +53,7 @@ class RawDataRead(object):
         header_row = logger.channel_header_row - 1
         units_row = logger.units_header_row - 1
 
-        # Additional header rows to skip - only using the first header row for data frame column names
+        # Additional header rows to skip - only using the first header row for dataframe column names
         self.skip_rows = [i for i in range(logger.num_headers) if i > header_row and i != units_row]
 
         # No header row specified
@@ -65,9 +65,9 @@ class RawDataRead(object):
             self.header_rows = [header_row, units_row]
 
     def read_file(self, file):
-        """Read time series file into data frame using logger file format settings."""
+        """Read time series file into dataframe using logger file format settings."""
 
-        # Read data to data frame
+        # Read data to dataframe
         if self.file_format == "Custom":
             try:
                 df = pd.read_csv(
@@ -105,15 +105,15 @@ class RawDataRead(object):
         # Copy to prevent SettingWithCopyWarning
         df = df.copy()
 
-        # If no header rows set the columns index will be Int64Index so convert to strings
-        if self.header_rows is None:
-            df.columns = df.columns.astype(str)
-
         # Drop columns that are all nan (can happen with poorly delimited csv files, e.g. trailing commas)
         df = df.dropna(axis=1, how="all")
 
+        # If no header rows set the columns index will be Int64Index so convert to strings
+        if self.header_rows is None:
+            df.columns = [f"Column {i + 1}" for i in range(len(df.columns))]
+
         # Copy time steps column to index
-        # (Can't drop time steps column as need to keep a consistent data frame structure)
+        # (Can't drop time steps column as need to keep a consistent dataframe structure)
         if self.first_col_data == "Time Step":
             df.index = df.iloc[:, 0]
         # Convert first column (should be timestamps string) to datetimes

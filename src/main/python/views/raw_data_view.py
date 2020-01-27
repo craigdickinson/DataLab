@@ -663,9 +663,9 @@ class RawDataDashboard(QtWidgets.QWidget):
         return srs
 
     def _process_time_series(self, srs):
-        """Process time series data frame and plot."""
+        """Process time series dataframe and plot."""
 
-        # Get and column names and units from data frame
+        # Get and column names and units from dataframe
         channel_names, channel_units = self._get_columns()
 
         # Set flag to set x-axis limits to duration of time series if a new file is loaded/selected
@@ -737,7 +737,7 @@ class RawDataDashboard(QtWidgets.QWidget):
     def _update_plots(self, srs):
         """Update plot series data for current selections and plot."""
 
-        # Select series plot data from file data frame
+        # Select series plot data from file dataframe
         srs = self._set_series_data(srs, self.df)
 
         # Check plot data was set and store initial data limits (note column 1 is Timestamp so looking for > 1 columns)
@@ -789,7 +789,7 @@ class RawDataDashboard(QtWidgets.QWidget):
     def _filter_time_series(srs):
         """Calculate filtered signal of a single series."""
 
-        # Apply bandpass filter (takes a data frame as input)
+        # Apply bandpass filter (takes a dataframe as input)
         # TODO: Should create a filter function that accepts an x and y array as well
         if len(srs.y) > 0:
             df = pd.DataFrame(srs.y, index=srs.x)
@@ -1001,7 +1001,7 @@ class RawDataDashboard(QtWidgets.QWidget):
         x = x[xs]
         y = y[xs]
 
-        # Create and slice data frame
+        # Create and slice dataframe
         df = pd.DataFrame(y, index=x)
         df.index = df.index.astype(float)
         # df = df[xmin:xmax]
@@ -1159,7 +1159,7 @@ class RawDataDashboard(QtWidgets.QWidget):
 
         all_srs = self.plot_setup.axis1_series_list + self.plot_setup.axis2_series_list
 
-        # Collate all time series to data frame
+        # Collate all time series to dataframe
         df_ts_list = []
         for srs in all_srs:
             y = srs.y
@@ -1172,7 +1172,7 @@ class RawDataDashboard(QtWidgets.QWidget):
                 df = pd.DataFrame(y, index=srs.x, columns=[srs.label])
                 df_ts_list.append(df)
 
-        # Collate all psd series to data frame
+        # Collate all psd series to dataframe
         df_psd_list = []
         for srs in all_srs:
             pxx = srs.pxx
@@ -1185,7 +1185,7 @@ class RawDataDashboard(QtWidgets.QWidget):
                 df = pd.DataFrame(pxx, index=srs.freq, columns=[srs.label])
                 df_psd_list.append(df)
 
-        # Concatenate to sheet data frame
+        # Concatenate to sheet dataframe
         try:
             df_ts = pd.concat(df_ts_list, axis=1, sort=False)
             df_ts.index.name = "Time (s)"

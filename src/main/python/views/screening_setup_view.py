@@ -65,11 +65,15 @@ class ScreeningSetupTab(QtWidgets.QWidget):
         self.spectXLSXChkBox = QtWidgets.QCheckBox(".xlsx")
         self.spectH5ChkBox = QtWidgets.QCheckBox(".h5 (fast read/write)")
 
-        # Rainflow counting settings
+        # Histogram settings
         self.processHistogramsChkBox = QtWidgets.QCheckBox("Include in processing")
         self.processHistogramsChkBox.setChecked(True)
-        self.rainflowFolder = QtWidgets.QLabel()
+        self.histogramFolder = QtWidgets.QLabel()
         self.binSize = QtWidgets.QLabel("-")
+        self.histCSVChkBox = QtWidgets.QCheckBox(".csv")
+        self.histCSVChkBox.setChecked(True)
+        self.histXLSXChkBox = QtWidgets.QCheckBox(".xlsx")
+        self.histH5ChkBox = QtWidgets.QCheckBox(".h5 (fast read/write)")
 
         # Labels
         self.lblProcessStart = QtWidgets.QLabel("Start timestamp:")
@@ -111,6 +115,14 @@ class ScreeningSetupTab(QtWidgets.QWidget):
         self.statsForm.addRow(QtWidgets.QLabel("Output folder:"), self.statsFolder)
         self.statsForm.addRow(QtWidgets.QLabel("Sample length (s):"), self.statsInterval)
 
+        # Stats output file formats group
+        self.statsOutputGroup = QtWidgets.QGroupBox("Stats Output File Formats")
+        self.statsOutputGroup.setFixedWidth(180)
+        vbox = QtWidgets.QVBoxLayout(self.statsOutputGroup)
+        vbox.addWidget(self.statsCSVChkBox)
+        vbox.addWidget(self.statsXLSXChkBox)
+        vbox.addWidget(self.statsH5ChkBox)
+
         # Spectral settings group
         self.spectGroup = QtWidgets.QGroupBox("Spectral Analysis Settings")
         self.spectGroup.setMinimumWidth(250)
@@ -122,29 +134,29 @@ class ScreeningSetupTab(QtWidgets.QWidget):
         self.spectForm.addRow(QtWidgets.QLabel("Window:"), self.psdWindow)
         self.spectForm.addRow(QtWidgets.QLabel("Segment overlap (%):"), self.psdOverlap)
 
-        # Stats output file formats group
-        self.statsOutputGroup = QtWidgets.QGroupBox("Stats File Formats to Output")
-        self.statsOutputGroup.setFixedWidth(170)
-        self.vbox = QtWidgets.QVBoxLayout(self.statsOutputGroup)
-        self.vbox.addWidget(self.statsCSVChkBox)
-        self.vbox.addWidget(self.statsXLSXChkBox)
-        self.vbox.addWidget(self.statsH5ChkBox)
-
         # Spectral output file formats group
-        self.spectOutputGroup = QtWidgets.QGroupBox("Spectral File Formats to Output")
-        self.spectOutputGroup.setFixedWidth(170)
-        self.vbox = QtWidgets.QVBoxLayout(self.spectOutputGroup)
-        self.vbox.addWidget(self.spectCSVChkBox)
-        self.vbox.addWidget(self.spectXLSXChkBox)
-        self.vbox.addWidget(self.spectH5ChkBox)
+        self.spectOutputGroup = QtWidgets.QGroupBox("Spectral Output File Formats")
+        self.spectOutputGroup.setFixedWidth(180)
+        vbox = QtWidgets.QVBoxLayout(self.spectOutputGroup)
+        vbox.addWidget(self.spectCSVChkBox)
+        vbox.addWidget(self.spectXLSXChkBox)
+        vbox.addWidget(self.spectH5ChkBox)
 
-        # Rainflow settings group
-        self.rainflowGroup = QtWidgets.QGroupBox("Rainflow Cycle Histogram Settings")
-        self.rainflowGroup.setMinimumWidth(250)
-        self.rainflowForm = QtWidgets.QFormLayout(self.rainflowGroup)
-        self.rainflowForm.addRow(self.processHistogramsChkBox, QtWidgets.QLabel(""))
-        self.rainflowForm.addRow(QtWidgets.QLabel("Output folder:"), self.rainflowFolder)
-        self.rainflowForm.addRow(QtWidgets.QLabel("Bin size:"), self.binSize)
+        # Histogram settings group
+        self.histGroup = QtWidgets.QGroupBox("Histogram Settings")
+        self.histGroup.setMinimumWidth(250)
+        self.histForm = QtWidgets.QFormLayout(self.histGroup)
+        self.histForm.addRow(self.processHistogramsChkBox, QtWidgets.QLabel(""))
+        self.histForm.addRow(QtWidgets.QLabel("Output folder:"), self.histogramFolder)
+        self.histForm.addRow(QtWidgets.QLabel("Bin size:"), self.binSize)
+
+        # Histogram output file formats group
+        self.histOutputGroup = QtWidgets.QGroupBox("Histogram Output File Formats")
+        self.histOutputGroup.setFixedWidth(180)
+        vbox = QtWidgets.QVBoxLayout(self.histOutputGroup)
+        vbox.addWidget(self.histCSVChkBox)
+        vbox.addWidget(self.histXLSXChkBox)
+        vbox.addWidget(self.histH5ChkBox)
 
         # LAYOUT
         self.hboxStats = QtWidgets.QHBoxLayout()
@@ -152,11 +164,15 @@ class ScreeningSetupTab(QtWidgets.QWidget):
         self.hboxStats.addWidget(self.statsGroup)
         self.hboxStats.addWidget(self.statsOutputGroup, alignment=QtCore.Qt.AlignTop)
 
-        # Now add spectral group box vertical layouts to a horizontal one
         self.hboxSpect = QtWidgets.QHBoxLayout()
         self.hboxSpect.setAlignment(QtCore.Qt.AlignLeft)
         self.hboxSpect.addWidget(self.spectGroup)
         self.hboxSpect.addWidget(self.spectOutputGroup, alignment=QtCore.Qt.AlignTop)
+
+        self.hboxHist = QtWidgets.QHBoxLayout()
+        self.hboxHist.setAlignment(QtCore.Qt.AlignLeft)
+        self.hboxHist.addWidget(self.histGroup)
+        self.hboxHist.addWidget(self.histOutputGroup, alignment=QtCore.Qt.AlignTop)
 
         # Combine all layouts
         self.vbox = QtWidgets.QVBoxLayout()
@@ -166,7 +182,7 @@ class ScreeningSetupTab(QtWidgets.QWidget):
         self.vbox.addWidget(self.filtersGroup)
         self.vbox.addLayout(self.hboxStats)
         self.vbox.addLayout(self.hboxSpect)
-        self.vbox.addWidget(self.rainflowGroup)
+        self.vbox.addLayout(self.hboxHist)
         self.vbox.addStretch()
 
         self.hbox = QtWidgets.QHBoxLayout(self)
@@ -178,12 +194,15 @@ class ScreeningSetupTab(QtWidgets.QWidget):
         self.processStatsChkBox.toggled.connect(self.on_process_stats_check_box_toggled)
         self.processSpectChkBox.toggled.connect(self.on_process_spect_check_box_toggled)
         self.processHistogramsChkBox.toggled.connect(self.on_process_histograms_check_box_toggled)
-        self.statsH5ChkBox.toggled.connect(self.on_stats_h5_toggled)
         self.statsCSVChkBox.toggled.connect(self.on_stats_csv_toggled)
         self.statsXLSXChkBox.toggled.connect(self.on_stats_xlsx_toggled)
-        self.spectH5ChkBox.toggled.connect(self.on_spect_h5_toggled)
+        self.statsH5ChkBox.toggled.connect(self.on_stats_h5_toggled)
         self.spectCSVChkBox.toggled.connect(self.on_spect_csv_toggled)
         self.spectXLSXChkBox.toggled.connect(self.on_spect_xlsx_toggled)
+        self.spectH5ChkBox.toggled.connect(self.on_spect_h5_toggled)
+        self.histCSVChkBox.toggled.connect(self.on_hist_csv_toggled)
+        self.histXLSXChkBox.toggled.connect(self.on_hist_xlsx_toggled)
+        self.histH5ChkBox.toggled.connect(self.on_hist_h5_toggled)
 
     def on_edit_clicked(self):
         """Open logger screening edit dialog."""
@@ -216,49 +235,34 @@ class ScreeningSetupTab(QtWidgets.QWidget):
         if self.parent.loggerList.count() > 0:
             self.logger.process_hists = self.processHistogramsChkBox.isChecked()
 
-    def on_stats_h5_toggled(self):
-        if self.parent.loggerList.count() > 0:
-            if self.statsH5ChkBox.isChecked():
-                self.control.stats_to_h5 = True
-            else:
-                self.control.stats_to_h5 = False
-
     def on_stats_csv_toggled(self):
-        if self.parent.loggerList.count() > 0:
-            if self.statsCSVChkBox.isChecked():
-                self.control.stats_to_csv = True
-            else:
-                self.control.stats_to_csv = False
+        self.control.stats_to_csv = self.statsCSVChkBox.isChecked()
 
     def on_stats_xlsx_toggled(self):
-        if self.parent.loggerList.count() > 0:
-            if self.statsXLSXChkBox.isChecked():
-                self.control.stats_to_xlsx = True
-            else:
-                self.control.stats_to_xlsx = False
+        self.control.stats_to_xlsx = self.statsXLSXChkBox.isChecked()
 
-    def on_spect_h5_toggled(self):
-        if self.parent.loggerList.count() > 0:
-            if self.spectH5ChkBox.isChecked():
-                self.control.spect_to_h5 = True
-            else:
-                self.control.spect_to_h5 = False
+    def on_stats_h5_toggled(self):
+        self.control.stats_to_h5 = self.statsH5ChkBox.isChecked()
 
     def on_spect_csv_toggled(self):
-        if self.parent.loggerList.count() > 0:
-            if self.spectCSVChkBox.isChecked():
-                self.control.spect_to_csv = True
-            else:
-                self.control.spect_to_csv = False
+        self.control.spect_to_csv = self.spectCSVChkBox.isChecked()
 
     def on_spect_xlsx_toggled(self):
-        if self.parent.loggerList.count() > 0:
-            if self.spectXLSXChkBox.isChecked():
-                self.control.spect_to_xlsx = True
-            else:
-                self.control.spect_to_xlsx = False
+        self.control.spect_to_xlsx = self.spectXLSXChkBox.isChecked()
 
-    def set_analysis_dashboard(self, logger):
+    def on_spect_h5_toggled(self):
+        self.control.spect_to_h5 = self.spectH5ChkBox.isChecked()
+
+    def on_hist_csv_toggled(self):
+        self.control.hist_to_csv = self.histCSVChkBox.isChecked()
+
+    def on_hist_xlsx_toggled(self):
+        self.control.hist_to_xlsx = self.histXLSXChkBox.isChecked()
+
+    def on_hist_h5_toggled(self):
+        self.control.hist_to_h5 = self.histH5ChkBox.isChecked()
+
+    def set_analysis_dashboard(self, logger: LoggerProperties):
         """Set dashboard with logger stats and spectral settings from logger object."""
 
         self.logger = logger
@@ -309,26 +313,29 @@ class ScreeningSetupTab(QtWidgets.QWidget):
         # Screen on
         self.processType.setText(logger.process_type)
 
-        # Stats and spectral interval
-        self.statsInterval.setText(str(logger.stats_interval))
-        self.spectInterval.setText(str(logger.spect_interval))
-
         # Set PSD parameters
         self._set_psd_params(logger)
 
-        # Output folders
+        # Stats settings
+        self.statsInterval.setText(str(logger.stats_interval))
         self.statsFolder.setText(self.control.stats_output_folder)
-        self.spectFolder.setText(self.control.spect_output_folder)
-
-        # Selected stats file formats to output
         self.statsH5ChkBox.setChecked(self.control.stats_to_h5)
         self.statsCSVChkBox.setChecked(self.control.stats_to_csv)
         self.statsXLSXChkBox.setChecked(self.control.stats_to_xlsx)
 
-        # Selected spectral file formats to output
+        # Spectral settings
+        self.spectInterval.setText(str(logger.spect_interval))
+        self.spectFolder.setText(self.control.spect_output_folder)
         self.spectH5ChkBox.setChecked(self.control.spect_to_h5)
         self.spectCSVChkBox.setChecked(self.control.spect_to_csv)
         self.spectXLSXChkBox.setChecked(self.control.spect_to_xlsx)
+
+        # Histogram settings
+        self.binSize.setText(str(logger.bin_size))
+        self.histogramFolder.setText(self.control.hist_output_folder)
+        self.histH5ChkBox.setChecked(self.control.hist_to_h5)
+        self.histCSVChkBox.setChecked(self.control.hist_to_csv)
+        self.histXLSXChkBox.setChecked(self.control.hist_to_xlsx)
 
     @staticmethod
     def _set_process_start(logger):
@@ -780,7 +787,7 @@ class EditScreeningSetupDialog(QtWidgets.QDialog):
         else:
             # Convert strings to lists
             try:
-                logger.cols_to_process = list(map(int, self.columns.text().split()))
+                logger.cols_to_process = [int(i) for i in self.columns.text().split()]
             except ValueError:
                 msg = (
                     "Only integer column numbers are allowed.\n"
@@ -789,7 +796,7 @@ class EditScreeningSetupDialog(QtWidgets.QDialog):
                 QtWidgets.QMessageBox.information(self, "Invalid Requested Columns Input", msg)
 
         try:
-            logger.unit_conv_factors = list(map(float, self.unitConvs.text().split()))
+            logger.unit_conv_factors = [float(i) for i in self.unitConvs.text().split()]
         except ValueError:
             msg = (
                 "Unit conversion factors must be numeric.\n"

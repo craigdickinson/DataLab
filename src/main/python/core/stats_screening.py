@@ -51,7 +51,7 @@ class StatsScreening(object):
             # Store the file number of processed sample (only of use for time step indexes)
             data_screen.stats_file_nums.append(processed_file_num)
 
-            # Extract sample data frame from main dataset
+            # Extract sample dataframe from main dataset
             df_stats_sample, df_stats = data_screen.sample_data(
                 df_stats_sample, df_stats, sample_length, type="stats"
             )
@@ -76,15 +76,18 @@ class StatsScreening(object):
                     self.stats_filt.calc_stats(df_filt)
                     data_screen.stats_processed = True
 
-            # Clear sample data frame ready for next sample set
+            # Clear sample dataframe ready for next sample set
             df_stats_sample = pd.DataFrame()
 
         return data_screen.stats_processed
 
     def logger_stats_post(self, logger, data_screen, output_files):
-        """Stats post-processing of all files for a given logger."""
+        """
+        Stats post-processing of all files for a given logger.
+        Compile stats dataframe and export to file.
+        """
 
-        # Create and store a data frame of logger stats
+        # Create and store a dataframe of logger stats
         df_stats = self.stats_out.compile_stats(
             logger,
             data_screen.stats_file_nums,
@@ -107,9 +110,9 @@ class StatsScreening(object):
                 output_files.append(rel_filepath + self.h5_output_file_suffix)
 
                 # Set write mode to append to file for additional loggers
-                if self.h5_write_mode == "w":
-                    self.h5_write_mode = "a"
-                    self.h5_output_file_suffix = " (appended)"
+                # if self.h5_write_mode == "w":
+                self.h5_write_mode = "a"
+                self.h5_output_file_suffix = " (appended)"
 
             if self.control.stats_to_csv is True:
                 stats_filename = self.stats_out.write_to_csv()
@@ -190,7 +193,7 @@ class StatsOutput(object):
         # List to hold stats data for all logger channels
         self.stats = []
 
-        # Stats data frame for file export
+        # Stats dataframe for file export
         self.df_stats_export = pd.DataFrame()
 
         # Workbook object if writing stats to Excel
@@ -203,7 +206,7 @@ class StatsOutput(object):
         self, logger, file_nums, sample_start, sample_end, logger_stats, logger_stats_filt
     ):
         """
-        Compile statistics into data frame for exporting and for use by gui.
+        Compile statistics into dataframe for exporting and for use by gui.
         :param logger: object
         :param file_nums: Load case list assigned to each sample
         :param sample_start
@@ -257,7 +260,7 @@ class StatsOutput(object):
         # Create pandas multi-index header
         header = self._create_header(channels_header, stats_header, units_header)
 
-        # Create stats data frame for internal use
+        # Create stats dataframe for internal use
         if logger.first_col_data == "Timestamp":
             df_stats = pd.DataFrame(data=self.stats, index=sample_start, columns=header)
             df_stats.index.name = "Date"
@@ -265,12 +268,12 @@ class StatsOutput(object):
             df_stats = pd.DataFrame(data=self.stats, index=file_nums, columns=header)
             df_stats.index.name = "File Number"
 
-        # Create an alternative stats data frame in a layout for writing to file (includes end timestamps column)
+        # Create an alternative stats dataframe in a layout for writing to file (includes end timestamps column)
         self.df_stats_export = self._create_export_stats_dataframe(
             self.stats, file_nums, sample_start, sample_end, header
         )
 
-        # If unfiltered and filtered processed, reorder stats data frame columns to
+        # If unfiltered and filtered processed, reorder stats dataframe columns to
         # preferred order of (channel, channel (filtered)) pairs
         if stats_unfilt and stats_filt:
             cols = self._reorder_columns(df_stats)
@@ -311,7 +314,7 @@ class StatsOutput(object):
 
     @staticmethod
     def _create_header(channel_header, stats_header, units_header):
-        """Create multi-index header of channel names, stats, and units to use in stats data frame."""
+        """Create multi-index header of channel names, stats, and units to use in stats dataframe."""
 
         if not len(channel_header) == len(stats_header) == len(units_header):
             raise ValueError(
@@ -326,7 +329,7 @@ class StatsOutput(object):
     @staticmethod
     def _create_export_stats_dataframe(stats, file_nums, sample_start, sample_end, header):
         """
-        Create an alternative statistics data frame layout for exporting to file (csv/xlsx/hdf5).
+        Create an alternative statistics dataframe layout for exporting to file (csv/xlsx/hdf5).
         The only difference is that the sample end timestamps column is included and a standard integer index is used.
         """
 
@@ -358,12 +361,9 @@ class StatsOutput(object):
     def write_to_hdf5(self, mode="w"):
         """Write stats to HDF5 file."""
 
-        # Create directory if does not exist
-        self._ensure_dir_exists(self.output_dir)
-
         filename = "Statistics.h5"
         file_path = os.path.join(self.output_dir, filename)
-        logger_id = replace_space_with_underscore(self.logger_id)
+        logger_id = self.logger_id.replace(" ", "_")
         self.df_stats_export.to_hdf(file_path, logger_id, mode=mode)
 
         return filename
@@ -371,10 +371,7 @@ class StatsOutput(object):
     def write_to_csv(self):
         """Write stats to csv file."""
 
-        # Create directory if does not exist
-        self._ensure_dir_exists(self.output_dir)
-
-        logger_id = replace_space_with_underscore(self.logger_id)
+        logger_id = self.logger_id.replace(" ", "_")
         filename = "Statistics_" + logger_id + ".csv"
         file_path = os.path.join(self.output_dir, filename)
         self.df_stats_export.to_csv(file_path, index=False)
@@ -396,7 +393,7 @@ class StatsOutput(object):
         channels_header = channels_header[:3] + channels
 
         # Create worksheet for logger
-        logger_id = replace_space_with_underscore(self.logger_id)
+        logger_id = self.logger_id.replace(" ", "_")
 
         # Worksheet name length limit is 31
         if len(logger_id) > 31:
@@ -425,20 +422,10 @@ class StatsOutput(object):
         for col in range(2, 4):
             ws.column_dimensions[get_column_letter(col)].width = 19
 
-    @staticmethod
-    def _ensure_dir_exists(directory):
-        """Create directory (and intermediate directories) if do not exist."""
-
-        if directory != "" and os.path.exists(directory) is False:
-            os.makedirs(directory)
-
     def save_workbook(self):
         """Save workbook once all worksheets have been created."""
 
         try:
-            # Create directory if does not exist
-            self._ensure_dir_exists(self.output_dir)
-
             filename = "Statistics.xlsx"
             file_path = os.path.join(self.output_dir, filename)
             self.wb.save(file_path)
@@ -446,9 +433,3 @@ class StatsOutput(object):
             return filename
         except:
             print("\n\nFailed to save " + filename)
-
-
-def replace_space_with_underscore(input_str):
-    """Replace any spaces with underscores in string."""
-
-    return "_".join(input_str.split(" "))

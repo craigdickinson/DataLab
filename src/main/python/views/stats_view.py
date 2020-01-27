@@ -69,8 +69,8 @@ class StatsDataset:
 
     def __init__(self, logger_id="", df=pd.DataFrame()):
         try:
-            # Get unique channels list and filter out None/False entries
-            self.channels = list(filter(None, df.columns.unique(level="channels")))
+            # Get unique channels list and filter out blanks
+            self.channels = [c for c in df.columns.unique(level="channels") if c != ""]
         except:
             self.channels = ["N/A"]
 
@@ -171,7 +171,7 @@ class AxesPlotData:
             if "Time (s)" in df.columns:
                 t = df["Time (s)"].values / 86400
 
-            # Slice data frame for the selected statistic and then on channel
+            # Slice dataframe for the selected statistic and then on channel
             if stat == "Combined":
                 df = df[channel_name]
                 units = df.columns[0][1]
@@ -222,7 +222,7 @@ class AxesPlotData:
             color = self.color_2
             color2 = "green"
 
-        # Determine x-axis values to use: time steps or data frame index (timestamps or file numbers)
+        # Determine x-axis values to use: time steps or dataframe index (timestamps or file numbers)
         if index_type != "Time Step":
             t = df.index.values
 
@@ -361,7 +361,7 @@ class StatsWidget(QtWidgets.QWidget):
         # X-axis values type
         self.xaxis_type = "Timestamp"
 
-        # Stats data frame index type of current plot "session" (either Timestamp of File Number)
+        # Stats dataframe index type of current plot "session" (either Timestamp of File Number)
         # Purpose is to prevent mix and match of plotted indexes - which wouldn't make sense
         self.df_index_type = ""
 
@@ -516,7 +516,7 @@ class StatsWidget(QtWidgets.QWidget):
 
     @staticmethod
     def _get_plot_numbers_list(n):
-        return list(map(str, range(1, n + 1)))
+        return [str(i) for i in range(1, n + 1)]
 
     def on_clear_datasets_clicked(self):
         self.clear_dashboard()
@@ -1311,9 +1311,9 @@ class VesselStatsWidget(QtWidgets.QWidget):
         self.vbox2.addWidget(self.stats2Combo)
 
         # Selection layout
-        self.selection = QtWidgets.QWidget()
-        self.selection.setFixedWidth(200)
-        self.vbox = QtWidgets.QVBoxLayout(self.selection)
+        self.selectionContainer = QtWidgets.QWidget()
+        self.selectionContainer.setMinimumWidth(200)
+        self.vbox = QtWidgets.QVBoxLayout(self.selectionContainer)
         self.vbox.addWidget(self.openStatsButton)
         self.vbox.addWidget(self.clearDatasetsButton)
         self.vbox.addWidget(self.lbl1)
@@ -1326,14 +1326,20 @@ class VesselStatsWidget(QtWidgets.QWidget):
         self.vbox.addWidget(self.replotButton)
 
         # Plot layout
-        self.plotLayout = QtWidgets.QVBoxLayout()
+        self.plotWidget = QtWidgets.QWidget()
+        self.plotLayout = QtWidgets.QVBoxLayout(self.plotWidget)
         self.plotLayout.addWidget(navbar)
         self.plotLayout.addWidget(self.canvas)
 
         # LAYOUT
+        # Splitter to allow resizing of widget containers
+        splitter = QtWidgets.QSplitter()
+        splitter.addWidget(self.selectionContainer)
+        splitter.addWidget(self.plotWidget)
+        splitter.setSizes([200, 10000])
+
         self.layout = QtWidgets.QHBoxLayout(self)
-        self.layout.addWidget(self.selection)
-        self.layout.addLayout(self.plotLayout)
+        self.layout.addWidget(splitter)
 
     def connect_signals(self):
         self.clearDatasetsButton.clicked.connect(self.on_clear_datasets_clicked)
@@ -1490,11 +1496,11 @@ class VesselStatsWidget(QtWidgets.QWidget):
         stat1_col = dict_stats[self.stat1]
         stat2_col = dict_stats[self.stat2]
 
-        # Dictionary to hold plot vessel motions data frame and axis 2 channel data frame, label and units
+        # Dictionary to hold plot vessel motions dataframe and axis 2 channel dataframe, label and units
         plot_data = {}
 
         # Get axis 1 plot data
-        # Get vessel motions data from vessel data frame
+        # Get vessel motions data from vessel dataframe
         # It is required that the vessel dataset is called "VESSEL"
         # and the columns are named "Surge", "Sway", "Heave", "Roll", "Pitch", "Yaw"
         for i in range(len(self.datasets)):
@@ -1519,11 +1525,11 @@ class VesselStatsWidget(QtWidgets.QWidget):
 
         # Get axis 2 plot data
         if logger_i > -1 and channel != "None":
-            # Retrieve data frame from dataset objects list
+            # Retrieve dataframe from dataset objects list
             df_axis2 = self.datasets[logger_i].df
             logger_id = self.datasets[logger_i].logger_id
 
-            # Slice data frame for the selected statistic and then select channel
+            # Slice dataframe for the selected statistic and then select channel
             df_axis2 = df_axis2.xs(key=stat2_col, axis=1, level=1)
             df_axis2 = df_axis2[channel]
             units = df_axis2.columns[0]

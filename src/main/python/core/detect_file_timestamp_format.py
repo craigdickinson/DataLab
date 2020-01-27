@@ -48,13 +48,17 @@ def detect_file_timestamp_format(filename):
     if n == 5:
         f, end = create_format_string_pulse_acc(f, groups, matches)
 
+    # Pulse csv file type 1
+    if n == 6:
+        f, end = create_format_string_pulse_csv_1(f, groups, matches)
+
     # 2HPS2 acc file
     if n == 7:
         f, end = create_format_string_2hps2_acc(f, groups, matches)
 
-    # Pulse csv file
+    # Pulse csv file type 2
     if n == 12:
-        f, end = create_format_string_pulse_csv(f, groups, matches)
+        f, end = create_format_string_pulse_csv_2(f, groups, matches)
 
     # Drop any characters after the last match as they're not required
     if end > 0:
@@ -138,8 +142,29 @@ def create_format_string_pulse_acc(string, groups, matches):
     return string, matches[4].end()
 
 
-def create_format_string_pulse_csv(string, groups, matches):
-    """Substitute filename with timestamp format codes expected of a Pulse csv file."""
+def create_format_string_pulse_csv_1(string, groups, matches):
+    """Substitute filename with timestamp format codes expected of a Pulse csv file type 1."""
+
+    if len(groups[1]) == 4:
+        string = substitute_code(string, matches[1], code="YYYY")
+
+    if len(groups[2]) == 2:
+        string = substitute_code(string, matches[2], code="mm")
+
+    if len(groups[3]) == 2:
+        string = substitute_code(string, matches[3], code="DD")
+
+    if len(groups[4]) == 2:
+        string = substitute_code(string, matches[4], code="HH")
+
+    if len(groups[5]) == 2:
+        string = substitute_code(string, matches[5], code="MM")
+
+    return string, matches[5].end()
+
+
+def create_format_string_pulse_csv_2(string, groups, matches):
+    """Substitute filename with timestamp format codes expected of a Pulse csv file type 2."""
 
     if len(groups[0]) == 4:
         string = substitute_code(string, matches[0], code="YYYY")

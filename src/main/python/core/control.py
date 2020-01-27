@@ -46,12 +46,14 @@ class Control(object):
         self.azure_account_name = ""
         self.azure_account_key = ""
 
-        # Output folders and paths
+        # Output folders
         self.report_output_folder = "Screening Report"
         self.stats_output_folder = "Statistics"
         self.spect_output_folder = "Spectrograms"
         self.hist_output_folder = "Histograms"
         self.integration_output_folder = "Displacements and Angles"
+
+        # Output paths
         self.report_output_path = ""
         self.stats_output_path = ""
         self.spect_output_path = ""
@@ -68,6 +70,11 @@ class Control(object):
         self.spect_to_xlsx = False
         self.spect_to_h5 = False
 
+        # Selected histogram output file formats
+        self.hist_to_csv = True
+        self.hist_to_xlsx = False
+        self.hist_to_h5 = False
+
         # List to store lines with *LOGGER_ID
         self.logger_id_lines = []
 
@@ -82,13 +89,15 @@ class Control(object):
         # Flag to indicate type of processing worker to run
         self.processing_mode = "screening"
 
-    def set_up_output_folders(self):
+    def set_output_paths(self):
         """Construct file paths for output folders and create folders if required."""
 
         path = self.project_path
         self.report_output_path = os.path.join(path, self.report_output_folder)
         self.stats_output_path = os.path.join(path, self.stats_output_folder)
         self.spect_output_path = os.path.join(path, self.spect_output_folder)
+        self.hist_output_path = os.path.join(path, self.hist_output_folder)
+        self.integration_output_path = os.path.join(path, self.integration_output_folder)
 
     def check_logger_ids(self):
         """Check for duplicate logger names."""

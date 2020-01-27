@@ -480,7 +480,7 @@ class SpectrogramWidget(QtWidgets.QWidget):
     def _update_psd_plot(self, i):
         """Update PSD plot data for selected timestamp slice of spectrogram."""
 
-        # Slice spectrogram data frame for timestamp index i
+        # Slice spectrogram dataframe for timestamp index i
         zi = self.z[i, :]
 
         # Create new legend label

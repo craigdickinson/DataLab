@@ -97,9 +97,9 @@ def do_psd(df, col, n):
 
 
 def filter_signal(df, low_cutoff=None, high_cutoff=None, retain_mean=True):
-    """Apply bandpass filter to data frame of time series and return data frame of filtered time series."""
+    """Apply bandpass filter to dataframe of time series and return dataframe of filtered time series."""
 
-    # If no cut-off frequencies are set, return empty data frame
+    # If no cut-off frequencies are set, return empty dataframe
     if low_cutoff is None and high_cutoff is None:
         return pd.DataFrame()
 

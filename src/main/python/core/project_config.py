@@ -8,7 +8,10 @@ import os
 from PyQt5.QtCore import QObject, pyqtSignal
 from dateutil.parser import parse
 
+from core.control import Control
 from core.logger_properties import LoggerProperties
+from core.calc_seascatter import Seascatter
+from core.calc_transfer_functions import TransferFunctions
 
 
 class ProjectConfigJSONFile(QObject):
@@ -31,7 +34,7 @@ class ProjectConfigJSONFile(QObject):
         # Store filename and set directory to project root
         self.filename = os.path.basename(filename)
 
-    def map_json_to_control(self, control):
+    def map_json_to_control(self, control: Control):
         """
         Take JSON config dictionary and map to a Control class object.
         :param control: Instance of Control class.
@@ -46,7 +49,7 @@ class ProjectConfigJSONFile(QObject):
 
         return control
 
-    def map_json_to_seascatter(self, scatter):
+    def map_json_to_seascatter(self, scatter: Seascatter):
         """
         Take JSON config dictionary and map to a Seascatter class object.
         :param scatter: Instance of Seascatter class.
@@ -58,7 +61,7 @@ class ProjectConfigJSONFile(QObject):
 
         return scatter
 
-    def map_json_to_transfer_functions(self, tf):
+    def map_json_to_transfer_functions(self, tf: TransferFunctions):
         """
         Take JSON config dictionary and map to a TransferFunctions class object.
         :param tf: Instance of TransferFunctions class.
@@ -70,7 +73,7 @@ class ProjectConfigJSONFile(QObject):
 
         return tf
 
-    def _map_general_dict(self, data, control):
+    def _map_general_dict(self, data, control: Control):
         """Map the general settings section to the control object."""
 
         key = "general"
@@ -114,17 +117,14 @@ class ProjectConfigJSONFile(QObject):
         control.integration_output_folder = self._get_key_value(
             section=key, data=data, key="integration_folder", attr=control.integration_output_folder
         )
-        control.stats_to_h5 = self._get_key_value(
-            section=key, data=data, key="stats_to_h5", attr=control.stats_to_h5
-        )
         control.stats_to_csv = self._get_key_value(
             section=key, data=data, key="stats_to_csv", attr=control.stats_to_csv
         )
         control.stats_to_xlsx = self._get_key_value(
             section=key, data=data, key="stats_to_xlsx", attr=control.stats_to_xlsx
         )
-        control.spect_to_h5 = self._get_key_value(
-            section=key, data=data, key="spectral_to_h5", attr=control.spect_to_h5
+        control.stats_to_h5 = self._get_key_value(
+            section=key, data=data, key="stats_to_h5", attr=control.stats_to_h5
         )
         control.spect_to_csv = self._get_key_value(
             section=key, data=data, key="spectral_to_csv", attr=control.spect_to_csv
@@ -132,10 +132,22 @@ class ProjectConfigJSONFile(QObject):
         control.spect_to_xlsx = self._get_key_value(
             section=key, data=data, key="spectral_to_xlsx", attr=control.spect_to_xlsx
         )
+        control.spect_to_h5 = self._get_key_value(
+            section=key, data=data, key="spectral_to_h5", attr=control.spect_to_h5
+        )
+        control.hist_to_csv = self._get_key_value(
+            section=key, data=data, key="histogram_to_csv", attr=control.hist_to_csv
+        )
+        control.hist_to_xlsx = self._get_key_value(
+            section=key, data=data, key="histogram_to_xlsx", attr=control.hist_to_xlsx
+        )
+        control.hist_to_h5 = self._get_key_value(
+            section=key, data=data, key="histogram_to_h5", attr=control.hist_to_h5
+        )
 
         return control
 
-    def _map_loggers_dict(self, data, control):
+    def _map_loggers_dict(self, data, control: Control):
         """Map the config loggers section to the control object for all logger."""
 
         key = "loggers"
@@ -173,7 +185,7 @@ class ProjectConfigJSONFile(QObject):
 
         return control
 
-    def _map_logger_props(self, logger, dict_logger):
+    def _map_logger_props(self, logger: LoggerProperties, dict_logger):
         """Retrieve logger properties from JSON dictionary and map to logger object."""
 
         logger.enabled = self._get_key_value(
@@ -284,7 +296,7 @@ class ProjectConfigJSONFile(QObject):
 
         return logger
 
-    def _map_logger_screening_settings(self, logger, dict_logger):
+    def _map_logger_screening_settings(self, logger: LoggerProperties, dict_logger):
         """Retrieve logger screening settings from JSON dictionary and map to logger object."""
 
         logger.cols_to_process = self._get_key_value(
@@ -423,7 +435,7 @@ class ProjectConfigJSONFile(QObject):
 
         return logger
 
-    def _map_logger_conversion_settings(self, logger, dict_logger):
+    def _map_logger_conversion_settings(self, logger: LoggerProperties, dict_logger):
         """Retrieve logger conversion settings from JSON dictionary and map to logger object."""
 
         logger.process_integration = self._get_key_value(
@@ -468,7 +480,7 @@ class ProjectConfigJSONFile(QObject):
 
         return logger
 
-    def _map_seascatter_dict(self, data, scatter):
+    def _map_seascatter_dict(self, data, scatter: Seascatter):
         """Map the seascatter settings section to the transfer function object."""
 
         key = "seascatter"
@@ -497,7 +509,7 @@ class ProjectConfigJSONFile(QObject):
 
         return scatter
 
-    def _map_transfer_functions_dict(self, data, tf):
+    def _map_transfer_functions_dict(self, data, tf: TransferFunctions):
         """Map the transfer functions settings section to the transfer function object."""
 
         key = "transfer_functions"
@@ -548,7 +560,7 @@ class ProjectConfigJSONFile(QObject):
             self.signal_warning.emit(msg)
             return attr
 
-    def add_general_settings(self, control):
+    def add_general_settings(self, control: Control):
         """Add general settings."""
 
         d = dict()
@@ -563,12 +575,15 @@ class ProjectConfigJSONFile(QObject):
         d["stats_folder"] = control.stats_output_folder
         d["spectral_folder"] = control.spect_output_folder
         d["integration_folder"] = control.integration_output_folder
-        d["stats_to_h5"] = control.stats_to_h5
         d["stats_to_csv"] = control.stats_to_csv
         d["stats_to_xlsx"] = control.stats_to_xlsx
-        d["spectral_to_h5"] = control.spect_to_h5
+        d["stats_to_h5"] = control.stats_to_h5
         d["spectral_to_csv"] = control.spect_to_csv
         d["spectral_to_xlsx"] = control.spect_to_xlsx
+        d["spectral_to_h5"] = control.spect_to_h5
+        d["histogram_to_csv"] = control.hist_to_csv
+        d["histogram_to_xlsx"] = control.hist_to_xlsx
+        d["histogram_to_h5"] = control.hist_to_h5
 
         self.data["general"] = d
 
@@ -599,7 +614,7 @@ class ProjectConfigJSONFile(QObject):
             self.data["loggers"][logger.logger_id] = dict_props
 
     @staticmethod
-    def _add_logger_props(logger, dict_props):
+    def _add_logger_props(logger: LoggerProperties, dict_props):
         """Add control object logger properties to JSON dictionary."""
 
         dict_props["enabled"] = logger.enabled
@@ -627,7 +642,7 @@ class ProjectConfigJSONFile(QObject):
         return dict_props
 
     @staticmethod
-    def _add_logger_screening_settings(logger, dict_props):
+    def _add_logger_screening_settings(logger: LoggerProperties, dict_props):
         """Add control object logger stats and spectral settings to JSON dictionary."""
 
         # Processed columns group
@@ -682,7 +697,7 @@ class ProjectConfigJSONFile(QObject):
         return dict_props
 
     @staticmethod
-    def _add_logger_histogram_settings(logger, dict_props):
+    def _add_logger_histogram_settings(logger: LoggerProperties, dict_props):
         """Add control object logger histogram settings to JSON dictionary."""
 
         dict_props["process_histograms"] = logger.process_hists
@@ -691,7 +706,7 @@ class ProjectConfigJSONFile(QObject):
         return dict_props
 
     @staticmethod
-    def _add_logger_conversion_settings(logger, dict_props):
+    def _add_logger_conversion_settings(logger: LoggerProperties, dict_props):
         """Add control object logger conversion settings to JSON dictionary."""
 
         dict_props["process_integration"] = logger.process_integration
@@ -705,7 +720,7 @@ class ProjectConfigJSONFile(QObject):
 
         return dict_props
 
-    def add_seascatter_settings(self, scatter):
+    def add_seascatter_settings(self, scatter: Seascatter):
         """Add seascatter settings."""
 
         d = dict()
@@ -717,7 +732,7 @@ class ProjectConfigJSONFile(QObject):
 
         self.data["seascatter"] = d
 
-    def add_transfer_functions_settings(self, tf):
+    def add_transfer_functions_settings(self, tf: TransferFunctions):
         """Add transfer functions settings."""
 
         d = dict()

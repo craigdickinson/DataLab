@@ -24,17 +24,15 @@ class SpectralScreening(object):
         # To store spectrograms for all datasets to load to gui
         self.dict_spectrograms = {}
 
-        # Create dictionary of True/False flags of spectrogram file formats to create
+        # Dictionary of True/False flags of spectrogram output file formats to create
         self.dict_spect_export_formats = dict(
-            h5=self.control.spect_to_h5,
-            csv=self.control.spect_to_csv,
-            xlsx=self.control.spect_to_xlsx,
+            csv=control.spect_to_csv, xlsx=control.spect_to_xlsx, h5=control.spect_to_h5,
         )
 
     def init_logger_spect(self, logger_id):
         """Set new spectral objects for processing a new logger."""
 
-        # Initialise logger spectrograms objects
+        # Initialise logger spectrogram objects
         self.spect_unfilt = Spectrogram(logger_id, self.control.spect_output_path)
         self.spect_filt = Spectrogram(logger_id, self.control.spect_output_path)
 
@@ -119,7 +117,7 @@ class SpectralScreening(object):
 
 
 class Spectrogram(object):
-    """Routines to read pandas data frames and construct spectrograms."""
+    """Routines to read pandas dataframes and construct spectrograms."""
 
     def __init__(self, logger_id="", output_dir=""):
         self.logger_id = logger_id
@@ -288,10 +286,6 @@ class Spectrogram(object):
             file_stem = file_stem.replace("/", "")
             file_stem = file_stem.replace(" ", "_")
 
-            # Create directory if does not exist
-            if self.output_dir != "" and os.path.exists(self.output_dir) is False:
-                os.makedirs(self.output_dir)
-
             # Check shape of spect data is valid - if contains only one event need to reshape
             try:
                 # Check second dimension exists
@@ -309,12 +303,6 @@ class Spectrogram(object):
             dict_df[key2] = df
 
             # Export channel spectrogram data to file
-            if dict_formats_to_write["h5"] is True:
-                # Note HDF5 files should use a contiguous key name
-                filename = file_stem + ".h5"
-                filepath = os.path.join(self.output_dir, filename)
-                df.to_hdf(filepath, key, mode="w")
-                self.output_files.append(self.output_folder + "/" + filename)
             if dict_formats_to_write["csv"] is True:
                 filename = file_stem + ".csv"
                 filepath = os.path.join(self.output_dir, filename)
@@ -331,6 +319,12 @@ class Spectrogram(object):
 
                 df.to_excel(writer, sheet_name=key)
                 writer.save()
+                self.output_files.append(self.output_folder + "/" + filename)
+            if dict_formats_to_write["h5"] is True:
+                # Note HDF5 files should use a contiguous key name
+                filename = file_stem + ".h5"
+                filepath = os.path.join(self.output_dir, filename)
+                df.to_hdf(filepath, key, mode="w")
                 self.output_files.append(self.output_folder + "/" + filename)
 
         return dict_df
