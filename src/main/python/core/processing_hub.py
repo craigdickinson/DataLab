@@ -308,7 +308,7 @@ class ProcessingHub(QObject):
             # Calculate aggregate histogram for each column
             histograms.calc_aggregate_histograms()
 
-            # Store dataset histograms
+            # Append column histograms dictionary to dataset dictionary
             self.dict_histograms[logger_id] = histograms.dict_df_col_hists
 
             # Export dataset histograms

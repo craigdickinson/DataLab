@@ -36,23 +36,34 @@ class HistogramDashboard(QtWidgets.QWidget):
         self.parent = parent
         plt.style.use("seaborn")
 
-        self.datasets = {}
+        # Histogram data and widget lists
+        self.dict_datasets = {}
         self.dataset_ids = []
-        self.columns = []
-        self.files = []
+        self.dataset_cols = []
+        self.hist_cols = []
+
+        self.keep_dataset_column_index = False
+
+        # Selected plot data parameters
+        self.dataset = ""
+        self.dataset_i = 0
+        self.dataset_col = ""
+        self.dataset_col_i = 0
+        self.hist_col = ""
+        self.hist_col_i = 0
         self.df_hist = pd.DataFrame()
 
-        self.init_ui()
-        self.connect_signals()
+        self._init_ui()
+        self._connect_signals()
 
-    def init_ui(self):
+    def _init_ui(self):
         # WIDGETS
-        self.openHistFileButton = QtWidgets.QPushButton("Open Histograms File...")
+        self.openHistFileButton = QtWidgets.QPushButton("Open Histograms...")
         self.openHistFileButton.setToolTip("Open histograms file")
         self.clearDatasetsButton = QtWidgets.QPushButton("Clear Datasets")
         self.datasetCombo = QtWidgets.QComboBox()
         self.columnCombo = QtWidgets.QComboBox()
-        self.histogramsList = QtWidgets.QListWidget()
+        self.histogramList = QtWidgets.QListWidget()
 
         # Labels
         self.lblDataset = QtWidgets.QLabel("Dataset:")
@@ -77,7 +88,7 @@ class HistogramDashboard(QtWidgets.QWidget):
         self.vboxSetup.addWidget(self.clearDatasetsButton)
         self.vboxSetup.addLayout(self.form)
         self.vboxSetup.addWidget(self.lblHistograms)
-        self.vboxSetup.addWidget(self.histogramsList)
+        self.vboxSetup.addWidget(self.histogramList)
 
         # Plot container
         self.plotWidget = QtWidgets.QWidget()
@@ -95,75 +106,88 @@ class HistogramDashboard(QtWidgets.QWidget):
         self.layout = QtWidgets.QHBoxLayout(self)
         self.layout.addWidget(splitter)
 
-    def connect_signals(self):
+    def _connect_signals(self):
         self.openHistFileButton.clicked.connect(self.on_open_histogram_file_clicked)
-        self.histogramsList.itemDoubleClicked.connect(self.on_histogram_file_double_clicked)
+        self.datasetCombo.currentIndexChanged.connect(self.on_dataset_combo_changed)
+        self.columnCombo.currentIndexChanged.connect(self.on_column_combo_changed)
+        self.histogramList.itemDoubleClicked.connect(self.on_histogram_double_clicked)
 
     def on_open_histogram_file_clicked(self):
         self.parent.open_wcfat_damage_file()
 
-    def on_histogram_file_double_clicked(self):
-        self.plot_histogram()
+    def on_dataset_combo_changed(self):
+        if self.datasetCombo.currentIndex() == -1:
+            return
 
-    def process_fatigue_damage_file(self, df_dam):
-        # Backup original fatigue damage file
-        self.df_dam_per_yr = df_dam.copy()
-        self.update_histograms_list(fatigue_locs=df_dam.columns)
+        # Don't set flag is first column item not selected else plot will not be created upon
+        # initial loading of datasets
+        if self.columnCombo.currentIndex() > 1:
+            self.keep_dataset_column_index = True
 
-        # Determine the duration of each file (in minutes)
-        self.event_length = self.get_event_length(df_dam)
+        self.dataset = self.datasetCombo.currentText()
+        self.dataset_i = self.datasetCombo.currentIndex()
+        self.update_column_combo()
 
-        # Rescale reported fatigue damage rate
-        self.df_dam_per_event = self.rescale_damage_rate(df_dam, period=self.event_length)
+    def on_column_combo_changed(self):
+        if self.columnCombo.currentIndex() == -1:
+            return
 
-        if self.scale_dam_rate_to_event_len is True:
-            self.df_dam = self.df_dam_per_event
-        else:
-            self.df_dam = self.df_dam_per_yr
+        # This flag prevents the plot being updated twice when changing the dataset combo
+        # selection and the column item, which we wish to keep fixed is not the first item
+        # (since the column gets set to 0-index on repopulating the combo before i-index)
+        if self.keep_dataset_column_index is True:
+            self.keep_dataset_column_index = False
+            return
 
-        # Calculate cumulative fatigue damage and plot damage rate and CFD
-        self.df_cfd = self.df_dam_per_event.cumsum()
-        self.plot_histogram()
+        self.dataset_col = self.columnCombo.currentText()
+        self.dataset_col_i = self.columnCombo.currentIndex()
+        self.update_histogram_list()
 
-    def add_datasets(self, datasets):
+    def on_histogram_double_clicked(self):
+        self.dataset_col = self.columnCombo.currentText()
+        self.dataset_col_i = self.columnCombo.currentIndex()
+        self.hist_col = self.histogramList.currentItem().text()
+        self.hist_col_i = self.histogramList.currentRow()
+
+        # Retrieve dataframe of load case histograms for a given dataset and column
+        df_histogram = self.dict_datasets[self.dataset][self.dataset_col]
+        self.plot_histogram(df_histogram)
+
+    def update_dataset_combo(self, datasets):
         """Add datasets to combo."""
 
         self.dataset_ids = datasets
+        self.dataset = datasets[0]
         self.datasetCombo.clear()
         self.datasetCombo.addItems(datasets)
 
-    def update_columns_combo(self):
-        """Update columns combo for selected dataset."""
+    def update_column_combo(self):
+        """Update column combo for selected dataset."""
 
-        id = self.datasetCombo.currentText()
-        dataset = self.datasets[id]
-        self.columns = list(dataset.keys())
+        dict_dataset = self.dict_datasets[self.dataset]
+        self.dataset_cols = list(dict_dataset.keys())
         self.columnCombo.clear()
-        self.columnCombo.addItems(self.columns)
+        self.columnCombo.addItems(self.dataset_cols)
+        self.columnCombo.setCurrentIndex(self.dataset_col_i)
 
-        # Store files
-        df = dataset[self.columns[0]]
-        self.files = df.columns.tolist()
+    def update_histogram_list(self):
+        df_histogram = self.dict_datasets[self.dataset][self.dataset_col]
+        self.hist_cols = df_histogram.columns.tolist()
+        self.hist_col = self.hist_cols[self.hist_col_i]
+        self.histogramList.clear()
+        self.histogramList.addItems(self.hist_cols)
+        self.histogramList.setCurrentRow(self.hist_col_i)
+        self.plot_histogram(df_histogram)
 
-        self.update_histograms_list()
-
-    def update_histograms_list(self):
-        self.histogramsList.clear()
-        self.histogramsList.addItems(self.files)
-        self.histogramsList.setCurrentRow(0)
-
-    def plot_histogram(self):
-        if self.histogramsList.count() == 0:
+    def plot_histogram(self, df_histogram: pd.DataFrame):
+        if self.histogramList.count() == 0:
             return
 
-        hist_name = self.histogramsList.currentItem().text()
-
-        df = self.datasets[self.dataset_ids[0]][self.columns[0]]
-        x = df.index.values
-        y = df[hist_name].values
+        x = df_histogram.index.values
+        y = df_histogram[self.hist_col].values
         try:
             width = x[1] - x[0]
-        except:
+        except IndexError:
             width = 0.1
 
         ax = self.ax
@@ -171,14 +195,13 @@ class HistogramDashboard(QtWidgets.QWidget):
 
         # Fatigue damage rate plot
         ax.bar(x, y, width=width, align="edge")
-        ax.set_xlabel("Range Bins")
+        ax.set_xlabel("Bins")
         ax.set_ylabel("Number of Cycles")
-        title = "Rainflow Counting Histogram"
-        ax.set_title(title)
         ax.margins(0)
 
         self._set_title()
-        self.fig.tight_layout(rect=[0, 0, 1, 0.9])
+        # self.fig.tight_layout(rect=[0, 0, 1, 0.9])
+        self.fig.tight_layout()
         self.canvas.draw()
 
     def _set_title(self):
@@ -193,9 +216,10 @@ class HistogramDashboard(QtWidgets.QWidget):
         if campaign_name == "":
             campaign_name = "Campaign Title"
 
-        fat_loc = self.histogramsList.currentItem().text()
+        fat_loc = f"{self.dataset} {self.dataset_col} - {self.hist_col} Histogram"
         title = f"{project_name} - {campaign_name}\n{fat_loc}"
-        self.fig.suptitle(title, **title_args)
+        # self.fig.suptitle(title, **title_args)
+        self.ax.set_title(title, **title_args)
 
 
 # For testing layout

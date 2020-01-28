@@ -76,7 +76,7 @@ class DataLabGui(QtWidgets.QMainWindow):
         self.fatigueModule = QtWidgets.QTabWidget()
         self.histogramsTab = HistogramDashboard(self)
         self.fatigueTab = FatigueDashboard(self)
-        self.fatigueModule.addTab(self.histogramsTab, "Rainflow Counting Histograms")
+        self.fatigueModule.addTab(self.histogramsTab, "Histograms")
         self.fatigueModule.addTab(self.fatigueTab, "2HFATLASA")
 
         # Add stacked widgets

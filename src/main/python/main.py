@@ -1,7 +1,7 @@
 __author__ = "Craig Dickinson"
 __program__ = "DataLab"
-__version__ = "2.1.0.11"
-__date__ = "27 January 2020"
+__version__ = "2.1.0.12"
+__date__ = "28 January 2020"
 
 import logging
 import os
@@ -658,19 +658,19 @@ class DataLab(DataLabGui):
             self.vesselStatsTab.set_plot_data(init=True)
             self.vesselStatsTab.update_plots()
 
-        # Store spectrogram datasets to spectral dashboard and create an initial plot
+        # Map spectrogram datasets to spectral dashboard
         if screening.dict_spectrograms:
             self.spectrogramTab.datasets = screening.dict_spectrograms
             dataset_ids = list(screening.dict_spectrograms.keys())
             self.spectrogramTab.append_multiple_spect_to_datasets_list(dataset_ids)
             self.spectrogramTab.create_plots(set_init_xlim=True)
 
-        # Store histograms datasets to rainflow histogram dashboard
+        # Map histogram datasets to histogram dashboard
         if screening.dict_histograms:
-            self.histogramsTab.datasets = screening.dict_histograms
+            self.histogramsTab.dict_datasets = screening.dict_histograms
             dataset_ids = list(screening.dict_histograms.keys())
-            self.histogramsTab.add_datasets(dataset_ids)
-            self.histogramsTab.update_columns_combo()
+            self.histogramsTab.update_dataset_combo(dataset_ids)
+            # self.histogramsTab.update_column_combo()
 
     def calc_seascatter(self):
         """Create seascatter diagram if vessel stats data is loaded."""
