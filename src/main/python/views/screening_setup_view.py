@@ -68,8 +68,9 @@ class ScreeningSetupTab(QtWidgets.QWidget):
         # Histogram settings
         self.processHistogramsChkBox = QtWidgets.QCheckBox("Include in processing")
         self.processHistogramsChkBox.setChecked(True)
-        self.histogramFolder = QtWidgets.QLabel()
-        self.binSize = QtWidgets.QLabel("-")
+        self.histFolder = QtWidgets.QLabel()
+        self.histBinSizes = QtWidgets.QLabel("-")
+        self.histNumBins = QtWidgets.QLabel("-")
         self.histCSVChkBox = QtWidgets.QCheckBox(".csv")
         self.histCSVChkBox.setChecked(True)
         self.histXLSXChkBox = QtWidgets.QCheckBox(".xlsx")
@@ -147,8 +148,9 @@ class ScreeningSetupTab(QtWidgets.QWidget):
         self.histGroup.setMinimumWidth(250)
         self.histForm = QtWidgets.QFormLayout(self.histGroup)
         self.histForm.addRow(self.processHistogramsChkBox, QtWidgets.QLabel(""))
-        self.histForm.addRow(QtWidgets.QLabel("Output folder:"), self.histogramFolder)
-        self.histForm.addRow(QtWidgets.QLabel("Bin size:"), self.binSize)
+        self.histForm.addRow(QtWidgets.QLabel("Output folder:"), self.histFolder)
+        self.histForm.addRow(QtWidgets.QLabel("Bin sizes:"), self.histBinSizes)
+        self.histForm.addRow(QtWidgets.QLabel("Number of bins:"), self.histNumBins)
 
         # Histogram output file formats group
         self.histOutputGroup = QtWidgets.QGroupBox("Histogram Output File Formats")
@@ -331,8 +333,11 @@ class ScreeningSetupTab(QtWidgets.QWidget):
         self.spectXLSXChkBox.setChecked(self.control.spect_to_xlsx)
 
         # Histogram settings
-        self.binSize.setText(str(logger.bin_size))
-        self.histogramFolder.setText(self.control.hist_output_folder)
+        bin_sizes_str = " ".join([str(i) for i in logger.channel_bin_sizes])
+        self.histBinSizes.setText(bin_sizes_str)
+        num_bins_str = " ".join([str(i) for i in logger.channel_num_bins])
+        self.histNumBins.setText(num_bins_str)
+        self.histFolder.setText(self.control.hist_output_folder)
         self.histH5ChkBox.setChecked(self.control.hist_to_h5)
         self.histCSVChkBox.setChecked(self.control.hist_to_csv)
         self.histXLSXChkBox.setChecked(self.control.hist_to_xlsx)
@@ -369,7 +374,7 @@ class ScreeningSetupTab(QtWidgets.QWidget):
         self.psdOverlap.setText(f"{logger.psd_overlap:.1f}")
 
     def clear_dashboard(self):
-        """Initialise all values in stats and spectral analysis dashboard."""
+        """Initialise all parameters in screening settings dashboard."""
 
         self.columns.setText("-")
         self.unitConvs.setText("-")
@@ -386,8 +391,11 @@ class ScreeningSetupTab(QtWidgets.QWidget):
         self.psdNperseg.setText("-")
         self.psdWindow.setText("-")
         self.psdOverlap.setText("-")
+        self.histBinSizes.setText("-")
+        self.histNumBins.setText("-")
         self.statsFolder.setText("Statistics")
         self.spectFolder.setText("Spectrograms")
+        self.histFolder.setText("Histograms")
 
     def set_process_date_labels(self, file_timestamp_embedded):
         """Set process start and end labels to refer to dates or file indexes depending on setup of current logger."""
@@ -508,12 +516,19 @@ class EditScreeningSetupDialog(QtWidgets.QDialog):
         self.psdOverlap.setToolTip("Percentage of points to overlap each PSD segment.")
         self.psdOverlap.setValidator(dbl_validator)
 
-        # Rainflow cycle histogram settings
+        # Histogram settings
         self.histFolder = QtWidgets.QLineEdit()
         self.histFolder.setFixedWidth(210)
-        self.binSize = QtWidgets.QLineEdit()
-        self.binSize.setFixedWidth(50)
-        self.binSize.setValidator(dbl_validator)
+        self.histBinSizes = QtWidgets.QLineEdit()
+        self.histBinSizes.setToolTip(
+            "SPACE-separated number of bins per channel.\n" "E.g. 0.01 0.01 0.01 0.01."
+        )
+        # self.binSize.setFixedWidth(50)
+        # self.binSize.setValidator(dbl_validator)
+        self.histNumBins = QtWidgets.QLineEdit()
+        self.histNumBins.setToolTip(
+            "SPACE-separated number of bins per channel.\n" "E.g. 10 10 10 10."
+        )
 
         # Labels
         self.lblCopy = QtWidgets.QLabel("Logger to copy:")
@@ -534,8 +549,9 @@ class EditScreeningSetupDialog(QtWidgets.QDialog):
         self.lblPsdWindow = QtWidgets.QLabel("Window:")
         self.lblPsdOverlap = QtWidgets.QLabel("Segment overlap (%):")
 
-        self.lblRainflowFolder = QtWidgets.QLabel("Output folder:")
-        self.lblBinSize = QtWidgets.QLabel("Cycle histogram bin size:")
+        self.lblHistFolder = QtWidgets.QLabel("Output folder:")
+        self.lblBinSize = QtWidgets.QLabel("Bin size per channel:")
+        self.lblNumBins = QtWidgets.QLabel("Number bins per channel:")
 
         # Set appropriate process start and end input depending on whether filenames include timestamps
         if self.logger.file_timestamp_embedded is True:
@@ -607,11 +623,12 @@ class EditScreeningSetupDialog(QtWidgets.QDialog):
         self.spectForm.addRow(self.lblPsdWindow, self.psdWindowCombo)
         self.spectForm.addRow(self.lblPsdOverlap, self.psdOverlap)
 
-        # Rainflow histograms group
-        self.rainflowGroup = QtWidgets.QGroupBox("Rainflow Cycle Histogram Settings")
-        self.rainflowForm = QtWidgets.QFormLayout(self.rainflowGroup)
-        self.rainflowForm.addRow(self.lblRainflowFolder, self.histFolder)
-        self.rainflowForm.addRow(self.lblBinSize, self.binSize)
+        # Histograms group
+        self.histGroup = QtWidgets.QGroupBox("Histogram Settings")
+        self.histForm = QtWidgets.QFormLayout(self.histGroup)
+        self.histForm.addRow(self.lblHistFolder, self.histFolder)
+        self.histForm.addRow(self.lblBinSize, self.histBinSizes)
+        self.histForm.addRow(self.lblNumBins, self.histNumBins)
 
         self.buttonBox = QtWidgets.QDialogButtonBox(
             QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel
@@ -630,7 +647,7 @@ class EditScreeningSetupDialog(QtWidgets.QDialog):
         self.layout.addLayout(self.hboxRangeAndFilters)
         self.layout.addWidget(self.statsGroup)
         self.layout.addWidget(self.spectGroup)
-        self.layout.addWidget(self.rainflowGroup)
+        self.layout.addWidget(self.histGroup)
         self.layout.addWidget(self.buttonBox)
 
     def _connect_signals(self):
@@ -709,8 +726,11 @@ class EditScreeningSetupDialog(QtWidgets.QDialog):
         self.psdWindowCombo.setCurrentText(logger.psd_window)
         self.psdOverlap.setText(f"{logger.psd_overlap:.1f}")
 
-        # Rainflow histograms settings
-        self.binSize.setText(str(logger.bin_size))
+        # Histograms settings
+        bin_sizes = " ".join([str(i) for i in logger.channel_bin_sizes])
+        self.histBinSizes.setText(bin_sizes)
+        num_bins = " ".join([str(i) for i in logger.channel_num_bins])
+        self.histNumBins.setText(num_bins)
 
         # Folders - global control settings
         self.statsFolder.setText(self.control.stats_output_folder)
@@ -775,6 +795,7 @@ class EditScreeningSetupDialog(QtWidgets.QDialog):
             return
 
         # Retrieve control logger to map confirmed settings to
+        logger: LoggerProperties
         logger = self.control.loggers[self.logger_idx]
 
         # Processed columns group
@@ -871,7 +892,7 @@ class EditScreeningSetupDialog(QtWidgets.QDialog):
             logger.low_cutoff_freq = float(self.lowCutoff.text())
             if logger.low_cutoff_freq == 0:
                 logger.low_cutoff_freq = None
-        except:
+        except ValueError:
             logger.low_cutoff_freq = None
 
         # High cut-off freq
@@ -879,7 +900,7 @@ class EditScreeningSetupDialog(QtWidgets.QDialog):
             logger.high_cutoff_freq = float(self.highCutoff.text())
             if logger.high_cutoff_freq == 0:
                 logger.high_cutoff_freq = None
-        except:
+        except ValueError:
             logger.high_cutoff_freq = None
 
         # Store combo box index of data to screen on selection
@@ -906,18 +927,34 @@ class EditScreeningSetupDialog(QtWidgets.QDialog):
 
             if logger.psd_nperseg == 0 or logger.psd_nperseg > num_pts:
                 logger.psd_nperseg = num_pts
-        except:
+        except ValueError:
             logger.psd_nperseg = num_pts
 
         logger.psd_window = self.psdWindowCombo.currentText()
 
         try:
             logger.psd_overlap = float(self.psdOverlap.text())
-        except:
+        except ValueError:
             logger.psd_overlap = 50
 
-        # Rainflow histograms settings
-        logger.bin_size = float(self.binSize.text())
+        # Histogram settings
+        try:
+            logger.channel_bin_sizes = [float(i) for i in self.histBinSizes.text().split()]
+        except ValueError:
+            msg = (
+                "Histogram bin sizes must be numeric.\n"
+                "Separate each input with a space, e.g. 0.001 0.001 0.001 0.001."
+            )
+            QtWidgets.QMessageBox.information(self, "Invalid Histogram Bins Sizes Input", msg)
+
+        try:
+            logger.channel_num_bins = [int(i) for i in self.histNumBins.text().split()]
+        except ValueError:
+            msg = (
+                "Histogram number of bins must be numeric.\n"
+                "Separate each input with a space, e.g. 10 10 10 10."
+            )
+            QtWidgets.QMessageBox.information(self, "Invalid Histogram Bins Sizes Input", msg)
 
         # Output folders - store as global control settings
         self.control.stats_output_folder = self.statsFolder.text()

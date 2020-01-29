@@ -5,10 +5,9 @@ __author__ = "Craig Dickinson"
 import sys
 
 import matplotlib.pyplot as plt
-import matplotlib.dates as mdates
 import numpy as np
 import pandas as pd
-from PyQt5 import QtCore, QtWidgets
+from PyQt5 import QtWidgets
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 
@@ -36,13 +35,18 @@ class HistogramDashboard(QtWidgets.QWidget):
         self.parent = parent
         plt.style.use("seaborn")
 
+        # Container for data screen object of each processed logger
+        self.data_screen_sets = []
+
         # Histogram data and widget lists
         self.dict_datasets = {}
-        self.dataset_ids = []
-        self.dataset_cols = []
-        self.hist_cols = []
 
-        self.keep_dataset_column_index = False
+        # Channel units for every processed dataset
+        self.dict_dataset_units = {}
+
+        # Flags to control processing combo box selection changes
+        self.user_changed_dataset = False
+        self.user_changed_column = False
 
         # Selected plot data parameters
         self.dataset = ""
@@ -119,29 +123,32 @@ class HistogramDashboard(QtWidgets.QWidget):
         if self.datasetCombo.currentIndex() == -1:
             return
 
-        # Don't set flag is first column item not selected else plot will not be created upon
-        # initial loading of datasets
-        if self.columnCombo.currentIndex() > 1:
-            self.keep_dataset_column_index = True
+        if self.user_changed_column is True:
+            return
 
+        self.user_changed_dataset = True
         self.dataset = self.datasetCombo.currentText()
         self.dataset_i = self.datasetCombo.currentIndex()
         self.update_column_combo()
+        df_histogram = self.dict_datasets[self.dataset][self.dataset_col]
+        self.update_histogram_list(df_histogram)
+        self.plot_histogram(df_histogram)
+        self.user_changed_dataset = False
 
     def on_column_combo_changed(self):
         if self.columnCombo.currentIndex() == -1:
             return
 
-        # This flag prevents the plot being updated twice when changing the dataset combo
-        # selection and the column item, which we wish to keep fixed is not the first item
-        # (since the column gets set to 0-index on repopulating the combo before i-index)
-        if self.keep_dataset_column_index is True:
-            self.keep_dataset_column_index = False
+        if self.user_changed_dataset is True:
             return
 
+        self.user_changed_column = True
         self.dataset_col = self.columnCombo.currentText()
         self.dataset_col_i = self.columnCombo.currentIndex()
-        self.update_histogram_list()
+        df_histogram = self.dict_datasets[self.dataset][self.dataset_col]
+        self.update_histogram_list(df_histogram)
+        self.plot_histogram(df_histogram)
+        self.user_changed_column = False
 
     def on_histogram_double_clicked(self):
         self.dataset_col = self.columnCombo.currentText()
@@ -153,10 +160,17 @@ class HistogramDashboard(QtWidgets.QWidget):
         df_histogram = self.dict_datasets[self.dataset][self.dataset_col]
         self.plot_histogram(df_histogram)
 
+    def store_dataset_units(self, data_screen_sets):
+        """Retrieve units from data screen objects."""
+
+        self.dict_dataset_units = {
+            data_screen.logger_id: data_screen.logger.channel_units
+            for data_screen in data_screen_sets
+        }
+
     def update_dataset_combo(self, datasets):
         """Add datasets to combo."""
 
-        self.dataset_ids = datasets
         self.dataset = datasets[0]
         self.datasetCombo.clear()
         self.datasetCombo.addItems(datasets)
@@ -165,19 +179,17 @@ class HistogramDashboard(QtWidgets.QWidget):
         """Update column combo for selected dataset."""
 
         dict_dataset = self.dict_datasets[self.dataset]
-        self.dataset_cols = list(dict_dataset.keys())
         self.columnCombo.clear()
-        self.columnCombo.addItems(self.dataset_cols)
+        self.columnCombo.addItems(list(dict_dataset.keys()))
         self.columnCombo.setCurrentIndex(self.dataset_col_i)
+        self.dataset_col = self.columnCombo.currentText()
 
-    def update_histogram_list(self):
-        df_histogram = self.dict_datasets[self.dataset][self.dataset_col]
-        self.hist_cols = df_histogram.columns.tolist()
-        self.hist_col = self.hist_cols[self.hist_col_i]
+    def update_histogram_list(self, df_histogram: pd.DataFrame):
+        hist_cols = df_histogram.columns.tolist()
+        self.hist_col = hist_cols[self.hist_col_i]
         self.histogramList.clear()
-        self.histogramList.addItems(self.hist_cols)
+        self.histogramList.addItems(hist_cols)
         self.histogramList.setCurrentRow(self.hist_col_i)
-        self.plot_histogram(df_histogram)
 
     def plot_histogram(self, df_histogram: pd.DataFrame):
         if self.histogramList.count() == 0:
@@ -185,6 +197,7 @@ class HistogramDashboard(QtWidgets.QWidget):
 
         x = df_histogram.index.values
         y = df_histogram[self.hist_col].values
+        units = self.dict_dataset_units[self.dataset][self.dataset_col_i]
         try:
             width = x[1] - x[0]
         except IndexError:
@@ -195,7 +208,7 @@ class HistogramDashboard(QtWidgets.QWidget):
 
         # Fatigue damage rate plot
         ax.bar(x, y, width=width, align="edge")
-        ax.set_xlabel("Bins")
+        ax.set_xlabel(f"Bins ({units})")
         ax.set_ylabel("Number of Cycles")
         ax.margins(0)
 

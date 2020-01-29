@@ -18,7 +18,9 @@ class Histograms(object):
         self.output_path = control.hist_output_path
         self.dict_df_col_hists = {}
         self.channels = []
-        self.bin_size = 0.001
+        self.units = []
+        self.channel_bin_sizes = []
+        self.channel_num_bins = []
 
         # If writing stats HDF5 file, stats for all loggers are written to the same file
         # Set write mode to write new file for first logger then append for all others
@@ -33,7 +35,9 @@ class Histograms(object):
     def init_dataset(self, data_screen: DataScreen):
         self.logger_id = data_screen.logger_id
         self.channels = data_screen.logger.channel_names
-        self.bin_size = data_screen.logger.bin_size
+        self.units = data_screen.logger.channel_units
+        self.channel_bin_sizes = data_screen.logger.channel_bin_sizes
+        self.channel_num_bins = data_screen.logger.channel_num_bins
         self.dict_df_col_hists = {channel: pd.DataFrame() for channel in self.channels}
 
     def calc_histograms(self, df_file, data_screen: DataScreen, file_num):
@@ -41,7 +45,13 @@ class Histograms(object):
 
         # Select stored columns here as we don't want to include the timestamp column
         self.dict_df_col_hists = dataframe_histogram(
-            self.dict_df_col_hists, file_num, df_file, self.channels, self.bin_size
+            self.dict_df_col_hists,
+            file_num,
+            df_file,
+            self.channels,
+            self.units,
+            self.channel_bin_sizes,
+            self.channel_num_bins,
         )
         data_screen.histograms_processed = True
 
@@ -71,28 +81,47 @@ class Histograms(object):
             self.h5_write_mode = "a"
 
 
-def dataframe_histogram(dict_df_col_hists, j, df, columns, bin_size=1):
+def dataframe_histogram(
+    dict_df_col_hists, j, df, columns, units, channel_bin_sizes=[1], channel_num_bins=[None]
+):
     """Calculate rainflow counting histogram for each channel in dataframe."""
 
     # Calculate (binned) histogram for each column using rainflow counting
-    for col in columns:
+    for i, col in enumerate(columns):
+        # Retrieve bin size and num bins
+        # If bin size for column i is empty, default to last bin size in list
+        try:
+            bin_size = channel_bin_sizes[i]
+        except IndexError:
+            if channel_bin_sizes:
+                bin_size = channel_bin_sizes[-1]
+            else:
+                bin_size = None
+
+        # Check for user supplied number of bins
+        try:
+            num_bins = channel_num_bins[i]
+        except IndexError:
+            num_bins = None
+
         # Get histogram for column i
         y = df[col].values.flatten()
-        bin_edges, hist = histogram(y, bin_size)
+        bin_edges, hist = histogram(y, bin_size, num_bins)
 
-        # Convert to dataframe - index with lower bound bins
-        df_temp = pd.DataFrame(hist, index=bin_edges[:-1], columns=[f"File {j}"])
-        df_temp.index.name = "Bins"
+        # Add histogram to dataframe
+        if hist.size > 0:
+            # Convert to dataframe - index with lower bound bins
+            df_temp = pd.DataFrame(hist, index=bin_edges[:-1], columns=[f"File {j}"])
+            df_temp.index.name = f"Bins ({units[i]})"
 
-        # Join to existing dataframe
-        # dict_df_col_hists.setdefault(col, df_temp)
-        df_hist = dict_df_col_hists[col]
-        dict_df_col_hists[col] = df_hist.join(df_temp, how="outer")
+            # Join to existing dataframe
+            df_hist = dict_df_col_hists[col]
+            dict_df_col_hists[col] = df_hist.join(df_temp, how="outer")
 
     return dict_df_col_hists
 
 
-def histogram(y, bin_size=1):
+def histogram(y, bin_size=1, num_bins=None):
     """
     Compute rainflow counting histogram of time series y.
     Three stages:
@@ -102,7 +131,16 @@ def histogram(y, bin_size=1):
     """
 
     ranges, cycles = rainflow_cycles(y)
-    num_bins = number_of_bins(ranges[-1], bin_size)
+
+    if bin_size is None and num_bins is None:
+        return np.array([]), np.array([])
+
+    if bin_size is None:
+        bin_size = calc_bin_size(ranges[-1], num_bins)
+
+    if num_bins is None:
+        num_bins = calc_number_of_bins(ranges[-1], bin_size)
+
     bin_edges, hist = bin_cycles(ranges, cycles, num_bins, bin_size)
 
     return bin_edges, hist
@@ -122,8 +160,17 @@ def rainflow_cycles(y):
     return cycle_range, num_cycles
 
 
-def number_of_bins(last_range, bin_size=1):
-    """Use last range and bin size to get number of bins required in histogram."""
+def calc_bin_size(last_range, num_bins=10):
+    """Use last range and number of bins to calculate bins size to use in histogram."""
+
+    #  Round up to 3dp
+    bin_size = round_up(last_range / num_bins, decimals=3)
+
+    return bin_size
+
+
+def calc_number_of_bins(last_range, bin_size=1):
+    """Use last range and bin size to calculate number of bins required in histogram."""
 
     if last_range == bin_size:
         num_bins = np.ceil(last_range / bin_size).astype(int)
@@ -237,6 +284,11 @@ def calc_damage(stress_ranges, stress_cycles, SN):
 
 def calc_transition_stress(a, n_trans, k):
     return (a / n_trans) ** (1 / k)
+
+
+def round_up(n, decimals=0):
+    multiplier = 10 ** decimals
+    return np.ceil(n * multiplier) / multiplier
 
 
 if __name__ == "__main__":

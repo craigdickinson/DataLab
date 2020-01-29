@@ -1,7 +1,7 @@
 __author__ = "Craig Dickinson"
 __program__ = "DataLab"
-__version__ = "2.1.0.12"
-__date__ = "28 January 2020"
+__version__ = "2.1.0.13"
+__date__ = "29 January 2020"
 
 import logging
 import os
@@ -15,6 +15,7 @@ from fbs_runtime.application_context.PyQt5 import ApplicationContext
 
 # import datalab_gui_layout
 from core.control import InputError
+from core.custom_exception_logger import set_exception_logger
 from core.logger_properties import LoggerError, LoggerWarning
 from core.processing_hub import ProcessingHub
 from core.read_files import (
@@ -26,42 +27,10 @@ from core.read_files import (
     read_stats_hdf5,
 )
 from core.read_files import read_wcfat_results
+from views.input_data_view import AzureAccountSetupDialog
 from views.main_window_view import DataLabGui
 from views.processing_progress_view import ProcessingProgressBar
-from views.input_data_view import AzureAccountSetupDialog
 from views.stats_view import StatsDataset
-
-
-def set_exception_logger():
-    """
-    Function to create a custom exception logging instance.
-    Two handlers are created for reporting exceptions to the console and a log file.
-    """
-
-    log_file = os.path.join(os.getcwd(), "log.out")
-    # logging.basicConfig(filename=log_file)
-
-    logger = logging.getLogger(__name__)
-    logger.setLevel(logging.DEBUG)
-
-    # Console logger
-    ch = logging.StreamHandler()
-    ch.setLevel(logging.DEBUG)
-    formatter = logging.Formatter("%(message)s")
-    ch.setFormatter(formatter)
-
-    # File logger
-    fh = logging.FileHandler(log_file)
-    fh.setLevel(logging.DEBUG)
-    formatter = logging.Formatter(
-        "%(asctime)s :: %(name)s - %(message)s", datefmt="%m/%d/%Y %H:%M:%S"
-    )
-    fh.setFormatter(formatter)
-
-    logger.addHandler(ch)
-    logger.addHandler(fh)
-
-    return logger
 
 
 class DataLab(DataLabGui):
@@ -70,11 +39,12 @@ class DataLab(DataLabGui):
     def __init__(self):
         super().__init__()
 
-        # Override exception hook to use my function
+        # Override exception hook function to use my exception handling function
         # Ensures all exceptions are handled if not covered by try/except
         sys.excepthook = self.log_uncaught_exceptions
 
-        self.err_logger = set_exception_logger()
+        # Create custom exception logger
+        self.log = set_exception_logger()
 
         self.version = __version__
         self.setWindowTitle(f"DataLab {self.version}")
@@ -84,8 +54,8 @@ class DataLab(DataLabGui):
         self._connect_child_signals()
         self.view_proj_config_mod()
 
-        # Dummy placeholder for Screening class (main processor)
-        self.screening = None
+        # Declaration of main processing object
+        self.processing_hub: ProcessingHub = None
 
         # Map settings objects (control, seascatter, transfer functions)
         self.control = self.inputDataModule.control
@@ -145,7 +115,7 @@ class DataLab(DataLabGui):
         str_tb = "".join(traceback.format_tb(tb))
 
         # Log error to console and log file
-        self.err_logger.error(f"{msg}\n{str_tb}{exctype}: {value}\n")
+        self.log.error(f"{msg}\n{str_tb}{exctype}: {value}\n")
 
         # Report error in gui
         self.error(f"{msg}:\n{str_tb}{exctype}: {value}")
@@ -476,7 +446,7 @@ class DataLab(DataLabGui):
 
     def process_screening(self):
         """Screen loggers and process statistical and spectral analysis."""
-
+        1 / 0
         self.control.processing_mode = "screening"
         self.process_loggers()
 
@@ -618,12 +588,12 @@ class DataLab(DataLabGui):
         self.worker.start()
 
     @pyqtSlot(object)
-    def set_screening_output_to_gui(self, screening):
+    def set_screening_output_to_gui(self, processing_hub: ProcessingHub):
         """Map results from processing to the GUI."""
 
         # Store screening object and update data quality report module
-        self.screening = screening
-        self.dataQualityModule.screening = screening
+        self.processing_hub = processing_hub
+        self.dataQualityModule.screening = processing_hub
         self.dataQualityModule.set_data_quality_results()
 
         # Reset stats and spectrograms dashboards
@@ -632,8 +602,8 @@ class DataLab(DataLabGui):
         self.spectrogramTab.clear_dashboard()
 
         # For each logger create a stats dataset object and append to stats and vessel stats objects
-        if screening.dict_stats:
-            for logger_id, df in screening.dict_stats.items():
+        if processing_hub.dict_stats:
+            for logger_id, df in processing_hub.dict_stats.items():
                 dataset = StatsDataset(logger_id, df)
 
                 # Store dataframe index type (timestamp or file number) and
@@ -646,7 +616,7 @@ class DataLab(DataLabGui):
                 self.vesselStatsTab.datasets.append(dataset)
 
             # Stats dataset ids
-            dataset_ids = list(screening.dict_stats.keys())
+            dataset_ids = list(processing_hub.dict_stats.keys())
 
             # Add dataset ids to stats tab and create initial plot
             self.statsTab.update_datasets_list(dataset_ids)
@@ -659,18 +629,18 @@ class DataLab(DataLabGui):
             self.vesselStatsTab.update_plots()
 
         # Map spectrogram datasets to spectral dashboard
-        if screening.dict_spectrograms:
-            self.spectrogramTab.datasets = screening.dict_spectrograms
-            dataset_ids = list(screening.dict_spectrograms.keys())
+        if processing_hub.dict_spectrograms:
+            self.spectrogramTab.datasets = processing_hub.dict_spectrograms
+            dataset_ids = list(processing_hub.dict_spectrograms.keys())
             self.spectrogramTab.append_multiple_spect_to_datasets_list(dataset_ids)
             self.spectrogramTab.create_plots(set_init_xlim=True)
 
         # Map histogram datasets to histogram dashboard
-        if screening.dict_histograms:
-            self.histogramsTab.dict_datasets = screening.dict_histograms
-            dataset_ids = list(screening.dict_histograms.keys())
+        if processing_hub.dict_histograms:
+            self.histogramsTab.store_dataset_units(processing_hub.data_screen_sets)
+            self.histogramsTab.dict_datasets = processing_hub.dict_histograms
+            dataset_ids = list(processing_hub.dict_histograms.keys())
             self.histogramsTab.update_dataset_combo(dataset_ids)
-            # self.histogramsTab.update_column_combo()
 
     def calc_seascatter(self):
         """Create seascatter diagram if vessel stats data is loaded."""

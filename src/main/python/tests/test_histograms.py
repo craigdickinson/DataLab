@@ -8,7 +8,7 @@ from numpy.testing import assert_allclose
 
 from core.histograms import (
     rainflow_cycles,
-    number_of_bins,
+    calc_number_of_bins,
     bin_cycles,
     histogram,
     calc_damage,
@@ -27,19 +27,19 @@ def test_bin_cycles():
     cycles = [1, 0.5]
 
     bin_size = 1
-    num_bins = number_of_bins(ranges[-1], bin_size)
+    num_bins = calc_number_of_bins(ranges[-1], bin_size)
     bin_edges, hist = bin_cycles(ranges, cycles, num_bins, bin_size)
     assert_allclose(bin_edges, [0, 1, 2, 3, 4, 5])
     assert_allclose(hist, [0, 0, 1, 0, 0.5])
 
     bin_size = 3
-    num_bins = number_of_bins(ranges[-1], bin_size)
+    num_bins = calc_number_of_bins(ranges[-1], bin_size)
     bin_edges, hist = bin_cycles(ranges, cycles, num_bins, bin_size)
     assert_allclose(bin_edges, [0, 3, 6])
     assert_allclose(hist, [1, 0.5])
 
     bin_size = 4
-    num_bins = number_of_bins(ranges[-1], bin_size)
+    num_bins = calc_number_of_bins(ranges[-1], bin_size)
     bin_edges, hist = bin_cycles(ranges, cycles, num_bins, bin_size)
     assert_allclose(bin_edges, [0, 4])
     assert_allclose(hist, [1.5])

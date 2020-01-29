@@ -34,7 +34,7 @@ class ProjectConfigJSONFile(QObject):
         # Store filename and set directory to project root
         self.filename = os.path.basename(filename)
 
-    def map_json_to_control(self, control: Control):
+    def json_to_control(self, control: Control):
         """
         Take JSON config dictionary and map to a Control class object.
         :param control: Instance of Control class.
@@ -44,12 +44,12 @@ class ProjectConfigJSONFile(QObject):
         # Store config filename
         control.config_file = self.filename
         data = self.data
-        control = self._map_general_dict(data, control)
-        control = self._map_loggers_dict(data, control)
+        control = self._map_general(data, control)
+        control = self._map_loggers(data, control)
 
         return control
 
-    def map_json_to_seascatter(self, scatter: Seascatter):
+    def json_to_seascatter(self, scatter: Seascatter):
         """
         Take JSON config dictionary and map to a Seascatter class object.
         :param scatter: Instance of Seascatter class.
@@ -61,7 +61,7 @@ class ProjectConfigJSONFile(QObject):
 
         return scatter
 
-    def map_json_to_transfer_functions(self, tf: TransferFunctions):
+    def json_to_transfer_functions(self, tf: TransferFunctions):
         """
         Take JSON config dictionary and map to a TransferFunctions class object.
         :param tf: Instance of TransferFunctions class.
@@ -73,7 +73,7 @@ class ProjectConfigJSONFile(QObject):
 
         return tf
 
-    def _map_general_dict(self, data, control: Control):
+    def _map_general(self, data, control: Control):
         """Map the general settings section to the control object."""
 
         key = "general"
@@ -147,7 +147,7 @@ class ProjectConfigJSONFile(QObject):
 
         return control
 
-    def _map_loggers_dict(self, data, control: Control):
+    def _map_loggers(self, data, control: Control):
         """Map the config loggers section to the control object for all logger."""
 
         key = "loggers"
@@ -172,7 +172,7 @@ class ProjectConfigJSONFile(QObject):
             logger = self._map_logger_histogram_settings(logger, dict_logger)
 
             # Logger time series integration settings
-            logger = self._map_logger_conversion_settings(logger, dict_logger)
+            logger = self._map_logger_integration_settings(logger, dict_logger)
 
             # Map Azure account settings (if any) to logger
             logger.azure_account_name = control.azure_account_name
@@ -429,14 +429,22 @@ class ProjectConfigJSONFile(QObject):
             key="process_histograms",
             attr=logger.process_hists,
         )
-        logger.bin_size = self._get_key_value(
-            section=logger.logger_id, data=dict_logger, key="bin_size", attr=logger.bin_size
+        logger.channel_bin_sizes = self._get_key_value(
+            section=logger.logger_id,
+            data=dict_logger,
+            key="channel_bin_sizes",
+            attr=logger.channel_bin_sizes,
         )
-
+        logger.channel_num_bins = self._get_key_value(
+            section=logger.logger_id,
+            data=dict_logger,
+            key="channel_num_bins",
+            attr=logger.channel_num_bins,
+        )
         return logger
 
-    def _map_logger_conversion_settings(self, logger: LoggerProperties, dict_logger):
-        """Retrieve logger conversion settings from JSON dictionary and map to logger object."""
+    def _map_logger_integration_settings(self, logger: LoggerProperties, dict_logger):
+        """Retrieve logger time series integration settings from JSON dictionary and map to logger object."""
 
         logger.process_integration = self._get_key_value(
             section=logger.logger_id,
@@ -608,7 +616,7 @@ class ProjectConfigJSONFile(QObject):
             dict_props = self._add_logger_histogram_settings(logger, dict_props)
 
             # Add logger conversion settings
-            dict_props = self._add_logger_conversion_settings(logger, dict_props)
+            dict_props = self._add_logger_integration_settings(logger, dict_props)
 
             # Add logger props dictionary to loggers dictionary
             self.data["loggers"][logger.logger_id] = dict_props
@@ -701,13 +709,14 @@ class ProjectConfigJSONFile(QObject):
         """Add control object logger histogram settings to JSON dictionary."""
 
         dict_props["process_histograms"] = logger.process_hists
-        dict_props["bin_size"] = logger.bin_size
+        dict_props["channel_bin_sizes"] = logger.channel_bin_sizes
+        dict_props["channel_num_bins"] = logger.channel_num_bins
 
         return dict_props
 
     @staticmethod
-    def _add_logger_conversion_settings(logger: LoggerProperties, dict_props):
-        """Add control object logger conversion settings to JSON dictionary."""
+    def _add_logger_integration_settings(logger: LoggerProperties, dict_props):
+        """Add control object logger time series integration settings to JSON dictionary."""
 
         dict_props["process_integration"] = logger.process_integration
         dict_props["conv_acc_x"] = logger.acc_x_col

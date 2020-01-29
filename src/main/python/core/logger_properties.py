@@ -168,7 +168,8 @@ class LoggerProperties(QObject):
 
         # RAINFLOW HISTOGRAM SETTINGS
         self.process_hists = True
-        self.bin_size = 0.1
+        self.channel_bin_sizes = [0.001]
+        self.channel_num_bins = [10]
 
         # TIME SERIES INTEGRATION PROPERTIES
         self.process_integration = False

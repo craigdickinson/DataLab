@@ -56,7 +56,7 @@ class ProcessingHub(QObject):
 
         self.control = control
 
-        # Lists of objects to hold data screening settings and logger stats
+        # Container for data screen object of each processed logger
         self.data_screen_sets = []
 
         # Expected data/processing to be done flags

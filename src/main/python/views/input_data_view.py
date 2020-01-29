@@ -16,6 +16,7 @@ from core.calc_seascatter import Seascatter
 from core.calc_transfer_functions import TransferFunctions
 from core.control import Control, InputError
 from core.custom_date import get_datetime_format
+from core.custom_exception_logger import set_exception_logger_file_handler_path
 from core.detect_file_timestamp_format import detect_file_timestamp_format
 from core.file_props_2hps2_acc import detect_2hps2_logger_properties, set_2hps2_acc_file_format
 from core.file_props_custom_format import (
@@ -492,6 +493,10 @@ class InputDataModule(QtWidgets.QWidget):
     def load_config_file(self, filepath):
         """Load config file and map properties."""
 
+        # Update exception logger to write to log.out file in project folder
+        proj_path = os.path.dirname(filepath)
+        self.parent.log = set_exception_logger_file_handler_path(self.parent.log, proj_path)
+
         try:
             # JSON config class - holds config data dictionary
             config = ProjectConfigJSONFile()
@@ -503,9 +508,9 @@ class InputDataModule(QtWidgets.QWidget):
             config.load_config_data(filepath)
 
             # Map JSON data to new objects that hold various setup data
-            self.control = config.map_json_to_control(Control())
-            self.scatter = config.map_json_to_seascatter(Seascatter())
-            self.tf = config.map_json_to_transfer_functions(TransferFunctions())
+            self.control = config.json_to_control(Control())
+            self.scatter = config.json_to_seascatter(Seascatter())
+            self.tf = config.json_to_transfer_functions(TransferFunctions())
 
             # Check a logger file formats exist in the drop-down
             self._check_logger_file_formats(self.control.loggers)
