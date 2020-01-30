@@ -1582,11 +1582,15 @@ class VesselStatsWidget(QtWidgets.QWidget):
         # Flags to check which axes are plotted to modify gridlines shown
         plot = False
         linewidth = 1
+        df_vessel: pd.DataFrame
+        df: pd.DataFrame
         self._set_title()
 
         # Plot vessel motions
         if "vessel_data" in self.plot_data:
             df_vessel = self.plot_data["vessel_data"]
+            index_test_value = df_vessel.index[0]
+
             col = df_vessel.columns[0]
             motion = col[0]
             units = col[1]
@@ -1612,6 +1616,7 @@ class VesselStatsWidget(QtWidgets.QWidget):
         # Plot secondary axis channel
         if "axis2_data" in self.plot_data:
             df = self.plot_data["axis2_data"]
+            index_test_value = df.index[0]
             label = self.plot_data["label"]
             ylabel = self.plot_data["ylabel"]
 
@@ -1629,14 +1634,14 @@ class VesselStatsWidget(QtWidgets.QWidget):
         # Complete plot if at least one channel was plotted
         if plot is True:
             self.ax1.margins(0)
-            self.ax1b.margins(0)
             self.ax2.margins(0)
-            self.ax2b.margins(0)
             self.ax3.margins(0)
+            self.ax1b.margins(0)
+            self.ax2b.margins(0)
             self.ax3b.margins(0)
 
             # Format x-axis if index is timestamps
-            if isinstance(df.index[0], pd.Timestamp):
+            if isinstance(index_test_value, pd.Timestamp):
                 days = mdates.DayLocator(interval=7)
                 fmt = mdates.DateFormatter("%d-%b-%y")
                 self.ax3.xaxis.set_major_locator(days)
