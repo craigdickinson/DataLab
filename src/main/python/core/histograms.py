@@ -53,7 +53,7 @@ class Histograms(object):
             if ns == 1:
                 self.channel_bin_sizes = [self.channel_bin_sizes[0]] * nc
 
-        if ns != nb:
+        if nb != nc:
             if nb == 1:
                 self.channel_num_bins = [self.channel_num_bins[0]] * nc
 

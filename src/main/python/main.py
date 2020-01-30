@@ -1,6 +1,6 @@
 __author__ = "Craig Dickinson"
 __program__ = "DataLab"
-__version__ = "2.1.0.14"
+__version__ = "2.1.0.15"
 __date__ = "30 January 2020"
 
 import logging
@@ -25,8 +25,8 @@ from core.read_files import (
     read_stats_csv,
     read_stats_excel,
     read_stats_hdf5,
+    read_wcfat_results,
 )
-from core.read_files import read_wcfat_results
 from views.input_data_view import AzureAccountSetupDialog
 from views.main_window_view import DataLabGui
 from views.processing_progress_view import ProcessingProgressBar
@@ -821,8 +821,8 @@ def run_datalab():
     # path = r"Test A\21239_Project_A_Config.json"
     # path = r"Project 21368 - Dhaval\21368_Dhaval_Config.json"
     # path = r"Project 21239 Acc to Disp to AR-Ang\21239_Time_Series_Conversion_Config.json"
-    # path = r"Project 21342\21342_Histograms_Config.json"
-    path = r"Project 21342\21342_McDermott_Config.json"
+    path = r"Project 21342\21342_Histograms_Config.json"
+    # path = r"Project 21342\21342_McDermott_Config.json"
     filepath = os.path.join(root, path)
     win.inputDataModule.load_config_file(filepath)
     win.show()
