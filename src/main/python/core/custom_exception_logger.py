@@ -31,7 +31,8 @@ def set_exception_logger(log_path=""):
     fh = logging.FileHandler(log_file)
     fh.setLevel(logging.DEBUG)
     formatter = logging.Formatter(
-        "%(asctime)s: %(name)s %(levelname)s - %(message)s", datefmt="%m/%d/%Y %H:%M:%S"
+        "%(asctime)s: %(name)s %(levelname)s - %(message)s",
+        datefmt="%m/%d/%Y %H:%M:%S"
         #     "%(asctime)s: %(name)s %(levelname)s - %(message)s", datefmt="%m/%d/%Y %I:%M:%S %p"
     )
     fh.setFormatter(formatter)

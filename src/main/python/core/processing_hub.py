@@ -177,9 +177,6 @@ class ProcessingHub(QObject):
         # Screening report output folder
         create_output_folder(self.control.report_output_path)
 
-        # List of output files created
-        output_files = []
-
         # Connect to Azure account if to be used
         if self.any_data_on_azure:
             bloc_blob_service = connect_to_azure_account(
@@ -191,6 +188,7 @@ class ProcessingHub(QObject):
         print("Processing loggers...")
         file_count = 0
         for i, data_screen in enumerate(self.data_screen_sets):
+            data_screen: DataScreen
             logger = data_screen.logger
             logger_id = logger.logger_id
 
@@ -244,13 +242,13 @@ class ProcessingHub(QObject):
                 if logger.data_on_azure:
                     file = stream_blob(bloc_blob_service, logger.container_name, logger.blobs[j])
 
-                # Read the file into a pandas dataframe
+                # Read the file to a dataframe
                 df = data_screen.read_logger_file(file)
 
                 # Wrangle data to prepare for processing
                 df = data_screen.wrangle_data(df, file_idx=j)
 
-                # Select columns for screening
+                # Select columns to process
                 df = data_screen.select_columns_to_process(df)
                 df = data_screen.set_column_names(df)
                 df = data_screen.apply_unit_conversions(df)
@@ -283,7 +281,7 @@ class ProcessingHub(QObject):
                     # CALCULATE HISTOGRAMS
                     if data_screen.histograms_requested:
                         # Compute histograms for each channel in dataframe
-                        histograms.calc_histograms(df, data_screen, processed_file_num)
+                        histograms.calc_histograms_on_dataframe(df, filename, data_screen)
 
                 file_count += 1
 
@@ -295,30 +293,31 @@ class ProcessingHub(QObject):
             # Add any files containing errors to screening report
             data_report.add_files_with_bad_data(logger_id, data_screen.dict_bad_files)
 
-            # Check logger stats requested and processed for current logger
+            # Export logger stats and store in memory to plot in gui
             if data_screen.stats_requested and data_screen.stats_processed:
-                stats_screening.logger_stats_post(logger, data_screen, output_files)
+                output_files = stats_screening.logger_stats_post(logger, data_screen)
                 self.signal_update_output_info.emit(output_files)
 
-            # Check logger stats requested and processed for current logger
+            # Export logger spectrograms and store in memory to plot in gui
             if data_screen.spect_requested and data_screen.spect_processed:
-                spect_screening.logger_spect_post(data_screen, output_files)
+                output_files = spect_screening.logger_spect_post(data_screen)
                 self.signal_update_output_info.emit(output_files)
 
-            # Calculate aggregate histogram for each column
-            histograms.calc_aggregate_histograms()
+            # Export logger histograms and store in memory to plot in gui
+            if data_screen.histograms_requested and data_screen.histograms_processed:
+                # Calculate aggregate histogram for each column
+                histograms.calc_aggregate_histograms()
 
-            # Append column histograms dictionary to dataset dictionary
-            self.dict_histograms[logger_id] = histograms.dict_df_col_hists
+                # Append column histograms dictionary to dataset dictionary
+                self.dict_histograms[logger_id] = histograms.dict_df_col_hists
 
-            # Export dataset histograms
-            histograms.export_histograms()
+                # Export dataset histograms
+                output_files = histograms.export_histograms()
+                self.signal_update_output_info.emit(output_files)
 
-        # Publish data screening report
-        self._publish_screening_report(data_report, output_files)
-
-        # Update progress dialog
-        self.signal_update_output_info.emit(output_files)
+        # Publish data screening report and update progress dialog
+        output_file = self._publish_screening_report(data_report)
+        self.signal_update_output_info.emit(output_file)
 
         # Check if screening modules were run for any logger
         any_stats_processed = False
@@ -334,8 +333,8 @@ class ProcessingHub(QObject):
 
         # Save stats workbook if requested
         if any_stats_processed and self.control.stats_to_xlsx is True:
-            stats_screening.save_stats_excel(output_files)
-            self.signal_update_output_info.emit(output_files)
+            output_file = stats_screening.save_stats_excel()
+            self.signal_update_output_info.emit(output_file)
 
         print("Processing complete")
         t = str(timedelta(seconds=round(time() - t0)))
@@ -346,24 +345,21 @@ class ProcessingHub(QObject):
             warning = (
                 "Warning: Statistics requested but none calculated. Check Data Screening Report."
             )
-            output_files.append(warning)
-            self.signal_update_output_info.emit(output_files)
+            self.signal_update_output_info.emit(warning)
 
         if self.any_spect_requested and not any_spect_processed:
             warning = (
                 "Warning: Spectrograms requested but none calculated. Check Data Screening Report."
             )
-            output_files.append(warning)
-            self.signal_update_output_info.emit(output_files)
+            self.signal_update_output_info.emit(warning)
 
         if self.any_histograms_requested and not any_histograms_processed:
             warning = (
                 "Warning: Histograms requested but none calculated. Check Data Screening Report."
             )
-            output_files.append(warning)
-            self.signal_update_output_info.emit(output_files)
+            self.signal_update_output_info.emit(warning)
 
-        # Store processing results dictionaries
+        # Store results dictionaries
         if self.any_stats_requested:
             self.dict_stats = stats_screening.dict_stats
         if self.any_spect_requested:
@@ -496,7 +492,7 @@ class ProcessingHub(QObject):
         )
         self.signal_notify_progress.emit(dict_progress)
 
-    def _publish_screening_report(self, data_report, output_files):
+    def _publish_screening_report(self, data_report):
         """Compile and export Excel data screening report."""
 
         # Save data screen report workbook
@@ -504,6 +500,7 @@ class ProcessingHub(QObject):
         data_report.write_bad_filenames()
         data_report.write_bad_files()
         data_report.save_workbook(report_filename)
+        output_file = self.control.report_output_folder + "/" + report_filename
 
-        # Add to output files list - and write to progress window
-        output_files.append(self.control.report_output_folder + "/" + report_filename)
+        # Needs to be a list to update progress window
+        return [output_file]

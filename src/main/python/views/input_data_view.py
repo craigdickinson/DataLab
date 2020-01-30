@@ -8,7 +8,7 @@ import sys
 from datetime import datetime
 from glob import glob
 
-from PyQt5 import QtCore, QtGui, QtWidgets
+from PyQt5 import QtGui, QtWidgets
 from PyQt5.QtCore import Qt, pyqtSlot
 
 from core.azure_cloud_storage import check_azure_account_exists
@@ -573,7 +573,7 @@ class InputDataModule(QtWidgets.QWidget):
         ]
         for i in items:
             item = QtWidgets.QListWidgetItem(i)
-            item.setFlags(item.flags() & ~QtCore.Qt.ItemIsSelectable)
+            item.setFlags(item.flags() & ~Qt.ItemIsSelectable)
             self.columnList.addItem(item)
 
     def _set_dashboards_on_load_config(self):
@@ -717,7 +717,7 @@ class GeneralTab(QtWidgets.QWidget):
         # self.form.addRow(QtWidgets.QLabel('table value:'), self.tableInput)
         #
         # item = QtWidgets.QTableWidgetItem('21239')
-        # # item.setTextAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter)
+        # # item.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
         # self.tableInput.setItem(0, 0, item)
         # header = self.tableInput.horizontalHeader()
         # header.setSectionResizeMode(0, QtWidgets.QHeaderView.Stretch)
@@ -1037,7 +1037,7 @@ class LoggerPropertiesTab(QtWidgets.QWidget):
         self.hboxButtons = QtWidgets.QHBoxLayout()
         self.hboxButtons.addWidget(self.editButton)
         self.hboxButtons.addWidget(self.openFolderButton)
-        self.hboxButtons.setAlignment(QtCore.Qt.AlignLeft)
+        self.hboxButtons.setAlignment(Qt.AlignLeft)
 
         self.vbox = QtWidgets.QVBoxLayout()
         self.vbox.addLayout(self.hboxButtons)
@@ -1314,7 +1314,7 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
 
         # Combine source and location containers
         self.locLayout = QtWidgets.QHBoxLayout()
-        self.locLayout.addWidget(self.locSelectionGroup, alignment=QtCore.Qt.AlignTop)
+        self.locLayout.addWidget(self.locSelectionGroup, alignment=Qt.AlignTop)
         self.locLayout.addWidget(self.loggerLocGroup)
 
         # Copy logger group
@@ -1356,7 +1356,7 @@ class EditLoggerPropertiesDialog(QtWidgets.QDialog):
         self.layout.addWidget(self.loggerFilePropsGroup)
         self.layout.addWidget(self.loggerDataPropsGroup)
         self.layout.addStretch()
-        self.layout.addWidget(self.buttonBox, stretch=0, alignment=QtCore.Qt.AlignRight)
+        self.layout.addWidget(self.buttonBox, stretch=0, alignment=Qt.AlignRight)
 
     def _connect_signals(self):
         self.buttonBox.accepted.connect(self.on_ok_clicked)
@@ -1909,7 +1909,7 @@ class SeascatterTab(QtWidgets.QWidget):
 
         # LAYOUT
         self.layout1 = QtWidgets.QVBoxLayout()
-        self.layout1.addWidget(self.editButton, stretch=0, alignment=QtCore.Qt.AlignLeft)
+        self.layout1.addWidget(self.editButton, stretch=0, alignment=Qt.AlignLeft)
         self.layout1.addWidget(self.detailsGroup)
         self.layout1.addStretch()
 
@@ -2085,15 +2085,15 @@ class TransferFunctionsTab(QtWidgets.QWidget):
 
         self.group1 = QtWidgets.QGroupBox("Logger Names")
         self.vbox1 = QtWidgets.QVBoxLayout(self.group1)
-        self.vbox1.addWidget(self.loggerNames, alignment=QtCore.Qt.AlignTop)
+        self.vbox1.addWidget(self.loggerNames, alignment=Qt.AlignTop)
 
         self.group2 = QtWidgets.QGroupBox("Location Names")
         self.vbox2 = QtWidgets.QVBoxLayout(self.group2)
-        self.vbox2.addWidget(self.locNames, alignment=QtCore.Qt.AlignTop)
+        self.vbox2.addWidget(self.locNames, alignment=Qt.AlignTop)
 
         self.group3 = QtWidgets.QGroupBox("Sea State Percentage Occurrences")
         self.vbox3 = QtWidgets.QVBoxLayout(self.group3)
-        self.vbox3.addWidget(self.percOcc, alignment=QtCore.Qt.AlignTop)
+        self.vbox3.addWidget(self.percOcc, alignment=Qt.AlignTop)
 
         self.vbox = QtWidgets.QVBoxLayout()
         self.vbox.addWidget(self.detailsGroup)
@@ -2106,7 +2106,7 @@ class TransferFunctionsTab(QtWidgets.QWidget):
 
         # LAYOUT
         self.layout1 = QtWidgets.QVBoxLayout()
-        self.layout1.addWidget(self.editButton, stretch=0, alignment=QtCore.Qt.AlignLeft)
+        self.layout1.addWidget(self.editButton, stretch=0, alignment=Qt.AlignLeft)
         self.layout1.addWidget(self.pathsGroup)
         self.layout1.addLayout(self.hbox)
         self.layout1.addStretch()
@@ -2204,23 +2204,20 @@ class EditTransferFunctionsDialog(QtWidgets.QDialog):
         self.pathsGroup = QtWidgets.QGroupBox("FEA Time Series Locations")
         self.grid = QtWidgets.QGridLayout(self.pathsGroup)
         self.grid.addWidget(
-            QtWidgets.QLabel("Logger displacements directory:"), 0, 0, alignment=QtCore.Qt.AlignTop
+            QtWidgets.QLabel("Logger displacements directory:"), 0, 0, alignment=Qt.AlignTop
         )
         self.grid.addWidget(
-            QtWidgets.QLabel("Logger rotations directory:"), 1, 0, alignment=QtCore.Qt.AlignTop
+            QtWidgets.QLabel("Logger rotations directory:"), 1, 0, alignment=Qt.AlignTop
         )
         self.grid.addWidget(
-            QtWidgets.QLabel("Location bending moments directory:"),
-            2,
-            0,
-            alignment=QtCore.Qt.AlignTop,
+            QtWidgets.QLabel("Location bending moments directory:"), 2, 0, alignment=Qt.AlignTop,
         )
         self.grid.addWidget(self.loggerDispPath, 0, 1)
         self.grid.addWidget(self.loggerRotPath, 1, 1)
         self.grid.addWidget(self.locBMPath, 2, 1)
-        self.grid.addWidget(self.setDispPathButton, 0, 2, alignment=QtCore.Qt.AlignTop)
-        self.grid.addWidget(self.setRotPathButton, 1, 2, alignment=QtCore.Qt.AlignTop)
-        self.grid.addWidget(self.setBMPathButton, 2, 2, alignment=QtCore.Qt.AlignTop)
+        self.grid.addWidget(self.setDispPathButton, 0, 2, alignment=Qt.AlignTop)
+        self.grid.addWidget(self.setRotPathButton, 1, 2, alignment=Qt.AlignTop)
+        self.grid.addWidget(self.setBMPathButton, 2, 2, alignment=Qt.AlignTop)
 
         self.detailsGroup = QtWidgets.QGroupBox("FEA Details")
         self.form = QtWidgets.QFormLayout(self.detailsGroup)
@@ -2242,12 +2239,12 @@ class EditTransferFunctionsDialog(QtWidgets.QDialog):
         self.hbox.addLayout(self.vbox1)
         self.hbox.addLayout(self.vbox2)
         self.hbox.addStretch()
-        self.hbox.addWidget(self.buttonBox, alignment=QtCore.Qt.AlignBottom)
+        self.hbox.addWidget(self.buttonBox, alignment=Qt.AlignBottom)
 
         # LAYOUT
         self.layout = QtWidgets.QVBoxLayout(self)
         self.layout.addWidget(self.pathsGroup)
-        self.layout.addWidget(self.detectButton, stretch=0, alignment=QtCore.Qt.AlignLeft)
+        self.layout.addWidget(self.detectButton, stretch=0, alignment=Qt.AlignLeft)
         self.layout.addWidget(self.detailsGroup)
         self.layout.addLayout(self.hbox)
 

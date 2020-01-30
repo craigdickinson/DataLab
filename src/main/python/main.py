@@ -1,7 +1,7 @@
 __author__ = "Craig Dickinson"
 __program__ = "DataLab"
-__version__ = "2.1.0.13"
-__date__ = "29 January 2020"
+__version__ = "2.1.0.14"
+__date__ = "30 January 2020"
 
 import logging
 import os
@@ -446,7 +446,7 @@ class DataLab(DataLabGui):
 
     def process_screening(self):
         """Screen loggers and process statistical and spectral analysis."""
-        1 / 0
+
         self.control.processing_mode = "screening"
         self.process_loggers()
 
@@ -555,7 +555,7 @@ class DataLab(DataLabGui):
             if len(logger.all_channel_names) == 0 and len(logger.all_channel_units) == 0:
                 logger.get_all_columns()
 
-                # Update columns list in config dashboard if this logger is the one selected
+                # Update column list in config dashboard if this logger is the one selected
                 if logger.logger_id == self.inputDataModule.loggerList.currentItem().text():
                     self.inputDataModule.set_logger_columns_list(logger)
 
@@ -821,7 +821,8 @@ def run_datalab():
     # path = r"Test A\21239_Project_A_Config.json"
     # path = r"Project 21368 - Dhaval\21368_Dhaval_Config.json"
     # path = r"Project 21239 Acc to Disp to AR-Ang\21239_Time_Series_Conversion_Config.json"
-    path = r"Project 21342\21342_Histograms_Config.json"
+    # path = r"Project 21342\21342_Histograms_Config.json"
+    path = r"Project 21342\21342_McDermott_Config.json"
     filepath = os.path.join(root, path)
     win.inputDataModule.load_config_file(filepath)
     win.show()

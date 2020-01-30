@@ -115,7 +115,7 @@ class SpectrogramWidget(QtWidgets.QWidget):
         # CONTAINERS
         # Selection layout
         self.selection = QtWidgets.QWidget()
-        self.selection.setMinimumWidth(200)
+        self.selection.setMinimumWidth(220)
         self.grid = QtWidgets.QGridLayout(self.selection)
         self.grid.addWidget(self.openSpectButton, 0, 0)
         self.grid.addWidget(self.clearDatasetsButton, 1, 0)
@@ -139,7 +139,7 @@ class SpectrogramWidget(QtWidgets.QWidget):
         splitter = QtWidgets.QSplitter()
         splitter.addWidget(self.selection)
         splitter.addWidget(self.plotWidget)
-        splitter.setSizes([200, 10000])
+        splitter.setSizes([220, 10000])
 
         # LAYOUT
         self.layout = QtWidgets.QHBoxLayout(self)

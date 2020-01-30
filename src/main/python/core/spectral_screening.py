@@ -86,9 +86,10 @@ class SpectralScreening(object):
 
         return data_screen.spect_processed
 
-    def logger_spect_post(self, data_screen, output_files):
+    def logger_spect_post(self, data_screen):
         """Spectral post-processing of all files for a given logger."""
 
+        output_files = []
         dates = data_screen.spect_sample_start
         file_nums = data_screen.spect_file_nums
 
@@ -115,6 +116,8 @@ class SpectralScreening(object):
             # Add to output files list
             output_files.extend(self.spect_filt.output_files)
 
+        return output_files
+
 
 class Spectrogram(object):
     """Routines to read pandas dataframes and construct spectrograms."""
@@ -122,7 +125,7 @@ class Spectrogram(object):
     def __init__(self, logger_id="", output_dir=""):
         self.logger_id = logger_id
         self.output_dir = output_dir
-        self.output_folder = os.path.split(output_dir)[1]
+        self.output_folder = os.path.basename(output_dir)
 
         # Use a list to store output files in case multiple output file formats are selected
         self.output_files = []
@@ -303,11 +306,14 @@ class Spectrogram(object):
             dict_df[key2] = df
 
             # Export channel spectrogram data to file
+            # CSV
             if dict_formats_to_write["csv"] is True:
                 filename = file_stem + ".csv"
                 filepath = os.path.join(self.output_dir, filename)
                 df.to_csv(filepath)
                 self.output_files.append(self.output_folder + "/" + filename)
+
+            # Excel
             if dict_formats_to_write["xlsx"] is True:
                 filename = file_stem + ".xlsx"
                 filepath = os.path.join(self.output_dir, filename)
@@ -320,6 +326,8 @@ class Spectrogram(object):
                 df.to_excel(writer, sheet_name=key)
                 writer.save()
                 self.output_files.append(self.output_folder + "/" + filename)
+
+            # HDF5
             if dict_formats_to_write["h5"] is True:
                 # Note HDF5 files should use a contiguous key name
                 filename = file_stem + ".h5"

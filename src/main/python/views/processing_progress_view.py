@@ -3,8 +3,10 @@
 __author__ = "Craig Dickinson"
 
 import sys
+
 from PyQt5 import QtWidgets
 from PyQt5.QtCore import pyqtSignal, pyqtSlot
+from PyQt5.QtGui import QTextCursor
 
 
 class ProcessingProgressBar(QtWidgets.QDialog):
@@ -30,7 +32,8 @@ class ProcessingProgressBar(QtWidgets.QDialog):
         self.loggerList.setFixedWidth(160)
         self.loggerList.setFixedHeight(100)
         self.outputFilesLabel = QtWidgets.QLabel("Files Output to Project Location")
-        self.outputFilesList = QtWidgets.QListWidget()
+        self.outputFilesTextEdit = QtWidgets.QTextEdit()
+        self.outputFilesTextEdit.setReadOnly(True)
         self.pb = QtWidgets.QProgressBar()
         self.pb.setFixedWidth(350)
         self.progLabel = QtWidgets.QLabel()
@@ -61,7 +64,7 @@ class ProcessingProgressBar(QtWidgets.QDialog):
 
         self.vbox3 = QtWidgets.QVBoxLayout()
         self.vbox3.addWidget(self.outputFilesLabel)
-        self.vbox3.addWidget(self.outputFilesList)
+        self.vbox3.addWidget(self.outputFilesTextEdit)
         self.vbox3.addWidget(self.buttonBox)
 
         # LAYOUT
@@ -123,8 +126,11 @@ class ProcessingProgressBar(QtWidgets.QDialog):
 
     @pyqtSlot(list)
     def add_output_files(self, output_files):
-        self.outputFilesList.clear()
-        self.outputFilesList.addItems(output_files)
+        """Append output files to output text box."""
+
+        for file in output_files:
+            self.outputFilesTextEdit.append(file)
+            self.outputFilesTextEdit.moveCursor(QTextCursor.End)
 
 
 if __name__ == "__main__":

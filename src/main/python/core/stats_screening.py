@@ -81,11 +81,13 @@ class StatsScreening(object):
 
         return data_screen.stats_processed
 
-    def logger_stats_post(self, logger, data_screen, output_files):
+    def logger_stats_post(self, logger, data_screen):
         """
         Stats post-processing of all files for a given logger.
         Compile stats dataframe and export to file.
         """
+
+        output_files = []
 
         # Create and store a dataframe of logger stats
         df_stats = self.stats_out.compile_stats(
@@ -102,36 +104,37 @@ class StatsScreening(object):
             self.dict_stats[logger.logger_id] = df_stats
 
             # Export stats to requested file formats
-            if self.control.stats_to_h5 is True:
-                stats_filename = self.stats_out.write_to_hdf5(self.h5_write_mode)
-
-                # Add to output files list - and write to progress window
-                rel_filepath = self.control.stats_output_folder + "/" + stats_filename
-                output_files.append(rel_filepath + self.h5_output_file_suffix)
-
-                # Set write mode to append to file for additional loggers
-                # if self.h5_write_mode == "w":
-                self.h5_write_mode = "a"
-                self.h5_output_file_suffix = " (appended)"
-
             if self.control.stats_to_csv is True:
                 stats_filename = self.stats_out.write_to_csv()
 
-                # Add to output files list - and write to progress window
+                # Add to output files list - to write to progress window
                 rel_filepath = self.control.stats_output_folder + "/" + stats_filename
                 output_files.append(rel_filepath)
 
             if self.control.stats_to_xlsx is True:
                 self.stats_out.write_to_excel()
 
-    def save_stats_excel(self, output_files):
+            if self.control.stats_to_h5 is True:
+                stats_filename = self.stats_out.write_to_hdf5(self.h5_write_mode)
+
+                # Add to output files list - to write to progress window
+                rel_filepath = self.control.stats_output_folder + "/" + stats_filename
+                output_files.append(rel_filepath + self.h5_output_file_suffix)
+
+                # Set write mode to append to file for additional loggers
+                self.h5_write_mode = "a"
+                self.h5_output_file_suffix = " (appended)"
+
+        return output_files
+
+    def save_stats_excel(self):
         """Save stats workbook."""
 
         stats_filename = self.stats_out.save_workbook()
+        output_file = self.control.stats_output_folder + "/" + stats_filename
 
-        # Add to output files list - and write to progress window
-        rel_filepath = self.control.stats_output_folder + "/" + stats_filename
-        output_files.append(rel_filepath)
+        # Needs to be a list to update progress window
+        return [output_file]
 
 
 class LoggerStats(object):
@@ -431,5 +434,5 @@ class StatsOutput(object):
             self.wb.save(file_path)
 
             return filename
-        except:
+        except Exception:
             print("\n\nFailed to save " + filename)
