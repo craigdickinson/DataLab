@@ -468,11 +468,11 @@ class EditScreeningSetupDialog(QtWidgets.QDialog):
         )
         self.channelNames = QtWidgets.QLineEdit()
         self.channelNames.setToolTip(
-            "COMMA-separated custom channel names.\n" "E.g. AccelX, AccelY, AngRateX, AngRateY."
+            "COMMA-separated custom channel names.\nE.g. AccelX, AccelY, AngRateX, AngRateY."
         )
         self.channelUnits = QtWidgets.QLineEdit()
         self.channelUnits.setToolTip(
-            "SPACE-separated custom channel units.\n" "E.g. m/s^2 m/s^2 deg/s deg/s."
+            "SPACE-separated custom channel units.\nE.g. m/s^2 m/s^2 deg/s deg/s."
         )
         self.processStart = QtWidgets.QLineEdit()
         self.processStart.setFixedWidth(100)
@@ -520,15 +520,19 @@ class EditScreeningSetupDialog(QtWidgets.QDialog):
         self.histFolder = QtWidgets.QLineEdit()
         self.histFolder.setFixedWidth(210)
         self.histBinSizes = QtWidgets.QLineEdit()
-        self.histBinSizes.setToolTip(
-            "SPACE-separated number of bins per channel.\n" "E.g. 0.01 0.01 0.01 0.01."
+        tooltip = (
+            "SPACE-separated bin size per channel. E.g. 0.01 0.01 0.01 0.01.\n"
+            "Required input if 'Number of Bins' is not set.\n"
+            "If only one value input, the bin size is used for all channels."
         )
-        # self.binSize.setFixedWidth(50)
-        # self.binSize.setValidator(dbl_validator)
+        self.histBinSizes.setToolTip(tooltip)
         self.histNumBins = QtWidgets.QLineEdit()
-        self.histNumBins.setToolTip(
-            "SPACE-separated number of bins per channel.\n" "E.g. 10 10 10 10."
+        tooltip = (
+            "SPACE-separated number of bins per channel. E.g. 10 10 10 10.\n"
+            "Required input if 'Bin Size' is not set.\n"
+            "If only one value input, the number of bins is used for all channels."
         )
+        self.histNumBins.setToolTip(tooltip)
 
         # Labels
         self.lblCopy = QtWidgets.QLabel("Logger to copy:")

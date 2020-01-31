@@ -171,23 +171,23 @@ def rainflow_cycles(y):
     return cycle_range, num_cycles
 
 
-def calc_bin_size(last_range, num_bins=10):
-    """Use last range and number of bins to calculate bins size to use in histogram."""
+def calc_bin_size(max_range, num_bins=10):
+    """Use max range and number of bins to calculate bins size to use in histogram."""
 
     #  Round up to 3dp
-    bin_size = round_up(last_range / num_bins, decimals=3)
+    bin_size = round_up(max_range / num_bins, decimals=3)
 
     return bin_size
 
 
-def calc_number_of_bins(last_range, bin_size=1):
-    """Use last range and bin size to calculate number of bins required in histogram."""
+def calc_number_of_bins(max_range, bin_size=1):
+    """Use max range and bin size to calculate number of bins required in histogram."""
 
-    if last_range == bin_size:
-        num_bins = np.ceil(last_range / bin_size).astype(int)
+    if max_range == bin_size:
+        num_bins = np.ceil(max_range / bin_size).astype(int)
     else:
         # We add a delta to ensure integers are rounded up to give the last bin
-        num_bins = np.ceil((last_range + 1e-9) / bin_size).astype(int)
+        num_bins = np.ceil((max_range + 1e-9) / bin_size).astype(int)
 
     return num_bins
 

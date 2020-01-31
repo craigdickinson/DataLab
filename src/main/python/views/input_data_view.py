@@ -108,22 +108,22 @@ class InputDataModule(QtWidgets.QWidget):
 
         self.runTimeSeriesIntegrationButton = QtWidgets.QPushButton("Run Time Series Integration")
         self.runTimeSeriesIntegrationButton.setFixedHeight(h)
-        tooltip = "Convert accelerations to displacement and angular rates to angles (F6)"
+        tooltip = "Convert accelerations to displacement and angular rates to angles (F7)"
         self.runTimeSeriesIntegrationButton.setToolTip(tooltip)
 
         self.calcSeascatterButton = QtWidgets.QPushButton("Create Sea Scatter")
         self.calcSeascatterButton.setFixedHeight(h)
-        tooltip = "Create Hs-Tp sea scatter diagram (F7)"
+        tooltip = "Create Hs-Tp sea scatter diagram (F8)"
         self.calcSeascatterButton.setToolTip(tooltip)
 
         self.calcTFButton = QtWidgets.QPushButton("Calculate Transfer Functions")
         self.calcTFButton.setFixedHeight(h)
-        tooltip = "Calculate frequency-dependent transfer functions (F8)"
+        tooltip = "Calculate frequency-dependent transfer functions (F9)"
         self.calcTFButton.setToolTip(tooltip)
 
         self.calcFatigueButton = QtWidgets.QPushButton("Calculate Fatigue")
         self.calcFatigueButton.setFixedHeight(h)
-        tooltip = "Run spectral fatigue analysis (F9)"
+        tooltip = "Run spectral fatigue analysis (F10)"
         self.calcFatigueButton.setToolTip(tooltip)
 
         # Config tab widgets

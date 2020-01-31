@@ -1,7 +1,7 @@
 __author__ = "Craig Dickinson"
 __program__ = "DataLab"
-__version__ = "2.1.0.16"
-__date__ = "30 January 2020"
+__version__ = "2.1.0.17"
+__date__ = "31 January 2020"
 
 import logging
 import os
@@ -76,6 +76,7 @@ class DataLab(DataLabGui):
 
         # Process menu
         self.processScreeningAction.triggered.connect(self.process_screening)
+        self.runIntegrationAction.triggered.connect(self.process_ts_integration)
         self.calcSeascatterAction.triggered.connect(self.calc_seascatter)
         self.calcTFAction.triggered.connect(self.calc_transfer_functions)
         self.calcFatigueAction.triggered.connect(self.calc_fatigue)
@@ -813,21 +814,7 @@ def run_datalab_pyinstaller():
         app = QtWidgets.QApplication(sys.argv)
     # win = QtDesignerGui()
     win = DataLab()
-
-    # os.chdir(r"C:\Users\dickinsc\PycharmProjects\DataLab\demo_data\2. Project Configs")
-    # root = r"C:\Users\dickinsc\PycharmProjects\DataLab\demo_data\2. Project Configs"
-
-    # path = r"Project 21239\21239_Total_WoS_Config.json"
-    # path = r"Project 21239\21239_BOP_Hist.json"
-    # path = r"Test A\21239_Project_A_Config.json"
-    # path = r"Project 21368 - Dhaval\21368_Dhaval_Config.json"
-    # path = r"Project 21239 Acc to Disp to AR-Ang\21239_Time_Series_Conversion_Config.json"
-    # path = r"Project 21342\21342_Histograms_Config.json"
-    # path = r"Project 21342\21342_McDermott_Config.json"
-
-    # filepath = os.path.join(root, path)
-    # win.inputDataModule.load_config_file(filepath)
-
+    debug_setup(win)
     win.show()
     sys.exit(app.exec_())
 
@@ -837,24 +824,26 @@ def run_datalab_fbs():
 
     appctxt = ApplicationContext()
     win = DataLab()
+    # debug_setup(win)
+    win.show()
+    exit_code = appctxt.app.exec_()
+    sys.exit(exit_code)
 
-    # os.chdir(r"C:\Users\dickinsc\PycharmProjects\DataLab\demo_data\2. Project Configs")
-    # root = r"C:\Users\dickinsc\PycharmProjects\DataLab\demo_data\2. Project Configs"
+
+def debug_setup(win):
+    os.chdir(r"C:\Users\dickinsc\PycharmProjects\DataLab\demo_data\2. Project Configs")
+    root = r"C:\Users\dickinsc\PycharmProjects\DataLab\demo_data\2. Project Configs"
 
     # path = r"Project 21239\21239_Total_WoS_Config.json"
     # path = r"Project 21239\21239_BOP_Hist.json"
     # path = r"Test A\21239_Project_A_Config.json"
     # path = r"Project 21368 - Dhaval\21368_Dhaval_Config.json"
     # path = r"Project 21239 Acc to Disp to AR-Ang\21239_Time_Series_Conversion_Config.json"
-    # path = r"Project 21342\21342_Histograms_Config.json"
+    path = r"Project 21342\21342_Histograms_Config.json"
     # path = r"Project 21342\21342_McDermott_Config.json"
 
-    # filepath = os.path.join(root, path)
-    # win.inputDataModule.load_config_file(filepath)
-
-    win.show()
-    exit_code = appctxt.app.exec_()
-    sys.exit(exit_code)
+    filepath = os.path.join(root, path)
+    win.inputDataModule.load_config_file(filepath)
 
 
 if __name__ == "__main__":

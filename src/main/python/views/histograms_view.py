@@ -3,19 +3,35 @@
 __author__ = "Craig Dickinson"
 
 import sys
+import threading
 
+# import dash
+# import dash_core_components as dcc
+# import dash_html_components as html
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from PyQt5 import QtWidgets
+from PyQt5.QtCore import QUrl
+# from PyQt5.QtWebEngineWidgets import QWebEngineView
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
+from matplotlib.ticker import MultipleLocator, AutoLocator, AutoMinorLocator
 
 # 2H blue colour font
 color_2H = np.array([0, 49, 80]) / 255
 
 # Title style args
 title_args = dict(size=14, fontname="tahoma", color=color_2H, weight="bold")
+
+
+# def run_dash(data, layout):
+#     app = dash.Dash()
+#
+#     app.layout = html.Div(
+#         children=[dcc.Graph(id="example-graph", figure={"data": data, "layout": layout})]
+#     )
+#     app.run_server(debug=False)
 
 
 class RainflowHistograms(object):
@@ -57,6 +73,12 @@ class HistogramDashboard(QtWidgets.QWidget):
         self.hist_col_i = 0
         self.df_hist = pd.DataFrame()
 
+        # Plot controls
+        self.xaxis_interval = "Auto"
+        self.fixed_ymax = None
+        self.bin_size = 0.1
+        self.ymax = 1
+
         self._init_ui()
         self._connect_signals()
 
@@ -68,11 +90,17 @@ class HistogramDashboard(QtWidgets.QWidget):
         self.datasetCombo = QtWidgets.QComboBox()
         self.columnCombo = QtWidgets.QComboBox()
         self.histogramList = QtWidgets.QListWidget()
+        self.xaxisInterval = QtWidgets.QLineEdit("Auto")
+        self.xaxisInterval.setFixedWidth(50)
+        self.fixedYmax = QtWidgets.QLineEdit("None")
+        self.fixedYmax.setFixedWidth(50)
 
         # Labels
         self.lblDataset = QtWidgets.QLabel("Dataset:")
         self.lblColumn = QtWidgets.QLabel("Column:")
         self.lblHistograms = QtWidgets.QLabel("Histograms")
+        self.lblFixedYmax = QtWidgets.QLabel("Fixed y-axis max:")
+        self.lblXAxisInterval = QtWidgets.QLabel("X-axis interval:")
 
         # Plot figure and canvas to display figure
         self.fig, self.ax = plt.subplots()
@@ -84,6 +112,10 @@ class HistogramDashboard(QtWidgets.QWidget):
         self.form.addRow(self.lblDataset, self.datasetCombo)
         self.form.addRow(self.lblColumn, self.columnCombo)
 
+        self.form2 = QtWidgets.QFormLayout()
+        self.form2.addRow(self.lblXAxisInterval, self.xaxisInterval)
+        self.form2.addRow(self.lblFixedYmax, self.fixedYmax)
+
         # Setup container
         self.settingsWidget = QtWidgets.QWidget()
         self.settingsWidget.setMinimumWidth(200)
@@ -93,12 +125,17 @@ class HistogramDashboard(QtWidgets.QWidget):
         self.vboxSetup.addLayout(self.form)
         self.vboxSetup.addWidget(self.lblHistograms)
         self.vboxSetup.addWidget(self.histogramList)
+        self.vboxSetup.addLayout(self.form2)
 
         # Plot container
         self.plotWidget = QtWidgets.QWidget()
         self.vboxPlot = QtWidgets.QVBoxLayout(self.plotWidget)
         self.vboxPlot.addWidget(navbar)
         self.vboxPlot.addWidget(self.canvas)
+
+        # Plotly and dash alternative
+        # self.webPlot = QWebEngineView(self)
+        # self.vboxPlot.addWidget(self.webPlot)
 
         # Splitter to allow resizing of widget containers
         splitter = QtWidgets.QSplitter()
@@ -115,6 +152,8 @@ class HistogramDashboard(QtWidgets.QWidget):
         self.datasetCombo.currentIndexChanged.connect(self.on_dataset_combo_changed)
         self.columnCombo.currentIndexChanged.connect(self.on_column_combo_changed)
         self.histogramList.itemDoubleClicked.connect(self.on_histogram_double_clicked)
+        self.xaxisInterval.returnPressed.connect(self.on_xaxis_interval_changed)
+        self.fixedYmax.returnPressed.connect(self.on_fixed_ymax_changed)
 
     def on_open_histogram_file_clicked(self):
         self.parent.open_wcfat_damage_file()
@@ -160,6 +199,28 @@ class HistogramDashboard(QtWidgets.QWidget):
         df_histogram = self.dict_datasets[self.dataset][self.dataset_col]
         self.plot_histogram(df_histogram)
 
+    def on_xaxis_interval_changed(self):
+        val = self.xaxisInterval.text()
+        try:
+            self.xaxis_interval = float(val)
+        except ValueError:
+            self.xaxis_interval = "Auto"
+            self.xaxisInterval.setText(val)
+
+        self._set_xaxis_interval()
+        self.canvas.draw()
+
+    def on_fixed_ymax_changed(self):
+        val = self.fixedYmax.text()
+        try:
+            self.fixed_ymax = float(val)
+        except ValueError:
+            self.fixed_ymax = None
+            self.fixedYmax.setText("None")
+
+        self._set_ylim()
+        self.canvas.draw()
+
     def store_dataset_units(self, data_screen_sets):
         """Retrieve units from data screen objects."""
 
@@ -192,6 +253,12 @@ class HistogramDashboard(QtWidgets.QWidget):
         self.histogramList.setCurrentRow(self.hist_col_i)
 
     def plot_histogram(self, df_histogram: pd.DataFrame):
+        self.pyplot_histogram(df_histogram)
+        # self.webplot_histogram(df_histogram)
+
+    def pyplot_histogram(self, df_histogram: pd.DataFrame):
+        """Create histogram plot."""
+
         if self.histogramList.count() == 0:
             return
 
@@ -199,25 +266,64 @@ class HistogramDashboard(QtWidgets.QWidget):
         y = df_histogram[self.hist_col].values
         units = self.dict_dataset_units[self.dataset][self.dataset_col_i]
         try:
-            width = x[1] - x[0]
+            self.bin_size = x[1] - x[0]
         except IndexError:
-            width = 0.1
+            self.bin_size = 0.1
 
         ax = self.ax
         ax.cla()
 
         # Fatigue damage rate plot
-        ax.bar(x, y, width=width, align="edge")
+        ax.bar(x, y, width=self.bin_size, align="edge")
         ax.set_xlabel(f"Bins ({units})")
         ax.set_ylabel("Number of Cycles")
-        ax.margins(0)
+        ax.margins(x=0)
 
-        self._set_title()
+        # Store y max for retrieval if not using fixed y-axis y max
+        self.ymax = ax.get_ylim()[1]
+        self._set_ylim()
+        # ax.set_ylim(0, np.ceil(y.max()))
+
+        # Set x axis intervals
+        self._set_xaxis_interval()
+        # ax.xaxis.set_major_locator(AutoLocator())
+        # ax.xaxis.set_major_locator(MultipleLocator(width))
+        # ax.xaxis.set_minor_locator(MultipleLocator(self.bin_size))
+        ax.tick_params(which="major", length=5)
+        ax.tick_params(which="minor", length=2)
+
+        title = self._plot_title()
+        # self.fig.suptitle(title, **title_args)
+        self.ax.set_title(title, **title_args)
+
         # self.fig.tight_layout(rect=[0, 0, 1, 0.9])
         self.fig.tight_layout()
         self.canvas.draw()
 
-    def _set_title(self):
+    # def webplot_histogram(self, df_histogram: pd.DataFrame):
+    #     """Create histogram plot."""
+    #
+    #     if self.histogramList.count() == 0:
+    #         return
+    #
+    #     x = df_histogram.index.values
+    #     y = df_histogram[self.hist_col].values
+    #     units = self.dict_dataset_units[self.dataset][self.dataset_col_i]
+    #     try:
+    #         width = x[1] - x[0]
+    #     except IndexError:
+    #         width = 0.1
+    #
+    #     data = [dict(x=x, y=y, type="bar")]
+    #     title = self._plot_title()
+    #     layout = dict(title=title)
+    #
+    #     # TODO: How to update for other plots?
+    #     threading.Thread(target=run_dash, args=(data, layout), daemon=True).start()
+    #     self.webPlot.load(QUrl("http://127.0.0.1:8050/"))
+    #     self.webPlot.show()
+
+    def _plot_title(self):
         """Set plot title."""
 
         # Attempt to retrieve title from project setup dashboard
@@ -231,8 +337,26 @@ class HistogramDashboard(QtWidgets.QWidget):
 
         fat_loc = f"{self.dataset} {self.dataset_col} - {self.hist_col} Histogram"
         title = f"{project_name} - {campaign_name}\n{fat_loc}"
-        # self.fig.suptitle(title, **title_args)
-        self.ax.set_title(title, **title_args)
+
+        return title
+
+    def _set_xaxis_interval(self):
+        """Set x-axis bin tick intervals to user value or plot auto."""
+
+        if self.xaxis_interval == "Auto":
+            self.ax.xaxis.set_major_locator(AutoLocator())
+        else:
+            self.ax.xaxis.set_major_locator(MultipleLocator(self.xaxis_interval))
+
+        # self.ax.xaxis.set_minor_locator(MultipleLocator(self.bin_size))
+
+    def _set_ylim(self):
+        """Set y-limit max to either a user set value or default plot max."""
+
+        if self.fixed_ymax:
+            self.ax.set_ylim(0, self.fixed_ymax)
+        else:
+            self.ax.set_ylim(0, self.ymax)
 
 
 # For testing layout

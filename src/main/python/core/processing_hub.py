@@ -388,9 +388,6 @@ class ProcessingHub(QObject):
         t0 = time()
         data_integration = IntegrateTimeSeries(output_path=self.control.integration_output_path)
 
-        # List of output files created
-        output_files = []
-
         # Scan loggers to get total # files, list of logger names, files source (local or Azure)
         # and flags for whether stats and spectrograms are to be processed
         total_files, logger_ids = self._prepare_ts_int_screening()
@@ -412,12 +409,6 @@ class ProcessingHub(QObject):
             # Initialise integrations object
             data_integration.set_logger(logger)
 
-            # Get file number of first file to be processed (this is akin to load case number for no timestamp files)
-            try:
-                first_file_num = logger.file_indices[0] + 1
-            except IndexError:
-                first_file_num = 1
-
             # Initialise file parameters in case there are no files to process
             j = 0
             filename = ""
@@ -432,10 +423,8 @@ class ProcessingHub(QObject):
                     output_path = os.path.join(self.control.integration_output_path, folder)
                     create_output_folder(output_path)
 
-                # TODO: If expected file in sequence is missing, store results as nan
                 # Update console
                 filename = os.path.basename(file)
-                processed_file_num = first_file_num + j
                 progress = f"Processing {logger_id} file {j + 1} of {n} ({filename})"
                 print(f"\r{progress}", end="")
                 t = str(timedelta(seconds=round(time() - t0)))
@@ -468,12 +457,13 @@ class ProcessingHub(QObject):
                 # Acceleration and/or angular rate conversion
                 if logger.process_integration:
                     out_filename = data_integration.process_file(file, df)
-                    output_files.append(out_filename)
+                else:
+                    out_filename = ""
 
                 file_count += 1
 
                 # Update progress dialog
-                self.signal_update_output_info.emit(output_files)
+                self.signal_update_output_info.emit([out_filename])
 
         print("Processing complete")
         t = str(timedelta(seconds=round(time() - t0)))
