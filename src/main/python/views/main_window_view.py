@@ -9,7 +9,7 @@ from PyQt5 import QtWidgets
 from views.data_screening_view import DataQualityReport
 from views.fatigue_view import FatigueDashboard
 from views.input_data_view import InputDataModule
-from views.histograms_view import HistogramDashboard
+from views.cycle_histograms_view import CycleHistogramDashboard
 from views.raw_data_view import RawDataDashboard
 from views.seascatter_view import SeascatterDiagram
 from views.spectral_view import SpectrogramWidget
@@ -74,9 +74,9 @@ class DataLabGui(QtWidgets.QMainWindow):
 
         # Fatigue processing module
         self.fatigueModule = QtWidgets.QTabWidget()
-        self.histogramsTab = HistogramDashboard(self)
+        self.histogramsTab = CycleHistogramDashboard(self)
         self.fatigueTab = FatigueDashboard(self)
-        self.fatigueModule.addTab(self.histogramsTab, "Histograms")
+        self.fatigueModule.addTab(self.histogramsTab, "Cycle Histograms")
         self.fatigueModule.addTab(self.fatigueTab, "2HFATLASA")
 
         # Add stacked widgets

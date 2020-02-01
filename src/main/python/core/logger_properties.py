@@ -166,10 +166,10 @@ class LoggerProperties(QObject):
         self.psd_window = "Hann"
         self.psd_overlap = 50
 
-        # RAINFLOW HISTOGRAM SETTINGS
+        # CYCLE HISTOGRAM SETTINGS
         self.process_hists = True
-        self.channel_bin_sizes = [0.001]
-        self.channel_num_bins = [10]
+        self.channel_bin_sizes = [1]
+        self.channel_num_bins = [50]
 
         # TIME SERIES INTEGRATION PROPERTIES
         self.process_integration = False
@@ -629,11 +629,16 @@ class LoggerProperties(QObject):
             first_row = fs.readline().decode().strip().split(self.file_delimiter)
         # Read test file on local drive
         else:
-            test_file = self.files[file_idx]
-            test_path = os.path.join(self.logger_path, test_file)
-            with open(test_path) as f:
-                [f.readline() for _ in range(self.num_headers)]
-                first_row = f.readline().strip().split(self.file_delimiter)
+            try:
+                test_file = self.files[file_idx]
+            except IndexError:
+                test_file = ""
+                first_row = []
+            else:
+                test_path = os.path.join(self.logger_path, test_file)
+                with open(test_path) as f:
+                    [f.readline() for _ in range(self.num_headers)]
+                    first_row = f.readline().strip().split(self.file_delimiter)
 
         # Remove blanks (can happen with space-delimited files)
         first_row = [x for x in first_row if x != ""]

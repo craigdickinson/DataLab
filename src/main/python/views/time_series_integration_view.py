@@ -44,9 +44,9 @@ class TimeSeriesIntegrationSetupTab(QtWidgets.QWidget):
         self.lblAccX = QtWidgets.QLabel("Acceleration X:")
         self.lblAccY = QtWidgets.QLabel("Acceleration Y:")
         self.lblAccZ = QtWidgets.QLabel("Acceleration Z:")
-        self.lblAngRateX = QtWidgets.QLabel("Angular Rate X:")
-        self.lblAngRateY = QtWidgets.QLabel("Angular Rate Y:")
-        self.lblAngRateZ = QtWidgets.QLabel("Angular Rate Z:")
+        self.lblAngRateX = QtWidgets.QLabel("Angular rate X:")
+        self.lblAngRateY = QtWidgets.QLabel("Angular rate Y:")
+        self.lblAngRateZ = QtWidgets.QLabel("Angular rate Z:")
         self.lblGCorr = QtWidgets.QLabel("Apply gravity correction:")
         self.lblIntegrationFolder = QtWidgets.QLabel("Output folder:")
 

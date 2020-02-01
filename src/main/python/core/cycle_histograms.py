@@ -12,7 +12,7 @@ from core.control import Control
 from core.data_screen import DataScreen
 
 
-class Histograms(object):
+class CycleHistograms(object):
     def __init__(self, control=Control()):
         self.logger_id = ""
         self.output_dir = control.hist_output_path
@@ -58,7 +58,7 @@ class Histograms(object):
                 self.channel_num_bins = [self.channel_num_bins[0]] * nc
 
     def calc_histograms_on_dataframe(
-        self, df_file: pd.DataFrame, filename, data_screen: DataScreen
+            self, df_file: pd.DataFrame, filename, data_screen: DataScreen
     ):
         """Calculate rainflow counting histograms of each channel in the (file) dataframe."""
 
@@ -142,15 +142,25 @@ def histogram(y, bin_size=1, num_bins=None):
     """
 
     ranges, cycles = rainflow_cycles(y)
+    max_range = ranges[-1]
+    max_bins = 500
 
     if bin_size is None and num_bins is None:
         return np.array([]), np.array([])
 
     if bin_size is None:
-        bin_size = calc_bin_size(ranges[-1], num_bins)
+        bin_size = calc_bin_size(max_range, num_bins)
 
     if num_bins is None:
-        num_bins = calc_number_of_bins(ranges[-1], bin_size)
+        num_bins = calc_number_of_bins(max_range, bin_size)
+
+    if num_bins > max_bins:
+        print(
+            f"\nNumber of bins = {num_bins}. Too many! Number of bins set to 500. Suggest to use a larger bin size."
+        )
+        num_bins = max_bins
+    else:
+        print(f"\nNumber of bins = {num_bins}.")
 
     bin_edges, hist = bin_cycles(ranges, cycles, num_bins, bin_size)
 

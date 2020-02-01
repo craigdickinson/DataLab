@@ -332,7 +332,7 @@ class ScreeningSetupTab(QtWidgets.QWidget):
         self.spectCSVChkBox.setChecked(self.control.spect_to_csv)
         self.spectXLSXChkBox.setChecked(self.control.spect_to_xlsx)
 
-        # Histogram settings
+        # Cycle histogram settings
         bin_sizes_str = " ".join([str(i) for i in logger.channel_bin_sizes])
         self.histBinSizes.setText(bin_sizes_str)
         num_bins_str = " ".join([str(i) for i in logger.channel_num_bins])
@@ -911,18 +911,18 @@ class EditScreeningSetupDialog(QtWidgets.QDialog):
         logger.process_type = self.processType.currentText()
 
         # Stats settings group
-        if self.statsInterval.text() == "" or int(float(self.statsInterval.text())) == 0:
-            logger.stats_interval = int(logger.duration)
+        duration = float(self.statsInterval.text())
+        if self.statsInterval.text() == "" or duration == 0:
+            logger.stats_interval = float(logger.duration)
         else:
-            # TODO: Question why this is forced to be an int not float?
-            logger.stats_interval = int(float(self.statsInterval.text()))
+            logger.stats_interval = duration
 
         # Spectral settings group
-        if self.spectInterval.text() == "" or int(float(self.spectInterval.text())) == 0:
-            logger.spect_interval = int(logger.duration)
+        duration = float(self.spectInterval.text())
+        if self.spectInterval.text() == "" or duration == 0:
+            logger.spect_interval = float(logger.duration)
         else:
-            # TODO: Question why this is forced to be an int not float?
-            logger.spect_interval = int(float(self.spectInterval.text()))
+            logger.spect_interval = duration
 
         # PSD parameters
         num_pts = int(logger.spect_interval * logger.freq)
@@ -941,15 +941,20 @@ class EditScreeningSetupDialog(QtWidgets.QDialog):
         except ValueError:
             logger.psd_overlap = 50
 
-        # Histogram settings
-        try:
-            logger.channel_bin_sizes = [float(i) for i in self.histBinSizes.text().split()]
-        except ValueError:
-            msg = (
-                "Histogram bin sizes must be numeric.\n"
-                "Separate each input with a space, e.g. 0.001 0.001 0.001 0.001."
-            )
-            QtWidgets.QMessageBox.information(self, "Invalid Histogram Bins Sizes Input", msg)
+        # Cycle histogram settings
+        # Ensure a default bin size is set if blank
+        bin_size_str = self.histBinSizes.text()
+        if bin_size_str == "":
+            logger.channel_bin_sizes = [1]
+        else:
+            try:
+                logger.channel_bin_sizes = [float(i) for i in bin_size_str.split()]
+            except ValueError:
+                msg = (
+                    "Histogram bin sizes must be numeric.\n"
+                    "Separate each input with a space, e.g. 0.001 0.001 0.001 0.001."
+                )
+                QtWidgets.QMessageBox.information(self, "Invalid Histogram Bins Sizes Input", msg)
 
         try:
             logger.channel_num_bins = [int(i) for i in self.histNumBins.text().split()]

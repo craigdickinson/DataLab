@@ -110,6 +110,9 @@ class ProjectConfigJSONFile(object):
         control.spect_output_folder = self._get_key_value(
             section=key, data=data, key="spectral_folder", attr=control.spect_output_folder
         )
+        control.hist_output_folder = self._get_key_value(
+            section=key, data=data, key="histogram_folder", attr=control.hist_output_folder
+        )
         control.integration_output_folder = self._get_key_value(
             section=key, data=data, key="integration_folder", attr=control.integration_output_folder
         )
@@ -578,6 +581,7 @@ class ProjectConfigJSONFile(object):
         d["global_process_spectral"] = control.global_process_spect
         d["stats_folder"] = control.stats_output_folder
         d["spectral_folder"] = control.spect_output_folder
+        d["histogram_folder"] = control.hist_output_folder
         d["integration_folder"] = control.integration_output_folder
         d["stats_to_csv"] = control.stats_to_csv
         d["stats_to_xlsx"] = control.stats_to_xlsx

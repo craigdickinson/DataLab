@@ -543,6 +543,13 @@ class InputDataModule(QtWidgets.QWidget):
         self.parent.scatter = self.scatter
         self.parent.tf = self.tf
 
+        # Set working directory to project
+        if self.control.project_path:
+            try:
+                os.chdir(self.control.project_path)
+            except FileNotFoundError:
+                pass
+
     def _check_logger_file_formats(self, loggers):
         """Check that all logger file formats are selectable in the logger properties drop-down."""
 

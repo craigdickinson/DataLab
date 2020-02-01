@@ -6,7 +6,7 @@ import pytest
 import rainflow
 from numpy.testing import assert_allclose
 
-from core.histograms import (
+from core.cycle_histograms import (
     rainflow_cycles,
     calc_number_of_bins,
     bin_cycles,

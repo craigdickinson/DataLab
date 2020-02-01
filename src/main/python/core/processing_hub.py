@@ -14,7 +14,7 @@ from core.azure_cloud_storage import connect_to_azure_account, stream_blob
 from core.control import Control
 from core.data_screen import DataScreen
 from core.data_screen_report import DataScreenReport
-from core.histograms import Histograms
+from core.cycle_histograms import CycleHistograms
 from core.spectral_screening import SpectralScreening
 from core.stats_screening import StatsScreening
 from core.time_series_integration import IntegrateTimeSeries
@@ -171,7 +171,7 @@ class ProcessingHub(QObject):
             spect_screening = SpectralScreening(self.control)
             create_output_folder(self.control.spect_output_path)
         if self.any_histograms_requested:
-            histograms = Histograms(self.control)
+            histograms = CycleHistograms(self.control)
             create_output_folder(self.control.hist_output_path)
 
         # Screening report output folder
@@ -345,19 +345,19 @@ class ProcessingHub(QObject):
             warning = (
                 "Warning: Statistics requested but none calculated. Check Data Screening Report."
             )
-            self.signal_update_output_info.emit(warning)
+            self.signal_update_output_info.emit([warning])
 
         if self.any_spect_requested and not any_spect_processed:
             warning = (
                 "Warning: Spectrograms requested but none calculated. Check Data Screening Report."
             )
-            self.signal_update_output_info.emit(warning)
+            self.signal_update_output_info.emit([warning])
 
         if self.any_histograms_requested and not any_histograms_processed:
             warning = (
                 "Warning: Histograms requested but none calculated. Check Data Screening Report."
             )
-            self.signal_update_output_info.emit(warning)
+            self.signal_update_output_info.emit([warning])
 
         # Store results dictionaries
         if self.any_stats_requested:

@@ -42,11 +42,11 @@ class RainflowHistograms(object):
         self.histograms = {}
 
 
-class HistogramDashboard(QtWidgets.QWidget):
+class CycleHistogramDashboard(QtWidgets.QWidget):
     """Create dashboard for rainflow counting histograms."""
 
     def __init__(self, parent=None):
-        super(HistogramDashboard, self).__init__(parent)
+        super(CycleHistogramDashboard, self).__init__(parent)
 
         # So can access parent class
         self.parent = parent
@@ -85,8 +85,8 @@ class HistogramDashboard(QtWidgets.QWidget):
 
     def _init_ui(self):
         # WIDGETS
-        self.openHistFileButton = QtWidgets.QPushButton("Open Histograms...")
-        self.openHistFileButton.setToolTip("Open histograms file")
+        self.openHistFileButton = QtWidgets.QPushButton("Open Cycle Histograms...")
+        self.openHistFileButton.setToolTip("Open cycle histograms file")
         self.clearDatasetsButton = QtWidgets.QPushButton("Clear Datasets")
         self.datasetCombo = QtWidgets.QComboBox()
         self.columnCombo = QtWidgets.QComboBox()
@@ -99,7 +99,7 @@ class HistogramDashboard(QtWidgets.QWidget):
         # Labels
         self.lblDataset = QtWidgets.QLabel("Dataset:")
         self.lblColumn = QtWidgets.QLabel("Column:")
-        self.lblHistograms = QtWidgets.QLabel("Histograms")
+        self.lblHistograms = QtWidgets.QLabel("Cycle histograms")
         self.lblFixedYmax = QtWidgets.QLabel("Fixed y-axis max:")
         self.lblXAxisInterval = QtWidgets.QLabel("X-axis interval:")
 
@@ -274,8 +274,8 @@ class HistogramDashboard(QtWidgets.QWidget):
         ax = self.ax
         ax.cla()
 
-        # Fatigue damage rate plot
-        ax.bar(x, y, width=self.bin_size, align="edge")
+        # Plot cycle histogram
+        ax.bar(x, y, width=self.bin_size, align="edge", edgecolor="k")
         ax.set_xlabel(f"Bins ({units})")
         ax.set_ylabel("Number of Cycles")
         ax.margins(x=0)
@@ -336,7 +336,7 @@ class HistogramDashboard(QtWidgets.QWidget):
         if campaign_name == "":
             campaign_name = "Campaign Title"
 
-        fat_loc = f"{self.dataset} {self.dataset_col} - {self.hist_col} Histogram"
+        fat_loc = f"{self.dataset} {self.dataset_col} - {self.hist_col} Cycle Histogram"
         title = f"{project_name} - {campaign_name}\n{fat_loc}"
 
         return title
@@ -363,6 +363,6 @@ class HistogramDashboard(QtWidgets.QWidget):
 # For testing layout
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
-    win = HistogramDashboard()
+    win = CycleHistogramDashboard()
     win.show()
     sys.exit(app.exec_())
