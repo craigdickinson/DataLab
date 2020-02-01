@@ -5,7 +5,6 @@ __author__ = "Craig Dickinson"
 import json
 import os
 
-from PyQt5.QtCore import QObject, pyqtSignal
 from dateutil.parser import parse
 
 from core.control import Control
@@ -14,16 +13,13 @@ from core.calc_seascatter import Seascatter
 from core.calc_transfer_functions import TransferFunctions
 
 
-class ProjectConfigJSONFile(QObject):
-    signal_warning = pyqtSignal(str)
-
+class ProjectConfigJSONFile(object):
     def __init__(self):
-        super().__init__()
-
         # Config data dictionary to be written to a JSON file
         self.data = {}
         self.filename = ""
         self.full_path = ""
+        self.warnings = []
 
     def load_config_data(self, filename):
         """Load project config JSON file and return the dictionary data."""
@@ -57,7 +53,7 @@ class ProjectConfigJSONFile(QObject):
         """
 
         data = self.data
-        scatter = self._map_seascatter_dict(data, scatter)
+        scatter = self._map_seascatter(data, scatter)
 
         return scatter
 
@@ -69,7 +65,7 @@ class ProjectConfigJSONFile(QObject):
         """
 
         data = self.data
-        tf = self._map_transfer_functions_dict(data, tf)
+        tf = self._map_transfer_functions(data, tf)
 
         return tf
 
@@ -81,7 +77,7 @@ class ProjectConfigJSONFile(QObject):
             data = data[key]
         else:
             msg = f"'{key}' key not found in config file."
-            self.signal_warning.emit(msg)
+            self.warnings.append(msg)
             return control
 
         control.project_num = self._get_key_value(
@@ -155,7 +151,7 @@ class ProjectConfigJSONFile(QObject):
             data = data[key]
         else:
             msg = f"'{key}' key not found in config file."
-            self.signal_warning.emit(msg)
+            self.warnings.append(msg)
             return control
 
         for logger_id, dict_logger in data.items():
@@ -184,6 +180,76 @@ class ProjectConfigJSONFile(QObject):
             control.loggers.append(logger)
 
         return control
+
+    def _map_seascatter(self, data, scatter: Seascatter):
+        """Map the seascatter settings section to the transfer function object."""
+
+        key = "seascatter"
+        if key in data:
+            data = data[key]
+        else:
+            msg = f"'{key}' key not found in config file."
+            self.warnings.append(msg)
+            return scatter
+
+        scatter.metocean_logger = self._get_key_value(
+            section=key, data=data, key="metocean_logger_id", attr=scatter.metocean_logger
+        )
+        scatter.hs_col = self._get_key_value(
+            section=key, data=data, key="hs_column", attr=scatter.hs_col
+        )
+        scatter.tp_col = self._get_key_value(
+            section=key, data=data, key="tp_column", attr=scatter.tp_col
+        )
+        scatter.hs_col_idx = self._get_key_value(
+            section=key, data=data, key="hs_col_idx", attr=scatter.hs_col_idx
+        )
+        scatter.tp_col_idx = self._get_key_value(
+            section=key, data=data, key="tp_col_idx", attr=scatter.tp_col_idx
+        )
+
+        return scatter
+
+    def _map_transfer_functions(self, data, tf: TransferFunctions):
+        """Map the transfer functions settings section to the transfer function object."""
+
+        key = "transfer_functions"
+        if key in data:
+            data = data[key]
+        else:
+            msg = f"'{key}' key not found in config file."
+            self.warnings.append(msg)
+            return tf
+
+        tf.disp_dir = self._get_key_value(
+            section=key, data=data, key="logger_disp_path", attr=tf.disp_dir
+        )
+        tf.rot_dir = self._get_key_value(
+            section=key, data=data, key="logger_rot_path", attr=tf.rot_dir
+        )
+        tf.bm_dir = self._get_key_value(
+            section=key, data=data, key="location_bm_path", attr=tf.bm_dir
+        )
+        tf.num_loggers = self._get_key_value(
+            section=key, data=data, key="num_fea_loggers", attr=tf.num_loggers
+        )
+        tf.num_locs = self._get_key_value(
+            section=key, data=data, key="num_fea_locations", attr=tf.num_locs
+        )
+        tf.num_ss = self._get_key_value(
+            section=key, data=data, key="num_fea_seastates", attr=tf.num_ss
+        )
+        tf.logger_names = self._get_key_value(
+            section=key, data=data, key="logger_names", attr=tf.logger_names
+        )
+        tf.loc_names = self._get_key_value(
+            section=key, data=data, key="location_names", attr=tf.loc_names
+        )
+        tf.perc_occ = self._get_key_value(
+            section=key, data=data, key="seastate_perc_occ", attr=tf.perc_occ
+        )
+
+        return tf
 
     def _map_logger_props(self, logger: LoggerProperties, dict_logger):
         """Retrieve logger properties from JSON dictionary and map to logger object."""
@@ -341,7 +407,7 @@ class ProjectConfigJSONFile(QObject):
                 logger.process_start = parse(process_start, yearfirst=True)
             except ValueError:
                 msg = f"Process start format not recognised for logger {logger.logger_id}."
-                self.signal_warning.emit(msg)
+                self.warnings.append(msg)
 
         process_end = self._get_key_value(
             section=logger.logger_id, data=dict_logger, key="process_end", attr=logger.process_end
@@ -358,7 +424,7 @@ class ProjectConfigJSONFile(QObject):
                 logger.process_end = parse(process_end, yearfirst=True)
             except ValueError:
                 msg = f"Process end format not recognised for logger {logger.logger_id}."
-                self.signal_warning.emit(msg)
+                self.warnings.append(msg)
 
         logger.num_selected_files = self._get_key_value(
             section=logger.logger_id,
@@ -488,76 +554,6 @@ class ProjectConfigJSONFile(QObject):
 
         return logger
 
-    def _map_seascatter_dict(self, data, scatter: Seascatter):
-        """Map the seascatter settings section to the transfer function object."""
-
-        key = "seascatter"
-        if key in data:
-            data = data[key]
-        else:
-            msg = f"'{key}' key not found in config file."
-            self.signal_warning.emit(msg)
-            return scatter
-
-        scatter.metocean_logger = self._get_key_value(
-            section=key, data=data, key="metocean_logger_id", attr=scatter.metocean_logger
-        )
-        scatter.hs_col = self._get_key_value(
-            section=key, data=data, key="hs_column", attr=scatter.hs_col
-        )
-        scatter.tp_col = self._get_key_value(
-            section=key, data=data, key="tp_column", attr=scatter.tp_col
-        )
-        scatter.hs_col_idx = self._get_key_value(
-            section=key, data=data, key="hs_col_idx", attr=scatter.hs_col_idx
-        )
-        scatter.tp_col_idx = self._get_key_value(
-            section=key, data=data, key="tp_col_idx", attr=scatter.tp_col_idx
-        )
-
-        return scatter
-
-    def _map_transfer_functions_dict(self, data, tf: TransferFunctions):
-        """Map the transfer functions settings section to the transfer function object."""
-
-        key = "transfer_functions"
-        if key in data:
-            data = data[key]
-        else:
-            msg = f"'{key}' key not found in config file."
-            self.signal_warning.emit(msg)
-            return tf
-
-        tf.disp_dir = self._get_key_value(
-            section=key, data=data, key="logger_disp_path", attr=tf.disp_dir
-        )
-        tf.rot_dir = self._get_key_value(
-            section=key, data=data, key="logger_rot_path", attr=tf.rot_dir
-        )
-        tf.bm_dir = self._get_key_value(
-            section=key, data=data, key="location_bm_path", attr=tf.bm_dir
-        )
-        tf.num_loggers = self._get_key_value(
-            section=key, data=data, key="num_fea_loggers", attr=tf.num_loggers
-        )
-        tf.num_locs = self._get_key_value(
-            section=key, data=data, key="num_fea_locations", attr=tf.num_locs
-        )
-        tf.num_ss = self._get_key_value(
-            section=key, data=data, key="num_fea_seastates", attr=tf.num_ss
-        )
-        tf.logger_names = self._get_key_value(
-            section=key, data=data, key="logger_names", attr=tf.logger_names
-        )
-        tf.loc_names = self._get_key_value(
-            section=key, data=data, key="location_names", attr=tf.loc_names
-        )
-        tf.perc_occ = self._get_key_value(
-            section=key, data=data, key="seastate_perc_occ", attr=tf.perc_occ
-        )
-
-        return tf
-
     def _get_key_value(self, section, data, key, attr=None):
         """Assign data from a JSON key to control object attribute."""
 
@@ -565,7 +561,7 @@ class ProjectConfigJSONFile(QObject):
             return data[key]
         else:
             msg = f"'{key}' key not found in config file under '{section}' dictionary."
-            self.signal_warning.emit(msg)
+            self.warnings.append(msg)
             return attr
 
     def add_general_settings(self, control: Control):
@@ -620,6 +616,34 @@ class ProjectConfigJSONFile(QObject):
 
             # Add logger props dictionary to loggers dictionary
             self.data["loggers"][logger.logger_id] = dict_props
+
+    def add_seascatter_settings(self, scatter: Seascatter):
+        """Add seascatter settings."""
+
+        d = dict()
+        d["metocean_logger_id"] = scatter.metocean_logger
+        d["hs_column"] = scatter.hs_col
+        d["tp_column"] = scatter.tp_col
+        d["hs_col_idx"] = scatter.hs_col_idx
+        d["tp_col_idx"] = scatter.tp_col_idx
+
+        self.data["seascatter"] = d
+
+    def add_transfer_functions_settings(self, tf: TransferFunctions):
+        """Add transfer functions settings."""
+
+        d = dict()
+        d["logger_disp_path"] = tf.disp_dir
+        d["logger_rot_path"] = tf.rot_dir
+        d["location_bm_path"] = tf.bm_dir
+        d["num_fea_loggers"] = tf.num_loggers
+        d["num_fea_locations"] = tf.num_locs
+        d["num_fea_seastates"] = tf.num_ss
+        d["logger_names"] = tf.logger_names
+        d["location_names"] = tf.loc_names
+        d["seastate_perc_occ"] = tf.perc_occ
+
+        self.data["transfer_functions"] = d
 
     @staticmethod
     def _add_logger_props(logger: LoggerProperties, dict_props):
@@ -728,34 +752,6 @@ class ProjectConfigJSONFile(QObject):
         dict_props["apply_gravity_correction"] = logger.apply_gcorr
 
         return dict_props
-
-    def add_seascatter_settings(self, scatter: Seascatter):
-        """Add seascatter settings."""
-
-        d = dict()
-        d["metocean_logger_id"] = scatter.metocean_logger
-        d["hs_column"] = scatter.hs_col
-        d["tp_column"] = scatter.tp_col
-        d["hs_col_idx"] = scatter.hs_col_idx
-        d["tp_col_idx"] = scatter.tp_col_idx
-
-        self.data["seascatter"] = d
-
-    def add_transfer_functions_settings(self, tf: TransferFunctions):
-        """Add transfer functions settings."""
-
-        d = dict()
-        d["logger_disp_path"] = tf.disp_dir
-        d["logger_rot_path"] = tf.rot_dir
-        d["location_bm_path"] = tf.bm_dir
-        d["num_fea_loggers"] = tf.num_loggers
-        d["num_fea_locations"] = tf.num_locs
-        d["num_fea_seastates"] = tf.num_ss
-        d["logger_names"] = tf.logger_names
-        d["location_names"] = tf.loc_names
-        d["seastate_perc_occ"] = tf.perc_occ
-
-        self.data["transfer_functions"] = d
 
     def save_config(self, proj_path, filename):
         """Export project configuration data as JSON file."""

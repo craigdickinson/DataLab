@@ -501,9 +501,6 @@ class InputDataModule(QtWidgets.QWidget):
             # JSON config class - holds config data dictionary
             config = ProjectConfigJSONFile()
 
-            # Connect warning signal
-            config.signal_warning.connect(self.warning)
-
             # Read JSON file and store data in config object
             config.load_config_data(filepath)
 
@@ -511,6 +508,21 @@ class InputDataModule(QtWidgets.QWidget):
             self.control = config.json_to_control(Control())
             self.scatter = config.json_to_seascatter(Seascatter())
             self.tf = config.json_to_transfer_functions(TransferFunctions())
+
+            # Report any warning messages
+            if config.warnings:
+                # Cap number of warnings reported
+                max_warnings = 40
+                if len(config.warnings) > max_warnings:
+                    all_warnings = "\n".join(x for x in config.warnings[:max_warnings])
+                    all_warnings += (
+                        f"\n\nNB: There are more than {max_warnings} warnings. "
+                        "Remaining warnings not reported."
+                    )
+                else:
+                    all_warnings = "\n".join(config.warnings)
+
+                self.warning(all_warnings)
 
             # Check a logger file formats exist in the drop-down
             self._check_logger_file_formats(self.control.loggers)
