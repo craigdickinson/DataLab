@@ -96,8 +96,54 @@ def do_psd(df, col, n):
     return freq, psd
 
 
-def filter_signal(df, low_cutoff=None, high_cutoff=None, retain_mean=True):
-    """Apply bandpass filter to dataframe of time series and return dataframe of filtered time series."""
+def create_butterworth_filter(fs=1, low_cutoff=None, high_cutoff=None, order=5):
+    """Design a butterworth filter (low, high or bandpass)."""
+
+    if low_cutoff is None and high_cutoff is None:
+        return
+
+    # Nyquist frequency
+    nyq = 0.5 * fs
+
+    # Normalise cut-off frequencies
+    if low_cutoff is not None:
+        lf = low_cutoff / nyq
+    if high_cutoff is not None:
+        hf = high_cutoff / nyq
+
+    # Create filter
+    # Low pass
+    if low_cutoff is None:
+        sos_filter = signal.butter(N=order, Wn=hf, btype="lowpass", output="sos")
+    # High pass
+    elif high_cutoff is None:
+        sos_filter = signal.butter(N=order, Wn=lf, btype="highpass", output="sos")
+    # Bandpass
+    else:
+        sos_filter = signal.butter(N=order, Wn=[lf, hf], btype="bandpass", output="sos")
+
+    return sos_filter
+
+
+def apply_butterworth_filter(df, sos_filter):
+    """Apply butterworth filter to dataframe of time series and return dataframe of filtered time series."""
+
+    if sos_filter is None:
+        return pd.DataFrame()
+
+    data = signal.sosfiltfilt(sos_filter, df.values, axis=0)
+
+    return pd.DataFrame(data, index=df.index, columns=df.columns)
+
+
+def add_signal_mean(df, df_filtered):
+    """Add signal mean to filtered signal."""
+
+    return df_filtered + df.mean(axis=0)
+
+
+def apply_rectangular_filter(df, low_cutoff=None, high_cutoff=None, detrend=False):
+    """Apply rectangular filter to dataframe of time series and return dataframe of filtered time series."""
 
     # If no cut-off frequencies are set, return empty dataframe
     if low_cutoff is None and high_cutoff is None:
@@ -105,23 +151,22 @@ def filter_signal(df, low_cutoff=None, high_cutoff=None, retain_mean=True):
 
     # Perform filtering on all channels
     fs = 1 / (df.index[1] - df.index[0])
-    fft = np.fft.fft(df, axis=0)
     f = abs(np.fft.fftfreq(len(df), 1 / fs))
-    cut_fft = fft.copy()
+    fft = np.fft.fft(df, axis=0)
 
     # Apply freq cut-offs (bandpass filter)
     if low_cutoff:
         #  Ignore the 0 Hz (DC) frequency so as to not remove signal mean
-        if retain_mean is True:
-            cut_fft[1:][f[1:] < low_cutoff] = 0
+        if detrend is True:
+            fft[f < low_cutoff] = 0
         else:
-            cut_fft[f < low_cutoff] = 0
+            fft[1:][f[1:] < low_cutoff] = 0
 
     if high_cutoff:
-        cut_fft[f > high_cutoff] = 0
+        fft[f > high_cutoff] = 0
 
     # ifft
-    filtered = np.fft.ifft(cut_fft, axis=0).real
+    filtered = np.fft.ifft(fft, axis=0).real
     df_filtered = pd.DataFrame(filtered, index=df.index, columns=df.columns)
 
     return df_filtered

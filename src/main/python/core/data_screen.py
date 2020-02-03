@@ -11,7 +11,12 @@ import pandas as pd
 
 from core.logger_properties import LoggerProperties
 from core.read_files import read_2hps2_acc, read_pulse_acc
-from core.signal_processing import filter_signal
+from core.signal_processing import (
+    add_signal_mean,
+    apply_butterworth_filter,
+    apply_rectangular_filter,
+    create_butterworth_filter,
+)
 
 
 class DataScreen(object):
@@ -61,8 +66,13 @@ class DataScreen(object):
         self.file_timestamp_embedded = True
         self.first_col = "Timestamp"
 
-        # Apply bandpass signal filtering flag
+        # Filter parameters
         self.apply_filters = True
+        self.filter_type = "butterworth"
+        self.low_cutoff = None
+        self.high_cutoff = None
+        self.sos_filter = None
+        self.butterworth_order = 6
 
         # Screening requested flags
         self.stats_requested = False
@@ -92,7 +102,7 @@ class DataScreen(object):
         # File format (i.e. Custom/Fugro/Pulse/2HPS2")
         self.file_format = self.logger.file_format
 
-        # Whether filenames contain timestamps
+        # Flag whether filenames contain timestamps
         self.file_timestamp_embedded = self.logger.file_timestamp_embedded
 
         # Set file read properties
@@ -117,11 +127,15 @@ class DataScreen(object):
         self.spect_sample_length = int(self.logger.spect_interval * self.logger.freq)
 
         # Flags to set whether bandpass filtering is to be applied
-        low_cutoff = self.logger.low_cutoff_freq
-        high_cutoff = self.logger.high_cutoff_freq
+        self.low_cutoff = self.logger.low_cutoff_freq
+        self.high_cutoff = self.logger.high_cutoff_freq
 
-        if low_cutoff is None and high_cutoff is None:
+        if self.low_cutoff is None and self.high_cutoff is None:
             self.apply_filters = False
+        elif self.filter_type == "butterworth":
+            self.sos_filter = create_butterworth_filter(
+                self.logger.freq, self.low_cutoff, self.high_cutoff, order=self.butterworth_order
+            )
 
     def read_logger_file(self, file):
         """Read logger file into dataframe."""
@@ -371,8 +385,15 @@ class DataScreen(object):
         else:
             df.set_index(df.columns[0], inplace=True)
 
-        # Apply bandpass filter
-        df_filtered = filter_signal(df, self.logger.low_cutoff_freq, self.logger.high_cutoff_freq)
+        # Apply filter on all dataframe time series
+        if self.filter_type == "butterworth":
+            df_filtered = apply_butterworth_filter(df, self.sos_filter)
+
+            # Reapply mean
+            if self.low_cutoff is not None:
+                df_filtered = add_signal_mean(df, df_filtered)
+        else:
+            df_filtered = apply_rectangular_filter(df, self.low_cutoff, self.high_cutoff)
 
         if not df_filtered.empty:
             # Insert timestamps/time column and reset index to return a dataframe in same format as unfiltered one

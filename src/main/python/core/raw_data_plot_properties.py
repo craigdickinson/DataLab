@@ -236,12 +236,16 @@ class RawDataPlotProperties(object):
         self.psd_xlim = (0.0, 1.0)
         self.psd_ylim = (0.0, 1.0)
 
-        # Low and high frequency cut-offs
+        # Filter parameters
         self.apply_low_cutoff = False
         self.apply_high_cutoff = False
         self.def_low_cutoff = None
         self.def_high_cutoff = None
         self.plot_filt_only = False
+
+        # Butterworth filter parameters
+        self.filter_type = "butterworth"
+        self.butterworth_order = 6
 
         # Legend options
         self.filename_in_legend = True

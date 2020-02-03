@@ -16,7 +16,13 @@ from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as Navigatio
 from core.azure_cloud_storage import connect_to_azure_account, stream_blob
 from core.control import Control
 from core.raw_data_plot_properties import RawDataPlotProperties, RawDataRead
-from core.signal_processing import calc_psd, filter_signal
+from core.signal_processing import (
+    add_signal_mean,
+    apply_butterworth_filter,
+    apply_rectangular_filter,
+    calc_psd,
+    create_butterworth_filter,
+)
 
 # from gui.gui_zoom_pan_factory import ZoomPan
 # "2H blue"
@@ -785,15 +791,26 @@ class RawDataDashboard(QtWidgets.QWidget):
         for srs in all_srs:
             self._filter_time_series(srs)
 
-    @staticmethod
-    def _filter_time_series(srs):
+    def _filter_time_series(self, srs):
         """Calculate filtered signal of a single series."""
 
         # Apply bandpass filter (takes a dataframe as input)
         # TODO: Should create a filter function that accepts an x and y array as well
         if len(srs.y) > 0:
             df = pd.DataFrame(srs.y, index=srs.x)
-            df_filt = filter_signal(df, srs.low_cutoff, srs.high_cutoff)
+
+            if self.plot_setup.filter_type == "butterworth":
+                fs = 1 / (df.index[1] - df.index[0])
+                sos_filter = create_butterworth_filter(
+                    fs, srs.low_cutoff, srs.high_cutoff, order=self.plot_setup.butterworth_order
+                )
+                df_filt = apply_butterworth_filter(df, sos_filter)
+
+                if srs.low_cutoff is not None:
+                    df_filt = add_signal_mean(df, df_filt)
+            else:
+                df_filt = apply_rectangular_filter(df, srs.low_cutoff, srs.high_cutoff)
+
             srs.y_filt = df_filt.values.flatten()
 
     def rebuild_plots(self):

@@ -58,7 +58,7 @@ class CycleHistograms(object):
                 self.channel_num_bins = [self.channel_num_bins[0]] * nc
 
     def calc_histograms_on_dataframe(
-            self, df_file: pd.DataFrame, filename, data_screen: DataScreen
+        self, df_file: pd.DataFrame, filename, data_screen: DataScreen
     ):
         """Calculate rainflow counting histograms of each channel in the (file) dataframe."""
 
