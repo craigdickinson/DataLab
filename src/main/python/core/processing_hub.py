@@ -87,7 +87,8 @@ class ProcessingHub(QObject):
             data_report.add_bad_filenames(logger.logger_id, logger.dict_bad_filenames)
 
             # Create data screen logger with logger and set screening properties
-            data_screen = DataScreen(logger)
+            data_screen = DataScreen(self.control)
+            data_screen.set_logger(logger)
             total_files += len(logger.files)
             logger_ids.append(logger.logger_id)
 
@@ -135,7 +136,8 @@ class ProcessingHub(QObject):
         enabled_loggers = (logger for logger in self.control.loggers if logger.enabled)
         for logger in enabled_loggers:
             # Create data screen logger with logger and set screening properties
-            data_screen = DataScreen(logger)
+            data_screen = DataScreen(self.control)
+            data_screen.set_logger(logger)
             total_files += len(logger.files)
             logger_ids.append(logger.logger_id)
 

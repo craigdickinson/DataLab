@@ -11,7 +11,6 @@ from glob import glob
 from PyQt5 import QtGui, QtWidgets
 from PyQt5.QtCore import Qt, pyqtSlot
 
-from core.azure_cloud_storage import check_azure_account_exists
 from core.calc_seascatter import Seascatter
 from core.calc_transfer_functions import TransferFunctions
 from core.control import Control, InputError
@@ -32,6 +31,8 @@ from core.logger_properties import LoggerError, LoggerProperties
 from core.project_config import ProjectConfigJSONFile
 from views.screening_setup_view import ScreeningSetupTab
 from views.time_series_integration_view import TimeSeriesIntegrationSetupTab
+from views.toolbar_windows import AzureAccountSetupDialog
+
 
 # Module variables: Logger properties lists and dictionaries
 delims_gui_to_logger = {"comma": ",", "space": " ", "tab": "\t"}
@@ -2416,86 +2417,6 @@ class EditTransferFunctionsDialog(QtWidgets.QDialog):
         return QtWidgets.QMessageBox.information(self, "Warning", msg)
 
 
-class AzureAccountSetupDialog(QtWidgets.QDialog):
-    def __init__(self, parent=None, account_name="", account_key=""):
-        super(AzureAccountSetupDialog, self).__init__(parent)
-
-        # Default settings
-        if account_name == "":
-            account_name = "agl2hpocdatalab1store"
-        if account_key == "":
-            account_key = "25ZKbPuwSrzqS3Tv8DVeF58x0cy3rMA8VQPKHj3wRZoiWKTPoyllqFOL0EnEy9Dq+poASjV9nFoSIIC7/sBt6Q=="
-
-        self.parent = parent
-        self.account_name = account_name
-        self.account_key = account_key
-        self._init_ui()
-        self._connect_signals()
-
-    def _init_ui(self):
-        self.setWindowTitle("Connect to Microsoft Azure Cloud Storage Account")
-
-        # WIDGETS
-        self.accountName = QtWidgets.QLineEdit(self.account_name)
-        self.accountName.setFixedWidth(200)
-        self.accountKey = QtWidgets.QLineEdit(self.account_key)
-        self.buttonBox = QtWidgets.QDialogButtonBox(
-            QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel
-        )
-        self.testButton = self.buttonBox.addButton(
-            "&Test Connection", QtWidgets.QDialogButtonBox.ResetRole
-        )
-
-        # CONTAINERS
-        self.form = QtWidgets.QFormLayout()
-        self.form.addRow(QtWidgets.QLabel("Account name:"), self.accountName)
-        self.form.addRow(QtWidgets.QLabel("Account key:"), self.accountKey)
-
-        # LAYOUT
-        self.layout = QtWidgets.QVBoxLayout(self)
-        self.layout.addLayout(self.form)
-        self.layout.addWidget(self.buttonBox)
-
-        self.setFixedSize(self.sizeHint())
-        self.setFixedWidth(650)
-
-    def _connect_signals(self):
-        self.buttonBox.accepted.connect(self.on_ok_clicked)
-        self.testButton.clicked.connect(self.on_test_clicked)
-        self.buttonBox.accepted.connect(self.accept)
-        self.buttonBox.rejected.connect(self.reject)
-
-    def on_test_clicked(self):
-        account_name = self.accountName.text()
-        account_key = self.accountKey.text()
-
-        if account_name == "" or account_key == "":
-            msg = "Both account name and account key must be input."
-            return QtWidgets.QMessageBox.warning(
-                self, "Test Connection to Azure Cloud Storage Account", msg
-            )
-
-        try:
-            check_azure_account_exists(account_name, account_key)
-            msg = f"Connected successfully to Azure Cloud Storage account: {account_name}."
-            return QtWidgets.QMessageBox.information(
-                self, "Test Connection to Azure Cloud Storage Account", msg
-            )
-        except Exception:
-            msg = "Could not connect to Azure Cloud Storage account. Check account name and key are correct."
-            print(f"Error: {msg}")
-            return QtWidgets.QMessageBox.critical(self, "Error", msg)
-
-    def on_ok_clicked(self):
-        """Store Azure settings in control object."""
-
-        try:
-            self.parent.control.azure_account_name = self.accountName.text()
-            self.parent.control.azure_account_key = self.accountKey.text()
-        except:
-            pass
-
-
 if __name__ == "__main__":
     # For testing widget layout
     app = QtWidgets.QApplication(sys.argv)
@@ -2509,6 +2430,5 @@ if __name__ == "__main__":
     # win = EditSeascatterDialog()
     # win = TransferFunctionsTab()
     # win = EditTransferFunctionsDialog()
-    # win = AzureAccountSetupDialog()
     win.show()
     app.exit(app.exec_())

@@ -57,10 +57,10 @@ class RawDataDashboard(QtWidgets.QWidget):
         self._connect_signals()
 
         # Plot settings class
-        self.plot_setup = RawDataPlotProperties()
+        self.plot_settings = RawDataPlotProperties()
 
         # Instantiate plot settings dialog
-        self.plotControls = PlotControlsDialog(self, self.plot_setup)
+        self.plotSettings = PlotSettingsDialog(self, self.plot_settings)
 
     def _init_ui(self):
         # Widget sizing policy - prevent expansion
@@ -248,8 +248,8 @@ class RawDataDashboard(QtWidgets.QWidget):
         else:
             # If previous dataset was "None" set the filters to the current default values (a convenience)
             if srs.dataset == "None":
-                srs.low_cutoff = self.plot_setup.def_low_cutoff
-                srs.high_cutoff = self.plot_setup.def_high_cutoff
+                srs.low_cutoff = self.plot_settings.def_low_cutoff
+                srs.high_cutoff = self.plot_settings.def_high_cutoff
 
             try:
                 i = self.datasetCombo.currentIndex() - 1
@@ -321,7 +321,7 @@ class RawDataDashboard(QtWidgets.QWidget):
 
         # Confirm or reject value and update plot setting default value
         self.lowCutoff.setText(str(srs.low_cutoff))
-        self.plot_setup.def_low_cutoff = srs.low_cutoff
+        self.plot_settings.def_low_cutoff = srs.low_cutoff
 
         # Recalculate filtered signal for selected time series
         self._filter_time_series(srs)
@@ -345,7 +345,7 @@ class RawDataDashboard(QtWidgets.QWidget):
 
         # Confirm or reject value and update plot setting default value
         self.highCutoff.setText(str(srs.high_cutoff))
-        self.plot_setup.def_high_cutoff = srs.high_cutoff
+        self.plot_settings.def_high_cutoff = srs.high_cutoff
 
         # Recalculate filtered signal for selected time series
         self._filter_time_series(srs)
@@ -356,7 +356,7 @@ class RawDataDashboard(QtWidgets.QWidget):
         self.skip_on_xlims_changed = False
 
     def on_plot_filt_only_toggled(self):
-        self.plot_setup.plot_filt_only = self.plotFiltOnlyChkBox.isChecked()
+        self.plot_settings.plot_filt_only = self.plotFiltOnlyChkBox.isChecked()
 
         # This flag stops the on_xlims_changed event from processing
         self.skip_on_xlims_changed = True
@@ -388,8 +388,8 @@ class RawDataDashboard(QtWidgets.QWidget):
                 xmax = 1 / xmin
 
         # Update plot setup properties
-        self.plot_setup.plot_period = self.periodRadio.isChecked()
-        self.plot_setup.psd_xlim = (xmin, xmax)
+        self.plot_settings.plot_period = self.periodRadio.isChecked()
+        self.plot_settings.psd_xlim = (xmin, xmax)
 
         # Redraw PSD plot
         self._remove_all_psd_series()
@@ -397,7 +397,7 @@ class RawDataDashboard(QtWidgets.QWidget):
         self.canvas.draw()
 
     def on_log_scale_toggled(self):
-        self.plot_setup.log_scale = self.logScale.isChecked()
+        self.plot_settings.log_scale = self.logScale.isChecked()
 
         # This flag stops the on_xlims_changed event from processing
         self.skip_on_xlims_changed = True
@@ -415,8 +415,8 @@ class RawDataDashboard(QtWidgets.QWidget):
     def on_plot_settings_clicked(self):
         """Show plot options window."""
 
-        self.plotControls.set_dialog_data()
-        self.plotControls.show()
+        self.plotSettings.set_dialog_data()
+        self.plotSettings.show()
 
     def on_xlims_changed(self, ax):
         """Recalculate PSDs for new time series x-axis limits and replot."""
@@ -425,10 +425,10 @@ class RawDataDashboard(QtWidgets.QWidget):
             return
 
         # Store current time series x-axis limits
-        self.plot_setup.ts_xlim = tuple(round(x, 1) for x in ax.get_xlim())
+        self.plot_settings.ts_xlim = tuple(round(x, 1) for x in ax.get_xlim())
 
         # Store current PSD x-axis limits so current PSD limits are retained are creating new PSD plot
-        self.plot_setup.psd_xlim = tuple(round(x, 1) for x in self.ax2.get_xlim())
+        self.plot_settings.psd_xlim = tuple(round(x, 1) for x in self.ax2.get_xlim())
 
         # Remove existing PSD line plots
         self._remove_all_psd_series()
@@ -444,7 +444,7 @@ class RawDataDashboard(QtWidgets.QWidget):
         self.axisCombo.setCurrentIndex(0)
         self.seriesCombo.setCurrentIndex(0)
         self.proj_datasets = []
-        self.plot_setup.reset()
+        self.plot_settings.reset()
         self.datasetCombo.clear()
         self.datasetCombo.addItem("None")
         self.lblFile.setText("-")
@@ -556,7 +556,7 @@ class RawDataDashboard(QtWidgets.QWidget):
             self._set_column_list(columns)
 
     def _map_control_project_name(self):
-        self.plot_setup.project_name = self.control.project_name
+        self.plot_settings.project_name = self.control.project_name
 
     def _set_file_list(self, filenames):
         """Update dataset file list widget for current selected dataset."""
@@ -587,8 +587,8 @@ class RawDataDashboard(QtWidgets.QWidget):
 
         # Set series filters - use default filters if a blank dataset
         if srs.dataset == "None":
-            self.lowCutoff.setText(str(self.plot_setup.def_low_cutoff))
-            self.highCutoff.setText(str(self.plot_setup.def_high_cutoff))
+            self.lowCutoff.setText(str(self.plot_settings.def_low_cutoff))
+            self.highCutoff.setText(str(self.plot_settings.def_high_cutoff))
         else:
             self.lowCutoff.setText(str(srs.low_cutoff))
             self.highCutoff.setText(str(srs.high_cutoff))
@@ -662,9 +662,9 @@ class RawDataDashboard(QtWidgets.QWidget):
         self.current_series_i = series_i
 
         if axis_i == 0:
-            srs = self.plot_setup.axis1_series_list[series_i]
+            srs = self.plot_settings.axis1_series_list[series_i]
         else:
-            srs = self.plot_setup.axis2_series_list[series_i]
+            srs = self.plot_settings.axis2_series_list[series_i]
 
         return srs
 
@@ -676,7 +676,7 @@ class RawDataDashboard(QtWidgets.QWidget):
 
         # Set flag to set x-axis limits to duration of time series if a new file is loaded/selected
         if self.columnList.count() == 0:
-            self.plot_setup.set_init_axis_limits = True
+            self.plot_settings.set_init_axis_limits = True
 
         # Check if series' channel names have changed and update column list widget if so
         # if self.columnList.count() == 0 or channel_names != srs.channel_names:
@@ -748,7 +748,7 @@ class RawDataDashboard(QtWidgets.QWidget):
 
         # Check plot data was set and store initial data limits (note column 1 is Timestamp so looking for > 1 columns)
         if len(srs.y) > 0:
-            self.plot_setup.init_xlim = (srs.x[0], srs.x[-1])
+            self.plot_settings.init_xlim = (srs.x[0], srs.x[-1])
 
         self.filter_all_time_series()
 
@@ -787,8 +787,9 @@ class RawDataDashboard(QtWidgets.QWidget):
         Filtered signal is stored in the y_filt property of each series object.
         """
 
-        all_srs = self.plot_setup.axis1_series_list + self.plot_setup.axis2_series_list
-        for srs in all_srs:
+        all_srs = self.plot_settings.axis1_series_list + self.plot_settings.axis2_series_list
+        populated_srs = (srs for srs in all_srs if len(srs.y) > 0)
+        for srs in populated_srs:
             self._filter_time_series(srs)
 
     def _filter_time_series(self, srs):
@@ -799,10 +800,10 @@ class RawDataDashboard(QtWidgets.QWidget):
         if len(srs.y) > 0:
             df = pd.DataFrame(srs.y, index=srs.x)
 
-            if self.plot_setup.filter_type == "Butterworth":
+            if self.control.filter_type == "Butterworth":
                 fs = 1 / (df.index[1] - df.index[0])
                 sos_filter = create_butterworth_filter(
-                    fs, srs.low_cutoff, srs.high_cutoff, order=self.plot_setup.butterworth_order
+                    fs, srs.low_cutoff, srs.high_cutoff, order=self.control.butterworth_order
                 )
                 df_filt = apply_butterworth_filter(df, sos_filter)
 
@@ -830,16 +831,16 @@ class RawDataDashboard(QtWidgets.QWidget):
             return
 
         # Store plot flags
-        self.plot_setup.axis1_is_plotted = axis1_is_plotted
-        self.plot_setup.axis2_is_plotted = axis2_is_plotted
+        self.plot_settings.axis1_is_plotted = axis1_is_plotted
+        self.plot_settings.axis2_is_plotted = axis2_is_plotted
 
         # Set x-axis limits of time series subplot to be the file duration id a new file was loaded/selected
-        if self.plot_setup.set_init_axis_limits is True:
-            self.plot_setup.ts_xlim = self.plot_setup.init_xlim
-            self.plot_setup.set_init_axis_limits = False
+        if self.plot_settings.set_init_axis_limits is True:
+            self.plot_settings.ts_xlim = self.plot_settings.init_xlim
+            self.plot_settings.set_init_axis_limits = False
 
         # Set time series x-axis limits
-        self.ax1.set_xlim(self.plot_setup.ts_xlim)
+        self.ax1.set_xlim(self.plot_settings.ts_xlim)
 
         # Plot all PSD series
         self._plot_psd()
@@ -861,7 +862,7 @@ class RawDataDashboard(QtWidgets.QWidget):
         self.canvas.draw()
 
         # Update parameters in plot settings window (could be open)
-        self.plotControls.set_dialog_data()
+        self.plotSettings.set_dialog_data()
 
     def _draw_axes(self):
         """Set up basic plot layout."""
@@ -897,7 +898,7 @@ class RawDataDashboard(QtWidgets.QWidget):
     def _remove_all_psd_series(self):
         """Clear the PSD subplot """
 
-        all_srs = self.plot_setup.axis1_series_list + self.plot_setup.axis2_series_list
+        all_srs = self.plot_settings.axis1_series_list + self.plot_settings.axis2_series_list
         for srs in all_srs:
             if srs.psd_line is not None:
                 srs.psd_line.remove()
@@ -911,10 +912,10 @@ class RawDataDashboard(QtWidgets.QWidget):
 
         axis1_is_plotted = False
         axis2_is_plotted = False
-        plot_filt_only = self.plot_setup.plot_filt_only
+        plot_filt_only = self.plot_settings.plot_filt_only
 
         # Plot all populated axis 1 series
-        for srs in self.plot_setup.axis1_series_list:
+        for srs in self.plot_settings.axis1_series_list:
             # Plot unfiltered time series
             if len(srs.y) > 0 and plot_filt_only is False:
                 srs.ts_line = self._add_ts_line_plot(srs, ax=self.ax1, filtered=False)
@@ -926,7 +927,7 @@ class RawDataDashboard(QtWidgets.QWidget):
                 axis1_is_plotted = True
 
         # Plot all populated axis 2 series
-        for srs in self.plot_setup.axis2_series_list:
+        for srs in self.plot_settings.axis2_series_list:
             # Plot unfiltered time series
             if len(srs.y) > 0 and plot_filt_only is False:
                 srs.ts_line = self._add_ts_line_plot(srs, ax=self.ax1b, filtered=False)
@@ -942,10 +943,10 @@ class RawDataDashboard(QtWidgets.QWidget):
     def _plot_psd(self):
         """Compute and plot all PSD series."""
 
-        plot_filt_only = self.plot_setup.plot_filt_only
+        plot_filt_only = self.plot_settings.plot_filt_only
 
         # Plot all populated axis 1 series
-        for srs in self.plot_setup.axis1_series_list:
+        for srs in self.plot_settings.axis1_series_list:
             # Plot unfiltered time series
             if len(srs.y) > 0 and plot_filt_only is False:
                 srs.psd_line = self._add_psd_line_plot(srs, ax=self.ax2, filtered=False)
@@ -955,7 +956,7 @@ class RawDataDashboard(QtWidgets.QWidget):
                 srs.psd_line_filt = self._add_psd_line_plot(srs, ax=self.ax2, filtered=True)
 
         # Plot all populated axis 2 series
-        for srs in self.plot_setup.axis2_series_list:
+        for srs in self.plot_settings.axis2_series_list:
             # Plot unfiltered time series
             if len(srs.y) > 0 and plot_filt_only is False:
                 srs.psd_line = self._add_psd_line_plot(srs, ax=self.ax2b, filtered=False)
@@ -965,10 +966,10 @@ class RawDataDashboard(QtWidgets.QWidget):
                 srs.psd_line_filt = self._add_psd_line_plot(srs, ax=self.ax2b, filtered=True)
 
         # Set x and y axis limits from stored values
-        self.ax2.set_xlim(self.plot_setup.psd_xlim)
+        self.ax2.set_xlim(self.plot_settings.psd_xlim)
 
         # X-axis label
-        if self.plot_setup.plot_period:
+        if self.plot_settings.plot_period:
             self.ax2.set_xlabel("Period (s)")
         else:
             self.ax2.set_xlabel("Frequency (Hz)")
@@ -1010,7 +1011,7 @@ class RawDataDashboard(QtWidgets.QWidget):
             color = srs.color
 
         # Retrieve time series x-limits to calculate PSD on
-        xmin, xmax = self.plot_setup.ts_xlim
+        xmin, xmax = self.plot_settings.ts_xlim
         x = srs.x
 
         # This method works if x is integers not floats
@@ -1027,7 +1028,7 @@ class RawDataDashboard(QtWidgets.QWidget):
         f, pxx = self._compute_psd(df)
 
         # Set x-axis as frequency or period based on plot options
-        if self.plot_setup.plot_period:
+        if self.plot_settings.plot_period:
             # Handle for divide by zero
             f = 1 / f[1:]
             pxx = pxx[1:]
@@ -1039,7 +1040,7 @@ class RawDataDashboard(QtWidgets.QWidget):
             units = srs.units
 
         # Convert PSD to log10 if plot option selected
-        if self.plot_setup.log_scale is True:
+        if self.plot_settings.log_scale is True:
             # pxx = np.log10(pxx)
             ax.set_yscale("log")
             ylabel = f"$\mathregular{{log_{{10}} [({units})^2/Hz}}]$".strip()
@@ -1068,11 +1069,11 @@ class RawDataDashboard(QtWidgets.QWidget):
         # TODO: Unit test this!
         # Sampling frequency
         fs = 1 / (df.index[1] - df.index[0])
-        window = self.plot_setup.window.lower()
+        window = self.plot_settings.window.lower()
         if window == "none":
             window = "boxcar"
-        nperseg = int(len(df) / self.plot_setup.num_ensembles)
-        noverlap = nperseg * self.plot_setup.overlap // 100
+        nperseg = int(len(df) / self.plot_settings.num_ensembles)
+        noverlap = nperseg * self.plot_settings.overlap // 100
 
         try:
             # Note the default Welch parameters are equivalent to running
@@ -1088,9 +1089,9 @@ class RawDataDashboard(QtWidgets.QWidget):
         # df_psd = pd.DataFrame(pxx.T, index=f)
 
         # Store nperseg and sampling frequency so that plot settings window is up to date
-        self.plot_setup.def_nperseg = int(len(df))
-        self.plot_setup.cust_nperseg = nperseg
-        self.plot_setup.fs = int(fs)
+        self.plot_settings.def_nperseg = int(len(df))
+        self.plot_settings.cust_nperseg = nperseg
+        self.plot_settings.fs = int(fs)
 
         return f, pxx
 
@@ -1100,13 +1101,13 @@ class RawDataDashboard(QtWidgets.QWidget):
         # Construct legend label
         label = ""
 
-        if self.plot_setup.filename_in_legend is True:
+        if self.plot_settings.filename_in_legend is True:
             label += f"{srs.file} "
 
-        if self.plot_setup.dataset_in_legend is True:
+        if self.plot_settings.dataset_in_legend is True:
             label += f"{srs.dataset} "
 
-        if self.plot_setup.column_in_legend is True:
+        if self.plot_settings.column_in_legend is True:
             label += f"{srs.column}"
 
         if filtered is True:
@@ -1118,8 +1119,8 @@ class RawDataDashboard(QtWidgets.QWidget):
         """Set displayed gridlines and axis visibility."""
 
         # If primary axis not used, switch gridlines to axis 2
-        axis1_is_plotted = self.plot_setup.axis1_is_plotted
-        axis2_is_plotted = self.plot_setup.axis2_is_plotted
+        axis1_is_plotted = self.plot_settings.axis1_is_plotted
+        axis2_is_plotted = self.plot_settings.axis2_is_plotted
 
         # Set gridlines on axis 1 only
         if not axis1_is_plotted and axis2_is_plotted:
@@ -1159,7 +1160,7 @@ class RawDataDashboard(QtWidgets.QWidget):
         # except:
         #     subtitle = ""
         subtitle = ""
-        title = f"{self.plot_setup.project_name} {subtitle}".strip()
+        title = f"{self.plot_settings.project_name} {subtitle}".strip()
         self.fig.suptitle(
             title,
             # size=16,
@@ -1174,15 +1175,14 @@ class RawDataDashboard(QtWidgets.QWidget):
     def export_plot_data_to_excel(self):
         """Export all plot data to Excel."""
 
-        all_srs = self.plot_setup.axis1_series_list + self.plot_setup.axis2_series_list
+        all_srs = self.plot_settings.axis1_series_list + self.plot_settings.axis2_series_list
 
         # Collate all time series to dataframe
         df_ts_list = []
-        for srs in all_srs:
-            y = srs.y
-            if len(y) > 0:
-                df = pd.DataFrame(y, index=srs.x, columns=[srs.label])
-                df_ts_list.append(df)
+        populated_srs = (srs for srs in all_srs if len(srs.y) > 0)
+        for srs in populated_srs:
+            df = pd.DataFrame(srs.y, index=srs.x, columns=[srs.label])
+            df_ts_list.append(df)
 
             y = srs.y_filt
             if len(y) > 0:
@@ -1191,11 +1191,10 @@ class RawDataDashboard(QtWidgets.QWidget):
 
         # Collate all psd series to dataframe
         df_psd_list = []
-        for srs in all_srs:
-            pxx = srs.pxx
-            if len(pxx) > 0:
-                df = pd.DataFrame(pxx, index=srs.freq, columns=[srs.label])
-                df_psd_list.append(df)
+        populated_srs = (srs for srs in all_srs if len(srs.pxx) > 0)
+        for srs in populated_srs:
+            df = pd.DataFrame(srs.pxx, index=srs.freq, columns=[srs.label])
+            df_psd_list.append(df)
 
             pxx = srs.pxx_filt
             if len(pxx) > 0:
@@ -1476,16 +1475,15 @@ class RawDataDashboard(QtWidgets.QWidget):
     #     return df_plot
 
 
-class PlotControlsDialog(QtWidgets.QDialog):
+class PlotSettingsDialog(QtWidgets.QDialog):
     def __init__(self, parent=None, plot_settings=RawDataPlotProperties()):
-        super(PlotControlsDialog, self).__init__(parent)
+        super(PlotSettingsDialog, self).__init__(parent)
 
         self.parent = parent
         self.plot_settings = plot_settings
 
         # Window and filter type combo options
         self.windows = ["None", "Hann", "Hamming", "Bartlett", "Blackman"]
-        self.filter_types = ["Butterworth", "Rectangular"]
 
         self._init_ui()
         self._connect_signals()
@@ -1521,13 +1519,6 @@ class PlotControlsDialog(QtWidgets.QDialog):
         self.optPSDXmax.setFixedWidth(50)
         # self.optPSDYmin.setFixedWidth(50)
         # self.optPSDYmax.setFixedWidth(50)
-
-        # Filter settings
-        self.filterType = QtWidgets.QComboBox()
-        self.filterType.addItems(self.filter_types)
-        self.butterOrder = QtWidgets.QLineEdit("6")
-        self.butterOrder.setFixedWidth(20)
-        self.butterOrder.setValidator(int_validator)
 
         # PSD parameters
         self.radioDefault = QtWidgets.QRadioButton("Default parameters")
@@ -1595,13 +1586,6 @@ class PlotControlsDialog(QtWidgets.QDialog):
         self.hboxLimits.addWidget(self.psdGroup)
         self.hboxLimits.addStretch()
 
-        # Filter group
-        self.filterGroup = QtWidgets.QGroupBox("Filter Settings")
-        self.filterGroup.setSizePolicy(policy)
-        self.filterForm = QtWidgets.QFormLayout(self.filterGroup)
-        self.filterForm.addRow(QtWidgets.QLabel("Filter type:"), self.filterType)
-        self.filterForm.addRow(QtWidgets.QLabel("Butterworth order:"), self.butterOrder)
-
         # Parameters choice radios
         self.vboxRadios = QtWidgets.QVBoxLayout()
         self.vboxRadios.addWidget(self.radioDefault)
@@ -1652,27 +1636,21 @@ class PlotControlsDialog(QtWidgets.QDialog):
         # mainLayout.addWidget(sectionLabel)
         self.layout.addLayout(self.formTitle)
         self.layout.addLayout(self.hboxLimits)
-        self.layout.addWidget(self.filterGroup)
         self.layout.addWidget(self.paramGroup)
         self.layout.addWidget(self.legendGroup)
         self.layout.addStretch()
         self.layout.addWidget(self.buttonBox)
 
     def _connect_signals(self):
-        self.filterType.currentIndexChanged.connect(self.on_filter_type_changed)
         self.radioDefault.toggled.connect(self.on_psd_params_type_toggled)
         self.radioWelch.toggled.connect(self.on_psd_params_type_toggled)
         self.buttonBox.accepted.connect(self.on_ok_clicked)
         self.buttonBox.accepted.connect(self.accept)
         self.buttonBox.rejected.connect(self.reject)
         self.buttonBox.button(QtWidgets.QDialogButtonBox.Apply).clicked.connect(self.on_ok_clicked)
-        self.buttonBox.button(QtWidgets.QDialogButtonBox.Reset).clicked.connect(self.on_reset_clicked)
-
-    def on_filter_type_changed(self):
-        if self.filterType.currentText() == "Butterworth":
-            self.butterOrder.setEnabled(True)
-        else:
-            self.butterOrder.setEnabled(False)
+        self.buttonBox.button(QtWidgets.QDialogButtonBox.Reset).clicked.connect(
+            self.on_reset_clicked
+        )
 
     def on_psd_params_type_toggled(self):
         """Switch between default and custom PSD parameters."""
@@ -1705,9 +1683,6 @@ class PlotControlsDialog(QtWidgets.QDialog):
 
         self._set_plot_settings()
 
-        # Reapply filtering in case filter type settings have changed
-        self.parent.filter_all_time_series()
-
         # This flag stops the on_xlims_changed event from processing
         self.parent.skip_on_xlims_changed = True
         self.parent.rebuild_plots()
@@ -1725,10 +1700,6 @@ class PlotControlsDialog(QtWidgets.QDialog):
         self.optTSXmax.setText(str(self.parent.ax1.get_xlim()[1]))
         self.optPSDXmin.setText(str(self.parent.ax2.get_xlim()[0]))
         self.optPSDXmax.setText(str(self.parent.ax2.get_xlim()[1]))
-
-        # Filter settings
-        self.filterType.setCurrentText(self.plot_settings.filter_type)
-        self.butterOrder.setText(str(self.plot_settings.butterworth_order))
 
         # Get PSD parameters
         if self.plot_settings.psd_params_type == "default":
@@ -1775,10 +1746,6 @@ class PlotControlsDialog(QtWidgets.QDialog):
                 float(self.optPSDXmax.text()),
             )
 
-            # Set filter settings
-            self.plot_settings.filter_type = self.filterType.currentText()
-            self.plot_settings.butterworth_order = int(self.butterOrder.text())
-
             # Set PSD parameters
             self.plot_settings.num_ensembles = float(self.optNumEnsembles.text())
             self.plot_settings.window = self.optWindow.currentText()
@@ -1813,7 +1780,7 @@ class PlotControlsDialog(QtWidgets.QDialog):
         self.plot_settings.column_in_legend = self.columnInLegend.isChecked()
 
     def on_reset_clicked(self):
-        """Reset option settings to initial values set during file load."""
+        """Reset plot settings to initial values set during file load."""
 
         self.optTSXmin.setText(str(round(self.plot_settings.init_xlim[0], 1)))
         self.optTSXmax.setText(str(round(self.plot_settings.init_xlim[1], 1)))
@@ -1831,7 +1798,7 @@ class PlotControlsDialog(QtWidgets.QDialog):
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
     # win = RawDataDashboard()
-    win = PlotControlsDialog()
+    win = PlotSettingsDialog()
     win.show()
     sys.exit(app.exec_())
 

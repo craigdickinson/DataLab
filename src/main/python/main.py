@@ -27,10 +27,10 @@ from core.read_files import (
     read_stats_hdf5,
     read_wcfat_results,
 )
-from views.input_data_view import AzureAccountSetupDialog
 from views.main_window_view import DataLabGui
 from views.processing_progress_view import ProcessingProgressBar
 from views.stats_view import StatsDataset
+from views.toolbar_windows import AzureAccountSetupDialog, FilterSettings
 
 
 class DataLab(DataLabGui):
@@ -91,6 +91,9 @@ class DataLab(DataLabGui):
 
         # Azure menu
         self.azureSettingsAction.triggered.connect(self.on_azure_account_settings_triggered)
+
+        # Filter settings menu
+        self.filterSettingsAction.triggered.connect(self.on_filter_settings_triggered)
 
         # Help menu
         self.helpAction.triggered.connect(self.show_help)
@@ -283,8 +286,8 @@ class DataLab(DataLabGui):
         """Show raw data plot settings window."""
 
         # Set current parameters from time series plot widget class
-        self.rawDataModule.plotControls.set_dialog_data()
-        self.rawDataModule.plotControls.show()
+        self.rawDataModule.plotSettings.set_dialog_data()
+        self.rawDataModule.plotSettings.show()
 
     def on_spect_plot_settings_triggered(self):
         """Show spectrogram plot settings window."""
@@ -296,12 +299,12 @@ class DataLab(DataLabGui):
     def on_azure_account_settings_triggered(self):
         """Open Azure account settings window."""
 
-        azureSettings = AzureAccountSetupDialog(
-            self,
-            account_name=self.control.azure_account_name,
-            account_key=self.control.azure_account_key,
-        )
-        azureSettings.show()
+        AzureAccountSetupDialog(self, self.control).show()
+
+    def on_filter_settings_triggered(self):
+        """Open filter settings window."""
+
+        FilterSettings(self, self.control).show()
 
     @staticmethod
     def show_help():

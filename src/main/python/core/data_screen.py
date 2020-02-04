@@ -9,6 +9,7 @@ from datetime import timedelta
 import numpy as np
 import pandas as pd
 
+from core.control import Control
 from core.logger_properties import LoggerProperties
 from core.read_files import read_2hps2_acc, read_pulse_acc
 from core.signal_processing import (
@@ -22,7 +23,7 @@ from core.signal_processing import (
 class DataScreen(object):
     """Screen data from a list of filenames and store stats."""
 
-    def __init__(self, logger=None):
+    def __init__(self, control=Control()):
         """Instantiate with empty logger."""
 
         self.logger = LoggerProperties()
@@ -68,11 +69,11 @@ class DataScreen(object):
 
         # Filter parameters
         self.apply_filters = True
-        self.filter_type = "butterworth"
         self.low_cutoff = None
         self.high_cutoff = None
+        self.filter_type = control.filter_type
+        self.butterworth_order = control.butterworth_order
         self.sos_filter = None
-        self.butterworth_order = 6
 
         # Screening requested flags
         self.stats_requested = False
@@ -85,9 +86,6 @@ class DataScreen(object):
         self.spect_processed = False
         self.histograms_processed = False
         self.integration_processed = False
-
-        if logger:
-            self.set_logger(logger)
 
     def set_logger(self, logger: LoggerProperties):
         """Set the logger filenames to be assessed and required read file properties."""
@@ -132,7 +130,7 @@ class DataScreen(object):
 
         if self.low_cutoff is None and self.high_cutoff is None:
             self.apply_filters = False
-        elif self.filter_type == "butterworth":
+        elif self.filter_type == "Butterworth":
             self.sos_filter = create_butterworth_filter(
                 self.logger.freq, self.low_cutoff, self.high_cutoff, order=self.butterworth_order
             )
@@ -386,7 +384,7 @@ class DataScreen(object):
             df.set_index(df.columns[0], inplace=True)
 
         # Apply filter on all dataframe time series
-        if self.filter_type == "butterworth":
+        if self.filter_type == "Butterworth":
             df_filtered = apply_butterworth_filter(df, self.sos_filter)
 
             # Reapply mean

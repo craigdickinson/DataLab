@@ -596,7 +596,9 @@ class SpectroPlotSettings(QtWidgets.QDialog):
         self.buttonBox.accepted.connect(self.accept)
         self.buttonBox.rejected.connect(self.reject)
         self.buttonBox.button(QtWidgets.QDialogButtonBox.Apply).clicked.connect(self.on_ok_clicked)
-        self.buttonBox.button(QtWidgets.QDialogButtonBox.Reset).clicked.connect(self.on_reset_clicked)
+        self.buttonBox.button(QtWidgets.QDialogButtonBox.Reset).clicked.connect(
+            self.on_reset_clicked
+        )
 
     def set_dialog_data(self):
         """Get plot parameters from the spectrogram widget and assign to settings widget."""

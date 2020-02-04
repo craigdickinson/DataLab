@@ -37,14 +37,18 @@ class Control(object):
         self.campaign_name = ""
         self.project_path = ""
 
+        # Azure account settings
+        self.azure_account_name = ""
+        self.azure_account_key = ""
+
+        # Filter settings
+        self.filter_type = "Butterworth"
+        self.butterworth_order = 6
+
         # Global screening flags
         self.global_process_stats = True
         self.global_process_spect = True
         self.global_process_histograms = True
-
-        # Azure account settings
-        self.azure_account_name = ""
-        self.azure_account_key = ""
 
         # Output folders
         self.report_output_folder = "Screening Report"

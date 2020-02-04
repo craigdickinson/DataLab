@@ -98,6 +98,12 @@ class ProjectConfigJSONFile(object):
         control.azure_account_key = self._get_key_value(
             section=key, data=data, key="azure_account_key", attr=control.azure_account_key
         )
+        control.filter_type = self._get_key_value(
+            section=key, data=data, key="filter_type", attr=control.filter_type
+        )
+        control.butterworth_order = self._get_key_value(
+            section=key, data=data, key="butterworth_order", attr=control.butterworth_order
+        )
         control.global_process_stats = self._get_key_value(
             section=key, data=data, key="global_process_stats", attr=control.global_process_stats
         )
@@ -577,6 +583,8 @@ class ProjectConfigJSONFile(object):
         d["project_location"] = control.project_path
         d["azure_account_name"] = control.azure_account_name
         d["azure_account_key"] = control.azure_account_key
+        d["filter_type"] = control.filter_type
+        d["butterworth_order"] = control.butterworth_order
         d["global_process_stats"] = control.global_process_stats
         d["global_process_spectral"] = control.global_process_spect
         d["stats_folder"] = control.stats_output_folder

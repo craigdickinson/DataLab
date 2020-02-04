@@ -103,6 +103,7 @@ class DataLabGui(QtWidgets.QMainWindow):
         # self.menuView = menubar.addMenu("&View")
         self.menuProcess = menubar.addMenu("&Process")
         # self.menuLogic = menubar.addMenu("&Applied Logic")
+        self.menuFilter = menubar.addMenu("&Filter Settings")
         self.menuPlotSettings = menubar.addMenu("Plot &Settings")
         self.menuExport = menubar.addMenu("&Export")
         self.menuAzure = menubar.addMenu("&Azure")
@@ -155,11 +156,16 @@ class DataLabGui(QtWidgets.QMainWindow):
         # menuLogic.addAction(self.filter)
         # menuLogic.addAction(self.spikeRemoval)
 
+        # Filter settings menu actions
+        self.filterSettingsAction = QtWidgets.QAction("Filter Settings")
+        self.filterSettingsAction.setShortcut("Alt+1")
+        self.menuFilter.addAction(self.filterSettingsAction)
+
         # Plot settings menu actions
         # self.add2HIcon = QtWidgets.QAction("Add 2H Icon")
         # self.add2HIcon.setCheckable(True)
         self.loggerPlotSettingsAction = QtWidgets.QAction("Logger Plot Settings...")
-        self.loggerPlotSettingsAction.setShortcut("Alt+1")
+        self.loggerPlotSettingsAction.setShortcut("Alt+2")
         self.spectPlotSettingsAction = QtWidgets.QAction("Spectrogram Plot Settings...")
         self.spectPlotSettingsAction.setShortcut("Alt+3")
         # self.menuPlotSettings.addAction(self.add2HIcon)
@@ -173,6 +179,7 @@ class DataLabGui(QtWidgets.QMainWindow):
 
         # Azure menu actions
         self.azureSettingsAction = QtWidgets.QAction("Azure Cloud Storage Account Settings")
+        self.azureSettingsAction.setShortcut("Alt+4")
         self.menuAzure.addAction(self.azureSettingsAction)
 
         # Help menu actions
