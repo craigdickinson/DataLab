@@ -1,7 +1,7 @@
 __author__ = "Craig Dickinson"
 __program__ = "DataLab"
-__version__ = "2.1.0.20"
-__date__ = "3 February 2020"
+__version__ = "2.1.0.21"
+__date__ = "4 February 2020"
 
 import logging
 import os
@@ -83,14 +83,14 @@ class DataLab(DataLabGui):
 
         # Plot settings menu
         # self.add2HIcon.triggered.connect(self.add_2h_icon)
-        self.loggerPlotSettingsAction.triggered.connect(self.open_logger_plot_settings)
-        self.spectPlotSettingsAction.triggered.connect(self.open_spect_plot_settings)
+        self.loggerPlotSettingsAction.triggered.connect(self.on_logger_plot_settings_triggered)
+        self.spectPlotSettingsAction.triggered.connect(self.on_spect_plot_settings_triggered)
 
         # Export menu
         self.exportScatterDiagAction.triggered.connect(self.on_export_scatter_diagram_triggered)
 
         # Azure menu
-        self.azureSettingsAction.triggered.connect(self.open_azure_account_settings)
+        self.azureSettingsAction.triggered.connect(self.on_azure_account_settings_triggered)
 
         # Help menu
         self.helpAction.triggered.connect(self.show_help)
@@ -279,21 +279,23 @@ class DataLab(DataLabGui):
             self, "To Do", "Feature coming in a future update."
         )
 
-    def open_logger_plot_settings(self):
+    def on_logger_plot_settings_triggered(self):
         """Show raw data plot settings window."""
 
         # Set current parameters from time series plot widget class
         self.rawDataModule.plotControls.set_dialog_data()
         self.rawDataModule.plotControls.show()
 
-    def open_spect_plot_settings(self):
+    def on_spect_plot_settings_triggered(self):
         """Show spectrogram plot settings window."""
 
         # Set current parameters from spectrogram plot widget class
         self.spectrogramTab.plotSettings.set_dialog_data()
         self.spectrogramTab.plotSettings.show()
 
-    def open_azure_account_settings(self):
+    def on_azure_account_settings_triggered(self):
+        """Open Azure account settings window."""
+
         azureSettings = AzureAccountSetupDialog(
             self,
             account_name=self.control.azure_account_name,

@@ -244,7 +244,7 @@ class RawDataPlotProperties(object):
         self.plot_filt_only = False
 
         # Butterworth filter parameters
-        self.filter_type = "butterworth"
+        self.filter_type = "Butterworth"
         self.butterworth_order = 6
 
         # Legend options

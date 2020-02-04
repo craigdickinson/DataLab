@@ -596,7 +596,7 @@ class SpectroPlotSettings(QtWidgets.QDialog):
         self.buttonBox.accepted.connect(self.accept)
         self.buttonBox.rejected.connect(self.reject)
         self.buttonBox.button(QtWidgets.QDialogButtonBox.Apply).clicked.connect(self.on_ok_clicked)
-        self.buttonBox.button(QtWidgets.QDialogButtonBox.Reset).clicked.connect(self.reset_values)
+        self.buttonBox.button(QtWidgets.QDialogButtonBox.Reset).clicked.connect(self.on_reset_clicked)
 
     def set_dialog_data(self):
         """Get plot parameters from the spectrogram widget and assign to settings widget."""
@@ -631,7 +631,7 @@ class SpectroPlotSettings(QtWidgets.QDialog):
             if self.parent.datasetsList.count() > 0:
                 self.parent.create_plots()
 
-    def reset_values(self):
+    def on_reset_clicked(self):
         """Reset option settings to initial values set during file load."""
 
         # Pointer to spectrogram widget class

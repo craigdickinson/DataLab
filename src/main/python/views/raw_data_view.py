@@ -9,7 +9,7 @@ import sys
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from PyQt5 import QtWidgets
+from PyQt5 import QtGui, QtWidgets
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 
@@ -799,7 +799,7 @@ class RawDataDashboard(QtWidgets.QWidget):
         if len(srs.y) > 0:
             df = pd.DataFrame(srs.y, index=srs.x)
 
-            if self.plot_setup.filter_type == "butterworth":
+            if self.plot_setup.filter_type == "Butterworth":
                 fs = 1 / (df.index[1] - df.index[0])
                 sos_filter = create_butterworth_filter(
                     fs, srs.low_cutoff, srs.high_cutoff, order=self.plot_setup.butterworth_order
@@ -1483,14 +1483,18 @@ class PlotControlsDialog(QtWidgets.QDialog):
         self.parent = parent
         self.plot_settings = plot_settings
 
-        # Window combo options
+        # Window and filter type combo options
         self.windows = ["None", "Hann", "Hamming", "Bartlett", "Blackman"]
+        self.filter_types = ["Butterworth", "Rectangular"]
 
         self._init_ui()
         self._connect_signals()
 
     def _init_ui(self):
         self.setWindowTitle("Raw Data Dashboard Plot Settings")
+
+        int_validator = QtGui.QIntValidator()
+        int_validator.setBottom(1)
 
         # Widget sizing policy - prevent expansion
         policy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed)
@@ -1517,6 +1521,13 @@ class PlotControlsDialog(QtWidgets.QDialog):
         self.optPSDXmax.setFixedWidth(50)
         # self.optPSDYmin.setFixedWidth(50)
         # self.optPSDYmax.setFixedWidth(50)
+
+        # Filter settings
+        self.filterType = QtWidgets.QComboBox()
+        self.filterType.addItems(self.filter_types)
+        self.butterOrder = QtWidgets.QLineEdit("6")
+        self.butterOrder.setFixedWidth(20)
+        self.butterOrder.setValidator(int_validator)
 
         # PSD parameters
         self.radioDefault = QtWidgets.QRadioButton("Default parameters")
@@ -1552,7 +1563,7 @@ class PlotControlsDialog(QtWidgets.QDialog):
         self.formTitle = QtWidgets.QFormLayout()
         self.formTitle.addRow(QtWidgets.QLabel("Project title:"), self.optProject)
 
-        # Time series axes limits
+        # Time series axes limits group
         self.tsGroup = QtWidgets.QGroupBox("Time Series Limits")
         self.tsGroup.setSizePolicy(policy)
         self.grid = QtWidgets.QGridLayout(self.tsGroup)
@@ -1565,7 +1576,7 @@ class PlotControlsDialog(QtWidgets.QDialog):
         # self.grid.addWidget(QtWidgets.QLabel('Y max:'), 1, 2)
         # self.grid.addWidget(self.optTSYmax, 1, 3)
 
-        # PSD axes limits
+        # PSD axes limits group
         self.psdGroup = QtWidgets.QGroupBox("PSD Limits")
         self.psdGroup.setSizePolicy(policy)
         self.grid = QtWidgets.QGridLayout(self.psdGroup)
@@ -1584,6 +1595,37 @@ class PlotControlsDialog(QtWidgets.QDialog):
         self.hboxLimits.addWidget(self.psdGroup)
         self.hboxLimits.addStretch()
 
+        # Filter group
+        self.filterGroup = QtWidgets.QGroupBox("Filter Settings")
+        self.filterGroup.setSizePolicy(policy)
+        self.filterForm = QtWidgets.QFormLayout(self.filterGroup)
+        self.filterForm.addRow(QtWidgets.QLabel("Filter type:"), self.filterType)
+        self.filterForm.addRow(QtWidgets.QLabel("Butterworth order:"), self.butterOrder)
+
+        # Parameters choice radios
+        self.vboxRadios = QtWidgets.QVBoxLayout()
+        self.vboxRadios.addWidget(self.radioDefault)
+        self.vboxRadios.addWidget(self.radioWelch)
+        self.vboxRadios.addWidget(self.radioCustom)
+        self.vboxRadios.addStretch()
+
+        # PSD parameters form
+        self.psdForm = QtWidgets.QFormLayout()
+        self.psdForm.addRow(QtWidgets.QLabel("Number of segments:"), self.optNumEnsembles)
+        self.psdForm.addRow(QtWidgets.QLabel("Window:"), self.optWindow)
+        self.psdForm.addRow(QtWidgets.QLabel("Segment overlap (%):"), self.optOverlap)
+        self.psdForm.addRow(
+            QtWidgets.QLabel("Number of points per segment (echo):"), self.optNperseg
+        )
+        self.psdForm.addRow(QtWidgets.QLabel("Sampling frequency (Hz) (echo):"), self.optFs)
+
+        # PSD parameters group
+        self.paramGroup = QtWidgets.QGroupBox("Power Spectral Density Parameters")
+        self.paramGroup.setSizePolicy(policy)
+        self.hbox = QtWidgets.QHBoxLayout(self.paramGroup)
+        self.hbox.addLayout(self.vboxRadios)
+        self.hbox.addLayout(self.psdForm)
+
         # Legend group
         self.legendGroup = QtWidgets.QGroupBox("Legend Format")
         self.legendGroup.setSizePolicy(policy)
@@ -1591,30 +1633,6 @@ class PlotControlsDialog(QtWidgets.QDialog):
         self.vboxLeg.addWidget(self.filenameInLegend)
         self.vboxLeg.addWidget(self.datasetInLegend)
         self.vboxLeg.addWidget(self.columnInLegend)
-
-        # Parameters choice radios
-        self.vbox = QtWidgets.QVBoxLayout()
-        self.vbox.addWidget(self.radioDefault)
-        self.vbox.addWidget(self.radioWelch)
-        self.vbox.addWidget(self.radioCustom)
-        self.vbox.addStretch()
-
-        # PSD parameters form
-        self.formLayout = QtWidgets.QFormLayout()
-        self.formLayout.addRow(QtWidgets.QLabel("Number of segments:"), self.optNumEnsembles)
-        self.formLayout.addRow(QtWidgets.QLabel("Window:"), self.optWindow)
-        self.formLayout.addRow(QtWidgets.QLabel("Segment overlap (%):"), self.optOverlap)
-        self.formLayout.addRow(
-            QtWidgets.QLabel("Number of points per segment (echo):"), self.optNperseg
-        )
-        self.formLayout.addRow(QtWidgets.QLabel("Sampling frequency (Hz) (echo):"), self.optFs)
-
-        # PSD parameters group
-        self.paramGroup = QtWidgets.QGroupBox("Power Spectral Density Parameters")
-        self.paramGroup.setSizePolicy(policy)
-        self.hbox = QtWidgets.QHBoxLayout(self.paramGroup)
-        self.hbox.addLayout(self.vbox)
-        self.hbox.addLayout(self.formLayout)
 
         # Button box
         self.buttonBox = QtWidgets.QDialogButtonBox(
@@ -1634,19 +1652,27 @@ class PlotControlsDialog(QtWidgets.QDialog):
         # mainLayout.addWidget(sectionLabel)
         self.layout.addLayout(self.formTitle)
         self.layout.addLayout(self.hboxLimits)
+        self.layout.addWidget(self.filterGroup)
         self.layout.addWidget(self.paramGroup)
         self.layout.addWidget(self.legendGroup)
         self.layout.addStretch()
         self.layout.addWidget(self.buttonBox)
 
     def _connect_signals(self):
+        self.filterType.currentIndexChanged.connect(self.on_filter_type_changed)
         self.radioDefault.toggled.connect(self.on_psd_params_type_toggled)
         self.radioWelch.toggled.connect(self.on_psd_params_type_toggled)
         self.buttonBox.accepted.connect(self.on_ok_clicked)
         self.buttonBox.accepted.connect(self.accept)
         self.buttonBox.rejected.connect(self.reject)
         self.buttonBox.button(QtWidgets.QDialogButtonBox.Apply).clicked.connect(self.on_ok_clicked)
-        self.buttonBox.button(QtWidgets.QDialogButtonBox.Reset).clicked.connect(self.reset_values)
+        self.buttonBox.button(QtWidgets.QDialogButtonBox.Reset).clicked.connect(self.on_reset_clicked)
+
+    def on_filter_type_changed(self):
+        if self.filterType.currentText() == "Butterworth":
+            self.butterOrder.setEnabled(True)
+        else:
+            self.butterOrder.setEnabled(False)
 
     def on_psd_params_type_toggled(self):
         """Switch between default and custom PSD parameters."""
@@ -1679,6 +1705,9 @@ class PlotControlsDialog(QtWidgets.QDialog):
 
         self._set_plot_settings()
 
+        # Reapply filtering in case filter type settings have changed
+        self.parent.filter_all_time_series()
+
         # This flag stops the on_xlims_changed event from processing
         self.parent.skip_on_xlims_changed = True
         self.parent.rebuild_plots()
@@ -1696,6 +1725,10 @@ class PlotControlsDialog(QtWidgets.QDialog):
         self.optTSXmax.setText(str(self.parent.ax1.get_xlim()[1]))
         self.optPSDXmin.setText(str(self.parent.ax2.get_xlim()[0]))
         self.optPSDXmax.setText(str(self.parent.ax2.get_xlim()[1]))
+
+        # Filter settings
+        self.filterType.setCurrentText(self.plot_settings.filter_type)
+        self.butterOrder.setText(str(self.plot_settings.butterworth_order))
 
         # Get PSD parameters
         if self.plot_settings.psd_params_type == "default":
@@ -1732,7 +1765,7 @@ class PlotControlsDialog(QtWidgets.QDialog):
 
         # Check numeric parameters are of valid type
         try:
-            # Assign axes limits
+            # Set axes limits
             self.plot_settings.ts_xlim = (
                 float(self.optTSXmin.text()),
                 float(self.optTSXmax.text()),
@@ -1742,7 +1775,11 @@ class PlotControlsDialog(QtWidgets.QDialog):
                 float(self.optPSDXmax.text()),
             )
 
-            # Assign PSD parameters
+            # Set filter settings
+            self.plot_settings.filter_type = self.filterType.currentText()
+            self.plot_settings.butterworth_order = int(self.butterOrder.text())
+
+            # Set PSD parameters
             self.plot_settings.num_ensembles = float(self.optNumEnsembles.text())
             self.plot_settings.window = self.optWindow.currentText()
             self.plot_settings.overlap = float(self.optOverlap.text())
@@ -1775,13 +1812,15 @@ class PlotControlsDialog(QtWidgets.QDialog):
         self.plot_settings.dataset_in_legend = self.datasetInLegend.isChecked()
         self.plot_settings.column_in_legend = self.columnInLegend.isChecked()
 
-    def reset_values(self):
+    def on_reset_clicked(self):
         """Reset option settings to initial values set during file load."""
 
         self.optTSXmin.setText(str(round(self.plot_settings.init_xlim[0], 1)))
         self.optTSXmax.setText(str(round(self.plot_settings.init_xlim[1], 1)))
         self.optPSDXmin.setText("0.0")
         self.optPSDXmax.setText("1.0")
+        self.filterType.setCurrentIndex(0)
+        self.butterOrder.setText("6")
         self.radioDefault.setChecked(True)
         self.filenameInLegend.setChecked(True)
         self.datasetInLegend.setChecked(True)
