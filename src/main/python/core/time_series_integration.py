@@ -50,38 +50,32 @@ class IntegrateTimeSeries(object):
 
         # Convert angular rate columns to angles
         # (We calculate angles first as need angles for gravity decontamination of displacements)
-        if self.ang_rate_x_col != "-":
+        if self.ang_rate_x_col != "Not used":
             angle_cols.append("Angle X (deg)")
             ang_rates = df[self.ang_rate_x_col].values
             angles_x = angular_rate_to_angle(ang_rates, int_transform)
             angles_data.append(angles_x)
 
-        if self.ang_rate_y_col != "-":
+        if self.ang_rate_y_col != "Not used":
             angle_cols.append("Angle Y (deg)")
             ang_rates = df[self.ang_rate_y_col].values
             angles_y = angular_rate_to_angle(ang_rates, int_transform)
             angles_data.append(angles_y)
 
-        if self.ang_rate_z_col != "-":
-            angle_cols.append("Angle Z (deg)")
-            ang_rates = df[self.ang_rate_z_col].values
-            angles_z = angular_rate_to_angle(ang_rates, int_transform)
-            angles_data.append(angles_z)
-
         # Convert acceleration columns to displacements (with optional gravity decontamination)
-        if self.acc_x_col != "-":
+        if self.acc_x_col != "Not used":
             disp_cols.append("Disp X (m)")
             accels = df[self.acc_x_col].values
             disps = accel_to_disp(accels, int_transform, self.apply_g_correction, angles_x)
             disps_data.append(disps)
 
-        if self.acc_y_col != "-":
+        if self.acc_y_col != "Not used":
             disp_cols.append("Disp Y (m)")
             accels = df[self.acc_y_col].values
             disps = accel_to_disp(accels, int_transform, self.apply_g_correction, angles_y)
             disps_data.append(disps)
 
-        if self.acc_z_col != "-":
+        if self.acc_z_col != "Not used":
             disp_cols.append("Disp Z (m)")
             accels = df[self.acc_z_col].values
             disps = accel_to_disp(

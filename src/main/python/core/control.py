@@ -137,7 +137,7 @@ class Control(object):
         self.copy_attributes(obj_from=ref_logger, obj_to=dest_logger, attribute_names=names)
 
     def copy_logger_screening_settings(self, ref_logger_id, dest_logger):
-        """Copy anotehr logger's screening settings."""
+        """Copy another logger's screening settings."""
 
         # Attributes to copy
         names = [
@@ -164,17 +164,32 @@ class Control(object):
         self.copy_attributes(ref_logger, dest_logger, names)
 
     def copy_logger_integration_settings(self, ref_logger_id, dest_logger):
-        """Copy another logger's time series integration settings (acc to disp and angular rate to angle)."""
+        """Copy another logger's time series integration settings (accel to disp and angular rate to angle)."""
 
         # Attributes to copy
         names = [
+            "all_channel_names",
+            "apply_gcorr",
             "acc_x_col",
             "acc_y_col",
             "acc_z_col",
             "ang_rate_x_col",
             "ang_rate_y_col",
-            "ang_rate_z_col",
-            "apply_gcorr",
+            "acc_x_units_conv",
+            "acc_y_units_conv",
+            "acc_z_units_conv",
+            "ang_rate_x_units_conv",
+            "ang_rate_y_units_conv",
+            "acc_x_low_cutoff",
+            "acc_y_low_cutoff",
+            "acc_z_low_cutoff",
+            "ang_rate_x_low_cutoff",
+            "ang_rate_y_low_cutoff",
+            "acc_x_high_cutoff",
+            "acc_y_high_cutoff",
+            "acc_z_high_cutoff",
+            "ang_rate_x_high_cutoff",
+            "ang_rate_y_high_cutoff",
         ]
 
         # Get reference logger to copy

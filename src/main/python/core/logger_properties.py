@@ -54,7 +54,9 @@ class LoggerProperties(QObject):
     def __init__(self, logger_id=""):
         super().__init__()
 
+        # =================
         # LOGGER PROPERTIES
+        # =================
         # Name and location
         self.logger_id = logger_id
         self.enabled = True
@@ -126,7 +128,9 @@ class LoggerProperties(QObject):
         # this is to ensure results files contain a unique file number index
         self.enforce_max_duration = False
 
+        # ==========================
         # GENERAL SCREENING SETTINGS
+        # ==========================
         # Channel columns to process
         self.cols_to_process = []
 
@@ -153,11 +157,15 @@ class LoggerProperties(QObject):
         self.low_cutoff_freq = 0.05
         self.high_cutoff_freq = 0.5
 
+        # ========================
         # STATS SCREENING SETTINGS
+        # ========================
         self.process_stats = True
         self.stats_interval = 0
 
+        # ===========================
         # SPECTRAL SCREENING SETTINGS
+        # ===========================
         self.process_spect = True
         self.spect_interval = 0
 
@@ -166,20 +174,48 @@ class LoggerProperties(QObject):
         self.psd_window = "Hann"
         self.psd_overlap = 50
 
+        # ========================
         # CYCLE HISTOGRAM SETTINGS
+        # ========================
         self.process_hists = True
         self.channel_bin_sizes = [1]
         self.channel_num_bins = [50]
 
+        # ==================================
         # TIME SERIES INTEGRATION PROPERTIES
+        # ==================================
         self.process_integration = True
-        self.acc_x_col = "-"
-        self.acc_y_col = "-"
-        self.acc_z_col = "-"
-        self.ang_rate_x_col = "-"
-        self.ang_rate_y_col = "-"
-        self.ang_rate_z_col = "-"
+
+        # Apply gravity correction
         self.apply_gcorr = True
+
+        # Columns used
+        self.acc_x_col = "Not used"
+        self.acc_y_col = "Not used"
+        self.acc_z_col = "Not used"
+        self.ang_rate_x_col = "Not used"
+        self.ang_rate_y_col = "Not used"
+
+        # Units conversions
+        self.acc_x_units_conv = "-"
+        self.acc_y_units_conv = "-"
+        self.acc_z_units_conv = "-"
+        self.ang_rate_x_units_conv = "-"
+        self.ang_rate_y_units_conv = "-"
+
+        # Low cut-off frequencies
+        self.acc_x_low_cutoff = 0.25
+        self.acc_y_low_cutoff = 0.25
+        self.acc_z_low_cutoff = 0.25
+        self.ang_rate_x_low_cutoff = 0.25
+        self.ang_rate_y_low_cutoff = 0.25
+
+        # High cut-off frequencies
+        self.acc_x_high_cutoff = 2.0
+        self.acc_y_high_cutoff = 2.0
+        self.acc_z_high_cutoff = 2.0
+        self.ang_rate_x_high_cutoff = 2.0
+        self.ang_rate_y_high_cutoff = 2.0
 
     def get_filenames(self):
         """Read all file timestamps and check that they conform to the specified format."""

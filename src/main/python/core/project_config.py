@@ -527,38 +527,122 @@ class ProjectConfigJSONFile(object):
             key="process_integration",
             attr=logger.process_integration,
         )
-        logger.acc_x_col = self._get_key_value(
-            section=logger.logger_id, data=dict_logger, key="conv_acc_x", attr=logger.acc_x_col
-        )
-        logger.acc_y_col = self._get_key_value(
-            section=logger.logger_id, data=dict_logger, key="conv_acc_y", attr=logger.acc_y_col
-        )
-        logger.acc_z_col = self._get_key_value(
-            section=logger.logger_id, data=dict_logger, key="conv_acc_z", attr=logger.acc_z_col
-        )
-        logger.ang_rate_x_col = self._get_key_value(
-            section=logger.logger_id,
-            data=dict_logger,
-            key="conv_ang_rate_x",
-            attr=logger.ang_rate_x_col,
-        )
-        logger.ang_rate_y_col = self._get_key_value(
-            section=logger.logger_id,
-            data=dict_logger,
-            key="conv_ang_rate_y",
-            attr=logger.ang_rate_y_col,
-        )
-        logger.ang_rate_z_col = self._get_key_value(
-            section=logger.logger_id,
-            data=dict_logger,
-            key="conv_ang_rate_z",
-            attr=logger.ang_rate_z_col,
-        )
         logger.apply_gcorr = self._get_key_value(
             section=logger.logger_id,
             data=dict_logger,
             key="apply_gravity_correction",
             attr=logger.apply_gcorr,
+        )
+        logger.acc_x_col = self._get_key_value(
+            section=logger.logger_id, data=dict_logger, key="acc_x_col", attr=logger.acc_x_col
+        )
+        logger.acc_y_col = self._get_key_value(
+            section=logger.logger_id, data=dict_logger, key="acc_y_col", attr=logger.acc_y_col
+        )
+        logger.acc_z_col = self._get_key_value(
+            section=logger.logger_id, data=dict_logger, key="acc_z_col", attr=logger.acc_z_col
+        )
+        logger.ang_rate_x_col = self._get_key_value(
+            section=logger.logger_id,
+            data=dict_logger,
+            key="ang_rate_x_col",
+            attr=logger.ang_rate_x_col,
+        )
+        logger.ang_rate_y_col = self._get_key_value(
+            section=logger.logger_id,
+            data=dict_logger,
+            key="ang_rate_y_col",
+            attr=logger.ang_rate_y_col,
+        )
+        logger.acc_x_units_conv = self._get_key_value(
+            section=logger.logger_id,
+            data=dict_logger,
+            key="acc_x_units_conv",
+            attr=logger.acc_x_units_conv,
+        )
+        logger.acc_y_units_conv = self._get_key_value(
+            section=logger.logger_id,
+            data=dict_logger,
+            key="acc_y_units_conv",
+            attr=logger.acc_y_units_conv,
+        )
+        logger.acc_z_units_conv = self._get_key_value(
+            section=logger.logger_id,
+            data=dict_logger,
+            key="acc_z_units_conv",
+            attr=logger.acc_z_units_conv,
+        )
+        logger.ang_rate_x_units_conv = self._get_key_value(
+            section=logger.logger_id,
+            data=dict_logger,
+            key="ang_rate_x_units_conv",
+            attr=logger.ang_rate_x_units_conv,
+        )
+        logger.ang_rate_y_units_conv = self._get_key_value(
+            section=logger.logger_id,
+            data=dict_logger,
+            key="ang_rate_y_units_conv",
+            attr=logger.ang_rate_y_units_conv,
+        )
+        logger.acc_x_low_cutoff = self._get_key_value(
+            section=logger.logger_id,
+            data=dict_logger,
+            key="acc_x_low_cutoff",
+            attr=logger.acc_x_low_cutoff,
+        )
+        logger.acc_y_low_cutoff = self._get_key_value(
+            section=logger.logger_id,
+            data=dict_logger,
+            key="acc_y_low_cutoff",
+            attr=logger.acc_y_low_cutoff,
+        )
+        logger.acc_z_low_cutoff = self._get_key_value(
+            section=logger.logger_id,
+            data=dict_logger,
+            key="acc_z_low_cutoff",
+            attr=logger.acc_z_low_cutoff,
+        )
+        logger.ang_rate_x_low_cutoff = self._get_key_value(
+            section=logger.logger_id,
+            data=dict_logger,
+            key="ang_rate_x_low_cutoff",
+            attr=logger.ang_rate_x_low_cutoff,
+        )
+        logger.ang_rate_y_low_cutoff = self._get_key_value(
+            section=logger.logger_id,
+            data=dict_logger,
+            key="ang_rate_y_low_cutoff",
+            attr=logger.ang_rate_y_low_cutoff,
+        )
+        logger.acc_x_high_cutoff = self._get_key_value(
+            section=logger.logger_id,
+            data=dict_logger,
+            key="acc_x_high_cutoff",
+            attr=logger.acc_x_high_cutoff,
+        )
+        logger.acc_y_high_cutoff = self._get_key_value(
+            section=logger.logger_id,
+            data=dict_logger,
+            key="acc_y_high_cutoff",
+            attr=logger.acc_y_high_cutoff,
+        )
+        logger.acc_z_high_cutoff = self._get_key_value(
+            section=logger.logger_id,
+            data=dict_logger,
+            key="acc_z_high_cutoff",
+            attr=logger.acc_z_high_cutoff,
+        )
+        logger.ang_rate_x_high_cutoff = self._get_key_value(
+            section=logger.logger_id,
+            data=dict_logger,
+            key="ang_rate_x_high_cutoff",
+            attr=logger.ang_rate_x_high_cutoff,
+        )
+        logger.ang_rate_y_high_cutoff = self._get_key_value(
+            section=logger.logger_id,
+            data=dict_logger,
+            key="ang_rate_y_high_cutoff",
+            attr=logger.ang_rate_y_high_cutoff,
         )
 
         return logger
@@ -755,13 +839,27 @@ class ProjectConfigJSONFile(object):
         """Add control object logger time series integration settings to JSON dictionary."""
 
         dict_props["process_integration"] = logger.process_integration
-        dict_props["conv_acc_x"] = logger.acc_x_col
-        dict_props["conv_acc_y"] = logger.acc_y_col
-        dict_props["conv_acc_z"] = logger.acc_z_col
-        dict_props["conv_ang_rate_x"] = logger.ang_rate_x_col
-        dict_props["conv_ang_rate_y"] = logger.ang_rate_y_col
-        dict_props["conv_ang_rate_z"] = logger.ang_rate_z_col
         dict_props["apply_gravity_correction"] = logger.apply_gcorr
+        dict_props["acc_x_col"] = logger.acc_x_col
+        dict_props["acc_y_col"] = logger.acc_y_col
+        dict_props["acc_z_col"] = logger.acc_z_col
+        dict_props["ang_rate_x_col"] = logger.ang_rate_x_col
+        dict_props["ang_rate_y_col"] = logger.ang_rate_y_col
+        dict_props["acc_x_units_conv"] = logger.acc_x_units_conv
+        dict_props["acc_y_units_conv"] = logger.acc_y_units_conv
+        dict_props["acc_z_units_conv"] = logger.acc_z_units_conv
+        dict_props["ang_rate_x_units_conv"] = logger.ang_rate_x_units_conv
+        dict_props["ang_rate_y_units_conv"] = logger.ang_rate_y_units_conv
+        dict_props["acc_x_low_cutoff"] = logger.acc_x_low_cutoff
+        dict_props["acc_y_low_cutoff"] = logger.acc_y_low_cutoff
+        dict_props["acc_z_low_cutoff"] = logger.acc_z_low_cutoff
+        dict_props["ang_rate_x_low_cutoff"] = logger.ang_rate_x_low_cutoff
+        dict_props["ang_rate_y_low_cutoff"] = logger.ang_rate_y_low_cutoff
+        dict_props["acc_x_high_cutoff"] = logger.acc_x_high_cutoff
+        dict_props["acc_y_high_cutoff"] = logger.acc_y_high_cutoff
+        dict_props["acc_z_high_cutoff"] = logger.acc_z_high_cutoff
+        dict_props["ang_rate_x_high_cutoff"] = logger.ang_rate_x_high_cutoff
+        dict_props["ang_rate_y_high_cutoff"] = logger.ang_rate_y_high_cutoff
 
         return dict_props
 

@@ -81,7 +81,7 @@ class TimeSeriesIntegrationSetupTab(QtWidgets.QWidget):
     def on_edit_clicked(self):
         """Open logger screening edit dialog."""
 
-        if not self.parent:
+        if self.parent is None:
             return
 
         if self.parent.loggerList.count() == 0:
@@ -145,9 +145,14 @@ class EditIntegrationSetupDialog(QtWidgets.QDialog):
         self.control = control
         self.logger_idx = logger_idx
 
+        # Combobox lists
+        # Units
+        self.disp_units = ["-", "mm to m"]
+        self.angle_units = ["-", "rad to deg"]
+
         try:
             self.logger = control.loggers[logger_idx]
-        except:
+        except IndexError:
             self.logger = LoggerProperties()
 
         self._init_ui()
@@ -165,7 +170,7 @@ class EditIntegrationSetupDialog(QtWidgets.QDialog):
         self.copyLogger = QtWidgets.QComboBox()
         self.copyLogger.setMinimumWidth(80)
         self.copyLogger.addItem("-")
-        self.copyLoggerButton = QtWidgets.QPushButton("&Copy Settings")
+        self.copyLoggerButton = QtWidgets.QPushButton("&Copy")
 
         # Column selectors
         self.accXCombo = QtWidgets.QComboBox()
@@ -180,34 +185,44 @@ class EditIntegrationSetupDialog(QtWidgets.QDialog):
         self.angRateYCombo.setFixedWidth(200)
 
         # Unit conversions
-        self.accXUnitConv = QtWidgets.QComboBox()
-        self.accYUnitConv = QtWidgets.QComboBox()
-        self.accZUnitConv = QtWidgets.QComboBox()
-        self.angRateXUnitConv = QtWidgets.QComboBox()
-        self.angRateYUnitConv = QtWidgets.QComboBox()
+        self.accXUnitConvCombo = QtWidgets.QComboBox()
+        self.accXUnitConvCombo.setFixedWidth(80)
+        self.accXUnitConvCombo.addItems(self.disp_units)
+        self.accYUnitConvCombo = QtWidgets.QComboBox()
+        self.accYUnitConvCombo.setFixedWidth(80)
+        self.accYUnitConvCombo.addItems(self.disp_units)
+        self.accZUnitConvCombo = QtWidgets.QComboBox()
+        self.accZUnitConvCombo.setFixedWidth(80)
+        self.accZUnitConvCombo.addItems(self.disp_units)
+        self.angRateXUnitConvCombo = QtWidgets.QComboBox()
+        self.angRateXUnitConvCombo.setFixedWidth(80)
+        self.angRateXUnitConvCombo.addItems(self.angle_units)
+        self.angRateYUnitConvCombo = QtWidgets.QComboBox()
+        self.angRateYUnitConvCombo.setFixedWidth(80)
+        self.angRateYUnitConvCombo.addItems(self.angle_units)
 
         # Low cut-off frequencies
-        self.accXLowCutoff = QtWidgets.QLineEdit()
+        self.accXLowCutoff = QtWidgets.QLineEdit("0.25")
         self.accXLowCutoff.setFixedWidth(40)
-        self.accYLowCutoff = QtWidgets.QLineEdit()
+        self.accYLowCutoff = QtWidgets.QLineEdit("0.25")
         self.accYLowCutoff.setFixedWidth(40)
-        self.accZLowCutoff = QtWidgets.QLineEdit()
+        self.accZLowCutoff = QtWidgets.QLineEdit("0.25")
         self.accZLowCutoff.setFixedWidth(40)
-        self.angRateXLowCutoff = QtWidgets.QLineEdit()
+        self.angRateXLowCutoff = QtWidgets.QLineEdit("0.25")
         self.angRateXLowCutoff.setFixedWidth(40)
-        self.angRateYLowCutoff = QtWidgets.QLineEdit()
+        self.angRateYLowCutoff = QtWidgets.QLineEdit("0.25")
         self.angRateYLowCutoff.setFixedWidth(40)
 
         # High cut-off frequencies
-        self.accXHighCutoff = QtWidgets.QLineEdit()
+        self.accXHighCutoff = QtWidgets.QLineEdit("2.0")
         self.accXHighCutoff.setFixedWidth(40)
-        self.accYHighCutoff = QtWidgets.QLineEdit()
+        self.accYHighCutoff = QtWidgets.QLineEdit("2.0")
         self.accYHighCutoff.setFixedWidth(40)
-        self.accZHighCutoff = QtWidgets.QLineEdit()
+        self.accZHighCutoff = QtWidgets.QLineEdit("2.0")
         self.accZHighCutoff.setFixedWidth(40)
-        self.angRateXHighCutoff = QtWidgets.QLineEdit()
+        self.angRateXHighCutoff = QtWidgets.QLineEdit("2.0")
         self.angRateXHighCutoff.setFixedWidth(40)
-        self.angRateYHighCutoff = QtWidgets.QLineEdit()
+        self.angRateYHighCutoff = QtWidgets.QLineEdit("2.0")
         self.angRateYHighCutoff.setFixedWidth(40)
 
         # General inputs
@@ -216,7 +231,7 @@ class EditIntegrationSetupDialog(QtWidgets.QDialog):
         self.integrationFolder.setFixedWidth(200)
 
         # Labels
-        lblCopy = QtWidgets.QLabel("Logger to copy:")
+        lblCopy = QtWidgets.QLabel("Logger settings to copy (optional):")
         lblAccX = QtWidgets.QLabel("Acceleration X:")
         lblAccY = QtWidgets.QLabel("Acceleration Y:")
         lblAccZ = QtWidgets.QLabel("Acceleration Z:")
@@ -226,7 +241,7 @@ class EditIntegrationSetupDialog(QtWidgets.QDialog):
 
         # Header labels
         lblChannel = QtWidgets.QLabel("Column")
-        lblUnitConv = QtWidgets.QLabel("Unit Conversion")
+        lblUnitConv = QtWidgets.QLabel("Units Conversion")
         lblCutoffFreqs = QtWidgets.QLabel("Cut-off Freqs (Hz)")
         lblLowCutoff = QtWidgets.QLabel("Low")
         lblHighCutoff = QtWidgets.QLabel("High")
@@ -235,23 +250,15 @@ class EditIntegrationSetupDialog(QtWidgets.QDialog):
         policy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed)
 
         # Copy logger group and output folder container
-        self.copyGroup = QtWidgets.QGroupBox("Optional: Copy Settings from Another Logger")
-        self.copyGroup.setSizePolicy(policy)
-        self.hboxCopy = QtWidgets.QHBoxLayout(self.copyGroup)
+        self.hboxCopy = QtWidgets.QHBoxLayout()
         self.hboxCopy.addWidget(lblCopy)
         self.hboxCopy.addWidget(self.copyLogger)
         self.hboxCopy.addWidget(self.copyLoggerButton)
         self.hboxCopy.addStretch()
-        self.setupForm = QtWidgets.QFormLayout()
-        self.setupForm.addRow(lblIntegrationFolder, self.integrationFolder)
-        self.hbox = QtWidgets.QHBoxLayout()
-        self.hbox.addWidget(self.copyGroup)
-        self.hbox.addLayout(self.setupForm)
 
         # Columns to process settings group
         self.setupGroup = QtWidgets.QGroupBox("Channel Settings to Convert to Displacements/Angles")
         self.setupGroup.setSizePolicy(policy)
-
         self.grid = QtWidgets.QGridLayout(self.setupGroup)
 
         # Header row
@@ -277,11 +284,11 @@ class EditIntegrationSetupDialog(QtWidgets.QDialog):
         self.grid.addWidget(self.angRateYCombo, 6, 1)
 
         # Col 3 - unit conversions
-        self.grid.addWidget(self.accXUnitConv, 2, 2)
-        self.grid.addWidget(self.accYUnitConv, 3, 2)
-        self.grid.addWidget(self.accZUnitConv, 4, 2)
-        self.grid.addWidget(self.angRateXUnitConv, 5, 2)
-        self.grid.addWidget(self.angRateYUnitConv, 6, 2)
+        self.grid.addWidget(self.accXUnitConvCombo, 2, 2)
+        self.grid.addWidget(self.accYUnitConvCombo, 3, 2)
+        self.grid.addWidget(self.accZUnitConvCombo, 4, 2)
+        self.grid.addWidget(self.angRateXUnitConvCombo, 5, 2)
+        self.grid.addWidget(self.angRateYUnitConvCombo, 6, 2)
 
         # Col 4 - low cut-offs
         self.grid.addWidget(self.accXLowCutoff, 2, 3)
@@ -297,15 +304,8 @@ class EditIntegrationSetupDialog(QtWidgets.QDialog):
         self.grid.addWidget(self.angRateXHighCutoff, 5, 4)
         self.grid.addWidget(self.angRateYHighCutoff, 6, 4)
 
-        # self.setupForm = QtWidgets.QFormLayout(self.setupGroup)
-        # self.setupForm.addRow(self.lblAccX, self.accXCombo)
-        # self.setupForm.addRow(self.lblAccY, self.accYCombo)
-        # self.setupForm.addRow(self.lblAccZ, self.accZCombo)
-        # self.setupForm.addRow(self.lblAngRateX, self.angRateXCombo)
-        # self.setupForm.addRow(self.lblAngRateY, self.angRateYCombo)
-        # self.setupForm.addRow(self.lblAngRateZ, self.angRateZCombo)
-        # self.setupForm.addRow(QtWidgets.QLabel(""), self.applyGCorr)
-        # self.setupForm.addRow(self.lblIntegrationFolder, self.integrationFolder)
+        self.setupForm = QtWidgets.QFormLayout()
+        self.setupForm.addRow(lblIntegrationFolder, self.integrationFolder)
 
         self.buttonBox = QtWidgets.QDialogButtonBox(
             QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel
@@ -314,10 +314,12 @@ class EditIntegrationSetupDialog(QtWidgets.QDialog):
         # LAYOUT
         # Horizontal groups
         self.layout = QtWidgets.QVBoxLayout(self)
-        self.layout.addLayout(self.hbox)
+        self.layout.addLayout(self.hboxCopy)
         self.layout.addWidget(self.setupGroup)
+        self.layout.addLayout(self.setupForm)
         self.layout.addStretch()
         self.layout.addWidget(self.buttonBox)
+        self.setFixedSize(self.sizeHint())
 
     def _connect_signals(self):
         self.buttonBox.accepted.connect(self.on_ok_clicked)
@@ -331,24 +333,54 @@ class EditIntegrationSetupDialog(QtWidgets.QDialog):
         if not self.parent:
             return
 
-        # Get combo columns
-        columns = ["-"] + logger.all_channel_names
+        # Set gravity correction and output folder
+        self.applyGCorr.setChecked(logger.apply_gcorr)
+        self.integrationFolder.setText(self.control.integration_output_folder)
 
-        # Columns to process
+        # Ned to clear combo boxes if copying settings from another logger
+        self.accXCombo.clear()
+        self.accYCombo.clear()
+        self.accZCombo.clear()
+        self.angRateXCombo.clear()
+        self.angRateYCombo.clear()
+
+        # Get combo columns
+        columns = ["Not used"] + logger.all_channel_names
+
+        # Populate channel section combo boxes
         self.accXCombo.addItems(columns)
         self.accYCombo.addItems(columns)
         self.accZCombo.addItems(columns)
         self.angRateXCombo.addItems(columns)
         self.angRateYCombo.addItems(columns)
 
+        # Set channels to convert
         self.accXCombo.setCurrentText(logger.acc_x_col)
         self.accYCombo.setCurrentText(logger.acc_y_col)
         self.accZCombo.setCurrentText(logger.acc_z_col)
         self.angRateXCombo.setCurrentText(logger.ang_rate_x_col)
         self.angRateYCombo.setCurrentText(logger.ang_rate_y_col)
 
-        self.applyGCorr.setChecked(logger.apply_gcorr)
-        self.integrationFolder.setText(self.control.integration_output_folder)
+        # Set units conversion
+        self.accXUnitConvCombo.setCurrentText(logger.acc_x_units_conv)
+        self.accYUnitConvCombo.setCurrentText(logger.acc_y_units_conv)
+        self.accZUnitConvCombo.setCurrentText(logger.acc_z_units_conv)
+        self.angRateXUnitConvCombo.setCurrentText(logger.ang_rate_x_units_conv)
+        self.angRateYUnitConvCombo.setCurrentText(logger.ang_rate_y_units_conv)
+
+        # Set low cut-off frequencies
+        self.accXLowCutoff.setText(freq_val_to_str(logger.acc_x_low_cutoff))
+        self.accYLowCutoff.setText(freq_val_to_str(logger.acc_y_low_cutoff))
+        self.accZLowCutoff.setText(freq_val_to_str(logger.acc_z_low_cutoff))
+        self.angRateXLowCutoff.setText(freq_val_to_str(logger.ang_rate_x_low_cutoff))
+        self.angRateYLowCutoff.setText(freq_val_to_str(logger.ang_rate_y_low_cutoff))
+
+        # Set high cut-off frequencies
+        self.accXHighCutoff.setText(freq_val_to_str(logger.acc_x_high_cutoff))
+        self.accYHighCutoff.setText(freq_val_to_str(logger.acc_y_high_cutoff))
+        self.accZHighCutoff.setText(freq_val_to_str(logger.acc_z_high_cutoff))
+        self.angRateXHighCutoff.setText(freq_val_to_str(logger.ang_rate_x_high_cutoff))
+        self.angRateYHighCutoff.setText(freq_val_to_str(logger.ang_rate_y_high_cutoff))
 
     def _set_copy_logger_combo(self):
         """Set the copy screening settings combo box with list of available loggers, excluding the current one."""
@@ -390,15 +422,62 @@ class EditIntegrationSetupDialog(QtWidgets.QDialog):
 
         # Retrieve control logger to map confirmed settings to
         logger = self.control.loggers[self.logger_idx]
+        logger.apply_gcorr = self.applyGCorr.isChecked()
+        self.control.integration_output_folder = self.integrationFolder.text()
+
+        # Channels to convert
         logger.acc_x_col = self.accXCombo.currentText()
         logger.acc_y_col = self.accYCombo.currentText()
         logger.acc_z_col = self.accZCombo.currentText()
         logger.ang_rate_x_col = self.angRateXCombo.currentText()
         logger.ang_rate_y_col = self.angRateYCombo.currentText()
-        logger.apply_gcorr = self.applyGCorr.isChecked()
-        self.control.integration_output_folder = self.integrationFolder.text()
+
+        # Units conversion
+        logger.acc_x_units_conv = self.accXUnitConvCombo.currentText()
+        logger.acc_y_units_conv = self.accYUnitConvCombo.currentText()
+        logger.acc_z_units_conv = self.accZUnitConvCombo.currentText()
+        logger.ang_rate_x_units_conv = self.angRateXUnitConvCombo.currentText()
+        logger.ang_rate_y_units_conv = self.angRateYUnitConvCombo.currentText()
+
+        # Low cut-off frequencies
+        logger.acc_x_low_cutoff = freq_str_to_val(self.accXLowCutoff.text())
+        logger.acc_y_low_cutoff = freq_str_to_val(self.accYLowCutoff.text())
+        logger.acc_z_low_cutoff = freq_str_to_val(self.accZLowCutoff.text())
+        logger.ang_rate_x_low_cutoff = freq_str_to_val(self.angRateXLowCutoff.text())
+        logger.ang_rate_y_low_cutoff = freq_str_to_val(self.angRateYLowCutoff.text())
+
+        # High cut-off frequencies
+        logger.acc_x_high_cutoff = freq_str_to_val(self.accXHighCutoff.text())
+        logger.acc_y_high_cutoff = freq_str_to_val(self.accYHighCutoff.text())
+        logger.acc_z_high_cutoff = freq_str_to_val(self.accZHighCutoff.text())
+        logger.ang_rate_x_high_cutoff = freq_str_to_val(self.angRateXHighCutoff.text())
+        logger.ang_rate_y_high_cutoff = freq_str_to_val(self.angRateYHighCutoff.text())
 
         return logger
+
+
+def freq_val_to_str(freq):
+    """Convert logger frequency value to string to set to widget."""
+
+    if freq is None:
+        str_val = "None"
+    else:
+        str_val = f"{freq:.2f}"
+
+    return str_val
+
+
+def freq_str_to_val(str_val):
+    """Convert widget string input to frequency value."""
+
+    try:
+        freq = float(str_val)
+        if freq == 0:
+            freq = None
+    except ValueError:
+        freq = None
+
+    return freq
 
 
 if __name__ == "__main__":
