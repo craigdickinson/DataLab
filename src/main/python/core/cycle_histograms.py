@@ -142,7 +142,13 @@ def histogram(y, bin_size=1, num_bins=None):
     """
 
     ranges, cycles = rainflow_cycles(y)
-    max_range = ranges[-1]
+
+    # In case of no cycles
+    try:
+        max_range = ranges[-1]
+    except IndexError:
+        return np.array([]), np.array([])
+
     max_bins = 500
 
     if bin_size is None and num_bins is None:
@@ -159,8 +165,8 @@ def histogram(y, bin_size=1, num_bins=None):
             f"\nNumber of bins = {num_bins}. Too many! Number of bins set to 500. Suggest to use a larger bin size."
         )
         num_bins = max_bins
-    else:
-        print(f"\nNumber of bins = {num_bins}.")
+    # else:
+    #     print(f"\nNumber of bins = {num_bins}.")
 
     bin_edges, hist = bin_cycles(ranges, cycles, num_bins, bin_size)
 
@@ -174,11 +180,12 @@ def rainflow_cycles(y):
     cycles = rainflow.count_cycles(y, left=False, right=True)
 
     # Split tuple and convert to arrays
-    cycle_range, num_cycles = zip(*cycles)
-    cycle_range = np.asarray(cycle_range)
-    num_cycles = np.asarray(num_cycles)
-
-    return cycle_range, num_cycles
+    try:
+        cycle_range, num_cycles = zip(*cycles)
+        return np.asarray(cycle_range), np.asarray(num_cycles)
+    # In case of no cycles
+    except ValueError:
+        return np.array([]), np.array([])
 
 
 def calc_bin_size(max_range, num_bins=10):
@@ -347,6 +354,7 @@ if __name__ == "__main__":
     # x = np.arange(10)
     # y = np.sin(x)
     y = [1, 5, 2, 1, 3, 1]
+    # y = [0, 0, 0, 0]
     ranges, num_cycles = rainflow_cycles(y)
 
     # Fatigue damage of actual stress ranges
