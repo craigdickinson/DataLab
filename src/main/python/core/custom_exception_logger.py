@@ -6,29 +6,36 @@ import logging
 import os
 
 
-def set_exception_logger(log_path=""):
-    """
-    Function to create a custom exception logging instance.
-    Two handlers are created for reporting exceptions to the console and a log file.
-    """
+def set_exception_logger():
+    """Function to create a custom exception logger. Initially only a console logger is created."""
 
-    if log_path == "":
-        log_path = os.getcwd()
-
-    log_file = os.path.join(log_path, "log.out")
-    # logging.basicConfig(filename=log_file)
-
+    # Create custom logger
     log = logging.getLogger("DataLab")
     log.setLevel(logging.DEBUG)
 
-    # Console logger
+    # Add a console logger
     ch = logging.StreamHandler()
     ch.setLevel(logging.DEBUG)
     formatter = logging.Formatter("%(message)s")
     ch.setFormatter(formatter)
+    log.addHandler(ch)
 
-    # File logger
-    fh = logging.FileHandler(log_file)
+    return log
+
+
+def set_exception_logger_file_handler(log, log_path):
+    """Create file logger and close any existing file logger.."""
+
+    log_file = os.path.join(log_path, "log.out")
+
+    # Check number of handlers - if more than one it means a file logger already exists
+    # (logger 1 being the console logger), close and remove the existing logger then create a new one
+    if len(log.handlers) > 1:
+        fh = log.handlers.pop()
+        fh.close()
+
+    # Add file logger (delay=True means the log.out file will not be created until an exception is first logged)
+    fh = logging.FileHandler(log_file, delay=True)
     fh.setLevel(logging.DEBUG)
     formatter = logging.Formatter(
         "%(asctime)s: %(name)s %(levelname)s - %(message)s",
@@ -36,23 +43,6 @@ def set_exception_logger(log_path=""):
         #     "%(asctime)s: %(name)s %(levelname)s - %(message)s", datefmt="%m/%d/%Y %I:%M:%S %p"
     )
     fh.setFormatter(formatter)
-
-    log.addHandler(ch)
-    log.addHandler(fh)
-
-    return log
-
-
-def set_exception_logger_file_handler_path(log, log_path):
-    """
-    Update the file handler path.
-    Pop file handler from logger list, close previous log file, update file path and insert back to logger.
-    """
-
-    fh: logging.FileHandler
-    fh = log.handlers.pop()
-    fh.close()
-    fh.baseFilename = os.path.join(log_path, "log.out")
     log.addHandler(fh)
 
     return log

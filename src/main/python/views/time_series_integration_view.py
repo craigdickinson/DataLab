@@ -36,7 +36,6 @@ class TimeSeriesIntegrationSetupTab(QtWidgets.QWidget):
         self.accZCol = QtWidgets.QLabel("-")
         self.angRateXCol = QtWidgets.QLabel("-")
         self.angRateYCol = QtWidgets.QLabel("-")
-        self.angRateZCol = QtWidgets.QLabel("-")
         self.applyGCorr = QtWidgets.QLabel("-")
         self.integrationFolder = QtWidgets.QLabel("-")
 
@@ -46,7 +45,6 @@ class TimeSeriesIntegrationSetupTab(QtWidgets.QWidget):
         self.lblAccZ = QtWidgets.QLabel("Acceleration Z:")
         self.lblAngRateX = QtWidgets.QLabel("Angular rate X:")
         self.lblAngRateY = QtWidgets.QLabel("Angular rate Y:")
-        self.lblAngRateZ = QtWidgets.QLabel("Angular rate Z:")
         self.lblGCorr = QtWidgets.QLabel("Apply gravity correction:")
         self.lblIntegrationFolder = QtWidgets.QLabel("Output folder:")
 
@@ -58,7 +56,6 @@ class TimeSeriesIntegrationSetupTab(QtWidgets.QWidget):
         self.setupForm.addRow(self.lblAccZ, self.accZCol)
         self.setupForm.addRow(self.lblAngRateX, self.angRateXCol)
         self.setupForm.addRow(self.lblAngRateY, self.angRateYCol)
-        self.setupForm.addRow(self.lblAngRateZ, self.angRateZCol)
         self.setupForm.addRow(self.lblGCorr, self.applyGCorr)
         self.setupForm.addRow(self.lblIntegrationFolder, self.integrationFolder)
 
@@ -120,7 +117,6 @@ class TimeSeriesIntegrationSetupTab(QtWidgets.QWidget):
         self.accZCol.setText(logger.acc_z_col)
         self.angRateXCol.setText(logger.ang_rate_x_col)
         self.angRateYCol.setText(logger.ang_rate_y_col)
-        self.angRateZCol.setText(logger.ang_rate_z_col)
         self.integrationFolder.setText(self.control.integration_output_folder)
         if logger.apply_gcorr:
             self.applyGCorr.setText("Yes")
@@ -135,7 +131,6 @@ class TimeSeriesIntegrationSetupTab(QtWidgets.QWidget):
         self.accZCol.setText("-")
         self.angRateXCol.setText("-")
         self.angRateYCol.setText("-")
-        self.angRateZCol.setText("-")
         self.applyGCorr.setText("Yes")
         self.integrationFolder.setText("Displacements and Angles")
 
@@ -183,8 +178,6 @@ class EditIntegrationSetupDialog(QtWidgets.QDialog):
         self.angRateXCombo.setFixedWidth(200)
         self.angRateYCombo = QtWidgets.QComboBox()
         self.angRateYCombo.setFixedWidth(200)
-        self.angRateZCombo = QtWidgets.QComboBox()
-        self.angRateZCombo.setFixedWidth(200)
 
         # Unit conversions
         self.accXUnitConv = QtWidgets.QComboBox()
@@ -192,7 +185,6 @@ class EditIntegrationSetupDialog(QtWidgets.QDialog):
         self.accZUnitConv = QtWidgets.QComboBox()
         self.angRateXUnitConv = QtWidgets.QComboBox()
         self.angRateYUnitConv = QtWidgets.QComboBox()
-        self.angRateZUnitConv = QtWidgets.QComboBox()
 
         # Low cut-off frequencies
         self.accXLowCutoff = QtWidgets.QLineEdit()
@@ -205,8 +197,6 @@ class EditIntegrationSetupDialog(QtWidgets.QDialog):
         self.angRateXLowCutoff.setFixedWidth(40)
         self.angRateYLowCutoff = QtWidgets.QLineEdit()
         self.angRateYLowCutoff.setFixedWidth(40)
-        self.angRateZLowCutoff = QtWidgets.QLineEdit()
-        self.angRateZLowCutoff.setFixedWidth(40)
 
         # High cut-off frequencies
         self.accXHighCutoff = QtWidgets.QLineEdit()
@@ -219,8 +209,6 @@ class EditIntegrationSetupDialog(QtWidgets.QDialog):
         self.angRateXHighCutoff.setFixedWidth(40)
         self.angRateYHighCutoff = QtWidgets.QLineEdit()
         self.angRateYHighCutoff.setFixedWidth(40)
-        self.angRateZHighCutoff = QtWidgets.QLineEdit()
-        self.angRateZHighCutoff.setFixedWidth(40)
 
         # General inputs
         self.applyGCorr = QtWidgets.QCheckBox("Apply gravity correction")
@@ -234,7 +222,6 @@ class EditIntegrationSetupDialog(QtWidgets.QDialog):
         lblAccZ = QtWidgets.QLabel("Acceleration Z:")
         lblAngRateX = QtWidgets.QLabel("Angular rate X:")
         lblAngRateY = QtWidgets.QLabel("Angular rate Y:")
-        lblAngRateZ = QtWidgets.QLabel("Angular rate Z:")
         lblIntegrationFolder = QtWidgets.QLabel("Output folder:")
 
         # Header labels
@@ -247,7 +234,7 @@ class EditIntegrationSetupDialog(QtWidgets.QDialog):
         # CONTAINERS
         policy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed)
 
-        # Copy logger group
+        # Copy logger group and output folder container
         self.copyGroup = QtWidgets.QGroupBox("Optional: Copy Settings from Another Logger")
         self.copyGroup.setSizePolicy(policy)
         self.hboxCopy = QtWidgets.QHBoxLayout(self.copyGroup)
@@ -255,15 +242,20 @@ class EditIntegrationSetupDialog(QtWidgets.QDialog):
         self.hboxCopy.addWidget(self.copyLogger)
         self.hboxCopy.addWidget(self.copyLoggerButton)
         self.hboxCopy.addStretch()
+        self.setupForm = QtWidgets.QFormLayout()
+        self.setupForm.addRow(lblIntegrationFolder, self.integrationFolder)
+        self.hbox = QtWidgets.QHBoxLayout()
+        self.hbox.addWidget(self.copyGroup)
+        self.hbox.addLayout(self.setupForm)
 
         # Columns to process settings group
         self.setupGroup = QtWidgets.QGroupBox("Channel Settings to Convert to Displacements/Angles")
         self.setupGroup.setSizePolicy(policy)
 
-        self.grid = QtWidgets.QGridLayout()
+        self.grid = QtWidgets.QGridLayout(self.setupGroup)
 
         # Header row
-        self.grid.addWidget(self.applyGCorr)
+        self.grid.addWidget(self.applyGCorr, 0, 0, 1, 2)
         self.grid.addWidget(lblCutoffFreqs, 0, 3, 1, 2)
         self.grid.addWidget(lblChannel, 1, 1)
         self.grid.addWidget(lblUnitConv, 1, 2)
@@ -276,7 +268,6 @@ class EditIntegrationSetupDialog(QtWidgets.QDialog):
         self.grid.addWidget(lblAccZ, 4, 0)
         self.grid.addWidget(lblAngRateX, 5, 0)
         self.grid.addWidget(lblAngRateY, 6, 0)
-        self.grid.addWidget(lblAngRateZ, 7, 0)
 
         # Col 2 - columns
         self.grid.addWidget(self.accXCombo, 2, 1)
@@ -284,7 +275,6 @@ class EditIntegrationSetupDialog(QtWidgets.QDialog):
         self.grid.addWidget(self.accZCombo, 4, 1)
         self.grid.addWidget(self.angRateXCombo, 5, 1)
         self.grid.addWidget(self.angRateYCombo, 6, 1)
-        self.grid.addWidget(self.angRateZCombo, 7, 1)
 
         # Col 3 - unit conversions
         self.grid.addWidget(self.accXUnitConv, 2, 2)
@@ -292,7 +282,6 @@ class EditIntegrationSetupDialog(QtWidgets.QDialog):
         self.grid.addWidget(self.accZUnitConv, 4, 2)
         self.grid.addWidget(self.angRateXUnitConv, 5, 2)
         self.grid.addWidget(self.angRateYUnitConv, 6, 2)
-        self.grid.addWidget(self.angRateZUnitConv, 7, 2)
 
         # Col 4 - low cut-offs
         self.grid.addWidget(self.accXLowCutoff, 2, 3)
@@ -300,7 +289,6 @@ class EditIntegrationSetupDialog(QtWidgets.QDialog):
         self.grid.addWidget(self.accZLowCutoff, 4, 3)
         self.grid.addWidget(self.angRateXLowCutoff, 5, 3)
         self.grid.addWidget(self.angRateYLowCutoff, 6, 3)
-        self.grid.addWidget(self.angRateZLowCutoff, 7, 3)
 
         # Col 5 - high cut-offs
         self.grid.addWidget(self.accXHighCutoff, 2, 4)
@@ -308,15 +296,6 @@ class EditIntegrationSetupDialog(QtWidgets.QDialog):
         self.grid.addWidget(self.accZHighCutoff, 4, 4)
         self.grid.addWidget(self.angRateXHighCutoff, 5, 4)
         self.grid.addWidget(self.angRateYHighCutoff, 6, 4)
-        self.grid.addWidget(self.angRateZHighCutoff, 7, 4)
-
-        self.setupForm = QtWidgets.QFormLayout()
-        # self.setupForm.addRow(QtWidgets.QLabel(""), self.applyGCorr)
-        self.setupForm.addRow(lblIntegrationFolder, self.integrationFolder)
-
-        self.vbox = QtWidgets.QVBoxLayout(self.setupGroup)
-        self.vbox.addLayout(self.grid)
-        self.vbox.addLayout(self.setupForm)
 
         # self.setupForm = QtWidgets.QFormLayout(self.setupGroup)
         # self.setupForm.addRow(self.lblAccX, self.accXCombo)
@@ -335,7 +314,7 @@ class EditIntegrationSetupDialog(QtWidgets.QDialog):
         # LAYOUT
         # Horizontal groups
         self.layout = QtWidgets.QVBoxLayout(self)
-        self.layout.addWidget(self.copyGroup)
+        self.layout.addLayout(self.hbox)
         self.layout.addWidget(self.setupGroup)
         self.layout.addStretch()
         self.layout.addWidget(self.buttonBox)
@@ -361,14 +340,12 @@ class EditIntegrationSetupDialog(QtWidgets.QDialog):
         self.accZCombo.addItems(columns)
         self.angRateXCombo.addItems(columns)
         self.angRateYCombo.addItems(columns)
-        self.angRateZCombo.addItems(columns)
 
         self.accXCombo.setCurrentText(logger.acc_x_col)
         self.accYCombo.setCurrentText(logger.acc_y_col)
         self.accZCombo.setCurrentText(logger.acc_z_col)
         self.angRateXCombo.setCurrentText(logger.ang_rate_x_col)
         self.angRateYCombo.setCurrentText(logger.ang_rate_y_col)
-        self.angRateZCombo.setCurrentText(logger.ang_rate_z_col)
 
         self.applyGCorr.setChecked(logger.apply_gcorr)
         self.integrationFolder.setText(self.control.integration_output_folder)
@@ -402,40 +379,26 @@ class EditIntegrationSetupDialog(QtWidgets.QDialog):
     def on_ok_clicked(self):
         """Assign logger stats settings to the control object and update the dashboard."""
 
-        if not self.parent:
+        if self.parent is None:
             return
 
-        try:
-            self.logger = self._set_control_data()
-            self.parent.set_analysis_dashboard(self.logger)
-        except Exception as e:
-            msg = "Unexpected error assigning screening settings."
-            self.error(f"{msg}:\n{e}\n{sys.exc_info()[0]}")
-            logging.exception(e)
+        self.logger = self._set_control_data()
+        self.parent.set_analysis_dashboard(self.logger)
 
     def _set_control_data(self):
         """Assign values to the control object."""
 
-        if not self.parent:
-            return
-
         # Retrieve control logger to map confirmed settings to
         logger = self.control.loggers[self.logger_idx]
-
         logger.acc_x_col = self.accXCombo.currentText()
         logger.acc_y_col = self.accYCombo.currentText()
         logger.acc_z_col = self.accZCombo.currentText()
         logger.ang_rate_x_col = self.angRateXCombo.currentText()
         logger.ang_rate_y_col = self.angRateYCombo.currentText()
-        logger.ang_rate_z_col = self.angRateZCombo.currentText()
         logger.apply_gcorr = self.applyGCorr.isChecked()
         self.control.integration_output_folder = self.integrationFolder.text()
 
         return logger
-
-    def error(self, msg):
-        print(f"Error: {msg}")
-        return QtWidgets.QMessageBox.critical(self, "Error", msg)
 
 
 if __name__ == "__main__":

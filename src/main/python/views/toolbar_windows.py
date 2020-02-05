@@ -166,6 +166,9 @@ class FilterSettings(QtWidgets.QDialog):
         self.control.filter_type = self.filterType.currentText()
         self.control.butterworth_order = int(self.butterOrder.text())
 
+        if self.parent is None:
+            return
+
         # Replot plots on raw data dashboard to reflect any changes to filter settings
         self.parent.rawDataModule.filter_all_time_series()
 
