@@ -172,7 +172,7 @@ class LoggerProperties(QObject):
         self.channel_num_bins = [50]
 
         # TIME SERIES INTEGRATION PROPERTIES
-        self.process_integration = False
+        self.process_integration = True
         self.acc_x_col = "-"
         self.acc_y_col = "-"
         self.acc_z_col = "-"

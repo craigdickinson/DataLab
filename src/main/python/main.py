@@ -1,7 +1,7 @@
 __author__ = "Craig Dickinson"
 __program__ = "DataLab"
-__version__ = "2.1.0.21"
-__date__ = "4 February 2020"
+__version__ = "2.1.0.22"
+__date__ = "5 February 2020"
 
 import logging
 import os
@@ -845,7 +845,8 @@ def debug_setup(win):
     # path = r"21239 - Acc to Disp to AR-Ang\21239_Time_Series_Conversion_Config.json"
     # path = r"21342\21342_Histograms_Config.json"
     # path = r"21342\21342_McDermott_Config.json"
-    path = r"Validation\Cycle Histograms\21239_BOP_Hist.json"
+    # path = r"Validation\Cycle Histograms\21239_Hist_Validation.json"
+    path = r"Validation\Acc to Disp and Ang Rate to Ang\21239_Integration_Validation_Config.json"
 
     filepath = os.path.join(root, path)
     win.inputDataModule.load_config_file(filepath)

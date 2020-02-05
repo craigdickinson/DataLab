@@ -97,8 +97,8 @@ class IntegrateTimeSeries(object):
 
             # New filename
             filename = os.path.basename(file)
-            filename, ext = os.path.splitext(filename)
-            filename += "_Converted" + ext
+            filename = os.path.splitext(filename)[0]
+            filename += "_Converted.csv"
 
             # Extract logger folder
             folder = os.path.split(os.path.dirname(file))[-1]

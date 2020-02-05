@@ -172,6 +172,7 @@ class EditIntegrationSetupDialog(QtWidgets.QDialog):
         self.copyLogger.addItem("-")
         self.copyLoggerButton = QtWidgets.QPushButton("&Copy Settings")
 
+        # Column selectors
         self.accXCombo = QtWidgets.QComboBox()
         self.accXCombo.setFixedWidth(200)
         self.accYCombo = QtWidgets.QComboBox()
@@ -184,19 +185,64 @@ class EditIntegrationSetupDialog(QtWidgets.QDialog):
         self.angRateYCombo.setFixedWidth(200)
         self.angRateZCombo = QtWidgets.QComboBox()
         self.angRateZCombo.setFixedWidth(200)
+
+        # Unit conversions
+        self.accXUnitConv = QtWidgets.QComboBox()
+        self.accYUnitConv = QtWidgets.QComboBox()
+        self.accZUnitConv = QtWidgets.QComboBox()
+        self.angRateXUnitConv = QtWidgets.QComboBox()
+        self.angRateYUnitConv = QtWidgets.QComboBox()
+        self.angRateZUnitConv = QtWidgets.QComboBox()
+
+        # Low cut-off frequencies
+        self.accXLowCutoff = QtWidgets.QLineEdit()
+        self.accXLowCutoff.setFixedWidth(40)
+        self.accYLowCutoff = QtWidgets.QLineEdit()
+        self.accYLowCutoff.setFixedWidth(40)
+        self.accZLowCutoff = QtWidgets.QLineEdit()
+        self.accZLowCutoff.setFixedWidth(40)
+        self.angRateXLowCutoff = QtWidgets.QLineEdit()
+        self.angRateXLowCutoff.setFixedWidth(40)
+        self.angRateYLowCutoff = QtWidgets.QLineEdit()
+        self.angRateYLowCutoff.setFixedWidth(40)
+        self.angRateZLowCutoff = QtWidgets.QLineEdit()
+        self.angRateZLowCutoff.setFixedWidth(40)
+
+        # High cut-off frequencies
+        self.accXHighCutoff = QtWidgets.QLineEdit()
+        self.accXHighCutoff.setFixedWidth(40)
+        self.accYHighCutoff = QtWidgets.QLineEdit()
+        self.accYHighCutoff.setFixedWidth(40)
+        self.accZHighCutoff = QtWidgets.QLineEdit()
+        self.accZHighCutoff.setFixedWidth(40)
+        self.angRateXHighCutoff = QtWidgets.QLineEdit()
+        self.angRateXHighCutoff.setFixedWidth(40)
+        self.angRateYHighCutoff = QtWidgets.QLineEdit()
+        self.angRateYHighCutoff.setFixedWidth(40)
+        self.angRateZHighCutoff = QtWidgets.QLineEdit()
+        self.angRateZHighCutoff.setFixedWidth(40)
+
+        # General inputs
         self.applyGCorr = QtWidgets.QCheckBox("Apply gravity correction")
         self.integrationFolder = QtWidgets.QLineEdit()
         self.integrationFolder.setFixedWidth(200)
 
         # Labels
-        self.lblCopy = QtWidgets.QLabel("Logger to copy:")
-        self.lblAccX = QtWidgets.QLabel("Acceleration X:")
-        self.lblAccY = QtWidgets.QLabel("Acceleration Y:")
-        self.lblAccZ = QtWidgets.QLabel("Acceleration Z:")
-        self.lblAngRateX = QtWidgets.QLabel("Angular Rate X:")
-        self.lblAngRateY = QtWidgets.QLabel("Angular Rate Y:")
-        self.lblAngRateZ = QtWidgets.QLabel("Angular Rate Z:")
-        self.lblIntegrationFolder = QtWidgets.QLabel("Output folder:")
+        lblCopy = QtWidgets.QLabel("Logger to copy:")
+        lblAccX = QtWidgets.QLabel("Acceleration X:")
+        lblAccY = QtWidgets.QLabel("Acceleration Y:")
+        lblAccZ = QtWidgets.QLabel("Acceleration Z:")
+        lblAngRateX = QtWidgets.QLabel("Angular rate X:")
+        lblAngRateY = QtWidgets.QLabel("Angular rate Y:")
+        lblAngRateZ = QtWidgets.QLabel("Angular rate Z:")
+        lblIntegrationFolder = QtWidgets.QLabel("Output folder:")
+
+        # Header labels
+        lblChannel = QtWidgets.QLabel("Column")
+        lblUnitConv = QtWidgets.QLabel("Unit Conversion")
+        lblCutoffFreqs = QtWidgets.QLabel("Cut-off Freqs (Hz)")
+        lblLowCutoff = QtWidgets.QLabel("Low")
+        lblHighCutoff = QtWidgets.QLabel("High")
 
         # CONTAINERS
         policy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed)
@@ -205,23 +251,82 @@ class EditIntegrationSetupDialog(QtWidgets.QDialog):
         self.copyGroup = QtWidgets.QGroupBox("Optional: Copy Settings from Another Logger")
         self.copyGroup.setSizePolicy(policy)
         self.hboxCopy = QtWidgets.QHBoxLayout(self.copyGroup)
-        self.hboxCopy.addWidget(self.lblCopy)
+        self.hboxCopy.addWidget(lblCopy)
         self.hboxCopy.addWidget(self.copyLogger)
         self.hboxCopy.addWidget(self.copyLoggerButton)
         self.hboxCopy.addStretch()
 
         # Columns to process settings group
-        self.setupGroup = QtWidgets.QGroupBox("Select Columns to Convert to Displacements/Angles")
+        self.setupGroup = QtWidgets.QGroupBox("Channel Settings to Convert to Displacements/Angles")
         self.setupGroup.setSizePolicy(policy)
-        self.setupForm = QtWidgets.QFormLayout(self.setupGroup)
-        self.setupForm.addRow(self.lblAccX, self.accXCombo)
-        self.setupForm.addRow(self.lblAccY, self.accYCombo)
-        self.setupForm.addRow(self.lblAccZ, self.accZCombo)
-        self.setupForm.addRow(self.lblAngRateX, self.angRateXCombo)
-        self.setupForm.addRow(self.lblAngRateY, self.angRateYCombo)
-        self.setupForm.addRow(self.lblAngRateZ, self.angRateZCombo)
-        self.setupForm.addRow(QtWidgets.QLabel(""), self.applyGCorr)
-        self.setupForm.addRow(self.lblIntegrationFolder, self.integrationFolder)
+
+        self.grid = QtWidgets.QGridLayout()
+
+        # Header row
+        self.grid.addWidget(self.applyGCorr)
+        self.grid.addWidget(lblCutoffFreqs, 0, 3, 1, 2)
+        self.grid.addWidget(lblChannel, 1, 1)
+        self.grid.addWidget(lblUnitConv, 1, 2)
+        self.grid.addWidget(lblLowCutoff, 1, 3)
+        self.grid.addWidget(lblHighCutoff, 1, 4)
+
+        # Col 1 - labels
+        self.grid.addWidget(lblAccX, 2, 0)
+        self.grid.addWidget(lblAccY, 3, 0)
+        self.grid.addWidget(lblAccZ, 4, 0)
+        self.grid.addWidget(lblAngRateX, 5, 0)
+        self.grid.addWidget(lblAngRateY, 6, 0)
+        self.grid.addWidget(lblAngRateZ, 7, 0)
+
+        # Col 2 - columns
+        self.grid.addWidget(self.accXCombo, 2, 1)
+        self.grid.addWidget(self.accYCombo, 3, 1)
+        self.grid.addWidget(self.accZCombo, 4, 1)
+        self.grid.addWidget(self.angRateXCombo, 5, 1)
+        self.grid.addWidget(self.angRateYCombo, 6, 1)
+        self.grid.addWidget(self.angRateZCombo, 7, 1)
+
+        # Col 3 - unit conversions
+        self.grid.addWidget(self.accXUnitConv, 2, 2)
+        self.grid.addWidget(self.accYUnitConv, 3, 2)
+        self.grid.addWidget(self.accZUnitConv, 4, 2)
+        self.grid.addWidget(self.angRateXUnitConv, 5, 2)
+        self.grid.addWidget(self.angRateYUnitConv, 6, 2)
+        self.grid.addWidget(self.angRateZUnitConv, 7, 2)
+
+        # Col 4 - low cut-offs
+        self.grid.addWidget(self.accXLowCutoff, 2, 3)
+        self.grid.addWidget(self.accYLowCutoff, 3, 3)
+        self.grid.addWidget(self.accZLowCutoff, 4, 3)
+        self.grid.addWidget(self.angRateXLowCutoff, 5, 3)
+        self.grid.addWidget(self.angRateYLowCutoff, 6, 3)
+        self.grid.addWidget(self.angRateZLowCutoff, 7, 3)
+
+        # Col 5 - high cut-offs
+        self.grid.addWidget(self.accXHighCutoff, 2, 4)
+        self.grid.addWidget(self.accYHighCutoff, 3, 4)
+        self.grid.addWidget(self.accZHighCutoff, 4, 4)
+        self.grid.addWidget(self.angRateXHighCutoff, 5, 4)
+        self.grid.addWidget(self.angRateYHighCutoff, 6, 4)
+        self.grid.addWidget(self.angRateZHighCutoff, 7, 4)
+
+        self.setupForm = QtWidgets.QFormLayout()
+        # self.setupForm.addRow(QtWidgets.QLabel(""), self.applyGCorr)
+        self.setupForm.addRow(lblIntegrationFolder, self.integrationFolder)
+
+        self.vbox = QtWidgets.QVBoxLayout(self.setupGroup)
+        self.vbox.addLayout(self.grid)
+        self.vbox.addLayout(self.setupForm)
+
+        # self.setupForm = QtWidgets.QFormLayout(self.setupGroup)
+        # self.setupForm.addRow(self.lblAccX, self.accXCombo)
+        # self.setupForm.addRow(self.lblAccY, self.accYCombo)
+        # self.setupForm.addRow(self.lblAccZ, self.accZCombo)
+        # self.setupForm.addRow(self.lblAngRateX, self.angRateXCombo)
+        # self.setupForm.addRow(self.lblAngRateY, self.angRateYCombo)
+        # self.setupForm.addRow(self.lblAngRateZ, self.angRateZCombo)
+        # self.setupForm.addRow(QtWidgets.QLabel(""), self.applyGCorr)
+        # self.setupForm.addRow(self.lblIntegrationFolder, self.integrationFolder)
 
         self.buttonBox = QtWidgets.QDialogButtonBox(
             QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel

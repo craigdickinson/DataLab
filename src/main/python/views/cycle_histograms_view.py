@@ -247,11 +247,21 @@ class CycleHistogramDashboard(QtWidgets.QWidget):
         self.dataset_col = self.columnCombo.currentText()
 
     def update_histogram_list(self, df_histogram: pd.DataFrame):
-        hist_cols = df_histogram.columns.tolist()
-        self.hist_col = hist_cols[self.hist_col_i]
         self.histogramList.clear()
-        self.histogramList.addItems(hist_cols)
-        self.histogramList.setCurrentRow(self.hist_col_i)
+        hist_cols = df_histogram.columns.tolist()
+
+        # If only one column then implies no histograms as only the Aggregate column exists
+        if len(hist_cols) == 1:
+            return
+        else:
+            self.histogramList.addItems(hist_cols)
+
+            # Select previous item
+            try:
+                self.hist_col = hist_cols[self.hist_col_i]
+                self.histogramList.setCurrentRow(self.hist_col_i)
+            except IndexError:
+                pass
 
     def plot_histogram(self, df_histogram: pd.DataFrame):
         self.pyplot_histogram(df_histogram)
@@ -331,13 +341,14 @@ class CycleHistogramDashboard(QtWidgets.QWidget):
         project_name = self.parent.inputDataModule.control.project_name
         campaign_name = self.parent.inputDataModule.control.campaign_name
 
+        title = project_name
         if project_name == "":
-            project_name = "Project Title"
-        if campaign_name == "":
-            campaign_name = "Campaign Title"
+            title = "Project Title"
+        if campaign_name != "":
+            title += " - " + campaign_name
 
         fat_loc = f"{self.dataset} {self.dataset_col} - {self.hist_col} Cycle Histogram"
-        title = f"{project_name} - {campaign_name}\n{fat_loc}"
+        title = f"{title}\n{fat_loc}"
 
         return title
 
