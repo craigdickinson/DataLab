@@ -189,7 +189,7 @@ class LoggerProperties(QObject):
         # Apply gravity correction
         self.apply_gcorr = True
 
-        # Columns used
+        # Column names to convert
         self.acc_x_col = "Not used"
         self.acc_y_col = "Not used"
         self.acc_z_col = "Not used"

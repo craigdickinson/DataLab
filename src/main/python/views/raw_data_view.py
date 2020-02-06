@@ -799,9 +799,9 @@ class RawDataDashboard(QtWidgets.QWidget):
         # TODO: Should create a filter function that accepts an x and y array as well
         if len(srs.y) > 0:
             df = pd.DataFrame(srs.y, index=srs.x)
+            fs = 1 / (df.index[1] - df.index[0])
 
             if self.control.filter_type == "Butterworth":
-                fs = 1 / (df.index[1] - df.index[0])
                 sos_filter = create_butterworth_filter(
                     fs, srs.low_cutoff, srs.high_cutoff, order=self.control.butterworth_order
                 )
@@ -810,7 +810,7 @@ class RawDataDashboard(QtWidgets.QWidget):
                 if srs.low_cutoff is not None:
                     df_filt = add_signal_mean(df, df_filt)
             else:
-                df_filt = apply_rectangular_filter(df, srs.low_cutoff, srs.high_cutoff)
+                df_filt = apply_rectangular_filter(df, fs, srs.low_cutoff, srs.high_cutoff)
 
             srs.y_filt = df_filt.values.flatten()
 

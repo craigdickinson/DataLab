@@ -385,17 +385,18 @@ class DataScreen(object):
 
         # Apply filter on all dataframe time series
         if self.filter_type == "Butterworth":
-            df_filtered = apply_butterworth_filter(df, self.sos_filter)
+            df_filt = apply_butterworth_filter(df, self.sos_filter)
 
             # Reapply mean
             if self.low_cutoff is not None:
-                df_filtered = add_signal_mean(df, df_filtered)
+                df_filt = add_signal_mean(df, df_filt)
         else:
-            df_filtered = apply_rectangular_filter(df, self.low_cutoff, self.high_cutoff)
+            fs = 1 / (df.index[1] - df.index[0])
+            df_filt = apply_rectangular_filter(df, fs, self.low_cutoff, self.high_cutoff)
 
-        if not df_filtered.empty:
+        if not df_filt.empty:
             # Insert timestamps/time column and reset index to return a dataframe in same format as unfiltered one
-            df_filtered.reset_index(drop=True, inplace=True)
-            df_filtered.insert(loc=0, column=t.name, value=t)
+            df_filt.reset_index(drop=True, inplace=True)
+            df_filt.insert(loc=0, column=t.name, value=t)
 
-        return df_filtered
+        return df_filt

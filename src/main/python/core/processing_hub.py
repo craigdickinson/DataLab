@@ -388,7 +388,7 @@ class ProcessingHub(QObject):
         # SETUP
         bloc_blob_service = None
         t0 = time()
-        data_integration = IntegrateTimeSeries(output_path=self.control.integration_output_path)
+        data_integration = IntegrateTimeSeries(self.control)
 
         # Scan loggers to get total # files, list of logger names, files source (local or Azure)
         # and flags for whether stats and spectrograms are to be processed

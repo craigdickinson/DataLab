@@ -142,7 +142,7 @@ def add_signal_mean(df, df_filtered):
     return df_filtered + df.mean(axis=0)
 
 
-def apply_rectangular_filter(df, low_cutoff=None, high_cutoff=None, detrend=False):
+def apply_rectangular_filter(df, fs=1, low_cutoff=None, high_cutoff=None, detrend=False):
     """Apply rectangular filter to dataframe of time series and return dataframe of filtered time series."""
 
     # If no cut-off frequencies are set, return empty dataframe
@@ -150,7 +150,6 @@ def apply_rectangular_filter(df, low_cutoff=None, high_cutoff=None, detrend=Fals
         return pd.DataFrame()
 
     # Perform filtering on all channels
-    fs = 1 / (df.index[1] - df.index[0])
     f = abs(np.fft.fftfreq(len(df), 1 / fs))
     fft = np.fft.fft(df, axis=0)
 
