@@ -1,6 +1,6 @@
 __author__ = "Craig Dickinson"
 __program__ = "DataLab"
-__version__ = "2.1.0.25"
+__version__ = "2.1.0.26"
 __date__ = "6 February 2020"
 
 import logging
@@ -698,7 +698,7 @@ class DataLab(DataLabGui):
             self.warning("No sea scatter diagram generated. Nothing to export!")
         else:
             filename, _ = QtWidgets.QFileDialog.getSaveFileName(
-                self, "Save Sea Scatter Diagram", filter="Excel Files (*.xlsx)"
+                self, caption="Save Sea Scatter Diagram", filter="Excel Files (*.xlsx)"
             )
             if filename:
                 self.seascatterModule.export_scatter_diagram(filename)

@@ -84,7 +84,7 @@ class RawDataDashboard(QtWidgets.QWidget):
         self.highCutoff = QtWidgets.QLineEdit("None")
         self.highCutoff.setFixedWidth(40)
         self.plotFiltOnlyChkBox = QtWidgets.QCheckBox("Plot filtered only")
-        self.exportButton = QtWidgets.QPushButton("Export Plot Data")
+        self.exportButton = QtWidgets.QPushButton("Export...")
         self.exportButton.setShortcut("Ctrl+E")
         self.plotSettingsButton = QtWidgets.QPushButton("Plot Settings...")
 
@@ -979,7 +979,7 @@ class RawDataDashboard(QtWidgets.QWidget):
 
         x = srs.x
         linewidth = srs.linewidth
-        srs.label = self._construct_label(srs, filtered)
+        srs.label = self._create_label(srs, filtered)
 
         if filtered is True:
             y = srs.y_filt
@@ -1056,9 +1056,9 @@ class RawDataDashboard(QtWidgets.QWidget):
         # Store frequencies and amplitudes
         srs.freq = f
         if filtered is True:
-            srs.pxx = pxx
-        else:
             srs.pxx_filt = pxx
+        else:
+            srs.pxx = pxx
 
         # Return line handle
         return line
@@ -1085,9 +1085,6 @@ class RawDataDashboard(QtWidgets.QWidget):
         except Exception as e:
             raise ValueError(f"Could not calculate PSD\n{e}")
 
-        # TODO: Dataframe of PSD - give option to export to csv
-        # df_psd = pd.DataFrame(pxx.T, index=f)
-
         # Store nperseg and sampling frequency so that plot settings window is up to date
         self.plot_settings.def_nperseg = int(len(df))
         self.plot_settings.cust_nperseg = nperseg
@@ -1095,7 +1092,7 @@ class RawDataDashboard(QtWidgets.QWidget):
 
         return f, pxx
 
-    def _construct_label(self, srs, filtered):
+    def _create_label(self, srs, filtered=False):
         """Create legend label."""
 
         # Construct legend label
@@ -1181,59 +1178,66 @@ class RawDataDashboard(QtWidgets.QWidget):
         df_ts_list = []
         populated_srs = (srs for srs in all_srs if len(srs.y) > 0)
         for srs in populated_srs:
-            df = pd.DataFrame(srs.y, index=srs.x, columns=[srs.label])
+            col = self._create_label(srs)
+            df = pd.DataFrame(srs.y, index=srs.x, columns=[col])
             df_ts_list.append(df)
 
             y = srs.y_filt
             if len(y) > 0:
-                df = pd.DataFrame(y, index=srs.x, columns=[srs.label])
+                col = self._create_label(srs, filtered=True)
+                df = pd.DataFrame(y, index=srs.x, columns=[col])
                 df_ts_list.append(df)
 
         # Collate all psd series to dataframe
         df_psd_list = []
         populated_srs = (srs for srs in all_srs if len(srs.pxx) > 0)
         for srs in populated_srs:
-            df = pd.DataFrame(srs.pxx, index=srs.freq, columns=[srs.label])
+            col = self._create_label(srs)
+            df = pd.DataFrame(srs.pxx, index=srs.freq, columns=[col])
             df_psd_list.append(df)
 
             pxx = srs.pxx_filt
             if len(pxx) > 0:
-                df = pd.DataFrame(pxx, index=srs.freq, columns=[srs.label])
+                col = self._create_label(srs, filtered=True)
+                df = pd.DataFrame(pxx, index=srs.freq, columns=[col])
                 df_psd_list.append(df)
 
         # Concatenate to sheet dataframe
-        try:
-            df_ts = pd.concat(df_ts_list, axis=1, sort=False)
-            df_ts.index.name = "Time (s)"
-            df_psd = pd.concat(df_psd_list, axis=1, sort=False)
-            df_psd.index.name = "Freq (Hz)"
-        except ValueError:
-            print("Export plot data fail")
-            return
+        df_ts: pd.DataFrame
+        df_ts = pd.concat(df_ts_list, axis=1, sort=False)
+        df_ts.index.name = "Time (s)"
+        df_psd = pd.concat(df_psd_list, axis=1, sort=False)
+        df_psd.index.name = "Freq (Hz)"
 
         # Write to Excel
         filename, _ = QtWidgets.QFileDialog.getSaveFileName(
-            self, "Export Plot Data", filter="Excel File (*.xlsx)"
+            self, caption="Export Plot Data", filter="Excel File (*.xlsx)"
         )
         if filename:
             writer = pd.ExcelWriter(filename, engine="xlsxwriter")
             wb = writer.book
-            fmt = wb.add_format({"text_wrap": True})
+            fmt1 = wb.add_format({"text_wrap": True, "bold": True})
+            fmt2 = wb.add_format({"num_format": "0.000E+00"})
 
-            # Time series
-            df_ts.to_excel(writer, sheet_name="Time Series", float_format="%.3f")
+            # Time Series sheet
+            df_ts.to_excel(writer, sheet_name="Time Series")
             ws = writer.sheets["Time Series"]
-            # ws.set_row(1, None, fmt)
-            # ws.set_column("B:B", None, fmt)
+            ws.set_column(1, len(df_ts.columns), 12, fmt2)
+
+            # Need to rewrite column names to add desired format
+            for i, col in enumerate(df_ts.columns):
+                ws.write(0, i + 1, col, fmt1)
 
             # PSD sheet
             df_psd.to_excel(writer, sheet_name="PSD")
             ws = writer.sheets["PSD"]
-            # ws.set_row(1, None, fmt)
-            # ws.set_column("A:A", None, fmt)
-            # ws.write("B1", "Craig BOP_2018_0607_1620.csv BOP AccelX", fmt)
-            writer.save()
+            ws.set_column(1, len(df_psd.columns), 12, fmt2)
 
+            # Need to rewrite column names to add desired format
+            for i, col in enumerate(df_psd.columns):
+                ws.write(0, i + 1, col, fmt1)
+
+            writer.save()
             msg = "Plot data exported successfully."
             QtWidgets.QMessageBox.information(self, "Export Plot Data", msg)
 

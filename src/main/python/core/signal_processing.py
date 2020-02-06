@@ -15,7 +15,7 @@ def calc_psd(data, fs, window="boxcar", nperseg=None, noverlap=None):
     :param window: Window to apply; default "boxcar" equates to no window applied
     :param nperseg: Number of data points per segment; default None equates to 256 points
     :param noverlap: Proportion of segment overlap; default None equates to 50% overlap
-    :return: Arrays of frequencies and PSD amplitudes
+    :return: Frequencies and PSD amplitudes arrays
     """
 
     f, pxx = signal.welch(data, fs=fs, window=window, nperseg=nperseg, noverlap=noverlap)

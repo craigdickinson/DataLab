@@ -419,7 +419,7 @@ class StatsOutput(object):
         max_row = ws.max_row
         for row in range(4, max_row + 1):
             for col in range(4, max_col + 1):
-                ws.cell(row=row, column=col).number_format = "0.00E+00"
+                ws.cell(row, col).number_format = "0.00E+00"
 
         # Set width of date columns
         for col in range(2, 4):
