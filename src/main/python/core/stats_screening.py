@@ -231,7 +231,7 @@ class StatsOutput(object):
         # Create headers
         channels = logger.channel_names
         channels_header_unfilt = [x for chan in channels for x in [chan] * 4]
-        channels_header_filt = [x for chan in channels for x in [f"{chan} (filtered)"] * 4]
+        channels_header_filt = [x for chan in channels for x in [f"{chan} (Filtered)"] * 4]
         stats_header = ["min", "max", "mean", "std"] * len(channels)
 
         # TODO: McDermott project hack - don't keep this!

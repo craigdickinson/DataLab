@@ -1,6 +1,6 @@
 __author__ = "Craig Dickinson"
 __program__ = "DataLab"
-__version__ = "2.1.0.26"
+__version__ = "2.1.0.27"
 __date__ = "7 February 2020"
 
 import logging
@@ -16,7 +16,7 @@ from fbs_runtime.application_context.PyQt5 import ApplicationContext
 # import datalab_gui_layout
 from core.control import InputError
 from core.custom_exception_logger import set_exception_logger
-from core.logger_properties import LoggerError, LoggerWarning
+from core.logger_properties import LoggerProperties, LoggerError, LoggerWarning
 from core.processing_hub import ProcessingHub
 from core.read_files import (
     read_spectrograms_csv,
@@ -501,6 +501,7 @@ class DataLab(DataLabGui):
         """Prepare and check screening setup."""
 
         control = self.control
+        logger: LoggerProperties
 
         # Perform some input checks
         # Check project path exists
@@ -578,7 +579,12 @@ class DataLab(DataLabGui):
             # Set processed channel names and units as user values, if supplied, or file header values
             logger.set_selected_column_and_units_names()
 
+            # Check for any columns without any units set and see if the units is embedded in the channel name;
+            # if so extract units from channel name and add to units list
+            logger.check_if_units_in_channel_name()
+
             # Check number of headers match number of columns to process
+            # TODO: This should already have been enforced earlier so perhaps no longer required?
             logger.check_headers()
 
     def create_and_run_worker(self):
@@ -827,7 +833,7 @@ def run_datalab_fbs():
 
     appctxt = ApplicationContext()
     win = DataLab()
-    # debug_setup(win)
+    debug_setup(win)
     win.show()
     exit_code = appctxt.app.exec_()
     sys.exit(exit_code)
@@ -838,12 +844,12 @@ def debug_setup(win):
     root = r"C:\Users\dickinsc\PycharmProjects\DataLab\demo_data\2. Project Configs"
 
     # path = r"21239\21239_Total_WoS_Config.json"
-    # path = r"21368\21368_Dhaval_Config.json"
+    path = r"21368\21368_Dhaval_Config.json"
     # path = r"21239 - Acc to Disp to AR-Ang\21239_Time_Series_Conversion_Config.json"
     # path = r"21342\21342_Histograms_Config.json"
     # path = r"21342\21342_McDermott_Config.json"
     # path = r"Validation\Cycle Histograms\21239_Hist_Validation.json"
-    path = r"Validation\Acc to Disp and Ang Rate to Ang\21239_Integration_Validation_Config.json"
+    # path = r"Validation\Acc to Disp and Ang Rate to Ang\21239_Integration_Validation_Config.json"
 
     filepath = os.path.join(root, path)
     win.inputDataModule.load_config_file(filepath)

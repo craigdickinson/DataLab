@@ -249,6 +249,7 @@ def export_histograms_to_csv(dict_df_col_hists, dir_path, logger_id):
     filestem = f"Histograms {logger_id}"
 
     for channel, df in dict_df_col_hists.items():
+        channel = clean_channel_name(channel)
         filename = f"{filestem} {channel}.csv"
         filepath = os.path.join(dir_path, filename)
         df.to_csv(filepath)
@@ -269,6 +270,12 @@ def export_histograms_to_excel(dict_df_col_hists, dir_path, logger_id):
     writer = pd.ExcelWriter(filepath)
 
     for channel, df in dict_df_col_hists.items():
+        channel = clean_channel_name(channel)
+
+        # Worksheet name length limit is 31
+        if len(channel) > 31:
+            channel = channel[:31]
+
         df.to_excel(writer, sheet_name=channel)
 
     writer.save()
@@ -286,6 +293,7 @@ def export_histograms_to_hdf5(dict_df_col_hists, dir_path, logger_id, mode="w"):
     filename = "Histograms.h5"
 
     for channel, df in dict_df_col_hists.items():
+        channel = clean_channel_name(channel)
         filepath = os.path.join(dir_path, filename)
         key = f"{logger_id}_{channel}".replace(" ", "_")
         df.to_hdf(filepath, key, mode=mode)
@@ -294,6 +302,24 @@ def export_histograms_to_hdf5(dict_df_col_hists, dir_path, logger_id, mode="w"):
     rel_filepath = folder + "/" + filename
 
     return rel_filepath
+
+
+def clean_channel_name(channel):
+    """Remove possible units from channel name and disallowed characters."""
+
+    # Check for possible units in column name and remove
+    if "(" in channel:
+        p = channel.index("(")
+        channel = channel[:p].strip()
+    if "[" in channel:
+        p = channel.index("]")
+        channel = channel[:p].strip()
+
+    # Remove disallowed characters from filename
+    channel = channel.replace("/", "")
+    channel = channel.replace("^", "")
+
+    return channel
 
 
 def calc_damage(stress_ranges, stress_cycles, SN):

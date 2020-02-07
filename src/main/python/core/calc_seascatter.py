@@ -54,6 +54,9 @@ class Seascatter(object):
         cols = df.columns.get_level_values(0)
 
         # If both unfiltered and filtered stats columns exist, remap to the associated filtered Hs and Tp columns
+        if cols[0].endswith("(Filtered)") is False and cols[1].endswith("(Filtered)") is True:
+            hs_i = 2 * hs_i + 1
+            tp_i = 2 * tp_i + 1
         if cols[0].endswith("(filtered)") is False and cols[1].endswith("(filtered)") is True:
             hs_i = 2 * hs_i + 1
             tp_i = 2 * tp_i + 1

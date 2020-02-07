@@ -647,6 +647,8 @@ class LoggerProperties(QObject):
             )
             self.logger_warning_signal.emit(msg)
 
+        return self.channel_names, self.channel_units
+
     def _get_data_first_row(self, file_idx=0):
         """
         Read first data row to validate on.
@@ -680,6 +682,38 @@ class LoggerProperties(QObject):
         first_row = [x for x in first_row if x != ""]
 
         return test_file, first_row
+
+    def check_if_units_in_channel_name(self):
+        """Check for columns with no units set and check if units are in channel name; if so extract to units list."""
+
+        channels = self.channel_names
+        units = self.channel_units
+        p = -1
+
+        for i, u in enumerate(units):
+            if u == "-":
+                channel = channels[i]
+
+                # Attempt to find possible embedded units in the channel name of the form "(units)" or "[units]"
+                if "(" in channel:
+                    p = channel.index("(")
+                if "[" in channel:
+                    p = channel.index("[")
+
+                # Expected units found - remove units from channel name and add to units list
+                if p > -1:
+                    new_channel = channel[:p].strip()
+                    new_units = channel[p + 1 :]
+                    if new_units.endswith(")") or new_units.endswith("]"):
+                        new_units = new_units[:-1]
+
+                    channels[i] = new_channel
+                    units[i] = new_units
+
+        self.channel_names = channels
+        self.channel_units = units
+
+        return self.channel_names, self.channel_units
 
     def check_headers(self):
         """Check that there is a channel name and channel units per requested column to process."""

@@ -272,28 +272,33 @@ class Spectrogram(object):
             if "(" in channel:
                 p = channel.index("(")
                 channel = channel[:p].strip()
+            if "[" in channel:
+                p = channel.index("[")
+                channel = channel[:p].strip()
 
             logger_id = "_".join(self.logger_id.split(" "))
             channel = "_".join(channel.split(" "))
 
             key = f"{logger_id}_{channel}"
             if filtered is True:
-                key += "_filtered"
+                key += "_Filtered"
 
             # Create file name stem
-            file_stem = f"Spectrograms_Data_{logger_id}_{channel}"
+            filestem = f"Spectrograms_Data_{logger_id}_{channel}"
             if filtered is True:
-                file_stem += "_(filtered)"
+                filestem += "_(Filtered)"
 
-            # Remove potential disallowed symbols from filename
-            file_stem = file_stem.replace("/", "")
-            file_stem = file_stem.replace(" ", "_")
+            # Remove disallowed characters from filename and replace spaces
+            filestem = filestem.replace("/", "")
+            filestem = filestem.replace("^", "")
+            filestem = filestem.replace(" ", "_")
 
             # Check shape of spect data is valid - if contains only one event need to reshape
             try:
                 # Check second dimension exists
                 spect.shape[1]
             except:
+                # TODO: Simpler to use flatten?
                 spect = spect.reshape(1, -1)
 
             # Create spectrogram data frame for channel and add to dictionary
@@ -308,14 +313,14 @@ class Spectrogram(object):
             # Export channel spectrogram data to file
             # CSV
             if dict_formats_to_write["csv"] is True:
-                filename = file_stem + ".csv"
+                filename = filestem + ".csv"
                 filepath = os.path.join(self.output_dir, filename)
                 df.to_csv(filepath)
                 self.output_files.append(self.output_folder + "/" + filename)
 
             # Excel
             if dict_formats_to_write["xlsx"] is True:
-                filename = file_stem + ".xlsx"
+                filename = filestem + ".xlsx"
                 filepath = os.path.join(self.output_dir, filename)
                 writer = pd.ExcelWriter(filepath)
 
@@ -330,7 +335,7 @@ class Spectrogram(object):
             # HDF5
             if dict_formats_to_write["h5"] is True:
                 # Note HDF5 files should use a contiguous key name
-                filename = file_stem + ".h5"
+                filename = filestem + ".h5"
                 filepath = os.path.join(self.output_dir, filename)
                 df.to_hdf(filepath, key, mode="w")
                 self.output_files.append(self.output_folder + "/" + filename)
