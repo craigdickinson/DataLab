@@ -1,6 +1,6 @@
 __author__ = "Craig Dickinson"
 __program__ = "DataLab"
-__version__ = "2.1.0.27"
+__version__ = "2.1.0.28"
 __date__ = "7 February 2020"
 
 import logging
@@ -844,12 +844,12 @@ def debug_setup(win):
     root = r"C:\Users\dickinsc\PycharmProjects\DataLab\demo_data\2. Project Configs"
 
     # path = r"21239\21239_Total_WoS_Config.json"
-    path = r"21368\21368_Dhaval_Config.json"
+    # path = r"21368\21368_Dhaval_Config.json"
     # path = r"21239 - Acc to Disp to AR-Ang\21239_Time_Series_Conversion_Config.json"
     # path = r"21342\21342_Histograms_Config.json"
     # path = r"21342\21342_McDermott_Config.json"
     # path = r"Validation\Cycle Histograms\21239_Hist_Validation.json"
-    # path = r"Validation\Acc to Disp and Ang Rate to Ang\21239_Integration_Validation_Config.json"
+    path = r"Validation\Acc to Disp and Ang Rate to Ang\21239_Integration_Validation_Config.json"
 
     filepath = os.path.join(root, path)
     win.inputDataModule.load_config_file(filepath)

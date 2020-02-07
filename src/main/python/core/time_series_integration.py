@@ -100,6 +100,9 @@ class IntegrateTimeSeries(object):
         angles_y = None
         idx = df.iloc[:, 0]
 
+        mm_to_m = 0.001
+        rad_to_deg = np.rad2deg(1)
+
         # Enforce a rectangular filter since a Butterworth filter does not set very low frequencies to exactly zero
         # and this causes low frequencies to explode and dominate leading to drift in integral signals
         # TODO: Notify user of this
@@ -114,10 +117,14 @@ class IntegrateTimeSeries(object):
         int_transform = integration_transform(len(df), dt)
 
         # Convert angular rates to angles
-        # (We calculate angles first as need angles for gravity decontamination of displacements)
+        # We calculate angles first as need angles for gravity correction of accelerations
         if self.ang_rate_x_col != "Not used":
             angle_cols.append("Angle X (deg)")
             ang_rates = df[self.ang_rate_x_col].values
+
+            # Apply unit conversion if requested
+            if self.ang_rate_x_units_conv == "rad to deg":
+                ang_rates *= rad_to_deg
 
             # Apply filter
             ang_rates = self._filter_time_series(
@@ -133,6 +140,10 @@ class IntegrateTimeSeries(object):
             angle_cols.append("Angle Y (deg)")
             ang_rates = df[self.ang_rate_y_col].values
 
+            # Apply unit conversion if requested
+            if self.ang_rate_y_units_conv == "rad to deg":
+                ang_rates *= rad_to_deg
+
             # Apply filter
             ang_rates = self._filter_time_series(
                 x=idx,
@@ -147,6 +158,10 @@ class IntegrateTimeSeries(object):
         if self.acc_x_col != "Not used":
             disp_cols.append("Disp X (m)")
             accels = df[self.acc_x_col].values
+
+            # Apply unit conversion if requested
+            if self.acc_x_units_conv == "mm to m":
+                accels *= mm_to_m
 
             if self.apply_g_correction is True and angles_y is not None:
                 # TODO: Add g_sign detection function for the test/first file
@@ -166,6 +181,10 @@ class IntegrateTimeSeries(object):
             disp_cols.append("Disp Y (m)")
             accels = df[self.acc_y_col].values
 
+            # Apply unit conversion if requested
+            if self.acc_y_units_conv == "mm to m":
+                accels *= mm_to_m
+
             if self.apply_g_correction is True and angles_x is not None:
                 # TODO: Add g_sign detection function for the test/first file
                 accels = gravity_correction(accels, angles_x, g_sign=1)
@@ -183,6 +202,10 @@ class IntegrateTimeSeries(object):
         if self.acc_z_col != "Not used":
             disp_cols.append("Disp Z (m)")
             accels = df[self.acc_z_col].values
+
+            # Apply unit conversion if requested
+            if self.acc_z_units_conv == "mm to m":
+                accels *= mm_to_m
 
             # Apply filter
             accels = self._filter_time_series(
@@ -203,27 +226,14 @@ class IntegrateTimeSeries(object):
         if cols:
             df_int = pd.DataFrame(np.array(data).T, index=idx, columns=cols)
 
-            # New filename
-            filename = os.path.basename(file)
-            filename = os.path.splitext(filename)[0]
-            filename += "_Converted.csv"
-
-            # Extract logger folder
-            folder = os.path.split(os.path.dirname(file))[-1]
-
-            # Create directory path, check exists and export file
-            path_to_file = os.path.join(self.output_path, folder)
-            filepath = os.path.join(path_to_file, filename)
-            df_int.to_csv(filepath)
-
-            # Relative file path to report in progress bar
-            rel_filepath = os.path.join("Displacements and Angles", folder, filename)
-
+            # Export to csv
+            rel_filepath = export_integrated_time_series(df_int, file, self.output_path)
             return rel_filepath
 
     def _filter_time_series(self, x, y, low_cutoff, high_cutoff, detrend=True):
         """Calculate filtered signal of a single series."""
 
+        # TODO: Simplify to remove dataframe and just use a single time series y with fs input
         # Apply bandpass filter (takes a dataframe as input)
         if len(y) > 0:
             df = pd.DataFrame(y, index=x)
@@ -302,3 +312,24 @@ def gravity_correction(accels, angles, g_sign=-1):
     """Remove gravity contamination from accelerations."""
 
     return accels + g_sign * g * np.sin(np.radians(angles))
+
+
+def export_integrated_time_series(df, src_filepath, output_path):
+    """Export all integrated time series of a file to csv."""
+
+    # New filename
+    filename = os.path.basename(src_filepath)
+    filename = os.path.splitext(filename)[0]
+    filename += "_Converted.csv"
+
+    # Extract logger folder
+    folder = os.path.split(os.path.dirname(src_filepath))[-1]
+
+    # Create file path for converted file using the folder name of the source file and export dataframe to csv
+    filepath = os.path.join(output_path, folder, filename)
+    df.to_csv(filepath)
+
+    # Relative file path to report in progress bar
+    rel_filepath = os.path.join("Displacements and Angles", folder, filename)
+
+    return rel_filepath
