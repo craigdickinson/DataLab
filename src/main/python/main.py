@@ -1,6 +1,6 @@
 __author__ = "Craig Dickinson"
 __program__ = "DataLab"
-__version__ = "2.1.0.29"
+__version__ = "2.1.0.30"
 __date__ = "7 February 2020"
 
 import logging
@@ -105,6 +105,7 @@ class DataLab(DataLabGui):
         self.dataQualityButton.clicked.connect(self.view_mod_data_quality)
         self.statsScreeningButton.clicked.connect(self.view_mod_stats_screening)
         self.spectralScreeningButton.clicked.connect(self.view_mod_spectral_screening)
+        self.histogramsButton.clicked.connect(self.view_mod_histograms)
         self.seascatterButton.clicked.connect(self.view_mod_seascatter)
         self.transFuncsButton.clicked.connect(self.view_mod_transfer_functions)
         self.fatigueButton.clicked.connect(self.view_mod_fatigue)
@@ -275,7 +276,7 @@ class DataLab(DataLabGui):
 
         if dmg_file:
             df_dam = read_wcfat_results(dmg_file)
-            self.fatigueTab.process_fatigue_damage_file(df_dam)
+            self.fatigueModule.process_fatigue_damage_file(df_dam)
 
     def open_fatlasa_damage_file(self):
         return QtWidgets.QMessageBox.information(
@@ -366,6 +367,10 @@ class DataLab(DataLabGui):
         self.set_active_tool_button("spectral")
         self.modulesWidget.setCurrentWidget(self.spectralScreeningModule)
 
+    def view_mod_histograms(self):
+        self.set_active_tool_button("histograms")
+        self.modulesWidget.setCurrentWidget(self.histogramsModule)
+
     def view_mod_seascatter(self):
         self.set_active_tool_button("seascatter")
         self.modulesWidget.setCurrentWidget(self.seascatterModule)
@@ -393,10 +398,6 @@ class DataLab(DataLabGui):
         self.modulesWidget.setCurrentWidget(self.spectralScreeningModule)
         self.statsScreeningModule.setCurrentWidget(self.spectrogramTab)
 
-    def view_tab_seascatter(self):
-        self.set_active_tool_button("seascatter")
-        self.modulesWidget.setCurrentWidget(self.seascatterModule)
-
     def set_active_tool_button(self, active_button):
         """Format selected module button."""
 
@@ -412,6 +413,7 @@ class DataLab(DataLabGui):
         self.dataQualityButton.setStyleSheet(inactive_style)
         self.statsScreeningButton.setStyleSheet(inactive_style)
         self.spectralScreeningButton.setStyleSheet(inactive_style)
+        self.histogramsButton.setStyleSheet(inactive_style)
         self.seascatterButton.setStyleSheet(inactive_style)
         self.transFuncsButton.setStyleSheet(inactive_style)
         self.fatigueButton.setStyleSheet(inactive_style)
@@ -427,6 +429,8 @@ class DataLab(DataLabGui):
             self.statsScreeningButton.setStyleSheet(active_style)
         if active_button == "spectral":
             self.spectralScreeningButton.setStyleSheet(active_style)
+        if active_button == "histograms":
+            self.histogramsButton.setStyleSheet(active_style)
         if active_button == "seascatter":
             self.seascatterButton.setStyleSheet(active_style)
         if active_button == "tf":
@@ -650,10 +654,10 @@ class DataLab(DataLabGui):
 
         # Map histogram datasets to histogram dashboard
         if processing_hub.dict_histograms:
-            self.histogramsTab.store_dataset_units(processing_hub.data_screen_sets)
-            self.histogramsTab.dict_datasets = processing_hub.dict_histograms
+            self.histogramsModule.store_dataset_units(processing_hub.data_screen_sets)
+            self.histogramsModule.dict_datasets = processing_hub.dict_histograms
             dataset_ids = list(processing_hub.dict_histograms.keys())
-            self.histogramsTab.update_dataset_combo(dataset_ids)
+            self.histogramsModule.update_dataset_combo(dataset_ids)
 
     def calc_seascatter(self):
         """Create seascatter diagram if vessel stats data is loaded."""
@@ -691,7 +695,7 @@ class DataLab(DataLabGui):
             self.seascatterModule.df_ss = self.scatter.df_ss
             self.seascatterModule.calc_bins(hs, tp)
             self.seascatterModule.generate_scatter_diagram()
-            self.view_tab_seascatter()
+            self.view_mod_seascatter()
         except Exception as e:
             msg = "Unexpected error generating sea scatter diagram"
             self.error(f"{msg}:\n{e}\n{sys.exc_info()[0]}")
@@ -713,11 +717,11 @@ class DataLab(DataLabGui):
         """Calculate frequency-dependent transfer functions."""
 
         try:
-            self.transFuncsTab.tf = self.tf
-            status = self.transFuncsTab.tf.process_transfer_functions()
+            self.transFuncsModule.tf = self.tf
+            status = self.transFuncsModule.tf.process_transfer_functions()
 
             if status is True:
-                self.transFuncsTab.plot_transfer_functions()
+                self.transFuncsModule.plot_transfer_functions()
                 self.view_mod_transfer_functions()
                 msg = "Frequency-dependent transfer functions calculated successfully."
                 self._message_information("Calculate Transfer Functions", msg)
@@ -833,7 +837,7 @@ def run_datalab_fbs():
 
     appctxt = ApplicationContext()
     win = DataLab()
-    debug_setup(win)
+    # debug_setup(win)
     win.show()
     exit_code = appctxt.app.exec_()
     sys.exit(exit_code)

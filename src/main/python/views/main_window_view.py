@@ -64,20 +64,17 @@ class DataLabGui(QtWidgets.QMainWindow):
         self.spectrogramTab = SpectrogramWidget(self)
         self.spectralScreeningModule.addTab(self.spectrogramTab, "Spectrograms")
 
+        # Cycle histograms module
+        self.histogramsModule = CycleHistogramDashboard(self)
+
         # Seascatter diagram module
         self.seascatterModule = SeascatterDiagram(self)
 
         # Transfer functions module
-        self.transFuncsModule = QtWidgets.QTabWidget()
-        self.transFuncsTab = TransferFunctionsWidget(self)
-        self.transFuncsModule.addTab(self.transFuncsTab, "2HFATLASA Transfer Functions")
+        self.transFuncsModule = TransferFunctionsWidget(self)
 
         # Fatigue processing module
-        self.fatigueModule = QtWidgets.QTabWidget()
-        self.histogramsTab = CycleHistogramDashboard(self)
-        self.fatigueTab = FatigueDashboard(self)
-        self.fatigueModule.addTab(self.histogramsTab, "Cycle Histograms")
-        self.fatigueModule.addTab(self.fatigueTab, "2HFATLASA")
+        self.fatigueModule = FatigueDashboard(self)
 
         # Add stacked widgets
         self.modulesWidget.addWidget(self.inputDataModule)
@@ -85,6 +82,7 @@ class DataLabGui(QtWidgets.QMainWindow):
         self.modulesWidget.addWidget(self.dataQualityModule)
         self.modulesWidget.addWidget(self.statsScreeningModule)
         self.modulesWidget.addWidget(self.spectralScreeningModule)
+        self.modulesWidget.addWidget(self.histogramsModule)
         self.modulesWidget.addWidget(self.seascatterModule)
         self.modulesWidget.addWidget(self.transFuncsModule)
         self.modulesWidget.addWidget(self.fatigueModule)
@@ -205,12 +203,14 @@ class DataLabGui(QtWidgets.QMainWindow):
         self.statsScreeningButton.setShortcut("Ctrl+4")
         self.spectralScreeningButton = QtWidgets.QPushButton("5. Spectral Screening")
         self.spectralScreeningButton.setShortcut("Ctrl+5")
-        self.seascatterButton = QtWidgets.QPushButton("6. Sea Scatter")
-        self.seascatterButton.setShortcut("Ctrl+6")
-        self.transFuncsButton = QtWidgets.QPushButton("7. Transfer Functions")
-        self.transFuncsButton.setShortcut("Ctrl+7")
-        self.fatigueButton = QtWidgets.QPushButton("8. Fatigue Analysis")
-        self.fatigueButton.setShortcut("Ctrl+8")
+        self.histogramsButton = QtWidgets.QPushButton("6. Cycle Histograms")
+        self.histogramsButton.setShortcut("Ctrl+6")
+        self.seascatterButton = QtWidgets.QPushButton("7. Sea Scatter")
+        self.seascatterButton.setShortcut("Ctrl+7")
+        self.transFuncsButton = QtWidgets.QPushButton("8. Transfer Functions")
+        self.transFuncsButton.setShortcut("Ctrl+8")
+        self.fatigueButton = QtWidgets.QPushButton("9. Fatigue Analysis")
+        self.fatigueButton.setShortcut("Ctrl+9")
 
         self.toolBar.addWidget(QtWidgets.QLabel("Dashboards:"))
         self.toolBar.addWidget(self.projConfigButton)
@@ -218,6 +218,7 @@ class DataLabGui(QtWidgets.QMainWindow):
         self.toolBar.addWidget(self.dataQualityButton)
         self.toolBar.addWidget(self.statsScreeningButton)
         self.toolBar.addWidget(self.spectralScreeningButton)
+        self.toolBar.addWidget(self.histogramsButton)
         self.toolBar.addWidget(self.seascatterButton)
         self.toolBar.addWidget(self.transFuncsButton)
         self.toolBar.addWidget(self.fatigueButton)

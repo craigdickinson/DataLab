@@ -113,7 +113,7 @@ class TransferFunctionsWidget(QtWidgets.QWidget):
         """Open existing transfer functions csv file to visualise plots."""
 
         return QtWidgets.QMessageBox.information(
-            self, "To Do", "Feature coming in a future update."
+            self.parent, "To Do", "Feature coming in a future update."
         )
 
     def on_export_ss_tf_button_clicked(self):

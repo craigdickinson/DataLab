@@ -99,7 +99,7 @@ class InputDataModule(QtWidgets.QWidget):
 
         self.runDataQualityChecksButton = QtWidgets.QPushButton("Run Data Quality Checks")
         self.runDataQualityChecksButton.setFixedHeight(h)
-        tooltip = "Create a data quality report of selected loggers (F6)"
+        tooltip = "Create a data quality report of selected loggers (F5)"
         self.runDataQualityChecksButton.setToolTip(tooltip)
 
         self.processButton = QtWidgets.QPushButton("Process Screening")
@@ -109,7 +109,7 @@ class InputDataModule(QtWidgets.QWidget):
 
         self.runTimeSeriesIntegrationButton = QtWidgets.QPushButton("Run Time Series Integration")
         self.runTimeSeriesIntegrationButton.setFixedHeight(h)
-        tooltip = "Convert accelerations to displacement and angular rates to angles (F7)"
+        tooltip = "Convert accelerations to displacements and angular rates to angles (F7)"
         self.runTimeSeriesIntegrationButton.setToolTip(tooltip)
 
         self.calcSeascatterButton = QtWidgets.QPushButton("Create Sea Scatter")
@@ -222,8 +222,9 @@ class InputDataModule(QtWidgets.QWidget):
         self.loggerList.itemDoubleClicked.connect(self.on_logger_item_double_clicked)
         self.statsScreenChkBox.toggled.connect(self.on_stats_screen_toggled)
         self.spectScreenChkBox.toggled.connect(self.on_spect_screen_toggled)
-        self.runTimeSeriesIntegrationButton.clicked.connect(self.on_run_ts_integration_clicked)
+        self.runDataQualityChecksButton.clicked.connect(self.on_run_data_quality_checks_clicked)
         self.processButton.clicked.connect(self.on_process_screening_clicked)
+        self.runTimeSeriesIntegrationButton.clicked.connect(self.on_run_ts_integration_clicked)
         self.calcSeascatterButton.clicked.connect(self.on_calc_seascatter_clicked)
         self.calcTFButton.clicked.connect(self.on_calc_transfer_functions_clicked)
         self.calcFatigueButton.clicked.connect(self.on_calc_fatigue_clicked)
@@ -475,6 +476,11 @@ class InputDataModule(QtWidgets.QWidget):
 
     def on_spect_screen_toggled(self):
         self.control.global_process_spect = self.spectScreenChkBox.isChecked()
+
+    def on_run_data_quality_checks_clicked(self):
+        return QtWidgets.QMessageBox.information(
+            self, "To Do", "Feature coming in a future update."
+        )
 
     def on_process_screening_clicked(self):
         self.parent.process_screening()

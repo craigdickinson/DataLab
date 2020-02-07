@@ -149,15 +149,17 @@ class CycleHistogramDashboard(QtWidgets.QWidget):
         self.layout.addWidget(splitter)
 
     def _connect_signals(self):
-        self.openHistFileButton.clicked.connect(self.on_open_histogram_file_clicked)
+        self.openHistFileButton.clicked.connect(self.on_open_histograms_file_clicked)
         self.datasetCombo.currentIndexChanged.connect(self.on_dataset_combo_changed)
         self.columnCombo.currentIndexChanged.connect(self.on_column_combo_changed)
         self.histogramList.itemDoubleClicked.connect(self.on_histogram_double_clicked)
         self.xaxisInterval.returnPressed.connect(self.on_xaxis_interval_changed)
         self.fixedYmax.returnPressed.connect(self.on_fixed_ymax_changed)
 
-    def on_open_histogram_file_clicked(self):
-        self.parent.open_wcfat_damage_file()
+    def on_open_histograms_file_clicked(self):
+        return QtWidgets.QMessageBox.information(
+            self.parent, "To Do", "Feature coming in a future update."
+        )
 
     def on_dataset_combo_changed(self):
         if self.datasetCombo.currentIndex() == -1:
