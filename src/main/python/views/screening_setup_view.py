@@ -143,8 +143,8 @@ class ScreeningSetupTab(QtWidgets.QWidget):
         vbox.addWidget(self.spectXLSXChkBox)
         vbox.addWidget(self.spectH5ChkBox)
 
-        # Histogram settings group
-        self.histGroup = QtWidgets.QGroupBox("Histogram Settings")
+        # Cycle histogram settings group
+        self.histGroup = QtWidgets.QGroupBox("Cycle Histogram Settings")
         self.histGroup.setMinimumWidth(250)
         self.histForm = QtWidgets.QFormLayout(self.histGroup)
         self.histForm.addRow(self.processHistogramsChkBox, QtWidgets.QLabel(""))
@@ -153,7 +153,7 @@ class ScreeningSetupTab(QtWidgets.QWidget):
         self.histForm.addRow(QtWidgets.QLabel("Number of bins:"), self.histNumBins)
 
         # Histogram output file formats group
-        self.histOutputGroup = QtWidgets.QGroupBox("Histogram Output File Formats")
+        self.histOutputGroup = QtWidgets.QGroupBox("Cycle Histogram Output File Formats")
         self.histOutputGroup.setFixedWidth(180)
         vbox = QtWidgets.QVBoxLayout(self.histOutputGroup)
         vbox.addWidget(self.histCSVChkBox)
@@ -516,7 +516,7 @@ class EditScreeningSetupDialog(QtWidgets.QDialog):
         self.psdOverlap.setToolTip("Percentage of points to overlap each PSD segment.")
         self.psdOverlap.setValidator(dbl_validator)
 
-        # Histogram settings
+        # Cycle histogram settings
         self.histFolder = QtWidgets.QLineEdit()
         self.histFolder.setFixedWidth(210)
         self.histBinSizes = QtWidgets.QLineEdit()
@@ -627,8 +627,8 @@ class EditScreeningSetupDialog(QtWidgets.QDialog):
         self.spectForm.addRow(self.lblPsdWindow, self.psdWindowCombo)
         self.spectForm.addRow(self.lblPsdOverlap, self.psdOverlap)
 
-        # Histograms group
-        self.histGroup = QtWidgets.QGroupBox("Histogram Settings")
+        # Cycle histograms group
+        self.histGroup = QtWidgets.QGroupBox("Cycle Histogram Settings")
         self.histForm = QtWidgets.QFormLayout(self.histGroup)
         self.histForm.addRow(self.lblHistFolder, self.histFolder)
         self.histForm.addRow(self.lblBinSize, self.histBinSizes)
@@ -730,7 +730,7 @@ class EditScreeningSetupDialog(QtWidgets.QDialog):
         self.psdWindowCombo.setCurrentText(logger.psd_window)
         self.psdOverlap.setText(f"{logger.psd_overlap:.1f}")
 
-        # Histograms settings
+        # Cycle histogram settings
         bin_sizes = " ".join([str(i) for i in logger.channel_bin_sizes])
         self.histBinSizes.setText(bin_sizes)
         num_bins = " ".join([str(i) for i in logger.channel_num_bins])
@@ -951,19 +951,21 @@ class EditScreeningSetupDialog(QtWidgets.QDialog):
                 logger.channel_bin_sizes = [float(i) for i in bin_size_str.split()]
             except ValueError:
                 msg = (
-                    "Histogram bin sizes must be numeric.\n"
+                    "Cycle histogram bin sizes must be numeric.\n"
                     "Separate each input with a space, e.g. 0.001 0.001 0.001 0.001."
                 )
-                QtWidgets.QMessageBox.information(self, "Invalid Histogram Bins Sizes Input", msg)
+                QtWidgets.QMessageBox.information(
+                    self, "Invalid Cycle Histogram Bins Sizes Input", msg
+                )
 
         try:
             logger.channel_num_bins = [int(i) for i in self.histNumBins.text().split()]
         except ValueError:
             msg = (
-                "Histogram number of bins must be numeric.\n"
+                "Cycle histogram number of bins must be numeric.\n"
                 "Separate each input with a space, e.g. 10 10 10 10."
             )
-            QtWidgets.QMessageBox.information(self, "Invalid Histogram Bins Sizes Input", msg)
+            QtWidgets.QMessageBox.information(self, "Invalid Cycle Histogram Bins Sizes Input", msg)
 
         # Output folders - store as global control settings
         self.control.stats_output_folder = self.statsFolder.text()

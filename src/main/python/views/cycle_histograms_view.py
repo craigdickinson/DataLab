@@ -99,7 +99,7 @@ class CycleHistogramDashboard(QtWidgets.QWidget):
         # Labels
         self.lblDataset = QtWidgets.QLabel("Dataset:")
         self.lblColumn = QtWidgets.QLabel("Column:")
-        self.lblHistograms = QtWidgets.QLabel("Cycle histograms")
+        self.lblHistograms = QtWidgets.QLabel("Cycle Histograms")
         self.lblFixedYmax = QtWidgets.QLabel("Fixed y-axis max:")
         self.lblXAxisInterval = QtWidgets.QLabel("X-axis interval:")
 

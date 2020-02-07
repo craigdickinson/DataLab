@@ -9,13 +9,13 @@ import pandas as pd
 from scipy.constants import g
 
 from core.control import Control
+from core.logger_properties import LoggerProperties
 from core.signal_processing import (
     add_signal_mean,
     apply_butterworth_filter,
     apply_rectangular_filter,
     create_butterworth_filter,
 )
-from logger_properties import LoggerProperties
 
 
 class IntegrateTimeSeries(object):

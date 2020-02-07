@@ -24,7 +24,7 @@ def set_exception_logger():
 
 
 def set_exception_logger_file_handler(log, log_path):
-    """Create file logger and close any existing file logger.."""
+    """Create file logger and close any existing file logger."""
 
     log_file = os.path.join(log_path, "log.out")
 

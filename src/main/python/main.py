@@ -1,7 +1,7 @@
 __author__ = "Craig Dickinson"
 __program__ = "DataLab"
 __version__ = "2.1.0.26"
-__date__ = "6 February 2020"
+__date__ = "7 February 2020"
 
 import logging
 import os
@@ -813,24 +813,21 @@ class ProcessingWorker(QtCore.QThread):
 
 
 def run_datalab_pyinstaller():
-    """Wrapper to run DataLab from a Jupyter Notebook."""
+    """Standard PyQt gui setup (as used with pyinstaller)."""
 
-    app = QtCore.QCoreApplication.instance()
-    if not app:
-        app = QtWidgets.QApplication(sys.argv)
-    # win = QtDesignerGui()
+    app = QtWidgets.QApplication(sys.argv)
     win = DataLab()
-    debug_setup(win)
+    # debug_setup(win)
     win.show()
     sys.exit(app.exec_())
 
 
 def run_datalab_fbs():
-    """Wrapper to run DataLab from a Jupyter Notebook."""
+    """Setup to run DataLab as an fbs project (fbs is an installer package)."""
 
     appctxt = ApplicationContext()
     win = DataLab()
-    debug_setup(win)
+    # debug_setup(win)
     win.show()
     exit_code = appctxt.app.exec_()
     sys.exit(exit_code)
