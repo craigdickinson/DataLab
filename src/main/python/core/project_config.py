@@ -533,6 +533,12 @@ class ProjectConfigJSONFile(object):
             key="apply_gravity_correction",
             attr=logger.apply_gcorr,
         )
+        logger.output_rms_summary = self._get_key_value(
+            section=logger.logger_id,
+            data=dict_logger,
+            key="output_rms_summary",
+            attr=logger.output_rms_summary,
+        )
         logger.acc_x_col = self._get_key_value(
             section=logger.logger_id, data=dict_logger, key="acc_x_col", attr=logger.acc_x_col
         )
@@ -840,6 +846,7 @@ class ProjectConfigJSONFile(object):
 
         dict_props["process_integration"] = logger.process_integration
         dict_props["apply_gravity_correction"] = logger.apply_gcorr
+        dict_props["output_rms_summary"] = logger.output_rms_summary
         dict_props["acc_x_col"] = logger.acc_x_col
         dict_props["acc_y_col"] = logger.acc_y_col
         dict_props["acc_z_col"] = logger.acc_z_col

@@ -388,7 +388,7 @@ class ProcessingHub(QObject):
         # SETUP
         bloc_blob_service = None
         t0 = time()
-        data_integration = IntegrateTimeSeries(self.control)
+        ts_integration = IntegrateTimeSeries(self.control)
 
         # Scan loggers to get total # files, list of logger names, files source (local or Azure)
         # and flags for whether stats and spectrograms are to be processed
@@ -409,7 +409,7 @@ class ProcessingHub(QObject):
             logger_id = logger.logger_id
 
             # Initialise integrations object
-            data_integration.set_logger(logger)
+            ts_integration.set_logger(logger)
 
             # Initialise file parameters in case there are no files to process
             j = 0
@@ -458,13 +458,21 @@ class ProcessingHub(QObject):
                 # TIME SERIES INTEGRATION
                 # Acceleration and/or angular rate conversion
                 if logger.process_integration:
-                    out_filename = data_integration.process_file(file, df)
+                    out_filename = ts_integration.process_file(file, df)
+
+                    # Disable flag to detect gravity correction signs after first file is processed
+                    ts_integration.gravity_correction_check = False
                 else:
                     out_filename = ""
 
                 file_count += 1
 
                 # Update progress dialog
+                self.signal_update_output_info.emit([out_filename])
+
+            # Export RMS summary of all logger files, if requested, and update progress dialog
+            if ts_integration.output_rms_summary is True:
+                out_filename = ts_integration.export_rms_summary(logger_id)
                 self.signal_update_output_info.emit([out_filename])
 
         print("Processing complete")

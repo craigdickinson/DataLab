@@ -189,6 +189,9 @@ class LoggerProperties(QObject):
         # Apply gravity correction
         self.apply_gcorr = True
 
+        # Create an RMS summary csv file of displacements and/or angles for all files
+        self.output_rms_summary = True
+
         # Column names to convert
         self.acc_x_col = "Not used"
         self.acc_y_col = "Not used"

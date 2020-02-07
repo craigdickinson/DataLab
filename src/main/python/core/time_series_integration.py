@@ -27,6 +27,9 @@ class IntegrateTimeSeries(object):
         self.butterworth_order = control.butterworth_order
 
         self.apply_g_correction = True
+        self.gravity_correction_check = True
+        self.xg_sign = -1
+        self.yg_sign = -1
 
         # Column names to convert
         self.acc_x_col = "Not used"
@@ -56,10 +59,20 @@ class IntegrateTimeSeries(object):
         self.ang_rate_x_high_cutoff = 2.0
         self.ang_rate_y_high_cutoff = 2.0
 
+        # RMS summary containers and settings
+        self.output_rms_summary = True
+        self.filenames = []
+        self.columns = []
+        self.all_rms = []
+
     def set_logger(self, logger: LoggerProperties):
         """Store conversion settings for logger."""
 
         self.apply_g_correction = logger.apply_gcorr
+        self.gravity_correction_check = True
+        self.xg_sign = -1
+        self.yg_sign = -1
+        self.output_rms_summary = logger.output_rms_summary
 
         # Column names
         self.acc_x_col = logger.acc_x_col
@@ -99,7 +112,6 @@ class IntegrateTimeSeries(object):
         angles_x = None
         angles_y = None
         idx = df.iloc[:, 0]
-
         mm_to_m = 0.001
         rad_to_deg = np.rad2deg(1)
 
@@ -164,8 +176,14 @@ class IntegrateTimeSeries(object):
                 accels *= mm_to_m
 
             if self.apply_g_correction is True and angles_y is not None:
-                # TODO: Add g_sign detection function for the test/first file
-                accels = gravity_correction(accels, angles_y, g_sign=-1)
+                # Test time series to determine correct gravity correction sign
+                # (this is done only for the first logger file)
+                if self.gravity_correction_check is True:
+                    self.xg_sign = self.get_gravity_correction_sign(
+                        accels, angles_y, self.acc_x_low_cutoff, self.acc_x_high_cutoff, idx
+                    )
+
+                accels = gravity_correction(accels, angles_y, g_sign=self.xg_sign)
 
             # Apply filter
             accels = self._filter_time_series(
@@ -186,8 +204,14 @@ class IntegrateTimeSeries(object):
                 accels *= mm_to_m
 
             if self.apply_g_correction is True and angles_x is not None:
-                # TODO: Add g_sign detection function for the test/first file
-                accels = gravity_correction(accels, angles_x, g_sign=1)
+                # Test time series to determine correct gravity correction sign
+                # (this is done only for the first logger file)
+                if self.gravity_correction_check is True:
+                    self.yg_sign = self.get_gravity_correction_sign(
+                        accels, angles_x, self.acc_y_low_cutoff, self.acc_y_high_cutoff, idx
+                    )
+
+                accels = gravity_correction(accels, angles_x, g_sign=self.yg_sign)
 
             # Apply filter
             accels = self._filter_time_series(
@@ -222,9 +246,14 @@ class IntegrateTimeSeries(object):
 
         # Compile new dataframe if at least one column converted
         data = disps_data + angles_data
-        cols = disp_cols + angle_cols
-        if cols:
-            df_int = pd.DataFrame(np.array(data).T, index=idx, columns=cols)
+        self.columns = disp_cols + angle_cols
+        if self.columns:
+            df_int = pd.DataFrame(np.array(data).T, index=idx, columns=self.columns)
+
+            # Append RMS displacements and/or angles to summary
+            if self.output_rms_summary is True:
+                filename = os.path.basename(file)
+                self.add_to_rms_summary(df_int, filename)
 
             # Export to csv
             rel_filepath = export_integrated_time_series(df_int, file, self.output_path)
@@ -261,6 +290,65 @@ class IntegrateTimeSeries(object):
                 df_filt = df
 
             return df_filt.values.flatten()
+
+    def get_gravity_correction_sign(self, accels, angles, low_cutoff, high_cutoff, idx):
+        """
+        Calculate sign to use to remove gravity contamination from accelerations.
+        To get the correct sign we calculate test g-corrected accelerations for +/- g*sign(theta).
+        The sign of the signal that gives the lowest RMS filtered FFT is returned.
+        """
+
+        # Apply gravity correction with + and - signs
+        accels_neg = gravity_correction(accels, angles, g_sign=-1)
+        accels_pos = gravity_correction(accels, angles, g_sign=1)
+
+        # Calculate filter signals (using filtered signal may not strictly be necessary to determine the correct sign
+        # but gives a stronger signal for detection)
+        accels_neg_filt = self._filter_time_series(
+            x=idx, y=accels_neg, low_cutoff=low_cutoff, high_cutoff=high_cutoff,
+        )
+        accels_pos_filt = self._filter_time_series(
+            x=idx, y=accels_pos, low_cutoff=low_cutoff, high_cutoff=high_cutoff,
+        )
+
+        # RMS of test g-corrected accelerations (correct one will have minimum RMS)
+        rms_acc_neg = calc_rms(accels_neg_filt)
+        rms_acc_pos = calc_rms(accels_pos_filt)
+
+        # Index of min RMS
+        g_sign = np.argmin([rms_acc_neg, rms_acc_pos])
+
+        # Map index to required sign
+        if g_sign == 0:
+            g_sign = -1
+
+        return g_sign
+
+    def add_to_rms_summary(self, df, filename):
+        """Calculate RMS of dataframe and append to store."""
+
+        rms_data = calc_rms(df.values)
+        self.all_rms.append(rms_data)
+        self.filenames.append(filename)
+
+    def export_rms_summary(self, logger_id):
+        """Export displacements and/or angles RMS summary to csv."""
+
+        df = pd.DataFrame(self.all_rms, index=self.filenames, columns=self.columns)
+        df.index.name = "Filename"
+        filename = f"{logger_id} RMS Summary.csv"
+        filepath = os.path.join(self.output_path, filename)
+        df.to_csv(filepath)
+
+        # Relative file path to report in progress bar
+        parent_folder = os.path.basename(self.output_path)
+        rel_filepath = os.path.join(parent_folder, filename)
+
+        return rel_filepath
+
+
+def calc_rms(data):
+    return np.sqrt(np.mean(data ** 2, axis=0))
 
 
 def integration_transform(n, d):
@@ -330,6 +418,7 @@ def export_integrated_time_series(df, src_filepath, output_path):
     df.to_csv(filepath)
 
     # Relative file path to report in progress bar
-    rel_filepath = os.path.join("Displacements and Angles", folder, filename)
+    parent_folder = os.path.basename(output_path)
+    rel_filepath = os.path.join(parent_folder, folder, filename)
 
     return rel_filepath

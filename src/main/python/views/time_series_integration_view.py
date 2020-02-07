@@ -172,6 +172,12 @@ class EditIntegrationSetupDialog(QtWidgets.QDialog):
         self.copyLogger.addItem("-")
         self.copyLoggerButton = QtWidgets.QPushButton("&Copy")
 
+        # Check boxes and output folder
+        self.applyGCorr = QtWidgets.QCheckBox("Apply gravity correction")
+        self.outputRMSSummary = QtWidgets.QCheckBox("Output logger RMS summary")
+        self.integrationFolder = QtWidgets.QLineEdit()
+        self.integrationFolder.setFixedWidth(200)
+
         # Column selectors
         self.accXCombo = QtWidgets.QComboBox()
         self.accXCombo.setFixedWidth(200)
@@ -224,11 +230,6 @@ class EditIntegrationSetupDialog(QtWidgets.QDialog):
         self.angRateXHighCutoff.setFixedWidth(40)
         self.angRateYHighCutoff = QtWidgets.QLineEdit("2.0")
         self.angRateYHighCutoff.setFixedWidth(40)
-
-        # General inputs
-        self.applyGCorr = QtWidgets.QCheckBox("Apply gravity correction")
-        self.integrationFolder = QtWidgets.QLineEdit()
-        self.integrationFolder.setFixedWidth(200)
 
         # Labels
         lblCopy = QtWidgets.QLabel("Logger settings to copy (optional):")
@@ -305,6 +306,7 @@ class EditIntegrationSetupDialog(QtWidgets.QDialog):
         self.grid.addWidget(self.angRateYHighCutoff, 6, 4)
 
         self.setupForm = QtWidgets.QFormLayout()
+        self.setupForm.addRow(self.outputRMSSummary)
         self.setupForm.addRow(lblIntegrationFolder, self.integrationFolder)
 
         self.buttonBox = QtWidgets.QDialogButtonBox(
@@ -335,6 +337,7 @@ class EditIntegrationSetupDialog(QtWidgets.QDialog):
 
         # Set gravity correction and output folder
         self.applyGCorr.setChecked(logger.apply_gcorr)
+        self.outputRMSSummary.setChecked(logger.output_rms_summary)
         self.integrationFolder.setText(self.control.integration_output_folder)
 
         # Ned to clear combo boxes if copying settings from another logger
@@ -423,6 +426,7 @@ class EditIntegrationSetupDialog(QtWidgets.QDialog):
         # Retrieve control logger to map confirmed settings to
         logger = self.control.loggers[self.logger_idx]
         logger.apply_gcorr = self.applyGCorr.isChecked()
+        logger.output_rms_summary = self.outputRMSSummary.isChecked()
         self.control.integration_output_folder = self.integrationFolder.text()
 
         # Channels to convert
