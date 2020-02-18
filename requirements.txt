@@ -51,7 +51,7 @@ pbr==5.4.1
 pefile==2019.4.18
 pep8==1.7.1
 pickleshare==0.7.5
-Pillow==6.1.0
+Pillow==6.2.0
 pluggy==0.12.0
 pox==0.2.7
 ppft==1.6.6.1
